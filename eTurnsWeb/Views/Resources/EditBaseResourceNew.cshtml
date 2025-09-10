@@ -1,0 +1,1019 @@
+﻿@using eTurns.DTO.Resources;
+@{
+    ViewBag.Title = ResResourceEditor.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplayUDFButton = true };
+    string ResourcesPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Resources.pdf", DateTime.Now.Ticks);
+    Int64 CurrentUserRoleID = eTurnsWeb.Helper.SessionHelper.RoleID;
+
+    //System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    int ResourceSaveMethod = (int)ResourceSave.ButtonSave;
+    //if(Settinfile != null && Settinfile.Element("ResourceSave") != null) 
+    //{
+    //    ResourceSaveMethod = Convert.ToInt32(Settinfile.Element("ResourceSave").Value);
+    //}
+
+    if (eTurns.DTO.SiteSettingHelper.ResourceSave  != string.Empty)
+    {
+        ResourceSaveMethod = Convert.ToInt32(eTurns.DTO.SiteSettingHelper.ResourceSave);
+    }
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Resources", (int)HelpDocType.Module);
+}
+<div class="userListingWrapper">
+    <h2>
+        @ResResourceEditor.PageHeaderBaseResourceEditor
+    </h2>
+    <div class="Infoclass" id="divinfoList" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="fieldIcon">
+        <a href="#" id="aCopy" style="display: none;">
+            <img alt="copy" src='@Url.Content("/Content/images/copy.png")' />
+        </a>
+    </div>
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99%">
+            @using (Html.BeginForm("Download", "Resources", FormMethod.Post, new { @id = "frmDownLoad" }))
+            {
+                @Html.AntiForgeryToken()
+                <div class="userContent" style="padding-left: 5px; width: 99%;">
+                    <div class="userHead" style="margin: 0.5% 0.5% 0; width: 99%">
+                        <div class="editorForm" style="width: 98%">
+                            <ul>
+                                <li style="float: left;">
+                                    <div class="editor-label" style="width: 7%; float: left; padding: 0">
+                                        @Html.Label(ResResourceEditor.Language)
+                                    </div>
+                                    <div class="editor-field" style="width: 18%; float: left;">
+                                        @Html.DropDownList("ddlResEditorLanguage", (List<SelectListItem>)ViewBag.DDLanguage, new { @style = "width:85%", @class = "selectBox" })
+                                    </div>
+                                    <div class="editor-label" style="width: 7%; float: left; padding: 0">
+                                        @Html.Label(ResResourceEditor.Mdodules)
+                                    </div>
+                                    <div class="editor-field" style="width: 18%; float: left;">
+                                        @Html.DropDownList("ddlResourceModule", (List<SelectListItem>)ViewBag.DDLModuleMaster, new { @style = "width:85%", @class = "selectBox" })
+                                    </div>
+                                    <div class="editor-label" style="width: 7%; float: left; padding: 0">
+                                        @Html.Label(ResResourceEditor.Resources)
+                                    </div>
+                                    <div class="editor-field" style="width: 18%; float: left;">
+                                        @Html.DropDownList("ddlResourceFile", (List<SelectListItem>)ViewBag.DDLResourceFile, new { @style = "width:85%", @class = "selectBox" })
+                                    </div>
+                                    <div class="editor-label" style="width: 1%; float: left;">
+                                        &nbsp;
+                                    </div>
+                                    <div class="editor-field" style="width: 10%; float: left; display: block">
+                                        <input type="button" value="@ResResourceEditor.Load" style="display:none;" id="btnDownload" name="btnDownload" />
+                                        <a href="javascript:void(0);" id="aExportResource" target="_blank">
+                                            <input type="button" class="CreateBtn" value="@ResResourceEditor.Export" id="btnExport" name="btnExport" />
+                                        </a>
+                                        <input type="button" class="CreateBtn" value="@ResResourceEditor.Import" id="btnImportResource" name="btnImportResource" />
+                                        &nbsp;
+                                        <input type="button" class="CreateBtn" value="@ResResourceEditor.ImportNewResourceFile" style="display:none;" id="btnImportNewResource" name="btnImportNewResource" />
+                                    </div>
+                                    <div class="editor-label" style="width: 25%; float: left;">
+                                        &nbsp;
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            }
+            @*<div class="vertBlueBg">&nbsp;</div>*@
+            <div class="searchWrapper">
+                <div class="searchBlock" style="margin-left: 10px;">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="resource_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_resource_filter" />
+                        </a>
+                    </div>
+                    @*<input type="button" value="Search" class="searchBtn" />*@
+                </div>
+            </div>
+            @Html.GridTopHeaderForResources(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.ResourceMaster)
+            <form id="frmBaseResource" method="post">
+                @Html.AntiForgeryToken()
+                <div class="userContent" style="padding-left: 5px; width: 99%;">
+                    <div class="BtnBlockform" style="margin-left: 5px;">
+                        @if (ResourceSaveMethod == (int)ResourceSave.ButtonSave)
+                        {
+                            <input type="button" value="@ResCommon.Save" id="btnSave" name="btnSaveUp" class="CreateBtn" style="float: left;" />
+                        }
+                        <input type="button" value="@ResCommon.Cancel" id="btnCancel" name="btnCancelUp" class="CreateBtn"
+                               style="float: left;" />
+                        <input type="button" value="@ResCommon.BulkEdit" id="btnBulkEditUp" name="btnBulkEditUp" class="CreateBtn"
+                               style="float: left;" />
+                        <input type="button" value="@ResCommon.AddNew" id="btnAdd" name="btnAdd" class="CreateBtn"
+                               style="float: left;" />
+                        @*<input type="button" value="@ResCommon.AddNonExistsKey" id="AddNonExistsKey" name="AddNonExistsKey" class="CreateBtn"
+                               style="float: left;" />*@
+                    </div>
+                    <table id="myResourceDataTable" class="display">
+                        <thead>
+                            <tr>
+                                @*<th style="width: 0%; visibility:hidden">
+                                    @eTurns.DTO.Resources.ResCommon.ID
+                                </th>*@
+                                <th style="width: 20%">
+                                    @ResResourceEditor.ResourceKey
+                                </th>
+                                <th style="width: 50%">
+                                    @ResResourceEditor.ResourceValue <span style="font-size: 11px; font-weight: normal;">
+                                        @ResResourceEditor.DoubleClickToEditValue
+                                    </span>
+                                </th>
+                                <th style="width: 10%">
+                                    @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                                </th>
+                                <th style="width: 10%">
+                                    @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                                </th>
+                                @if (CurrentUserRoleID == -1)
+                                {
+                                    <th style="width: 10%; ">
+                                        <input type="checkbox" id="chkAllselect" onchange="SelectAllCheckBox('myResourceDataTable',this);" />
+                                        @ResResourceEditor.AcrossETurns
+                                    </th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <div id="processing_message" style="display: none" title="Processing">
+                        @ResMessage.RequestProcessMessage
+                    </div>
+                </div>
+                <div class="editorForm" id="divbtnBlock" style="display: none; width: 98.5% !important;">
+                    <ul>
+                        <li>
+                            <div class="BtnBlockform" style="margin-left: 5px;">
+                                @if (ResourceSaveMethod == (int)ResourceSave.ButtonSave)
+                                {
+                                    <input type="button" value="@ResCommon.Save" id="btnSave" name="btnSave" class="CreateBtn" style="float: left;" />
+                                }
+                                <input type="button" value="@ResCommon.Cancel" id="btnCancel" name="btnCancel" class="CreateBtn"
+                                       style="float: left;" />
+                                <input type="button" value="@ResCommon.BulkEdit" id="btnBulkEdit" name="btnBulkEdit" class="CreateBtn"
+                                       style="float: left;" />
+                                <input type="hidden" value="0" id="hdIsEdit" />
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="dialog" id="ResetResourceModal" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResResourceEditor.ResetResourceConfirmMsg
+        </p>
+        <a href="JavaScript:void{}" id="btnResetResourceModelYes" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="#" class="no" onclick="closeModal()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<div id="divImport" style="display: block;">  
+    @using (Html.BeginForm("ImportBaseResources", "Resources", FormMethod.Post, new { @enctype = "multipart/form-data", @id = "frmImportReource" }))
+    {
+        @Html.AntiForgeryToken()
+    <div>
+        @ResCommon.Module: <span style="font-weight: bold" id="spnModuleName"></span>&nbsp;&nbsp;&nbsp
+        @ResResourceEditor.Page <span style="font-weight: bold" id="spnPageName"></span>
+        <br />
+        <br />
+        <br />
+        <label>
+            @ResResourceEditor.SelectResourceFile
+        </label>
+        &nbsp;&nbsp;&nbsp;
+        <input type="file" name="fuResource" id="fuResource" />
+
+        <input type="hidden" name="hdnSelectedLanguageID" id="hdnSelectedLanguageID" value="" />
+        <input type="hidden" name="hdnSelectedLanguage" id="hdnSelectedLanguage" value="" />
+
+        <input type="hidden" name="hdnModuleID" id="hdnModuleID" value="" />
+        <input type="hidden" name="hdnModuleName" id="hdnModuleName" value="" />
+
+        <input type="hidden" name="hdnResourcePageID" id="hdnResourcePageID" value="" />
+        <input type="hidden" name="hdnResourceFileName" id="hdnResourceFileName" value="" />
+
+        <input type="hidden" name="hdnReturnURL" id="hdnReturnURL" value="" />
+        <input type="hidden" name="hdnResourceType" id="hdnResourceType" value="ETURNSBASE" />
+        <br />
+        <input type="submit" class="CreateBtn" value="ImportNew" id="btnSubmitResourceFile"
+               name="btnSubmitResourceFile" />
+    </div>
+    }
+</div>
+
+<div id="divImportNewFile" style="display: block;">
+    @using (Html.BeginForm("ImportNewResourcesFile", "Resources", FormMethod.Post, new { @enctype = "multipart/form-data", @id = "frmImportNewReourceFile" }))
+    {
+        @Html.AntiForgeryToken()
+        <div>
+            @ResCommon.Module: <span style="font-weight: bold" id="spnModuleName"></span>&nbsp;&nbsp;&nbsp
+            @ResResourceEditor.Page <span style="font-weight: bold" id="spnPageName"></span>
+            <br />
+            <br />
+            <label>
+                @ResResourceEditor.SelectResourceFile
+            </label>
+            &nbsp;&nbsp;&nbsp;
+            <input type="file" name="fuResource" id="fuResource" />
+            <input type="hidden" name="hdnModuleID" id="hdnModuleID" value="" />
+            <input type="hidden" name="hdnModuleName" id="hdnModuleName" value="" />
+            <input type="hidden" name="hdnSelectedLanguage" id="hdnSelectedLanguage" value="" />
+            <input type="hidden" name="hdnResourceFileName" id="hdnResourceFileName" value="" />
+            <input type="hidden" name="hdnReturnURL" id="hdnReturnURL" value="" />
+            <input type="hidden" name="hdnResourceType" id="hdnResourceType" value="ETURNSBASE" />
+            <br />
+            <input type="submit" class="CreateBtn" value="Import Company Resource" id="btnSubmitNewCompanyResourceFile"
+                   name="btnSubmitNewCompanyResourceFile" />
+            @*<input type="submit" class="CreateBtn" value="Import Enterprise Resource" id="btnSubmitNewEnterpriseResourceFile"
+                       name="btnSubmitNewEnterpriseResourceFile" />
+                <input type="submit" class="CreateBtn" value="Import Room Resource" id="btnSubmitNewRoomResourceFile"
+                       name="btnSubmitNewRoomResourceFile" />*@
+        </div>
+    }
+</div>
+
+<div id="AddNewResourceDialogue">
+
+</div>
+<script language="javascript" type="text/javascript">
+    var UserCanSeeCheckBox = false;
+    $('div.userHead').children('div.BtnBlock').children('div.print').remove();
+
+    $('#btnImportNewResource').on('click', function () {
+
+        var moduleID = $('#ddlResourceModule').val();
+        var reourceFile = $('#ddlResourceFile').val();
+        var selectedLangujage = $('#ddlResEditorLanguage option:selected').text();
+        var selectedModuleName = $('#ddlResourceModule option:selected').text();
+        if (selectedModuleName.length <= 0) {
+            selectedModuleName = $('#ddlResourceModule option:first').text();
+        }
+
+        $('#frmImportNewReourceFile').find('#hdnModuleID').val(moduleID);
+        $('#frmImportNewReourceFile').find('#hdnModuleName').val(selectedModuleName);
+        $('#frmImportNewReourceFile').find('#hdnSelectedLanguage').val(selectedLangujage);
+        $('#frmImportNewReourceFile').find('#hdnResourceFileName').val(reourceFile);
+        $('#frmImportNewReourceFile').find('#hdnReturnURL').val(window.location);
+        $('#frmImportNewReourceFile').find('#spnModuleName').text(selectedModuleName);
+        $('#frmImportNewReourceFile').find('#spnPageName').text(reourceFile)
+        $('#divImportNewFile').dialog('open');
+    });
+
+    $('#btnImportResource').live('click', function () {
+        
+         
+        var selectedLanguageID = $('#ddlResEditorLanguage').val();
+        var selectedLanguage = $('#ddlResEditorLanguage option:selected').text();
+
+        var moduleID = $('#ddlResourceModule').val();
+        var selectedModuleName = $('#ddlResourceModule option:selected').text();
+
+        var reourcePageID = $('#ddlResourceFile').val();
+        var reourceFile = $('#ddlResourceFile option:selected').text();
+        
+        
+        if (selectedModuleName.length <= 0) {
+            selectedModuleName = $('#ddlResourceModule option:first').text();
+        }
+
+        $('#frmImportReource').find('#hdnSelectedLanguageID').val(selectedLanguageID);
+        $('#frmImportReource').find('#hdnSelectedLanguage').val(selectedLanguage);
+        
+        $('#frmImportReource').find('#hdnModuleID').val(moduleID);
+        $('#frmImportReource').find('#hdnModuleName').val(selectedModuleName);
+        $('#frmImportReource').find('#spnModuleName').text(selectedModuleName);
+
+        $('#frmImportReource').find('#hdnResourcePageID').val(reourcePageID);
+        $('#frmImportReource').find('#hdnResourceFileName').val(reourceFile);
+        $('#frmImportReource').find('#spnPageName').text(reourceFile)
+
+        $('#frmImportReource').find('#hdnReturnURL').val(window.location);
+        $('#divImport').dialog('open');
+    });
+    $("#btnAdd").click(function () {
+        $("div#AddNewResourceDialogue").dialog({
+
+            height: 350,
+            width: 500,
+
+            open: function () {
+
+                var ResourceModule = $("select#ddlResourceModule").val();
+                var ResourceFileName = $("select#ddlResourceFile").val();
+                var language = $("select#ddlResEditorLanguage").val();
+                //$(this).load("AddResourceOpen?lang=" + language + "&module=" + ResourceModule + "&page=" + ResourceFileName);
+                $(this).load("AddBaseResourceOpen?lang=" + language + "&module=" + ResourceModule + "&page=" + ResourceFileName);
+            },
+            close: function (response) {
+                //CallThisFunctionFromModel('success');
+
+            }
+        });
+    });
+    $("#AddNonExistsKey").click(function () {
+        var language = "en-US";
+        var module = $("select#ddlResourceModule").val();
+        var pageResourceFileName = $("select#ddlResourceFile").val();
+        $.ajax({
+            url: "CheckResourcesAllEnterprise?language=" + language + "&module=" + module + "&pageResourceFileName=" + pageResourceFileName,
+
+            contentType: 'json',
+            type: "POST",
+            success: function () {
+                alert("Saved Succesfully...!!!!!!");
+            },
+            error: function () {
+                alert("Error!!!!!!");
+            }, complete: function () {
+                ClearResourceSession(true);
+                $("#AddNewResourceDialogue").dialog("close");
+            }
+        });
+    });
+
+    $('#aExportResource').live('click', function () {
+        var moduleID = $('#ddlResourceModule').val();
+        var moduleDetailID = $('#ddlResourceFile').val();
+        var url = '@Url.Content("~/Resources/ExportBaseResources")' + "?ModuleId=" + moduleID + "&ModuleDetailID=" + moduleDetailID + "&ResType=ETURNSBASE";
+        $(this).attr('href', url);
+        return true;
+    });
+
+    function PrintResources() {
+        //declare the oConfig variable
+        var oConfig = {
+            "sInfo": "<h6>Print view</h6><p>Please use your browser's print function to " +
+		    "print this table. Press escape when finished.",
+            "sMessage": null,
+            "bShowAll": false,
+            "sToolTip": "View print view",
+            "sButtonClass": "DTTT_button_print",
+            "sButtonText": "Print"
+        };
+
+        //Get the current instance and intialize the print
+        if (typeof (TableTools) != undefined && typeof (TableTools) != 'undefined')
+            TableTools.fnGetInstance("myResourceDataTable").fnPrint(true, oConfig);
+    }
+
+    var oTable;
+    var IsRefreshGrid = false;
+    var PostCount = 0;
+    var AllowDeletePopup = false;
+    var changedResourceValue = '';
+    var changedResourceKey = '';
+    var IsDeletePopupOpen = false;
+    var Idreadonly = "";
+
+    Idreadonly = "alignLeft";
+
+    $("#btnDownload").click(function () {
+        ClearResourceSession(true);
+    });
+    function ShowEditError(errorText, action) {
+
+    }
+    $('#myResourceDataTable tbody tr').live('click', function () {
+        $(this).removeClass('row_selected');
+    });
+
+    $('#ddlResourceFile').change(function () {
+        var selectedVal = $('#ddlResourceFile option:selected').attr('value');
+        ClearResourceSession(true);
+    });
+
+    $('#ddlResEditorLanguage').change(function () {
+        var selectedVal = $('#ddlResEditorLanguage option:selected').attr('value');
+        ClearResourceSession(true);
+    });
+
+    $('#ddlResourceModule').change(function () {
+         
+        var selectedVal = $('#ddlResourceModule option:selected').attr('value');
+        ClearResourceSession(true);
+
+        $.ajax({
+            url: '@Url.Content("~/Resources/GetBaseResourceModule")'
+                , type: 'GET'
+                , data: { 'ModuleID': selectedVal }
+                , contentType: "application/json"
+                , success: function (result) {
+                    
+                    var items = "";
+                    $.each(result, function (i, result) {
+                        if ('@(Request.QueryString["page"])' == result.Value) {
+                            items += "<option value='" + result.Value + "' selected='true' >" + result.Text + "</option>";
+                        }
+                        else {
+                            items += "<option value='" + result.Value + "'>" + result.Text + "</option>";
+                        }
+                    });
+                    $("#ddlResourceFile").html(items);
+                    ClearResourceSession(true);
+                }
+                , error: function (msg) {
+                }
+        });
+
+    });
+
+    function ClearResourceSession(IsFillGrid) {
+        $.ajax({
+            url: '@Url.Content("~/Resources/ClearCurrenteTurnsBaseResourceList")'
+                        , type: 'GET'
+                        , cache: false
+                        , success: function (result) { if (IsFillGrid) { $('#myResourceDataTable').dataTable().fnDraw(); } }
+                        , error: function (msg) { }
+        });
+    }
+
+    $('#btnSave,#btnSaveUP').click(function () {
+        var arrItems = new Array();
+        arrItems = GetResourceGridData('myResourceDataTable');
+        $.ajax({
+            url: '@Url.Content("~/Resources/SaveETurnsBaseResources")'
+                        , type: 'POST'
+                        , cache: false
+                        , data: { 'SelectedLanguage': $("#ddlResEditorLanguage").val(), 'SelectedModule': $("#ddlResourceModule").val(), 'SelectedResourcePage': $("#ddlResourceFile").val(), 'arrItems': JSON.stringify(arrItems) }
+                        , success: function (response) {
+                            $('#chkAllselect').prop('checked', false);
+                            showNotificationDialog();
+                            $("#spanGlobalMessage").html(response.Message);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                            ClearResourceSession(true);
+                        }
+                        , error: function (response) {
+                            $("#spanGlobalMessage").html(response.Message);
+                            showNotificationDialog();
+                        }
+        });
+        $('#hdIsEdit').val('');
+        $('#btnBulkEdit').html("@ResCommon.BulkEdit");
+        $('#btnBulkEditUp').html("@ResCommon.BulkEdit");
+        $('#myResourceDataTable').dataTable().fnDraw();
+    });
+
+
+
+
+    //This function for copy all resource files from master folder to all compay directories
+    $('#aCopy').click(function () {
+        $.ajax({
+            "url": '@Url.Content("~/Resources/RewriteAllResourceFilesToCompanyDirectory")',
+            "type": "POST",
+            data: { 'EnterpriceID': '1', 'CompanyID': '1' },
+            "async": false,
+            "cache": false,
+            "dataType": "json",
+            "success": function (json) {
+                alert(json);
+            }
+        });
+    });
+
+    $('#btnReset').click(function () {
+        AllowDeletePopup = true
+        IsDeletePopupOpen = true
+        $('#ResetResourceModal').modal();
+    });
+
+    function SaveResourceFile(obj) {
+        var resValue = $(obj).val();
+        var val1 = obj.parentNode.parentNode.children[1].innerHTML;   
+        var RChkAcross = $('#chkAccrossEnt').is(':checked');
+
+        $.ajax({
+            url: '@Url.Content("~/Resources/UpdateDataIneTurnsBaseResource")'
+                                        , type: 'GET'
+                                        , cache: false
+                                        //, data: { 'changedKey': obj.parentNode.parentNode.children[0].innerHTML, 'changedValue': $(obj).val() }
+                                        , data: { 'ID': $(obj.parentNode.parentNode).attr("ID"), 'changedKey': obj.parentNode.parentNode.children[0].innerHTML, 'changedValue': $(obj).val(), 'AccrossEnt': RChkAcross, 'IsEdit': '' }
+                                        , success: function (result) {
+                                        }
+                                        , error: function (xhr) {
+                                            alert(xhr);
+                                        }
+        });
+    }
+    function GetResourceGridData(objdataTable) {
+        var arrItems = new Array();
+        $('#' + objdataTable + ' tbody tr').each(function () {
+            var RKey = '';
+            var RValue = '';
+            var RChkAcross = '';
+            var i = 0;
+
+            var ResID = $(this).find('input[type="hidden"][id="ResID"]').val();
+            var ResValue = $(this).find('input[type="text"][id="txtvalue"]').val();
+            $(this).find('td').each(function () {
+                i += 1;
+                if (i == 1) {
+                    RKey = $(this).html().replace('<span class="highlight">', '').replace('</span>', '');
+                }
+                if (i == 2) {
+                    if (ResValue != undefined && ResValue != "undefined") {
+                        RValue = ResValue;
+                    }
+                    else {
+                        //RValue = $(this).html().replace('<span class="highlight">', '').replace('</span>', '').replace('<input type="text" id="txtvalue" style="width:100%" maxlength="250" class="text-boxinner valid" value="', '').replace('" onblur="SaveResourceFile(this);"', '').replace(' autocomplete="off">', '').replace('onblur=\"SaveResourceFile(this);\">', '').replace('<input type="text" id="txtvalue" style="width:100%" maxlength="250" class="text-boxinner" value="', '').replace('>', '');
+                        RValue = $(this).html().replace('<span class="highlight">', '').replace('</span>', '');
+                    }
+                }
+                if (i == 5) {
+                    RChkAcross = $(this).find('input:checkbox').is(':checked');
+                }
+                else if ($(this).find('input:checkbox').is(':checked') != undefined && $(this).find('input:checkbox').is(':checked') != "undefined") {
+                    RChkAcross = $(this).find('input:checkbox').is(':checked');
+                }
+            });
+            var data = { "ID": ResID, "ResourceKey": RKey, "ResourceValue": RValue, "chkvalue": RChkAcross };
+            arrItems.push(data);
+        });
+        return arrItems;
+    }
+    
+    $('#btnResetResourceModelYes').click(function () {
+
+        $.ajax({
+            url: '@Url.Content("~/Resources/ResetBaseResourceFile")'
+                        , type: 'POST'
+                        , cache: false
+                        , data: { 'SelectedResourceFile': $("#ddlResourceFile").val(), 'SelectedCulter': $("#ddlResEditorLanguage").val(), 'SelectedModule': $("#ddlResourceModule option:selected").text() }
+                        , success: function (response) {
+                            ClearResourceSession(true);
+                            closeModal();
+                            showNotificationDialog();
+                            $("#spanGlobalMessage").html(response.Message);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                            ClearResourceSession(true);
+                        }
+                        , error: function (message) {
+                            closeModal();
+                            $("#spanGlobalMessage").html(message.statusText);
+                            showNotificationDialog();
+                        }
+        });
+    });
+    $('#btnCopyNewResource').click(function () {
+
+        $.ajax({
+            url: '@Url.Content("~/Resources/CopyNewResourceToFile")'
+                        , type: 'POST'
+                        , cache: false
+                        , data: { 'SelectedResourceFile': $("#ddlResourceFile").val(), 'SelectedCulter': $("#ddlResEditorLanguage").val(), 'SelectedModule': $("#ddlResourceModule option:selected").text() }
+                        , success: function (response) {
+                            ClearResourceSession(true);
+                            closeModal();
+                            showNotificationDialog();
+                            $("#spanGlobalMessage").html(response.Message);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                            ClearResourceSession(true);
+                        }
+                        , error: function (message) {
+                            closeModal();
+                            $("#spanGlobalMessage").html(message.statusText);
+                            showNotificationDialog();
+                        }
+        });
+    });
+
+    function closeModal() {
+        AllowDeletePopup = false
+        IsDeletePopupOpen == false
+        $.modal.impl.close();
+    }
+
+    /* global search function */
+    function fnFilterGlobal() {
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#resource_filter") != 'undefined' && ($("#resource_filter").val().length > 2 || $("#resource_filter").val().length == 0)) {
+            var searchtext = $("#resource_filter").val().replace(/'/g, "''");
+            $('#myResourceDataTable').dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+        }
+        else {
+            $('#myResourceDataTable td').removeHighlight();
+            $('#myResourceDataTable td').highlight($("#resource_filter").val());
+        }
+    }
+
+    //Apply filter
+
+    $("#resource_filter").keyup(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+        }
+        else {
+            fnFilterGlobal();
+        }
+    });
+
+    $("#resource_filter").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            var searchtext = $("#resource_filter").val().replace(/'/g, "''");
+            $('#myResourceDataTable').dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+            return false;
+        }
+    });
+
+    //Clear Filter
+    $("#clear_resource_filter").click(funClearFilter);
+
+    function funClearFilter() {
+        //Check length first
+        if ($("#resource_filter").val().length > 0) {
+            $("#resource_filter").val('');
+            $('#myResourceDataTable').dataTable().fnFilter(
+                            $("#resource_filter").val(),
+                            null,
+                            null,
+                            null
+                        );
+        }
+        $("#resource_filter").focus();
+        return false;
+    }
+    /* DATA TABLE GRID COMMON FUNCTIONS END */
+    $(document).keyup(function (e) {
+        if (AllowDeletePopup) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 46) {
+            }
+            if (code == 89 && IsDeletePopupOpen == true) {
+                $('#btnResetResourceModelYes').click();
+            }
+            else if (code == 78 && IsDeletePopupOpen == true) {
+                closeModal();
+            }
+        }
+    });
+
+    var ColumnObject = new Array();
+    $('#btnBulkEdit,#btnBulkEditUp').click(function () {
+        var varIsEdit = $('#hdIsEdit').val();
+        if (varIsEdit === '1') {
+            $('#hdIsEdit').val('');
+            $('#btnBulkEdit').html("@ResCommon.BulkEdit");
+            $('#btnBulkEditUp').html("@ResCommon.BulkEdit");
+        }
+        else {
+            $('#hdIsEdit').val('1');
+            $('#btnBulkEdit').html("@ResCommon.SingleEdit");
+            $('#btnBulkEditUp').html("@ResCommon.SingleEdit");
+        }
+        $('#myResourceDataTable').dataTable().fnDraw();
+        $('#chkAllselect').prop('checked', false);
+    });
+
+    $('#btnCancel, #btnCancelUP').click(function () {
+
+        ClearResourceSession(true);
+        $('#hdIsEdit').val('');
+        $('#btnBulkEdit').html("@ResCommon.BulkEdit");
+        $('#btnBulkEditUp').html("@ResCommon.BulkEdit");
+        $('#myResourceDataTable').dataTable().fnDraw();
+        $('#chkAllselect').prop('checked', false); 
+
+    });
+
+
+    $(document).ready(function () {
+        if ('@CurrentUserRoleID' == '-1') {
+            UserCanSeeCheckBox = true;
+        }
+        $('#DivLoading').hide().ajaxStart(function () { $(this).show(); }).ajaxStop(function () { $(this).hide(); });
+        $('form').areYouSure();
+        if ('@(HttpContext.Current.Request.QueryString.Count <= 0)' == 'True') {
+            //$("#ddlResEditorLanguage").val('@eTurns.DTO.Resources.ResourceHelper.CurrentCult');
+        }
+        else {
+            $('#ddlResourceModule').change();
+        }
+
+        ClearResourceSession(false);
+        var gaiSelected = [];
+
+        oTable = $('#myResourceDataTable').dataTable({
+            "bJQueryUI": true,
+            //"sDom": 'rti',
+            "sDom": 'rti<"clear">T',
+            "bProcessing": false,
+            "bStateSave": false,
+            "oLanguage": {
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+
+                var varIsEdit = $('#hdIsEdit').val();
+                if (varIsEdit === '1') {
+                    $(nRow).find('td').each(function () {
+                        $(this).removeClass('Idreadonly')
+                        $(this).addClass('read_only');
+                        $(this).className = 'read_only';
+                    });
+                }
+
+                return nRow;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Resources/LoadBaseGridState")',
+                    "type": "POST",
+                    data: { ListName: 'ENTResource' },
+                    "async": false,
+                    "cache": false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        o = JSON.parse(json.jsonData);
+
+                    }
+                });
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Content("~/Resources/GetBaseResourceListNew")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+
+                PostCount = PostCount + 1;
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting.length != 0)
+                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "resourcefile", "value": $("#ddlResourceFile").val() });
+                aoData.push({ "name": "resourcelang", "value": $("#ddlResEditorLanguage").val() });
+                aoData.push({ "name": "resourcemodule", "value": $("#ddlResourceModule option:selected").text() });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    "data": aoData,
+                    "headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "cache": false,
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('#myResourceDataTable td').removeHighlight();
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                        if ($("#resource_filter").val() != '') {
+                            $('#myResourceDataTable td').highlight($("#resource_filter").val());
+                        }
+                        $('#myResourceDataTable_info').html('');
+                        if ($('#myResourceDataTable tbody tr').length > 0) {
+                            var totalRow = $('#myResourceDataTable tbody tr').length;
+                            $('#divbtnBlock').attr("style", "display:inline;width:98.5%");
+                            $('#myResourceDataTable tbody tr').each(function () {
+
+                                var keyName = $(this).find("td:first").text();
+                                if (keyName == changedResourceKey) {
+                                    $(this).find("td:first").next().text(changedResourceValue);
+                                    changedResourceValue = '';
+                                    changedResourceKey = '';
+                                }
+                            });
+                            //$('#myResourceDataTable_info').text('1 - ' + totalRow + ' of ' + totalRow);
+                            var noofrec = '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries';
+                            noofrec = noofrec.replace(/_START_/g, "1")
+                            noofrec = noofrec.replace(/_END_/g, totalRow)
+                            noofrec = noofrec.replace(/_TOTAL_/g, totalRow)
+                            $('#myResourceDataTable_info').html(noofrec);
+                        }
+                        changedResourceValue = '';
+                        changedResourceKey = '';
+
+                        $('#myResourceDataTable').css('width', '');
+                    }
+                })
+            }
+            ,
+            "aoColumns": [
+            // {"mDataProp": "ID", "sClass": "read_only alignLeft", "sWidth": "30%"},
+            /*{ "mDataProp": "ResourceKey", "sClass": "read_only alignLeft", "sWidth": "30%", 
+            "fnRender": function (obj, val) {
+            return "<input type='hidden' id='KeyID' value='" + obj.aData.ID.toString() + "' />";
+            }
+            },*/
+                          {"mDataProp": "ResourceKey", "sClass": "read_only alignLeft", "sWidth": "20%"
+                          /*"fnRender": function (obj, val) {
+                          return "<span>" + obj.aData.ResourceKey + "</span> <input type='hidden' id='KeyID' value='" + obj.aData.ID + "' />   ";
+                          }*/
+                      },
+                          { "mDataProp": "ResourceValue", "sClass": "Idreadonly", "sDefaultContent": '', bSortable: false, bSearchable: false
+                            , "fnRender": function (obj, val) {
+                                var varIsEdit = $('#hdIsEdit').val();
+                                if (varIsEdit === '1') {
+                                    return "<input type='text' id='txtvalue' style='width:80%' maxLength='250' class='text-boxinner' value='" + val + "' onchange='SaveResourceFile(this);' /> ";
+                                }
+                                else
+                                    return val;
+                            }
+                          },
+            //
+                        {"mDataProp": "UpdatedByName", "sClass": "read_only", "sWidth": "10%", "sDefaultContent": '',
+                        "fnRender": function (obj, val) {
+                            return "<span>" + obj.aData.UpdatedByName + "</span> <input type='hidden' id='ResID' value='" + obj.aData.ID.toString() + "' />";
+                        }
+                    },
+                        {
+                            "mDataProp": "LastUpdated", "sClass": "read_only", "sWidth": "10%", "sDefaultContent": '',
+                            "fnRender": function (obj, val) {
+                                return obj.aData.UpdatedDate;
+                            }
+                        },
+                        {
+                            "mDataProp": null, "sDefaultContent": '', "bSortable": false, "bSearchable": false,
+                            "sWidth": "10%", "bVisible": UserCanSeeCheckBox, "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return "<input type='checkbox' id='chkAccrossEnt' />"
+                            }
+                        }
+            ]
+        }).makeEditable({
+            fnShowError: ShowEditError,
+            sUpdateURL: function (value, settings) {
+
+                changedResourceKey = this.parentNode.children[0].innerHTML;
+                changedResourceValue = value;
+
+                if (value != '') {
+                    var aPos = oTable.fnGetPosition($(this).parent()[0]);
+                    var aData = oTable.fnGetData(aPos);
+                    var id1 = aData.ID;
+                    var fey1 = aData.ResourceKey;
+
+                    var currentKey = this.parentNode.children[0].innerHTML;
+                    currentKey = currentKey.replace("<span class=\"highlight\">", '');
+                    currentKey = currentKey.replace("</span>", '');
+                    var RChkAcross = $('#chkAccrossEnt').is(':checked');
+                    
+                    $.ajax({
+                        url: '@Url.Content("~/Resources/UpdateDataIneTurnsBaseResource")'
+                                        , type: 'GET'
+                                        , cache: false
+                                        , dataType: 'json'
+                                        , data: { 'ID': aData.ID, 'changedKey': aData.ResourceKey, 'changedValue': value, 'AccrossEnt': RChkAcross, 'IsEdit': 'True' }
+                                        , success: function (result) {
+                                        }
+                                        , error: function (xhr) {
+                                            alert(xhr);
+                                        }
+                    });
+                }
+            }
+        });
+        //HIDE PRINT CONTAINER
+        $('.DTTT_container').css('z-index', '-1');
+
+        $('#divImport').dialog({
+            autoOpen: false,
+            modal: true,
+            draggable: true,
+            resizable: true,
+            width: '60%',
+            height: '250',
+            title: 'Import Reource File',
+            open: function () {
+
+            }
+        });
+
+
+        $('#divImportNewFile').dialog({
+            autoOpen: false,
+            modal: true,
+            draggable: true,
+            resizable: true,
+            width: '60%',
+            height: '250',
+            title: 'Import New en-US (English US) Reource File',
+            open: function () {
+
+            }
+        });
+
+    });
+
+
+    function SelectAllCheckBox(objdataTable, obj) {
+        $('#' + objdataTable + ' tbody tr').each(function () {
+            $(this).find('td').each(function () {
+                if ($(obj).is(':checked') == true) {
+                    $(this).find('input:checkbox').attr('checked', 'checked');
+                }
+                else {
+                    $(this).find('input:checkbox').prop('checked', false);
+                }
+            });
+        });
+    }
+    _Common.setGloblaSearch('resource_filter', 'myResourceDataTable');
+</script>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>

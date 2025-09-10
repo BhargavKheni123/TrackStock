@@ -1,0 +1,961 @@
+﻿@using eTurns.DTO.Resources;
+@{
+    string StrFilePath = Url.Content("~/Uploads/HelpDoc/");
+    ViewBag.Title = ResHelpDocumentMaster.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ModuleName = "HelpDocument" };
+    var DateTick = DateTime.Now.Ticks;
+    string StrVideoPath = Url.Content("~/Uploads/HelpVideo/");
+    bool IsSuperAdmin = false;
+    if (eTurnsWeb.Helper.SessionHelper.RoleID == -1)
+    {
+        IsSuperAdmin = true;
+    }
+    Int32 SearchPattern = Convert.ToInt32(eTurnsWeb.Helper.SessionHelper.SearchPattern);
+    if (SearchPattern == 0)
+    {
+        SearchPattern = 2;
+    }
+    string ValidFileExtention = HelpDocumentMasterDTO.ValidFileExtention;
+}
+<script type='text/javascript' src="@Url.Content("~/Scripts/ajaxfileupload.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+<form id="frmHelpDocument" method="post">
+
+    <div class="userListingWrapper">
+        <h2>
+            @Html.AntiForgeryToken()
+            @ResHelpDocumentMaster.PageHeader
+        </h2>
+        <div class="Infoclass">
+            @*<a href="~/Uploads/HelpDoc/Resources.pdf" target="_blank">
+                <img src="~/Content/images/Info.png" alt="Help" /></a>*@
+        </div>
+        <div class="fieldIcon">
+            <a href="#" id="aCopy" style="display: none;">
+                <img src='@Url.Content("/Content/images/copy.png")' />
+            </a>
+        </div>
+        <div class="userListBlock">
+            <div id="tab7" class="tabContener" style="width: 99%">
+                <div class="searchWrapper">
+                    <div class="searchBlock" style="margin-left: 10px;">
+                        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                        <div class="searchinputB">
+                            <input type="text" class="searchinput" id="resource_filter" />
+                            <a href="javascript:void(0);" class="xclose">
+                                <img src="~/Content/images/x.png" alt="X" id="clear_resource_filter" />
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                @Html.GridTopHeaderForResources(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.ResourceMaster)
+                <div style="padding-left: 10px; padding-right: 10px; width: 95% !important;">
+                    <table id="myHelpDataTable" class="display">
+                        <thead>
+                            <tr>
+                                <th>
+                                    @ResHelpDocumentMaster.ID
+                                </th>
+                                <th>
+                                    @ResHelpDocumentMaster.ModuleName
+                                </th>
+                                <th>
+                                    @ResHelpDocumentMaster.ModuleDocName
+                                </th>
+                                <th>
+                                    @ResHelpDocumentMaster.ModuleVideoName
+                                </th>
+                                @if (eTurnsWeb.Helper.SessionHelper.RoleID == -1)
+                                {
+                                    <th>
+                                        @ResHelpDocumentMaster.Upload
+                                    </th>
+                                    @*<th>
+                                            @ResHelpDocumentMaster.VideoUpload
+                                        </th>*@
+                                    <th>
+                                        @ResHelpDocumentMaster.DocShow
+                                    </th>
+                                    <th>
+                                        @ResHelpDocumentMaster.VideoShow
+                                    </th>
+                                    <th>
+                                        @ResHelpDocumentMaster.Operations
+                                    </th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div id="processing_message" style="display: none" title="Processing">
+                    @ResMessage.RequestProcessMessage
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+<div class="dialog" id="ResetResourceModal" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResResourceEditor.ResetResourceConfirmMsg
+        </p>
+        <a href="JavaScript:void{}" id="btnResetResourceModelYes" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="#" class="no" onclick="closeModal()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<div id="loading" style="text-align: center; margin-top: 160px; vertical-align: middle;
+    width: 100%; height: 100%; position: absolute; z-index: 9; background-color: transparent;">
+    <img src='@Url.Content("/Content/images/ajax.gif")' alt="Loading..." />
+</div>
+<div id="divHelpDocModel">
+</div>
+<script type="text/javascript" language="javascript">
+
+    $(document).ready(function () {
+        $('form').areYouSure();
+        $('#loading')
+            .hide()
+            .ajaxStart(function () {
+                $(this).show();
+            })
+            .ajaxStop(function () {
+                $(this).hide();
+            });
+
+        function changeFontSize(val) {
+            $('.display').css('font-size', '' + val + '%')
+            if (oTable != null && oTable != undefined)
+                oTable.fnAdjustColumnSizing();
+        }
+
+        $('#ChangeViewToLarge').live('click', function () {
+            changeFontSize(120);
+        });
+
+        $('#ChangeViewToMedium').live('click', function () {
+            changeFontSize(100);
+        });
+
+        $('#ChangeViewToSmall').live('click', function () {
+            changeFontSize(90);
+        });
+
+        $('div#divHelpDocModel').dialog({
+            autoOpen: false,
+            modal: true,
+            draggable: true,
+            resizable: true,
+            width: '40%',
+            height: 450,
+            title: 'Add HelpDoc',
+            open: function () {
+
+            },
+            close: function () {
+                $(this).empty();
+                $("div#divHelpDocModel").empty();
+                //ReDirectData();
+                oTable.fnDraw();
+            }
+        });
+
+    });
+
+
+
+    var oTable;
+    var IsRefreshGrid = false;
+    var PostCount = 0;
+    var AllowDeletePopup = false;
+    var changedResourceValue = '';
+    var changedResourceKey = '';
+    var IsDeletePopupOpen = false;
+    var Idreadonly = "";
+    var sImageUrl = "/Content/images/";
+    var sDocUrl = "/Content/HelpDoc/";
+    var vDateTick = '@DateTick';
+    var vIsSuperAdmin = '@IsSuperAdmin';
+    var SearchPattern = '@SearchPattern';
+    var ValidFileExtention = '@ValidFileExtention';
+    var HelpDocumentDelete = '@Url.Action("DeleteHelpdocument", "HelpDocument")';
+    var HelpVideoDelete = '@Url.Action("DeleteHelpVideo", "HelpDocument")';
+    var DocumentDeleteConfirmMessage = '@ResHelpDocumentMaster.DocumentDeleteConfirmMessage';
+    var VideoDeleteConfirmMessage = '@ResHelpDocumentMaster.VideoDeleteConfirmMessage';
+    var DeleteDocumentSuccessMessage = '@ResHelpDocumentMaster.DeleteDocumentSuccessMessage';
+    var DeleteVideoSuccessMessage = '@ResHelpDocumentMaster.DeleteVideoSuccessMessage';
+    var DeleteDocumentErrorMessage = '@ResHelpDocumentMaster.DeleteDocumentErrorMessage';
+    var DeleteVideoErrorMessage = '@ResHelpDocumentMaster.DeleteVideoErrorMessage';
+    $(document).ready(function () {
+        $('.print').attr("style", "display:none");
+        var gaiSelected = [];
+        var objaoColumns = new Array();
+        objaoColumns.push({ "mDataProp": "ID", "sClass": "read_only alignLeft", "sWidth": "10%" });
+        objaoColumns.push({ "mDataProp": "ModuleName", "sClass": "read_only alignLeft", "sWidth": "20%" });
+
+        objaoColumns.push({
+                "mDataProp": "ModuleDocName",
+                "sClass": "read_only",
+                "sDefaultContent": '',
+                "bSortable": true,
+                "bSearchable": false,
+            "fnRender": function (obj, val) {
+                    var strVal = '';
+                    if (obj.aData.HelpDocDetail == null) {
+                        return "";
+                    }
+                    else {
+                        var vpath = '';
+                        for (var i = 0; i < obj.aData.HelpDocDetail.length; i++) {
+                            if (obj.aData.HelpDocDetail[i].IsDoc != null && obj.aData.HelpDocDetail[i].IsDoc == true) {
+
+                                if (vIsSuperAdmin == "True") {
+                                    vpath += "<a id='aEditLink' href='" + obj.aData.HelpDocDetail[i].ModuleDocPath + "?t=" + vDateTick + "' target='_blank'>" + obj.aData.HelpDocDetail[i].ModuleDocName + "</a><img id='docdelete' src= '@Url.Content("/Content/images/delete.png")' alt='Delete' onclick='DeleteHelpDocument(" + obj.aData.HelpDocDetail[i].ID + "," + obj.aData.HelpDocDetail[i].HelpDocMasterID + ");' /></br>";
+                                }
+
+                                else {
+                                    vpath += "<a id='aEditLink' href='" + obj.aData.HelpDocDetail[i].ModuleDocPath + "?t=" + vDateTick + "' target='_blank'>" + obj.aData.HelpDocDetail[i].ModuleDocName + "</a></br>";
+                                }
+                            }
+                        }
+                        return vpath;
+                    }
+
+                }
+            });
+        objaoColumns.push({
+            "mDataProp": "ModuleVideoName",
+            "sClass": "read_only",
+            "sDefaultContent": '',
+            "bSortable": true,
+            "bSearchable": false,
+            "fnRender": function (obj, val) {
+                var strVal = '';
+                if (obj.aData.HelpDocDetail == null) {
+                    return "";
+                }
+                else {
+                    var vpath = '';
+                    for (var i = 0; i < obj.aData.HelpDocDetail.length; i++) {
+                        if (obj.aData.HelpDocDetail[i].IsVideo != null && obj.aData.HelpDocDetail[i].IsVideo == true) {
+                            var vVideo = obj.aData.HelpDocDetail[i].ModuleVideoPath + "?t=" + vDateTick;
+                            if (vIsSuperAdmin == "True") {
+                                vpath += "<a id='aEditLink' href='" + vVideo + "' target='_blank'>" + obj.aData.HelpDocDetail[i].ModuleVideoName + "</a><img id='docdelete' src= '@Url.Content("/Content/images/delete.png")' alt='Delete' onclick='DeleteHelpVideo(" + obj.aData.HelpDocDetail[i].ID + "," + obj.aData.HelpDocDetail[i].HelpDocMasterID + ");' /></br>";
+                            }
+                            else {
+                                vpath += "<a id='aEditLink' href='" + vVideo + "' target='_blank'>" + obj.aData.HelpDocDetail[i].ModuleVideoName + "</a></br>";
+                            }
+                        }
+                    }
+
+                    return vpath;
+                }
+            }
+        });
+        if (vIsSuperAdmin == "True")
+        {
+            objaoColumns.push({
+                "mDataProp": null,
+                "sClass": "read_only",
+                "sDefaultContent": '',
+                "bSortable": false,
+                "bSearchable": false,
+                "fnRender": function (obj, val) {
+                    var strVal = val; //.replace(/ /g, "&nbsp;");
+
+                    return "<input type='file' name='FileUploadId_" + obj.aData.ID + "' id='FileUploadId_" + obj.aData.ID + "' multiple /> ";
+                }
+            });
+            //objaoColumns.push({
+            //    "mDataProp": null,
+            //    "sClass": "read_only",
+            //    "sDefaultContent": '',
+            //    "bSortable": false,
+            //    "bSearchable": false,
+            //    "fnRender": function (obj, val) {
+            //        var strVal = val;
+            //        return "<input type='file' name='VideoUploadId_" + obj.aData.ID + "' id='VideoUploadId_" + obj.aData.ID + "' multiple /> ";
+            //    }
+            //});
+            objaoColumns.push({
+                "mDataProp": null,
+                "sClass": "read_only",
+                "sDefaultContent": '',
+                "bSortable": false,
+                "bSearchable": false,
+                "fnRender": function (obj, val) {
+                    var strVal = val;
+                    var IsDoc = obj.aData.IsDoc == null ? false : obj.aData.IsDoc;
+                    if (IsDoc != "" && IsDoc == true) {
+                        IsDoc = "checked=\"checked\""
+                    }
+                    else { IsDoc = ""; }
+                    return "<input type='checkbox' " + IsDoc + " id='chkFile_" + obj.aData.ID + "' /> ";
+                }
+            });
+            objaoColumns.push({
+                "mDataProp": null,
+                "sClass": "read_only",
+                "sDefaultContent": '',
+                "bSortable": false,
+                "bSearchable": false,
+                "fnRender": function (obj, val) {
+                    var IsVideo = obj.aData.IsVideo == null ? "false" : obj.aData.IsVideo;
+                    if (IsVideo != "" && IsVideo == true) {
+                        IsVideo = "checked=\"checked\""
+                    }
+                    else { IsVideo = ""; }
+                    return "<input type='checkbox' " + IsVideo + " id='chkVideo_" + obj.aData.ID + "' /> ";
+                }
+            });
+
+            objaoColumns.push({
+                "mDataProp": null,
+                "sClass": "read_only",
+                "sDefaultContent": '',
+                "bSortable": false,
+                "bSearchable": false,
+                "fnRender": function (obj, val) {
+                    var strVal = val;
+                    //return "<a href='javascript:void(0)' onclick='return ajaxFileUploadNew(this)' ><img alt='Save' src='/Content/images/save.png' /></a> "
+                    return "<a href='javascript:void(0)' onclick='return FileUploadPopup(this)' ><img alt='Save' src='/Content/images/save.png' /></a> "
+                }
+
+            });
+        }
+
+        oTable = $('#myHelpDataTable').dataTable({
+            "bJQueryUI": true,
+            //"sDom": 'rti',
+            "sDom": 'rti<"clear">T',
+            "bProcessing": false,
+            "bStateSave": false,
+            "oLanguage": {
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sLoadingRecords": '@eTurns.DTO.Resources.ResMessage.MsgLoading'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                if (aData.key == 'Field_EnterpriseLogo' || aData.key == 'Field_ItemImage') {
+                    $($(nRow).find('td')[1]).addClass('read_only');
+                }
+                return nRow;
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'HelpDocMasterList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = json;
+                    }
+                });
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Resources/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'HelpDocMasterList' },
+                    "async": false,
+                    "cache": false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        o = JSON.parse(json.jsonData);
+
+                    }
+                });
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Content("~/HelpDocument/GetHelpDocumentList")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                PostCount = PostCount + 1;
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting.length != 0)
+                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "DocTypeFilter", "value": $('#HelpDocType').val() });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "cache": false,
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('#myHelpDataTable td').removeHighlight();
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+
+                        if ($("#resource_filter").val() != '') {
+                            $('#myHelpDataTable td').highlight($("#resource_filter").val());
+                        }
+                        $('#myHelpDataTable_info').html('');
+                        if ($('#myHelpDataTable tbody tr').length > 0) {
+                            //var totalRow = $('#myHelpDataTable tbody tr').length;
+                            var totalRow = $('#myHelpDataTable').dataTable().fnSettings().aiDisplay.length;
+                            $('#divbtnBlock').attr("style", "display:inline;width:98.5%");
+                            $('#myHelpDataTable tbody tr').each(function () {
+
+                                var keyName = $(this).find("td:first").text();
+                                if (keyName == changedResourceKey) {
+                                    $(this).find("td:first").next().text(changedResourceValue);
+                                    changedResourceValue = '';
+                                    changedResourceKey = '';
+
+                                }
+                            });
+                            var noofrec = '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries';
+                            noofrec = noofrec.replace(/_START_/g, "1")
+                            noofrec = noofrec.replace(/_END_/g, totalRow)
+                            noofrec = noofrec.replace(/_TOTAL_/g, totalRow)
+                            $('#myHelpDataTable_info').html(noofrec);
+                        }
+
+                        changedResourceValue = '';
+                        changedResourceKey = '';
+                    }
+                })
+            }
+            , "aoColumns": objaoColumns,
+        });
+        //HIDE PRINT CONTAINER
+        $('.DTTT_container').css('z-index', '-1');
+
+        //$("#resource_filter").keydown(function (e) {
+        //    var code = (e.keyCode ? e.keyCode : e.which);
+        //    if (code == 13) {
+        //        oTable.fnFilter(this.value);
+        //    }
+        //});
+
+
+        var timeoutPH;
+        $(document).on('propertychange input', "#resource_filter", function () {
+            clearTimeout(timeoutPH);
+            var self = this;
+            timeoutPH = setTimeout(function () {
+                if (SearchPattern == 2 || SearchPattern == "2") {
+                    fnFilterHelpDocument();
+                }
+                else {
+                    $('#resource_filter').unbind("keypress");
+                    $('#resource_filter').keypress(function (event) {
+                        var keycode = (event.keyCode ? event.keyCode : event.which);
+                        if (keycode == 13) {
+                            fnFilterHelpDocument();
+                        }
+                    });
+                    if ($("#resource_filter").val().length == 0) {
+                        setTimeout(function () { fnFilterHelpDocument(); }, 200);
+                    }
+                }
+
+            }, 500);
+        });
+
+        $("#clear_resource_filter").click(function () {
+            if ($("#resource_filter").val().length > 0) {
+                $("#resource_filter").val("");
+                oTable.fnFilter("");
+            }
+            return false;
+        });
+        _Common.setGloblaSearch('resource_filter', 'myHelpDataTable');
+
+        $('#HelpDocType').die('change');
+        $('#HelpDocType').live('change', function () {
+            oTable.fnDraw();
+        });
+
+        function fnFilterHelpDocument() {
+            //set filter only if more than 2 characters are pressed
+            //if (typeof $("#resource_filter") != 'undefined' && ($("#resource_filter").val().length > 2 || $("#resource_filter").val().length == 0)) {
+            if (typeof $("#resource_filter") != 'undefined') {
+                var searchtext = $("#resource_filter").val().replace(/'/g, "''");
+
+                $('#myHelpDataTable' + ' td').removeHighlight();
+
+
+                oTable.fnFilter(searchtext, null, null, null);
+                //$('#myHelpDataTable').dataTable().fnFilter(searchtext,null,null,null);
+
+                if (searchtext.length > 0)
+                    $('#myHelpDataTable' + ' td').highlight($("#resource_filter").val());
+            }
+        }
+
+
+
+
+
+    });
+
+    function ajaxFileUpload(curobj) {
+        var currentrow = $(curobj).parent().parent();
+        if ($(currentrow).find("input[type='file'][id*='FileUploadId']").val() == "") {
+            alert('@ResHelpDocumentMaster.FileNotSelect');
+            return false;
+        }
+
+        var retid, FileTypeName;
+        var aPos = $('#myHelpDataTable').dataTable().fnGetPosition($(curobj).parent()[0]);
+        var aData = $('#myHelpDataTable').dataTable().fnGetData(aPos[0]);
+        var FileUpload = $("#FileUploadId_" + retid).val();
+        retid = aData.ID;
+        FileTypeName = aData.ModuleName + ".pdf";
+
+        $("#loading")
+		.ajaxStart(function () {
+		})
+		.ajaxComplete(function () {
+		    setTimeout(function () { window.location.reload(); }, 1000)
+		});
+
+
+        $.ajaxFileUpload
+		(
+			{
+			    url: '/api/fileupload/PostHelpDocumentFile/' + retid + '?FileTypeName=' + FileTypeName,
+			    type: "POST",
+			    fileElementId: "FileUploadId_" + retid,
+			    success: function (data, status) {
+			        window.location.reload();
+			    },
+			    error: function (data, status, e) {
+			        window.location.reload();
+			    }
+			}
+		)
+
+    };
+    //
+    function FileUploadPopup(curobj) {
+        var currentrow = $(curobj).parent().parent();
+        var aPos = $('#myHelpDataTable').dataTable().fnGetPosition($(curobj).parent()[0]);
+        var aData = $('#myHelpDataTable').dataTable().fnGetData(aPos[0]);
+        var retid = aData.ID;
+        var ModuleName = aData.ModuleName;
+        var FileUpload = $("#FileUploadId_" + retid).val();
+        var VideoUpload = $("#VideoUploadId_" + retid).val();
+        var FileTypeName = '';
+        var VideoName = '';
+        var IsDocChecked = $(currentrow).find('#chkFile_' + retid).is(':checked');
+        var IsVideoChecked = $(currentrow).find('#chkVideo_' + retid).is(':checked');
+        var HelpDocType = $('#HelpDocType').val();
+
+        var currentrow = $(curobj).parent().parent();
+        var Li = '<table></table>';
+        //var HelpDocAllowedFileExtension = ".pdf,";
+        var validExts = ValidFileExtention.split(',');
+        var strValidationMessage = "";
+        var arrFileName = new Array();
+        var isOnlyCheckShow = false;
+
+        //for (var i = 0, len = $(currentrow).find("input[type='file'][id*='FileUploadId']").files.length; i < len; i++) {
+        for (var i = 0, len = document.getElementById('FileUploadId_'+retid).files.length; i < len; i++) {
+            var IsValidFile = true;
+            var fileExt = document.getElementById('FileUploadId_' + retid).files[i].name;
+            fileExt = fileExt.substring(fileExt.lastIndexOf('.'));
+            if (validExts.indexOf(fileExt.toLowerCase()) <= -1) {
+                IsValidFile = false;
+                strValidationMessage = strValidationMessage + document.getElementById('FileUploadId_' + retid).files[i].name + " Invalid file selected, ";
+            }
+            if (IsValidFile == true) {
+                arrFileName.push(document.getElementById('FileUploadId_' + retid).files[i]);
+            }
+        }
+        if (strValidationMessage != '') {
+            //alert(strValidationMessage);
+            alert(strValidationMessage + ("@ResHelpDocumentMaster.ValidFileExtension".replace("{0}", validExts.toString())));
+        }
+        else {
+            if (arrFileName.length > 0) {
+                var vhtmlData = '<table id="tblFileUpload">';
+                var vtableBody = ''
+                for (var i = 0; i < arrFileName.length; i++) {
+                    vtableBody += '<tr>' + '<td><input type="text" id="txt_' + i + '" /><label id="lbl_' + i + '"> ' + arrFileName[i].name + '</label>' +
+                        '<input type="hidden" id="hdnModuleID" value="' + retid + '"  /> </td>' +
+                        '</tr>';
+                }
+                vhtmlData += vtableBody + ' </table>';
+                vhtmlData += '<input type="button" value="Save" id="btnSaveHelpDoc" onclick="return SaveHelpDoc(this)" style="padding-left: 10px !important;" class="CreateBtn" />';
+                $("#divHelpDocModel").empty();
+                $('#divHelpDocModel').html(vhtmlData);
+                $('#divHelpDocModel').dialog('open');
+            }
+            else {
+                    $("#loading")
+                    .ajaxStart(function () {
+                    })
+                    .ajaxComplete(function () {
+                        setTimeout(function () {
+                            //window.location.reload();
+                            if (isOnlyCheckShow == true) {
+                                isOnlyCheckShow = false;
+                                oTable.fnDraw();
+                            }
+                        }, 3000)
+                    });
+
+                    $.ajaxFileUpload
+                        (
+                            {
+                                url: '/api/fileupload/PostHelpDocumentFile/' + retid + '?FileTypeName=' + FileTypeName + '&VideoName=' + VideoName + '&IsDocCheck=' + IsDocChecked + '&IsVideoCheck=' + IsVideoChecked + '&HelpDocTypeFilter=' + HelpDocType + '&FileNames=' + FileTypeName,
+                                type: "POST",
+                                success: function (data, status) {
+                                    isOnlyCheckShow = true;
+                                    alert('@ResMessage.SaveMessage');
+                                },
+                                error: function (data, status, e) {
+                                    //window.location.reload();
+                                }
+                            }
+
+                )
+
+                }
+            //
+        }
+
+    };
+
+    function SaveHelpDoc(curobj) {
+
+        var ModuleID = 0;
+        var FileTypeName = '';
+        var VideoName = '';
+        var IsDocChecked = false;
+        var IsVideoChecked = false;
+        var IsDataValidate = true;
+        var HelpDocType = $('#HelpDocType').val();
+        var textlabel = '';
+        var regex = /^[A-Za-z0-9 ]+$/
+        //var regex = /^[A-Za-z0-9 ]{2,6}\d*$/
+
+        $("table#tblFileUpload tbody tr").each(function () {
+            ModuleID = $(this).find("td:first").find("input[type='hidden'][id*='hdnModuleID']").val();
+            if ($(this).find("td:first").find("input[type='text'][id*='txt_']").val().trim() != '') {
+                var vtextName = $(this).find("td:first").find("input[type='text'][id*='txt_']").val().trim();
+                var isValid = regex.test(vtextName);
+                if (!isValid) {
+                    IsDataValidate = false;
+                    alert('@ResHelpDocumentMaster.SpecialCharacterNotAllowed'.replace("{0}",vtextName));
+                    return false;
+                }
+                else if (vtextName.length > 50) {
+                    IsDataValidate = false;
+                    alert('@ResHelpDocumentMaster.MaxCharacterAllowed'.replace("{0}",vtextName));
+                    return false;
+                }
+                else {
+                    textlabel += $(this).find("td:first").find("input[type='text'][id*='txt_']").val().trim() + '~' + $(this).find("td:first").find("[id*='lbl_']").text() + '!';
+                }
+            }
+            else {
+                IsDataValidate = false;
+                var lblname = $(this).find("td:first").find("[id*='lbl_']").text();
+                alert('@ResHelpDocumentMaster.ReqName'.replace("{0}",lblname));
+                return false;
+            }
+        });
+
+        IsDocChecked = $('#myHelpDataTable').find('#chkFile_' + ModuleID).is(':checked');
+        IsVideoChecked = $('#myHelpDataTable').find('#chkVideo_' + ModuleID).is(':checked');
+
+
+        if (IsDataValidate == true || IsDataValidate == 'True') {
+            $('#DivLoading').show();
+            var IsFileUploadDone = false;
+                $("#loading")
+                .ajaxStart(function () {
+                    $('#DivLoading').show();
+                })
+                .ajaxComplete(function () {
+                    setTimeout(function () {
+                        if (IsFileUploadDone == true) {
+                            IsFileUploadDone = false;
+                            $('#divHelpDocModel').dialog('close');
+                            alert('@ResHelpDocumentMaster.FileUploadSuccessfully');
+                            $('#DivLoading').hide();
+                            oTable.fnDraw();
+                        }
+                    }, 3000)
+                });
+
+            $.ajaxFileUpload
+                (
+                    {
+                        url: '/api/fileupload/PostHelpDocumentFile/' + ModuleID + '?FileTypeName=' + FileTypeName + '&VideoName=' + VideoName + '&IsDocCheck=' + IsDocChecked + '&IsVideoCheck=' + IsVideoChecked + '&HelpDocTypeFilter=' + HelpDocType + '&FileNames=' + textlabel,
+                        //url: '/api/fileupload/PostHelpDocumentFile/' + ModuleID + '?FileTypeName=' + FileTypeName + '&VideoName=' + VideoName + '&IsDocCheck=' + IsDocChecked + '&IsVideoCheck=' + IsVideoChecked + '&HelpDocTypeFilter=' + HelpDocType + JSON.stringify({ 'FileNames': textlabel }),
+                        type: "POST",
+                        //data: JSON.stringify({ 'id': ModuleID, 'FileTypeName': FileTypeName, 'VideoName': VideoName, 'IsDocCheck': IsDocChecked, 'IsVideoCheck': IsVideoChecked, 'HelpDocTypeFilter': HelpDocType, 'FileNames': textlabel }),
+                        fileElementId: "FileUploadId_" + ModuleID,
+                        success: function (data, status) {
+                            IsFileUploadDone = true;
+                            $('#DivLoading').show();
+                            //window.location.reload();
+
+                        },
+                        error: function (data, status, e) {
+                            //window.location.reload();
+                            $('#DivLoading').hide();
+                        }
+                    }
+                )
+        }
+
+    }
+
+    //
+
+    function ajaxFileUploadNew(curobj) {
+        var currentrow = $(curobj).parent().parent();
+        @*if ($(currentrow).find("input[type='file'][id*='FileUploadId']").val() == "" &&
+            $(currentrow).find("input[type='file'][id*='VideoUploadId']").val() == "") {
+            alert('@ResHelpDocumentMaster.FileNotSelect');
+            return false;
+        }*@
+        if ($(currentrow).find("input[type='file'][id*='FileUploadId']").val() != "") {
+            var vPDFName = $(currentrow).find("input[type='file'][id*='FileUploadId']").val();
+            var flag = vPDFName.includes(".pdf");
+            if (flag == false || flag == "False") {
+                alert('@ResHelpDocumentMaster.NoValidPDFFile');
+                return false;
+            }
+        }
+        if ($(currentrow).find("input[type='file'][id*='VideoUploadId']").val() != "") {
+            var vVideoname = $(currentrow).find("input[type='file'][id*='VideoUploadId']").val();
+            var flag = vVideoname.includes(".mp4");
+            if (flag == false || flag == "False") {
+                alert('@ResHelpDocumentMaster.NoValidVideoFile');
+                return false;
+            }
+        }
+
+        var retid, FileTypeName, VideoName;
+        var IsDocChecked = false;
+        var IsVideoChecked = false;
+        var aPos = $('#myHelpDataTable').dataTable().fnGetPosition($(curobj).parent()[0]);
+        var aData = $('#myHelpDataTable').dataTable().fnGetData(aPos[0]);
+        var FileUpload = $("#FileUploadId_" + retid).val();
+        var VideoUpload = $("#VideoUploadId_" + retid).val();
+        retid = aData.ID;
+        FileTypeName = '';
+        VideoName = '';
+        if ($(currentrow).find("input[type='file'][id*='FileUploadId']").val() != "") {
+            FileTypeName = aData.ModuleName + ".pdf";
+        }
+        if ($(currentrow).find("input[type='file'][id*='VideoUploadId']").val() != "") {
+            VideoName = aData.ModuleName;
+        }
+        IsDocChecked = $(currentrow).find('#chkFile_' + retid).is(':checked');
+        IsVideoChecked = $(currentrow).find('#chkVideo_' + retid).is(':checked');
+        var HelpDocType = $('#HelpDocType').val();
+
+        $("#loading")
+		.ajaxStart(function () {
+		})
+		.ajaxComplete(function () {
+            setTimeout(function () {
+                //window.location.reload();
+            }, 1000)
+        });
+        var isFileProcessComplete = false;
+        var isVideoProcessComplete = false;
+        var isOnlyCheckShow = false;
+
+        var isFileVideo = false;
+        if (FileTypeName != '' && VideoName != '') {
+            isFileVideo = true;
+        }
+
+        if (FileTypeName != '') {
+            $.ajaxFileUpload
+                (
+                    {
+                        url: '/api/fileupload/PostHelpDocumentFile/' + retid + '?FileTypeName=' + FileTypeName + '&VideoName=' + VideoName + '&IsDocCheck=' + IsDocChecked + '&IsVideoCheck=' + IsVideoChecked + '&HelpDocTypeFilter=' + HelpDocType,
+                        type: "POST",
+                        fileElementId: "FileUploadId_" + retid,
+                        success: function (data, status) {
+                            //window.location.reload();
+                            isFileProcessComplete = true;
+                            if (isFileVideo == false) {
+                                alert('@ResHelpDocumentMaster.FileUploadSuccessfully');
+                            }
+
+                        },
+                        error: function (data, status, e) {
+                            //window.location.reload();
+                        }
+                    }
+                )
+        }
+
+        if (VideoName != '') {
+            $.ajaxFileUpload
+                (
+                    {
+                        url: '/api/fileupload/PostHelpDocumentFile/' + retid + '?FileTypeName=' + FileTypeName + '&VideoName=' + VideoName + '&IsDocCheck=' + IsDocChecked + '&IsVideoCheck=' + IsVideoChecked + '&HelpDocTypeFilter=' + HelpDocType,
+                        type: "POST",
+                        fileElementId: "VideoUploadId_" + retid,
+                        success: function (data, status) {
+                            //window.location.reload();
+                            isVideoProcessComplete = true;
+                            if (isFileVideo == false) {
+                                alert('@ResHelpDocumentMaster.VideoUploadSuccessfully');
+                            }
+
+                        },
+                        error: function (data, status, e) {
+                            //window.location.reload();
+                        }
+                    }
+                )
+        }
+        if (FileTypeName == '' && VideoName == '') {
+            $.ajaxFileUpload
+                (
+                    {
+                        url: '/api/fileupload/PostHelpDocumentFile/' + retid + '?FileTypeName=' + FileTypeName + '&VideoName=' + VideoName + '&IsDocCheck=' + IsDocChecked + '&IsVideoCheck=' + IsVideoChecked + '&HelpDocTypeFilter=' + HelpDocType,
+                        type: "POST",
+                        //fileElementId: "" + retid,
+                        success: function (data, status) {
+                            isOnlyCheckShow = true;
+                            alert('@ResMessage.SaveMessage');
+                        },
+                        error: function (data, status, e) {
+                            //window.location.reload();
+                        }
+                    }
+                )
+        }
+        setTimeout(function () {
+            if (isFileVideo == true) {
+                if (isFileProcessComplete == true && isVideoProcessComplete == true) {
+                    alert('@ResHelpDocumentMaster.FileVideoUploadSuccessfully');
+                    oTable.fnDraw();
+                }
+
+            }
+            else {
+                if (isFileProcessComplete == true || isVideoProcessComplete == true || isOnlyCheckShow == true) {
+                    oTable.fnDraw();
+                }
+            }
+        }, 5000)
+
+
+
+
+    };
+    function DeleteHelpDocument(HelpDocumentID, HelpDocumentMasterID, CurrentFileName) {
+
+        var scr = confirm(DocumentDeleteConfirmMessage);
+        $('#DivLoading').show();
+        if (scr == true) {
+
+
+            $.ajax({
+                    "url": HelpDocumentDelete,
+                    data: { 'HelpDocumentID': HelpDocumentID, 'HelpDocumentMasterID': HelpDocumentMasterID},
+                    dataType: 'json',
+                    type: 'POST',
+                    async: false,
+                    cache: false,
+                    "success": function (json) {
+                        $('#DivLoading').hide();
+
+                        if (json.status == 'ok') {
+                            oTable.fnDraw();
+                            showNotificationDialog();
+                            $("#spanGlobalMessage").html(DeleteDocumentSuccessMessage);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        }
+                        else {
+                            showNotificationDialog();
+                            $("#spanGlobalMessage").html(DeleteDocumentErrorMessage);
+                            $("#spanGlobalMessage").removeClass('succesIcon').addClass('errorIcon WarningIcon');
+                        }
+                    },
+                    error: function () {
+                        $('#DivLoading').hide();
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html(DeleteDocumentErrorMessage);
+                        $("#spanGlobalMessage").removeClass('succesIcon').addClass('errorIcon WarningIcon');
+                    }
+                });
+        }
+        else {
+            $('#DivLoading').hide();
+        }
+    }
+    function DeleteHelpVideo(HelpVideoID, HelpDocumentMasterID) {
+
+        var scr = confirm(VideoDeleteConfirmMessage);
+        $('#DivLoading').show();
+        if (scr == true) {
+            $.ajax({
+                    "url": HelpVideoDelete,
+                    "type": "POST",
+             data: { 'HelpVideoID': HelpVideoID, 'HelpDocumentMasterID': HelpDocumentMasterID },
+                    dataType: 'json',
+                    async: false,
+                    cache: false,
+                    "success": function (json) {
+                        $('#DivLoading').hide();
+
+                        if (json.status == 'ok') {
+                            oTable.fnDraw();
+                            showNotificationDialog();
+                            $("#spanGlobalMessage").html(DeleteVideoSuccessMessage);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        }
+                        else {
+                            showNotificationDialog();
+                            $("#spanGlobalMessage").html(DeleteVideoErrorMessage);
+                            $("#spanGlobalMessage").removeClass('succesIcon').addClass('errorIcon WarningIcon');
+                        }
+                    },
+                    error: function () {
+                        $('#DivLoading').hide();
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html(DeleteVideoErrorMessage);
+                        $("#spanGlobalMessage").removeClass('succesIcon').addClass('errorIcon WarningIcon');
+                    }
+            });
+        }
+        else {
+            $('#DivLoading').hide();
+        }
+    }
+
+    //_Common.setGloblaSearch('resource_filter', 'myHelpDataTable');
+</script>

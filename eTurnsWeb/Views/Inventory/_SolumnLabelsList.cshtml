@@ -1,0 +1,330 @@
+@model eTurns.DTO.SolumnLabelsDTO
+<div id="divsolumnLabels" style="width: 99.5%; min-height: 140px">
+    <div>
+        <div>
+            <div style="text-align: center; float: left; width: 80%;">
+                <span id="spanErrorMsg" style="color: Green;"></span>
+            </div>
+            <div>
+                @if(!Model.ISBomItem.Value)
+                {
+                    <input type="button" value="Add More" id="btnAddmoreLabel" class="CreateBtn" onclick="return AddNewSolumnLabel();" />
+                }
+            </div>
+            </div>
+    </div>
+    <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+        float: left;">
+        <input type="hidden" id="hdnNonExistingLabels" value="@Model.NonExistingLabels" />
+        <input type="hidden" id="hdnExistingLabels" value="@Model.ExistingLabels" />
+        <table id="SolumLabelList" class="display">
+            <thead>
+                <tr>
+                    <th>
+                        @ResItemMaster.AvailableLabels
+                    </th>
+                    <th>
+                        @ResItemMaster.UnAssign
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null)
+                {
+                    //Model.EntireList.labelList.Insert(0, new labelList { labelCode = "---- SELECT ----" });
+                    if (Model.ExistingLabels != null && Model.ExistingLabels != string.Empty)
+                    {
+                        foreach (var item in Model.ExistingLabels.Split(','))
+                        {
+                            if (item != "" || item != string.Empty)
+                            {
+                                <tr>
+                                    <td>
+                                        <span style='position:relative'>
+                                            @if (!Model.ISBomItem.Value)
+                                            {
+                                                @Html.TextBox("txtLabelCode", item, new { @style = "width:250px;", @disabled = "disabled", @maxlength = "50", @autocomplete = "off", @class = "text-box" })
+                                                @*@Html.DropDownList("ddlLabelCode", new SelectList(Model.EntireList.labelList, "labelCode", "labelCode", item), new { @id = "ddlLabelCode", @style = "width:93%;", @maxlength = "200", @class = "text-boxinner", @onchange = "SetLabelsValues(this)" })*@
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("txtLabelCode", item, new { @style = "width:250px;", @disabled = "disabled", @maxlength = "50", @autocomplete = "off", @class = "text-box disableBack" })
+                                                @*@Html.DropDownList("ddlLabelCode", new SelectList(Model.EntireList.labelList, "labelCode", "labelCode", item), new { @id = "ddlLabelCode", @style = "width:93%;", @maxlength = "200", @class = "text-boxinner", @onchange = "SetLabelsValues(this)", @disabled = "disabled" })*@
+                                            }
+
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (!Model.ISBomItem.Value)
+                                        {
+                                            <a onclick="return DeleteFromListSingle(this)">
+                                                <img alt="@ResCommon.Delete" src="/Content/images/delete.png">
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <a onclick="return false">
+                                                <img alt="@ResCommon.Delete" src="/Content/images/delete.png">
+                                            </a>
+                                        }
+
+                                    </td>
+                                </tr>
+                                //Model.EntireList.labelList.RemoveAll(x => x.labelCode == item);
+                            }
+
+                        }
+                    }
+                    if (Model.AddCount > 0)
+                    {
+                        <tr>
+                            <td>
+                                <span style='position:relative'>
+                                    @Html.TextBox("txtLabelCode",string.Empty,new { @style = "width:250px;", @maxlength = "50", @autocomplete = "off", @class = "text-box",  @onblur = "return LabelsValidation(this);" })
+                                    <span id="InvalidLabel" style="display:none;color:red">@ResItemMaster.InvalidLabelVal</span>
+                                </span>
+                            </td>
+                            <td>
+                                <a onclick="return DeleteFromListSingle(this)">
+                                    <img alt="@ResCommon.Delete" src="/Content/images/delete.png">
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="dialog" id="mdlQLYesNo" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+        </p>
+        <a href="JavaScript:void{}" id="btnQLModelYesSP" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no"
+               onclick="QLcloseModal()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<script type="text/javascript">
+    var oTableItemSupplier;
+    var deleteURL1 = "/Inventory/ItemSupplierDelete";
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var DTNameSup = 'SolumLabelList';
+    var bIsFilter = false;
+
+    @*$(".autocompleteSup").autocomplete({
+        source: function (request, response) {
+            var urlstring;
+            if ('@IsForBOM' == 'True') {
+                urlstring = "/BOM/GetSupplier";
+            }
+            else {
+                urlstring = "/Master/GetSupplier";
+            }
+            $.ajax({
+
+                url: urlstring,
+
+
+                contentType: 'application/json',
+                dataType: 'json',
+                data: {
+                    maxRows: 1000,
+                    name_startsWith: request.term
+                },
+                success: function (data) {
+                    response($.map(data, function (item) {
+                        return {
+                            label: item.SupplierName,
+                            value: item.SupplierName,
+                            selval: item.ID
+                        }
+                    }));
+                },
+                error: function (err) {
+                    alert(err);
+                }
+            });
+        },
+        autoFocus: false,
+        select: function (event, ui) {
+            $(this).next().val(ui.item.selval);
+        },
+        minLength: 0,
+        open: function () {
+            $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+
+            $(this).autocomplete('widget').css('z-index', 10005);
+        },
+        close: function () {
+            $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+        }
+    });*@
+
+    // Find New Supplier Or Not
+
+    @*function FindSupplier(txtsup) {
+
+        if ('@(HasOnTheFlyEntryRight)' == 'False') {
+            $(txtsup).next().val($(txtsup).val());
+            $(txtsup).siblings("#txtSupplier").val($(txtsup).children("option").filter(":selected").text());
+        }
+
+        if (parseInt($(txtsup).next().val()) > 0) {
+
+            var SupplierName;
+            if ('@(HasOnTheFlyEntryRight)' == 'False') {
+                var SupplierName = $(txtsup).children("option").filter(":selected").text();
+            }
+            else {
+                var SupplierName = $(txtsup).val();
+            }
+
+            $.ajax({
+                type: "GET",
+                url: "/Inventory/GetNewSupplier",
+                data: { "SupplierID": $(txtsup).next().val(), "SupplierName": SupplierName },
+                dataType: "json",
+                success: function (response) {
+                    //                    var ddlBlanketPOID = $(txtsup).parent().parent().find("#BlanketPOID");
+                    //                    ddlBlanketPOID.empty();
+
+                    if (response.status == 'Ok') {
+                        FillSupplierBlanketPO1(txtsup);
+                    }
+                    else {
+
+                        //$(txtsup).next().val() = '';
+                        //    $(txtsup).val("");
+                        //    $(txtsup).focus();
+                        //    $(txtsup).parent().parent().find("#BlanketPOID").hide();
+                        //    $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        //    $("#spanGlobalMessage").text('User do not have permission to add new supplier');
+                        //   $('div#target').fadeToggle();
+                        //   $("div#target").delay(2000).fadeOut(200);
+                    }
+                },
+                error: function (XMLHttpRequest, textStatus) {
+                    alert(textStatus);
+                }
+            });
+        }
+        else {
+            // $(txtsup).parent().parent().find("#BlanketPOID").hide();
+        }
+    }*@
+
+    //check if supplier has blanketPO or not, if yes then populate dropdownlist
+    @*function FillSupplierBlanketPO(txtsup) {
+        var isSupplierInsert = '@(ViewBag.CanSupplierInsert)';
+        //alert(isSupplierInsert);
+        isSupplierInsert = false;
+        if (isSupplierInsert == false) {
+            FindSupplier(txtsup)
+        }
+    }*@
+
+    //check if supplier has blanketPO or not, if yes then populate dropdownlist
+    @*function FillSupplierBlanketPO1(txtsup) {
+
+        var SupplierName;
+        if ('@(HasOnTheFlyEntryRight)' == 'False') {
+            var SupplierName = $(txtsup).children("option").filter(":selected").text();
+        }
+        else {
+            var SupplierName = $(txtsup).val();
+        }
+
+        if (parseInt($(txtsup).next().val()) > 0) {
+            $.ajax({
+                type: "GET",
+                url: "/Inventory/GetSupplierBlanketPOItemGUID",
+                data: { "SupplierID": $(txtsup).next().val(), "SupplierName": SupplierName },
+                dataType: "json",
+                success: function (response) {
+
+
+                    var ddlBlanketPOID = $(txtsup).parent().parent().parent().find("#BlanketPOID");
+
+                    ddlBlanketPOID.empty();
+
+                    if (response.status == 'Not Found') {
+                        $(txtsup).parent().parent().parent().find("#BlanketPOID").hide();
+                    }
+                    else {
+                        $(txtsup).parent().parent().parent().find("#BlanketPOID").show();
+
+                        ddlBlanketPOID.append(
+                                $('<option/>', {
+                                    value: '',
+                                    html: ''
+                                })
+                            );
+
+                        $.each(response.result, function () {
+                            ddlBlanketPOID.append(
+                                $('<option/>', {
+                                    value: this.ID,
+                                    html: this.BlanketPO
+                                })
+                            );
+                        });
+                    }
+                },
+                error: function (XMLHttpRequest, textStatus) {
+                    alert(textStatus);
+                }
+            });
+        }
+        else {
+            $(txtsup).parent().parent().parent().find("#BlanketPOID").hide();
+        }
+    }*@
+
+    $(document).ready(function () {
+        /*$('form').areYouSure();*/
+        //        $(".autocompleteSup").focus(function () {
+        //            $(this).autocomplete("search", $(this).val());
+        //        });
+
+        //$('.ShowAllOptionsSup').click(function () {
+        //    $(this).siblings(".autocompleteSup").autocomplete("search", "");
+        //    $(this).siblings('.autocompleteSup').trigger("focus");
+        //});
+        oTableItemSupplier = $('#' + DTNameSup).dataTable({
+            "bPaginate": false,
+            "bLengthChange": false,
+            "bFilter": false,
+            "bSort": false,
+            "bInfo": false,
+            "bAutoWidth": false,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "oLanguage": {
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable'
+                },
+        });
+        $('.DTTT_container').css('z-index', '-1');
+
+
+
+    });
+
+
+    $('#' + DTNameSup + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    // To adjust the print block next to colvis button
+    $('#btnblock').css({ 'margin-right': '45px' });
+
+</script>

@@ -1,0 +1,247 @@
+﻿@model List<eTurns.DTO.ItemLocationDetailsDTO>
+<div id="div1" style="width: 99.5%; min-height: 140px">
+    <div>
+        <div>
+            <div style="text-align: center; float: left; width: 85%;">
+                <span id="spanErrorMsg" style="color: Green;"></span>
+            </div>
+            <div style="float: right; width: 10%;">
+                <div style="text-align: center; bottom: auto; float: right; width: 10%; padding-bottom: 5px;">
+                    <input type="button" id="btnPrintLabel" value="@ResCommon.PrintLabel" class="CreateBtn" />
+                </div>
+            </div>
+            <div style="float: right; width: 5%; padding-top:6px;">
+                <a title="Select all" href="javascript:void(null);" id="actionSelectAll" class="tblItemsBinSelectAll">
+                    <img src="/content/images/selectall.png" alt="Select all">
+                </a>
+                <a title="Select all" style="display:none" href="javascript:void(null);" id="actionDeSelectAll" class="tblItemsBinDeSelectAll">
+                    <img src="/content/images/UnSelectAll.png" alt="Select all">
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+        float: left; height: 380px; overflow-y: auto;">
+        <table id="tblItemsSerialLot" class="display">
+            <thead>
+                <tr>
+                    <th>
+                        @eTurns.DTO.ResItemMaster.ItemNumber
+                    </th>
+                    <th>
+                        @ResItemMaster.TrackingType 
+                    </th>
+                    <th>
+                        @ResItemMaster.SerialOrLotNo
+                    </th>
+                    <th>
+                        @ResPullDetails.Expiration
+                    </th>
+                    <th>
+                        @ResItemMaster.BinNumber
+                    </th>
+                    <th>
+                        @ResQuickList.Quantity
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null)
+                {
+                    foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                @item.ItemNumber
+                                <input id="hdnItemGuid" type="hidden" value="@item.ItemGUID" />
+                                <input id="hdnItemID" type="hidden" value="@item.ItemID" />
+                                <input id="hdnBinID" type="hidden" value="@item.BinID" />
+                                <input id="hdnItemLocationDetailID" type="hidden" value="@item.ID" />
+                                <input id="hdnItemLocationDetailGUID" type="hidden" value="@item.GUID" />
+                            </td>
+                            <td>
+                                @if (item.SerialNumberTracking)
+                                {
+                                    @ResPullMaster.SerialNumber
+                                }
+                                else if (item.LotNumberTracking)
+                                {
+                                    @ResPullMaster.LotNumber
+                                }
+                                else if (item.DateCodeTracking)
+                                {
+                                    @ResPullMaster.DateCode
+                                }                                
+                            </td>
+                            <td>
+                                @if (item.SerialNumberTracking)
+                                {
+                                    @item.SerialNumber
+                                }
+                                else if (item.LotNumberTracking)
+                                {
+                                    @item.LotNumber
+                                }
+                            </td>
+                            <td>
+                                @if (item.DateCodeTracking)
+                                {
+                                    @item.Expiration
+                                }
+                            </td>
+                            <td>
+                                @item.BinNumber
+                            </td>
+                            <td>
+                                @(item.ConsignedQuantity.GetValueOrDefault(0) + @item.CustomerOwnedQuantity.GetValueOrDefault(0))
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+<script type="text/javascript">
+    var oTableItemsBins;
+    $(document).ready(function () {
+        var gaiSelected = [];
+
+        oTableItemsBins = $('#tblItemsSerialLot').dataTable({
+            "bScrollCollapse": true,
+            "sScrollX": "99%",
+            "oColVis": {},
+            "bSort": true,
+            "aaSorting": [[0, "asc"]],
+            "bPaginate": false,
+            "bProcessing": false,
+            "bStateSave": false,
+            "bLengthChange": false,
+            "bFilter": false,
+            "bAutoWidth": false,
+            "bInfo": false,
+            "bAutoWidth": false,
+            "bRetrieve": false,
+            "bDestroy": false
+        });
+        $('.DTTT_container').css('z-index', '-1');
+
+
+
+
+        $(document).on("click", "a.tblItemsBinSelectAll", function () {
+            $("#tblItemsSerialLot").find("tbody tr").removeClass("row_selected").addClass("row_selected");
+            $(this).next("a.tblItemsBinDeSelectAll").css('display', '');
+            $(this).css('display', 'none');
+        });
+
+        $(document).on("click", "a.tblItemsBinDeSelectAll", function () {
+            $("#tblItemsSerialLot").find("tbody tr").removeClass("row_selected");
+            $(this).prev("a.tblItemsBinSelectAll").css('display', '');
+            $(this).css('display', 'none');
+        });
+
+
+        $("#tblItemsSerialLot tbody").on("tap click", "tbody tr", function (e) {
+
+            if (e.target.type == "checkbox" || e.target.type == "select" || e.target.type == "radio" || e.target.type == "button") {
+                e.stopPropagation();
+            }
+            else  {
+
+
+                if (!TblItemsBinLastChecked) {
+                    TblItemsBinLastChecked = this;
+                }
+
+                if (e.shiftKey) {
+                    var start = $('#tblItemsSerialLot tbody tr').index(this);
+                    var end = $('#tblItemsSerialLot tbody tr').index(TblItemsBinLastChecked);
+
+                    for (i = Math.min(start, end) ; i <= Math.max(start, end) ; i++) {
+                        if (!$('#tblItemsSerialLot tbody tr').eq(i).hasClass('row_selected')) {
+                            $('#tblItemsSerialLot tbody tr').eq(i).addClass("row_selected");
+                        }
+                    }
+                    if (window.getSelection) {
+                        if (window.getSelection().empty) {  // Chrome
+                            window.getSelection().empty();
+                        } else if (window.getSelection().removeAllRanges) {  // Firefox
+                            window.getSelection().removeAllRanges();
+                        }
+                    } else if (document.selection) {  // IE?
+                        document.selection.empty();
+                    }
+                } else if ((e.metaKey || e.ctrlKey)) {
+                    $(this).toggleClass('row_selected');
+                } else {
+                    $(this).toggleClass('row_selected');
+                }
+
+                TblItemsBinLastChecked = this;
+
+
+                return false;
+            }
+        });
+    });
+
+    var TblItemsBinLastChecked;
+
+
+
+    $('#btnPrintLabel').on('click', function (e) {
+
+        if ($('#tblItemsSerialLot').dataTable().fnSettings().aoData.length === 0) {
+            alert('@ResCommon.msgNoDataFound');
+            return;
+        }
+
+        var arrCols = new Array();
+        var objCols = $('#myDataTable').dataTable().fnSettings().aoColumns;
+        for (var i = 0; i <= objCols.length - 1; i++) {
+            arrCols.push(objCols[i].mDataProp);
+        }
+
+        var sortValue = "";
+        for (var i = 0; i <= $('#myDataTable').dataTable().fnSettings().aaSorting.length - 1; i++) {
+            if (sortValue.length > 0)
+                sortValue += ", "
+            sortValue += arrCols[$('#myDataTable').dataTable().fnSettings().aaSorting[i][0]] + ' ' + $('#myDataTable').dataTable().fnSettings().aaSorting[i][1];
+        }
+
+        if ($.trim(sortValue).length <= 0) {
+            sortValue = "ID Desc";
+        }
+
+        var anSelected = fnGetSelected($('#myDataTable').dataTable());
+
+        var strIDs = "";
+        var strLocDetailIds = "";
+        $('#tblItemsSerialLot tbody tr.row_selected').each(function (i) {
+            var itemID = $(this).find('#hdnItemID').val();
+            var itemLocationDetailID = $(this).find('#hdnItemLocationDetailID').val();
+
+            if (strIDs.length > 0)
+                strIDs = strIDs + ',';
+            strIDs = strIDs + itemID;
+
+            if (strLocDetailIds.length > 0)
+                strLocDetailIds = strLocDetailIds + ',';
+
+            //strLocDetailIds = strLocDetailIds + itemID + '#' + itemLocationDetailID;
+            strLocDetailIds = strLocDetailIds + itemLocationDetailID;
+        });
+
+        if (strIDs.length > 0 && strLocDetailIds.length > 0) {
+            $('#divLabelPrintPopup').data({ "IDs": strIDs, "ModuleID": 2, "SortFields": sortValue, "ROTDIds": strLocDetailIds, "CallFrom": "ItemSerailLotBarcode" }).dialog('open');
+            return false;
+        }
+        else {
+            alert('@ResCommon.ReqRowSelection');
+            return false;
+        }
+
+    });
+
+</script>

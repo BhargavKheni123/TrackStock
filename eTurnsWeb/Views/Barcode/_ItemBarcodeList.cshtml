@@ -1,0 +1,389 @@
+﻿@model IEnumerable<eTurns.DTO.BarcodeMasterDTO>
+@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    ViewBag.Title = "Barcode Master";// eTurns.DTO.ResAssetMaster.PageTitle;
+    var settings = new GridHeaderSettings() { DisplaySaveButton = false, ShowSelectAll = true, DisplayUDFButton = false, UDFSetupFor = "AssetMaster&UDFHeader=" + @ResAssetMaster.PageHeader, DisplayPrintBlock = true, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "BarcodeItemMasterList", dataViewType = DataViewType.text, TextToDispaly = ResAssetMaster.ClickToEdit };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "BarcodeMaster" };
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Barcode, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Barcode, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    List<ModuleMasterDTO> lstModulename = new List<ModuleMasterDTO>();
+    if (ViewBag.ModuleMasterList != null)
+    {
+        lstModulename = ViewBag.ModuleMasterList;
+        lstModulename = lstModulename.Where(t => t.ModuleName == "Item Master").ToList();
+        lstModulename = lstModulename.OrderBy(t => t.ModuleName).ToList();
+    }
+}
+
+<script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+<script type="text/javascript">
+    var oTable;
+    var objColumns = {};
+    $(document).ready(function () {
+        objColumns = GetGridHeaderColumnsObject('myDataTable');
+
+        oTable = $('#myDataTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "bAutoWidth": false,
+            //"sScrollX": "150%",
+            "sScrollX": "2000px",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[1, "asc"]],
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                if (aData.IsDeleted == true && aData.IsArchived == true)
+                    //   nRow.className = "GridDeleatedArchivedRow";
+                    $(nRow).css('background-color', '#B9BCBF');
+                else if (aData.IsDeleted == true)
+                    // nRow.className = "GridDeletedRow";
+                    $(nRow).css('background-color', '#FFCCCC');
+                else if (aData.IsArchived == true)
+                    //   nRow.className = "GridArchivedRow";
+                    $(nRow).css('background-color', '#CCFFCC');
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                return nRow;
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                //if (PostCount > 1) {
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'BarcodeItemMasterList' },
+                    "async": false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        o = json;
+                    }
+                });
+                //}
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'BarcodeItemMasterList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Content("~/Barcode/BarcodeListAjax")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                //PostCount = PostCount + 1;
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                //if (oSettings.aaSorting.length != 0)
+                //    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                //else
+                //    aoData.push({ "name": "SortingField", "value": "0" });
+
+                if (oSettings.aaSorting.length > 0) {
+                    var sortValue = "";
+                    for (var k = 0; k <= oSettings.aaSorting.length - 1; k++) {
+                        if (sortValue.length > 0)
+                            sortValue += ", "
+                        sortValue += arrCols[oSettings.aaSorting[k][0]] + ' ' + oSettings.aaSorting[k][1];
+
+                    }
+                    aoData.push({ "name": "SortingField", "value": sortValue });
+                }
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+                aoData.push({ "name": "ModuleGuid", "value": '@lstModulename.FirstOrDefault().GUID' });
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    cache: false,
+                    "url": sSource,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('#myDataTable').removeHighlight();
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                        if ($("#global_filter").val() != '') {
+                            $('#myDataTable').highlight($("#global_filter").val());
+                        }
+                        if ($("#global_filter").val().length > 0) {
+                            if ($('#myDataTable').dataTable().fnGetData().length <= 0) {
+                                // $('#cnfBarcodeAddmdl').modal();
+                            }
+
+                        }
+                    },
+                    error: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                        $('#myDataTable').removeHighlight();
+                    }
+                })
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+            },
+            "aoColumns": [
+                        { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' },
+                        { "mDataProp": "ID", "sClass": "read_only" },
+                        {
+                            "mDataProp": "BarcodeString",
+                            "sClass": "read_only",
+                            "sDefaultContent": '',
+                            "bSortable": true,
+                            "bSearchable": false,
+                            "fnRender": function (obj, val) {
+                                if (obj.aData.BarcodeAdded != 'ItemUniqueNumber') {
+                                    return "<a id='aEditLink' onclick='return ShowEditTab(&quot;BarcodeEdit/" + obj.aData.ID + "&quot;,&quot;frmbarcode&quot;)' href='JavaScript:void(0);'>" + obj.aData.BarcodeString + "</a>" + " <input type='hidden' id='hdnGUID' value='" + obj.aData.GUID.toString() + "' />";
+                                }
+                                else {
+
+                                    return obj.aData.BarcodeString;
+                                }
+                            }
+                        },
+                        { "mDataProp": "items", "sClass": "read_only" },
+                        { "mDataProp": "ModuleName", "sClass": "read_only" },
+                        { "mDataProp": "BinNumber", "sClass": "read_only" },
+                        { "mDataProp": "BarcodeAdded", "sClass": "read_only" },
+                        { "mDataProp": "RoomName", "sClass": "read_only" },
+                        {
+                            "mDataProp": "CreatedDate", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                //return GetDateInFullFormat(val);
+                                return obj.aData.CreatedOnDate;
+                            }
+                        },
+                        {
+                            "mDataProp": "UpdatedDate", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                //return GetDateInFullFormat(val);
+                                return obj.aData.UpdatedOnDate;
+                            }
+                        },
+                        { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                        { "mDataProp": "CreatedByName", "sClass": "read_only" }
+                        , { "mDataProp": "AddedFrom", "sClass": "read_only" },
+                        { "mDataProp": "EditedFrom", "sClass": "read_only" },
+                        {
+                            "mDataProp": "ReceivedOn", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.ReceivedOnDate;
+                            }
+                        },
+                        {
+                            "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.ReceivedOnDateWeb;
+                            }
+                        },
+                         { "mDataProp": "Category", "sClass": "read_only" },
+                         { "mDataProp": "Description", "sClass": "read_only" },
+                         {
+                             "mDataProp": "SupplierName", "sClass": "read_only",
+                             "fnRender": function (obj, val) {
+                                 var sName = obj.aData.SupplierName;
+                                 if (sName != '' && sName != null)
+                                     return sName.toString().slice(0, -1);
+                                 else
+                                     return '';
+                             }
+                         },
+                         {
+                             "mDataProp": "SupplierNumber", "sClass": "read_only",
+                             "fnRender": function (obj, val) {
+                                 var sName = obj.aData.SupplierNumber;
+                                 if (sName != '' && sName != null)
+                                     return sName.toString().slice(0, -1);
+                                 else
+                                     return '';
+                             }
+                         },
+                         {
+                             "mDataProp": "manufacturername", "sClass": "read_only",
+                             "fnRender": function (obj, val) {
+                                 var mName = obj.aData.manufacturername;
+                                 if (mName != '' && mName != null)
+                                     return mName.toString().slice(0, -1);
+                                 else
+                                     return '';
+                             }
+                         },
+                         {
+                             "mDataProp": "ManufacturerNumber", "sClass": "read_only",
+                             "fnRender": function (obj, val) {
+                                 var mName = obj.aData.ManufacturerNumber;
+                                 if (mName != '' && mName != null)
+                                     return mName.toString().slice(0, -1);
+                                 else
+                                     return '';
+                             }
+                         }
+            ]
+
+        }).makeEditable();
+
+        $('.DTTT_container').css('z-index', '-1');
+
+        if ('@isCost' == '@Boolean.FalseString') {
+            HideColumnUsingClassName("myDataTable");
+        }
+        var QueryStringParam1 = getParameterByName('fromdashboard');
+        var QueryStringParam2 = getParameterByName('GUID');
+        if (QueryStringParam1 == 'yes' && QueryStringParam2 != '') {
+
+            setTimeout(function () { ShowEditTab("BarcodeEdit/" + QueryStringParam2, "frmAsset"); IsReloadItemList = true; }, 4000);
+        }
+    });
+    //$(document).on("tap click", "#myDataTable tbody tr", function (e) {
+    //    if ($(this).find("input#notselectRow").length > 0) {
+    //      //  $(this).toggleClass('row_selected');
+    //    }
+    //});
+
+    function fnGetSelected(oTableLocal) {
+        return oTableLocal.$('tr.row_selected');
+    }
+    function HistoryTabClick() {
+        GetHistoryData();
+    }
+    function ShowScheduleEditTab(action, formName) {
+
+        var IsArchived = $('#IsArchivedRecords').is(':checked');
+        var IsDeleted = $('#IsDeletedRecords').is(':checked');
+        action += '&IsArchived=' + IsArchived + '&IsDeleted=' + IsDeleted;
+        IsEditMode = true;
+        IsShowHistory = true;
+        AllowDeletePopup = false;
+
+
+        $('#DivLoading').show();
+        $("#CTab").hide();
+
+    }
+    /* HISTORY related data deleated and archived END */
+
+</script>
+<input type="hidden" value="@lstModulename.FirstOrDefault().GUID" id="hdnModuleGuid" />
+
+<table id="myDataTable" class="display">
+    <thead>
+        <tr>
+            <th>
+                @eTurns.DTO.Resources.ResCommon.RowNo
+            </th>
+            <th>
+                @ResCommon.ID
+            </th>
+            <th>
+                @ResBarcodeMaster.BarcodeString
+
+            </th>
+            <th>
+                @ResBarcodeMaster.ItemNumber
+
+            </th>
+            <th>
+                @ResBarcodeMaster.ModuleName
+
+            </th>
+            <th>
+                @ResBarcodeMaster.BinNumber
+
+            </th>
+            <th>
+                @ResBarcodeMaster.BarcodeAdded
+
+            </th>
+            <th>
+                @ResCommon.RoomName
+            </th>
+            <th>
+                @ResCommon.CreatedOn
+            </th>
+            <th>
+                @ResCommon.UpdatedOn
+            </th>
+            <th>
+                @ResCommon.UpdatedBy
+            </th>
+            <th>
+                @ResCommon.CreatedBy
+            </th>
+            <th>
+                @ResCommon.AddedFrom
+            </th>
+            <th>
+                @ResCommon.EditedFrom
+            </th>
+            <th>
+                @ResCommon.ReceivedOnDate
+            </th>
+            <th>
+                @ResCommon.ReceivedOnWebDate
+            </th>
+            <th>
+                @ResCategoryMaster.Category
+            </th>
+            <th>
+                @ResItemMaster.Description
+            </th>
+            <th>
+                @ResItemSupplierDetails.SupplierName
+            </th>
+            <th>
+                @ResItemSupplierDetails.SupplierNumber
+            </th>
+            <th>
+                @ResItemManufacturerDetails.ManufacturerName
+            </th>
+            <th>
+                @ResItemManufacturerDetails.ManufacturerNumber
+            </th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+<div id="processing_message" style="display: none" title="Processing">
+    @ResMessage.RequestProcessMessage
+</div>
+
+<script>
+
+    $(document).ready(function () {
+        $("select#ddlModuleType").val('1');
+    });
+</script>

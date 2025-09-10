@@ -1,0 +1,1234 @@
+﻿@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    ViewBag.Title = eTurns.DTO.ResCartItem.PageTitleQuoteToOrder;
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DataTableName = "myDataTable", DisplayUDFButton = false, DisplayPrintBlock=false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "QuoteItemList", DisplayDeleteButton = false, DisplayArchiveButton = false, ShowDelete = false, ShowCartPageAction= true };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "QuoteToOrder" };
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Orders, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    bool isQuoteDetailsUDF = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetNonDeletedUDFCountByUDFTableName("QuoteDetails", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID) > 0;
+    bool IsSubmit = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OrderSubmit);
+    bool IsApprove = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OrderApproval);
+    bool isCartOrder = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.CartOrder);
+    bool isQuoteToOrder = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.QuoteToOrder);
+
+    bool UDF1IsRequired = Html.GetUdfIsRequiredStatus("OrderMaster", "UDF1");
+    bool UDF2IsRequired = Html.GetUdfIsRequiredStatus("OrderMaster", "UDF2");
+    bool UDF3IsRequired = Html.GetUdfIsRequiredStatus("OrderMaster", "UDF3");
+    bool UDF4IsRequired = Html.GetUdfIsRequiredStatus("OrderMaster", "UDF4");
+    bool UDF5IsRequired = Html.GetUdfIsRequiredStatus("OrderMaster", "UDF5");
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("QuoteToOrder", (int)HelpDocType.Module);
+    string OrderAllowedFileExtension = eTurns.DTO.SiteSettingHelper.OrderAllowedFileExtension;
+}
+<style type="text/css">
+    .paginationBlock {
+        float: left !important;
+        position: absolute !important;
+        right: 290px !important;
+        top: -4px !important;
+    }
+</style>
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>    
+    <script language="javascript" type="text/javascript">
+        var oTable;
+        var IsRefreshGrid = false;
+        var objColumns = {}
+        var removedFileListName = [];
+        formData = new FormData();
+        $(document).ready(function () {
+            $("#hdnPageName").val('@modelCommon.PageName');
+            LoadTabs();
+            if ($("#btnCheckout") != undefined) {
+                $("#btnCheckout").val("@Html.Raw(ResQuoteMaster.CreateOrder)");
+            }
+            if ('@isQuoteToOrder'.toLowerCase() == 'true'
+                && '@isInsert'.toLowerCase() == 'true') {
+                    $('#btnCheckout').show();
+                }
+                else { $('#btnCheckout').hide(); }
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            if ($("#slectAction") != undefined) {
+                $("#slectAction").hide();
+            }
+            $.ajax({
+                "url": '/Quote/GetApprovedQuotes',
+                "type": "GET",
+                "async": false,
+                "success": function (data) {
+                    $("li#LIQuotelst").show();
+                    for (var i = 0; i < data.length; i++) {
+                        var opt = new Option(data[i].QuoteNumber, data[i].GUID);
+                        $('select#ddlQuotes').append(opt);
+                    }
+                   // if ($('select#ddlQuotes').val() != null && $('select#ddlQuotes').val() != "") {
+                        FillQuoteNarrowSearchData();
+                        oTable = $('#myDataTable').dataTable({
+                            "bJQueryUI": true,
+                            "bScrollCollapse": true,
+                            "bAutoWidth": true,
+                            "sDom": 'R<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                            "oColVis": {},
+                            "sScrollX": "100%",
+                            "aaSorting": [[1, "asc"]],
+                            "oColReorder": {},
+                            "bSort": true,
+                            "sPaginationType": "full_numbers",
+                            "bProcessing": true,
+                            "bStateSave": true,
+                            "bServerSide": true,
+                            "sAjaxSource": '@Url.Content("~/Quote/QuoteLineItemsListAjax")',
+                            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                                var arrCols = new Array();
+                                var objCols = this.fnSettings().aoColumns;
+                                for (var i = 0; i <= objCols.length - 1; i++) {
+                                    arrCols.push(objCols[i].mDataProp);
+                                }
+
+                                //---------------------------------------------------
+                                //
+                                var QuoteGUID = $('select#ddlQuotes').val();
+                                aoData.push({ "name": "QuoteGUID", "value": QuoteGUID });
+
+                                //---------------------------------------------------
+                                //
+                                for (var j = 0; j <= aoData.length - 1; j++) {
+                                    if (aoData[j].name == "sColumns") {
+                                        aoData[j].value = arrCols.join("|");
+                                        break;
+                                    }
+                                }
+
+                                if (oSettings.aaSorting.length != 0) {
+                                    var sortValue = "";
+                                    for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                                        if (sortValue.length > 0)
+                                            sortValue += ", "
+                                        sortValue += arrCols[oSettings.aaSorting[i][0]] + ' ' + oSettings.aaSorting[i][1];
+
+                                    }
+                                    aoData.push({ "name": "SortingField", "value": sortValue });
+                                }
+                                else
+                                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                                oSettings.jqXHR = $.ajax({
+                                    "dataType": 'json',
+                                    "type": "POST",
+                                    "url": sSource,
+                                    "data": aoData,
+                                    "headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                                    "success": fnCallback,
+                                    beforeSend: function () {
+                                        $('#myDataTable').removeHighlight();
+                                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                                    },
+                                    complete: function (result) {
+                                        $('.dataTables_scroll').css({ "opacity": 1 });
+                                        if ($("#txtQuoteItemFilter").val() != '') {
+                                            $('#myDataTable').highlight($("#txtQuoteItemFilter").val());
+                                        }
+                                        //$("a#ColumnOrderSetup").off("click");
+                                        //$(document).on("click", "a#ColumnOrderSetup", function () {
+                                        //    $("#ColumnSortableModal").dialog("open");
+                                        //});
+                                    }
+                                })
+                            },
+                            "fnInitComplete": function () {
+                                $('.ColVis').detach().appendTo(".setting-arrow");
+                                $('#divQuoteLegends').show(1000);
+                            },
+                            "aoColumns": [
+                                { "mDataProp": null, "sClass": "read_only center NotHide RowNo", "bSortable": false, "sDefaultContent": '' },
+                                {
+                                    "mDataProp": "ID", "sClass": "read_only", fnRender: function (obj, val) {
+                                        return "<span>" + obj.aData.ID + "</span><input type='hidden' id='hdnUniqueID' value='" + obj.aData.GUID.toString() + "' /><input type='hidden' id='hdnIsOrdered' value='" + obj.aData.IsOrdered + "' /><input type='hidden' id='hdnIsCloseItem' value='" + obj.aData.IsCloseItem + "' /><input type='hidden' id='hdnQuoteStatus' value='" + obj.aData.QuoteStatus + "' /><input type='hidden' id='hdnQDUDF1' value='" + obj.aData.UDF1 + "' /><input type='hidden' id='hdnQDUDF2' value='" + obj.aData.UDF2 + "' /><input type='hidden' id='hdnQDUDF3' value='" + obj.aData.UDF3 + "' /><input type='hidden' id='hdnQDUDF4' value='" + obj.aData.UDF4 + "' /><input type='hidden' id='hdnQDUDF5' value='" + obj.aData.UDF5 + "' />";
+                                    }
+                                },
+                                { "mDataProp": "ItemNumber", "sClass": "read_only" },
+                                { "mDataProp": "BinNumber", "sClass": "read_only" },
+                                {
+                                    "mDataProp": "RequestedQuantity", "sClass": "read_only numericalign",
+                                    "fnRender": function (obj, val) {
+                                        if (obj.aData.RequestedQuantity != null && obj.aData.RequestedQuantity != NaN)
+                                            return "<span>" + FormatedCostQtyValues(obj.aData.RequestedQuantity, 2) + "</span>";
+                                        else
+                                            return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                    }
+                                },
+                                {
+                                    "mDataProp": "ApprovedQuantity", "sClass": "read_only numericalign",
+                                    "fnRender": function (obj, val) {
+                                        if (obj.aData.ApprovedQuantity != null && obj.aData.ApprovedQuantity != NaN)
+                                            return "<span>" + FormatedCostQtyValues(obj.aData.ApprovedQuantity, 2) + "</span>";
+                                        else
+                                            return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                    }
+                                },
+                                { "mDataProp": "RequiredDate", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.RequiredDateStr; } },
+                                {
+                                    "mDataProp": "OnHandQuantity", "sClass": "read_only numericalign",
+                                    "fnRender": function (obj, val) {
+                                        if (obj.aData.OnHandQuantity != null && obj.aData.OnHandQuantity != NaN)
+                                            return "<span>" + FormatedCostQtyValues(obj.aData.OnHandQuantity, 2) + "</span>";
+                                        else
+                                            return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                    }
+                                },
+                                { "mDataProp": "ItemDescription", "sClass": "read_only" },
+                                { "mDataProp": "Unit", "sClass": "read_only" },
+                                { "mDataProp": "GLAccount", "sClass": "read_only" },
+                                {
+                                    "mDataProp": "ItemSellPrice", "sClass": "read_only numericalign",
+                                    "fnRender": function (obj, val) {
+                                        if (obj.aData.ItemSellPrice != null && obj.aData.ItemSellPrice != NaN)
+                                            return "<span>" + FormatedCostQtyValues(obj.aData.ItemSellPrice, 1) + "</span>";
+                                        else
+                                            return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+                                    }
+                                },
+                                { "mDataProp": "ItemMarkup", "sClass": "read_only isCost" },
+                                {
+                                    "mDataProp": "ItemCost", "sClass": "read_only numericalign",
+                                    "fnRender": function (obj, val) {
+                                        if (obj.aData.ItemCost != null && obj.aData.ItemCost != NaN)
+                                            return "<span>" + FormatedCostQtyValues(obj.aData.ItemCost, 1) + "</span>";
+                                        else
+                                            return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+                                    }
+                                },
+                                { "mDataProp": "SupplierName", "sClass": "read_only" },
+                                {
+                                    "mDataProp": "OnQuotedQuantity", "sClass": "read_only numericalign",
+                                    "fnRender": function (obj, val) {
+                                        if (obj.aData.OnQuotedQuantity != null && obj.aData.OnQuotedQuantity != NaN)
+                                            return "<span>" + FormatedCostQtyValues(obj.aData.OnQuotedQuantity, 2) + "</span>";
+                                        else
+                                            return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                    }
+                                },
+                                {
+                                    "mDataProp": "MinimumQuantity", "sClass": "read_only numericalign",
+                                    "fnRender": function (obj, val) {
+                                        if (obj.aData.MinimumQuantity != null && obj.aData.MinimumQuantity != NaN)
+                                            return "<span>" + FormatedCostQtyValues(obj.aData.MinimumQuantity, 2) + "</span>";
+                                        else
+                                            return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                    }
+                                },
+                                {
+                                    "mDataProp": "MaximumQuantity", "sClass": "read_only numericalign",
+                                    "fnRender": function (obj, val) {
+                                        if (obj.aData.MaximumQuantity != null && obj.aData.MaximumQuantity != NaN)
+                                            return "<span>" + FormatedCostQtyValues(obj.aData.MaximumQuantity, 2) + "</span>";
+                                        else
+                                            return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                    }
+                                },
+                                { "mDataProp": "Category", "sClass": "read_only" },
+                                { "mDataProp": "Manufacturer", "sClass": "read_only" },
+                                { "mDataProp": "ManufacturerNumber", "sClass": "read_only" },
+                                { "mDataProp": "SupplierPartNo", "sClass": "read_only" },
+                                { "mDataProp": "ItemCostUOM", "sClass": "read_only" },
+                                { "mDataProp": "ItemCostUOMValue", "sClass": "read_only" },
+                                { "mDataProp": "Comment", "sClass": "read_only" },
+                                { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                                { "mDataProp": "Created", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.CreatedDate; } },
+                                { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                                { "mDataProp": "LastUpdated", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.UpdatedDate; } },
+                                { "mDataProp": "AddedFrom", "sClass": "read_only" },
+                                { "mDataProp": "EditedFrom", "sClass": "read_only" },
+                                {
+                                    "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+                                    "fnRender": function (obj, val) {
+                                        return obj.aData.ReceivedOnDateWeb;
+                                    }
+                                },
+                                {
+                                    "mDataProp": "ReceivedOn", "sClass": "read_only",
+                                    "fnRender": function (obj, val) {
+                                        return obj.aData.ReceivedOnDate;
+                                    }
+                                },
+                                {
+                                    "mDataProp": "QuoteLineItemExtendedCost", "sClass": "read_only numericalign",
+                                    "fnRender": function (obj, val) {
+                                        if (obj.aData.QuoteLineItemExtendedCost != null && obj.aData.QuoteLineItemExtendedCost != NaN)
+                                            return "<span>" + FormatedCostQtyValues(obj.aData.QuoteLineItemExtendedCost, 1) + "</span>";
+                                        else
+                                            return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+                                    }
+                                },
+                                {
+                                    "mDataProp": "QuoteLineItemExtendedPrice", "sClass": "read_only numericalign",
+                                    "fnRender": function (obj, val) {
+                                        if (obj.aData.QuoteLineItemExtendedPrice != null && obj.aData.QuoteLineItemExtendedPrice != NaN)
+                                            return "<span>" + FormatedCostQtyValues(obj.aData.QuoteLineItemExtendedPrice, 1) + "</span>";
+                                        else
+                                            return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+                                    }
+                                }
+                @Html.RenderColumnsArray("QuoteDetails")
+                            ],
+                            "oLanguage": {
+                                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                            },
+                            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+
+                                @*if (aData.IsItemLevelMinMaxQtyRequired == true || aData.IsItemLevelMinMaxQtyRequired == 'Yes') {
+                                    var onhand = parseFloat($(aData.OnHandQuantity).text());
+                                    var critQty = parseFloat($(aData.CriticalQuantity).text());
+                                    var minQty = parseFloat($(aData.MinimumQuantity).text());
+                                    if (onhand < critQty) {
+                                        $(nRow).attr({ 'style': 'background-color:@eTurnsWeb.Helper.SessionHelper.CriticalQuantityBackColor !Important' });
+                                    }
+                                    else if (onhand < minQty) {
+                                        $(nRow).attr({ 'style': 'background-color:@eTurnsWeb.Helper.SessionHelper.MinimumQuantityBackColor !Important' });
+                                    }
+                                }
+                                else if (aData.IsItemLevelMinMaxQtyRequired == false || aData.IsItemLevelMinMaxQtyRequired == 'No') {
+                                    var onhand = parseFloat($(aData.ItemLocationOH).text());
+                                    var critQty = parseFloat($(aData.CriticalQuantity).text());
+                                    var minQty = parseFloat($(aData.MinimumQuantity).text());
+                                    if (onhand < critQty) {
+                                        $(nRow).attr({ 'style': 'background-color:@eTurnsWeb.Helper.SessionHelper.CriticalQuantityBackColor !Important' });
+                                    }
+                                    else if (onhand < minQty) {
+                                        $(nRow).attr({ 'style': 'background-color:@eTurnsWeb.Helper.SessionHelper.MinimumQuantityBackColor !Important' });
+                                    }
+                                }*@
+
+                                if (aData.IsOrdered == true
+                                    || aData.IsCloseItem == true
+                                    || aData.QuoteStatus == 8
+                                    || (aData.IsItemActive == false || aData.IsItemOrderable == false)) {
+                                    $(nRow).attr({ 'style': 'background-color:@eTurnsWeb.Helper.SessionHelper.QuoteLegendNotOrderableBackColor !Important' });
+                                }
+
+                                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                                return nRow;
+                            },
+                            "fnStateSaveParams": function (oSettings, oData) {
+
+                                oData.oSearch.sSearch = "";
+                                $.ajax({
+                                    "url": '@Url.Content("~/Master/SaveGridState")',
+                                    "type": "POST",
+                                    data: { Data: JSON.stringify(oData), ListName: 'QuoteItemList' },
+                                    "async": false,
+                                    cache: false,
+                                    "dataType": "json",
+                                    "success": function (json) {
+                                        o = json;
+                                    }
+                                });
+                                bIsFilter = false;
+                            },
+                            "fnStateLoad": function (oSettings) {
+                                var o;
+                                $.ajax({
+                                    "url": '@Url.Content("~/Master/LoadGridState")',
+                                    "type": "POST",
+                                    data: { ListName: 'QuoteItemList' },
+                                    "async": false,
+                                    cache: false,
+                                    "dataType": "json",
+                                    "success": function (json) {
+                                        if (json.jsonData != '') {
+                                            o = JSON.parse(json.jsonData);
+                                        }
+                                    }
+                                });
+                                return o;
+                            },
+
+                        });
+                   // }
+                },
+                "error": function (err) {
+                    $('#DivLoading').hide();
+                }
+            });
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+            // $('#dvCartHistory .printBlock').css({'left':'-83px'});
+        });
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+        function fnFilterQuoteItemList(searchtext) {
+            bIsFilter = true;
+            //var appendedQuoteGuid = $("select#ddlQuotes").val();
+            //if (appendedQuoteGuid.length > 0) {
+            //    searchtext = searchtext + "[^]" + appendedQuoteGuid;
+            //}
+            $('#myDataTable').dataTable().fnFilter(searchtext, null, null, null);
+            $('#myDataTable' + ' td').removeHighlight();
+            if (searchtext.length > 0)
+                $('#myDataTable' + ' td').highlight(searchtext);
+        }
+
+    </script>
+    <script type="text/javascript">
+        var isTabClick = false;
+        var TabsArry = [new TabClass('tab5', '@eTurns.DTO.Resources.ResLayout.QuoteToOrder', 'callbackQuotetoOrderList();', true, true)];
+        function SetTabView() {
+            var tabname = window.location.hash.toLowerCase();
+
+            switch (tabname) {
+                case "#listquotetoorder":
+                    $("#tab5").click();
+                    break
+            }
+        }
+        $(document).ready(function () {
+            callbackQuotetoOrderList();
+            $(window).on('hashchange', function () {
+                if (isTabClick == false) {
+                    SetTabView();
+                }
+                else {
+                    isTabClick = false;
+                }
+            });
+        });
+        function callbackQuotetoOrderList() {
+            window.location.hash = '#listquotetoorder';
+            $("#Ctab").show();
+            /*oTable.fnFilter("");*/
+
+            if ($("#btnCheckout") != undefined) {
+                $("#btnCheckout").val("@Html.Raw(ResQuoteMaster.CreateOrder)");
+            }
+            if ('@isQuoteToOrder'.toLowerCase() == 'true'
+                && '@isInsert'.toLowerCase() == 'true') {
+                    $('#btnCheckout').show();
+                }
+                else { $('#btnCheckout').hide(); }
+        }
+    </script>
+}
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResCartItem.PageTitleQuoteToOrder
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+        <div class="userListBlock">
+            @Html.Hidden("hdnInsertRights", isInsert)
+            @Html.Hidden("hdnPageName", modelCommon.PageName)
+            <ul class='tabs'></ul>
+            <div id="Ctab" class="tabContener" style="min-height: 1020px;">
+                <div class="searchWrapper">
+                    <div class="searchBlock">
+                        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                        <div class="searchinputB">
+                            <input type="text" class="searchinput" id="txtQuoteItemFilter" />
+                            <a href="javascript:void(0);" class="xclose">
+                                <img src="~/Content/images/x.png" alt="X" id="imgClearQuoteItemFilter" />
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Quote)
+                <div id="divNarrowSearch" style="float: left; padding: 0 5px 0 0; width: 18%;">
+                    @{ Html.RenderPartial("_QuoteToOrderNarrowSearch", modelCommon); }
+                </div>
+                <div class="userContent">
+                    <table id="myDataTable" class="display">
+                        <thead>
+                            <tr>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.RowNo
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.ID
+                                </th>
+                                <th class="NotHide">
+                                    @eTurns.DTO.ResItemMaster.ItemNumber
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResQuoteMaster.Bin
+                                </th>
+                                <th class="NotHide">
+                                    @eTurns.DTO.ResQuoteMaster.RequestedQuantity
+                                </th>
+                                <th class="NotHide">
+                                    @eTurns.DTO.ResQuoteMaster.ApprovedQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResQuoteMaster.RequiredDate
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.OnHandQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.Description
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResUnitMaster.Unit
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResGLAccount.GLAccount
+                                </th>
+                                <th>
+                                    @ResQuoteMaster.QuoteItemSellPrice
+                                </th>
+                                <th>
+                                    @ResQuoteMaster.QuoteItemMarkup
+                                </th>
+                                <th>
+                                    @ResQuoteMaster.QuoteItemCost
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResSupplierMaster.Supplier
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.OnQuotedQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.MinimumQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.MaximumQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResCategoryMaster.Category
+                                </th>
+                                @*<th>
+                            @eTurns.DTO.ResItemMaster.PackingQuantity
+                        </th>*@
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.ManufacturerName
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.ManufacturerNumber
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.SupplierPartNo
+                                </th>
+                                @*<th>
+                            @eTurns.DTO.ResItemMaster.SuggestedOrderQuantity
+                        </th>*@
+                                @*<th>
+                            @eTurns.DTO.ResQuoteMaster.ItemBlanketPO
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResQuoteMaster.SendToEDI
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResQuoteMaster.PackSlipNumber
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResQuoteMaster.ASNNumber
+                        </th>*@
+                                <th>
+                                    @ResCostUOMMaster.CostUOM
+                                </th>
+                                <th>
+                                    @ResCostUOMMaster.CostUOMValue
+                                </th>
+                                <th class="NotSortable">
+                                    @ResQuoteMaster.Comment
+                                </th>
+                                @*<th>
+                            @ResItemMaster.InTransferTransitQuantity
+                        </th>*@
+
+                                <th>
+                                    @ResCommon.CreatedBy
+                                </th>
+                                <th>
+                                    @ResCommon.CreatedOn
+                                </th>
+                                <th>
+                                    @ResCommon.LastUpdatedBy
+                                </th>
+                                <th>
+                                    @ResCommon.UpdatedOn
+                                </th>
+                                <th>
+                                    @ResCommon.AddedFrom
+                                </th>
+                                <th>
+                                    @ResCommon.EditedFrom
+                                </th>
+                                <th>
+                                    @ResCommon.ReceivedOnWeb
+                                </th>
+                                <th>
+                                    @ResCommon.ReceivedOn
+                                </th>
+
+                                @*<th>
+                            @ResQuoteMaster.OrdDtlInTransitQty
+                        </th>*@
+                                @if (isCost)
+                                {
+                                    <th>
+                                        @ResQuoteMaster.QuoteLineItemExtendedCost
+                                    </th>
+                                }@if (isCost)
+                                {
+                                    <th>
+                                        @ResQuoteMaster.QuoteLineItemExtendedPrice
+                                    </th>
+                                }
+                                @if (isQuoteDetailsUDF)
+                                {
+                                    @Html.RenderColumnsHeader("QuoteDetails", typeof(eTurns.DTO.ResQuoteDetail))
+                                }
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <div id="processing_message" style="display: none" title="Processing">
+                        @eTurns.DTO.Resources.ResMessage.RequestProcessMessage
+                    </div>
+                    @*START : QTY Legends*@
+                    @Html.Partial("_QuoteLegends")
+                    @*END : QTY Legends*@
+                </div>
+            </div>
+        </div>
+        <div class="dialog" id="basic-modal-content-OrderAction" style="display: none;">
+            <div class="inner">
+                <p class="text" id="ptextcart">
+                </p>
+                <a href="JavaScript:void{}" id="btnModelYesCartAction" class="yes">
+                    <img src="~/Content/images/yes.png" alt="Yes" />
+                    @eTurns.DTO.Resources.ResMessage.ConfirmYes
+                </a><a href="#" class="no" onclick="closeModal()">
+                    <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+                </a>
+            </div>
+        </div>
+        <div id="dvCreteQuoteToOrder" style="width: 95%">
+            @*@{Html.Partial("CreteQuoteToOrder", new List<OrderMasterDTO>());}*@
+        </div>
+    </div>
+<script language="javascript" type="text/javascript">
+     var OrderAllowedFileExtension = '@OrderAllowedFileExtension';
+    jQuery(function () {
+        $("#dvCreteQuoteToOrder").dialog({
+            autoOpen: false,
+            modal: true,
+            width: 1200,
+            minHeight: 'auto',
+            maxHeight:500,
+            title: '@eTurns.DTO.ResCartItem.PageTitleQuoteToOrder',
+            draggable: false,
+            resizable: false,
+            open: function () {
+                AllowDeletePopup = false;
+            },
+            close: function () {
+                AllowDeletePopup = true;
+            }
+        });
+    });
+    $("#btnCheckout").click(function () {
+        if ($('select#ddlQuotes').val() == null
+            || $('select#ddlQuotes').val() == "") {
+            alert("@ResQuoteMaster.QuoteRequired");
+            return false;
+        }
+        var anSelected = fnGetSelected(oTable);
+        if (anSelected.length == 0) {
+            alert("@ResQuoteMaster.QuoteItemRequired");
+            return false;
+        }
+        var stringIDs = "";
+        var QuoteLineItemUDF1 = "";
+        var QuoteLineItemUDF2 = "";
+        var QuoteLineItemUDF3 = "";
+        var QuoteLineItemUDF4 = "";
+        var QuoteLineItemUDF5 = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            stringIDs = stringIDs + $(anSelected[i]).find('#hdnUniqueID').val() + ",";
+            if ($(anSelected[i]).find('#hdnQDUDF1') != null
+                && $(anSelected[i]).find('#hdnQDUDF1').val() != undefined
+                && $(anSelected[i]).find('#hdnQDUDF1').val() != "") {
+                QuoteLineItemUDF1 = QuoteLineItemUDF1 + $(anSelected[i]).find('#hdnQDUDF1').val() + ",";
+            }
+            if ($(anSelected[i]).find('#hdnQDUDF2') != null
+                && $(anSelected[i]).find('#hdnQDUDF2').val() != undefined
+                && $(anSelected[i]).find('#hdnQDUDF2').val() != "") {
+                QuoteLineItemUDF2 = QuoteLineItemUDF2 + $(anSelected[i]).find('#hdnQDUDF2').val() + ",";
+            }
+            if ($(anSelected[i]).find('#hdnQDUD3') != null
+                && $(anSelected[i]).find('#hdnQDUDF3').val() != undefined
+                && $(anSelected[i]).find('#hdnQDUDF3').val() != "") {
+                QuoteLineItemUDF3 = QuoteLineItemUDF3 + $(anSelected[i]).find('#hdnQDUD3').val() + ",";
+            }
+            if ($(anSelected[i]).find('#hdnQDUD4') != null
+                && $(anSelected[i]).find('#hdnQDUDF4').val() != undefined
+                && $(anSelected[i]).find('#hdnQDUDF4').val() != "") {
+                QuoteLineItemUDF4 = QuoteLineItemUDF4 + $(anSelected[i]).find('#hdnQDUD4').val() + ",";
+            }
+
+            if ($(anSelected[i]).find('#hdnQDU5') != null
+                && $(anSelected[i]).find('#hdnQDUDF5').val() != undefined
+                && $(anSelected[i]).find('#hdnQDUDF5').val() != "") {
+                QuoteLineItemUDF5 = QuoteLineItemUDF5 + $(anSelected[i]).find('#hdnQDUDF5').val() + ",";
+            }
+        }
+        $('#DivLoading').show();
+        if ($.trim(stringIDs) != "") {
+            $('#DivLoading').show();
+            $.ajax({
+                url: '@Url.Action("CreateQuoteOrderPopup", "Quote")',
+                type: 'POST',
+                //dataType: 'json',
+                data: "{QuoteGuid: '" + $('select#ddlQuotes').val() + "', Ids: '" + stringIDs + "', QuoteLineItemUDF1: '" + QuoteLineItemUDF1 + "', QuoteLineItemUDF2: '" + QuoteLineItemUDF2 + "', QuoteLineItemUDF3: '" + QuoteLineItemUDF3 + "', QuoteLineItemUDF4: '" + QuoteLineItemUDF4 + "', QuoteLineItemUDF5: '" + QuoteLineItemUDF5 + "'}",
+                contentType: "application/json; charset=utf-8",
+                dataType: "html",
+                success: function (result) {
+                    $('#DivLoading').hide();
+                    $("#dvCreteQuoteToOrder").empty();
+                    $("#dvCreteQuoteToOrder").html(result);
+                    $("#dvCreteQuoteToOrder").dialog("open");
+                },
+                error: function (request, status, error) {
+                }
+            });
+        }
+        else {
+            alert("@ResQuoteMaster.QuoteItemRequired");
+        }
+    });
+    var txtFilerId = 'txtQuoteItemFilter';
+    var myDataTableId = 'myDataTable';
+    var $myDataTable = $('#' + myDataTableId);
+
+    _Common.setGloblaSearch(txtFilerId, myDataTableId, function (txtSearch) {
+        DoQuoteNarrowSearch();
+    },
+        function (txtSearch, keycode) {
+            DoQuoteNarrowSearch_OnEnter(keycode);
+        }
+    );
+    function RemovenonQuoteItems() {
+        $("#myDataTable").find("tbody tr.row_selected").each(function () {
+            var aPos = oTable.fnGetPosition($(this)[0]);
+            var aData = oTable.fnGetData(aPos);
+            if (aData.IsOrdered == true
+                || aData.IsCloseItem == true
+                || aData.QuoteStatus == 8
+                || (aData.IsItemActive == false || aData.IsItemOrderable == false)) {
+                $(this).removeClass("row_selected");
+            }
+        });
+    }
+    $("#dvCreteQuoteToOrder").on("click", "#btnCancel", function () {
+        //$("#dvCreteQuoteToOrder").empty();
+        $("#dvCreteQuoteToOrder").dialog("close");
+    });
+
+        $("#btnModelYesCartAction").click(function () {
+            var btnSave = $(this);
+            closeModal();
+            $('#DivLoading').show();
+            var orderHeaders = new Array();
+            var validationToken = true;
+            if ($("#dvCreteQuoteToOrder").find("table.display").find("input[type='checkbox'][id^='chkOrder']:checked").length > 0) {
+
+                $("#dvCreteQuoteToOrder").find("table.display").find("input[type='checkbox'][id^='chkOrder']:checked").each(function (indx, curchk) {
+                    if ($(curRow).find("select[id^='ddlOrderStatus']").val() == 2) {
+
+                    }
+                    var vvUDF1 = '', vvUDF2 = '', vvUDF3 = '', vvUDF4 = '', vvUDF5 = '';
+                    var curRow = $(curchk).parent().parent();
+
+                    /// save UDF options for the editable dropdown start ////
+                    if ($(curRow).find('.udf-editable-dropdownbox').length > 0) {
+                        $(curRow).find('.udf-editable-dropdownbox').each(function () {
+                            var _UDFID = $(this).prev().val();
+                            var _UDFOption = $(this).val();
+                            var _UDFColumnName = $(this).prop("name");
+                            var actionURL;
+                            var params;
+                            var udftable = '';
+                            if ($("input#UDFTableName").length > 0) {
+                                udftable = $("input#UDFTableName").val();
+                            }
+                            if (_UDFID > 0) {
+                                //Add Mode  - UDFOption
+                                actionURL = '/UDF/InsertUDFOption';
+                                params = { UDFID: _UDFID, UDFOption: _UDFOption, UDFTableName: udftable, UDFColumnName: _UDFColumnName }
+                                $.ajax({
+                                    'url': actionURL,
+                                    data: params,
+                                    success: function (response) {
+                                    }
+                                });
+                            }
+                        });
+                    }
+                    /// save UDF options for the editable dropdown end ////
+
+                    var supplierId = $(curRow).find("input[type='hidden'][id^='hdnSupplierId']").val();
+                    var lineItems = $(curRow).find("input[type='hidden'][id^='hdnNoOfLineItems']").val();
+                    var orderLineItemsIds = $(curRow).find("input[type='hidden'][id^='hdnOrderLineItemsIds']").val();
+                    var orderNumber = $(curRow).find("input[type='text'][id^='txtOrderNumber']").val();
+                    var suplierName = $(curRow).find("select[id^='ddlOrderSupplier'] option:selected").text();
+                    var orderStatus = $(curRow).find("select[id^='ddlOrderStatus']").val();
+                    var comments = $(curRow).find("textarea[id^='txtComment']").val();
+                    var requiredDate = $(curRow).find("input[type='text'][id^='txtRequiredDate']").val();
+                    var shipViaName = $(curRow).find("input[type='text'][id^='txtShipViaName']").val();
+                    var stagingName = $(curRow).find("input[type='text'][id^='txtStagingName']").val();
+                    var customerName = $(curRow).find("input[type='text'][id^='txtCustomerName']").val();
+                    var VendorName = $(curRow).find("input[type='text'][id^='txtVendorName']").val();
+                    var ShippingTrackNumber = $(curRow).find("input[type='text'][id^='ShippingTrackNumber']").val();
+                    var SupplierAccountGuid = $(curRow).find("select[id^='ddlSupplierAccountt_']").val();
+
+                    var orderLineItemsUDF1 = $(curRow).find("input[type='hidden'][id^='hdnOrderLineUDF1']").val();
+                    var orderLineItemsUDF2 = $(curRow).find("input[type='hidden'][id^='hdnOrderLineUDF2']").val();
+                    var orderLineItemsUDF3 = $(curRow).find("input[type='hidden'][id^='hdnOrderLineUDF3']").val();
+                    var orderLineItemsUDF4 = $(curRow).find("input[type='hidden'][id^='hdnOrderLineUDF4']").val();
+                    var orderLineItemsUDF5 = $(curRow).find("input[type='hidden'][id^='hdnOrderLineUDF5']").val();
+                    var isBlanketOrder = $(curRow).find("input[type='hidden'][id^='hdnIsBlanketOrder']").val();
+
+                    if (isBlanketOrder == "True") {
+                        var blanketPO = $(curRow).find("select[id^='ddlBlanketPO']").val();
+                        if (!isNaN(parseInt(blanketPO)) && parseInt(blanketPO) > 0) {
+                            orderNumber = $(curRow).find("select[id^='ddlBlanketPO'] :selected").text();
+                        }
+                        else {
+                            orderNumber = "";
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF1').length > 0) {
+                        if ($(curRow).find('#UDF1').attr("class") == 'selectBox') {
+                            vvUDF1 = $(curRow).find('#UDF1 option:selected').text();
+                        }
+                        else {
+                            vvUDF1 = $(curRow).find('#UDF1').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF2').length > 0) {
+                        if ($(curRow).find('#UDF2').attr("class") == 'selectBox') {
+                            vvUDF2 = $(curRow).find('#UDF2 option:selected').text();
+                        }
+                        else {
+                            vvUDF2 = $(curRow).find('#UDF2').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF3').length > 0) {
+                        if ($(curRow).find('#UDF3').attr("class") == 'selectBox') {
+                            vvUDF3 = $(curRow).find('#UDF3 option:selected').text();
+                        }
+                        else {
+                            vvUDF3 = $(curRow).find('#UDF3').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF4').length > 0) {
+                        if ($(curRow).find('#UDF4').attr("class") == 'selectBox') {
+                            vvUDF4 = $(curRow).find('#UDF4 option:selected').text();
+                        }
+                        else {
+                            vvUDF4 = $(curRow).find('#UDF4').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF5').length > 0) {
+                        if ($(curRow).find('#UDF5').attr("class") == 'selectBox') {
+                            vvUDF5 = $(curRow).find('#UDF5 option:selected').text();
+                        }
+                        else {
+                            vvUDF5 = $(curRow).find('#UDF5').val();
+                        }
+                    }
+
+                    orderHeaders.push({
+                        ID: 0, OrderNumber: orderNumber, Supplier: supplierId, Comment: comments, RequiredDateString: requiredDate, ShipViaName: shipViaName,
+                        StagingName: stagingName, CustomerName: customerName, ShippingVendorName: VendorName, ShippingTrackNumber: ShippingTrackNumber,
+                        OrderLineItemsIds: orderLineItemsIds, OrderStatus: orderStatus, IsOnlyFromUI: true, SupplierAccountGuid: SupplierAccountGuid,
+                        OrderLineItemUDF1: orderLineItemsUDF1, OrderLineItemUDF2: orderLineItemsUDF2, OrderLineItemUDF3: orderLineItemsUDF3,
+                        OrderLineItemUDF4: orderLineItemsUDF4, OrderLineItemUDF5: orderLineItemsUDF5,
+                        UDF1: vvUDF1, UDF2: vvUDF2, UDF3: vvUDF3, UDF4: vvUDF4, UDF5: vvUDF5,
+                        SupplierName: suplierName
+                    });
+
+                    if ($.trim(orderNumber) == "") {
+                        $(curRow).css("background-color", "#FFA17F");
+                        if (validationToken == true) {
+                            validationToken = false;
+                        }
+                    }
+                });
+
+                if (validationToken == true) {
+                    var dataToSend = JSON.stringify({ "lstOrders": orderHeaders, "QuoteGuid": $('select#ddlQuotes').val() });
+                    $.ajax({
+                        type: "POST",
+                        url: '@Url.Action("CreateOrdersfromQuoteItems", "Quote")',
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        data: dataToSend, //{ "lstOrders": orderHeaders, QuoteGuid: $('select#ddlQuotes').val() },
+                        success: function (retdt) {
+                                if (retdt != undefined && retdt.lstOrders != null && retdt.lstOrders != undefined) {
+                                    for (var i = 0; i < retdt.lstOrders.length; i++) {
+                                        var SUPPLIERID = retdt.lstOrders[i].Supplier;
+                                        var totalfiles = document.getElementById("file_" + retdt.lstOrders[i].Supplier).files.length;
+                                        if (totalfiles > 0) {
+                                            for (var j = 0; j < totalfiles; j++) {
+                                                var fileExt = document.getElementById("file_" + retdt.lstOrders[i].Supplier).files[j].name;
+                                                fileExt = fileExt.substring(fileExt.lastIndexOf('.'));
+                                                if (OrderAllowedFileExtension.indexOf(fileExt.toLowerCase()) <= -1) {
+                                                    // do nothing for invalid file
+                                                } else {
+                                                    var SUPPLIERID = (retdt.lstOrders[i] != undefined && retdt.lstOrders[i].Supplier != undefined) ? parseInt(retdt.lstOrders[i].Supplier) : 0;
+                                                    var FILENAME = document.getElementById("file_" + retdt.lstOrders[i].Supplier).files[j].name;
+                                                    var isavailable = removedFileListName.filter(function (item) {
+                                                        return item.id == SUPPLIERID && item.fileName === FILENAME
+                                                    });
+                                                    if (isavailable.length == 0) {
+                                                        formData.append("file_" + retdt.lstOrders[i].Supplier + j.toString(), document.getElementById("file_" + retdt.lstOrders[i].Supplier).files[j]);
+                                                    }
+                                                }
+                                            }
+                                            //uupload image for suucess
+                                            var OrderGuid;
+                                            var OrderID;
+                                            if (retdt.lstOrders[i] != null && retdt.lstOrders[i] != undefined && retdt.lstOrders[i].GUID != "00000000-0000-0000-0000-000000000000" && retdt.lstOrders[i].ID > 0) {
+                                                OrderGuid = retdt.lstOrders[i].GUID;
+                                                OrderID = retdt.lstOrders[i].ID;
+                                                //send formdata to server-side
+                                                $.ajax({
+                                                    url: "/api/fileupload/OrderFileUpload/" + OrderID + "?OrderGUID=" + OrderGuid,
+                                                    type: 'post',
+                                                    data: formData,
+                                                    dataType: 'html', // we return html from our file
+                                                    async: false,
+                                                    processData: false,  // tell jQuery not to process the data
+                                                    contentType: false,   // tell jQuery not to set contentType
+                                                    success: function (data) {
+                                                        formData = new FormData();
+                                                        deleteFromArray(SUPPLIERID);
+                                                    },
+                                                    error: function (request) {
+                                                        console.log(request.responseText);
+                                                        formData = new FormData();
+                                                    }
+                                                });
+                                            } else {
+                                                formData = new FormData();
+                                            }
+                                        }
+                                    }
+                            }
+                            $.modal.close();
+                            $('#DivLoading').hide();
+                            if (retdt.Status == "ok") {
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                                $("#spanGlobalMessage").html(retdt.Message);
+                                $('div#target').css("z-index", 100000);
+                                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+                                //RefressFilterCart("CartItemList");
+                                oTable.fnDraw();
+                                //$("#dvCreteQuoteToOrder").empty();
+                                $("#dvCreteQuoteToOrder").dialog("close");
+                            }
+                            else {
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime + 3000).fadeOut(FadeOutTime + 1000);
+                                $("#spanGlobalMessage").html(retdt.Message);
+                                $('div#target').css("z-index", 100000);
+                                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('errorIcon');
+                            }
+                        },
+                        error: function (err) {
+                            alert("There is some Error");
+                        }
+                    });
+                }
+                else {
+                    $('div#target').fadeToggle();
+                    $('#DivLoading').hide();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $('div#target').css("z-index", 100000);
+                    $("#spanGlobalMessage").html("@ResCommon.CorrectErrorToProceed");
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                }
+            }
+        });
+
+        $("#dvCreteQuoteToOrder").on("focus", "input[id^='txtRequiredDate']", function () {
+            $(this).datepicker(
+                {
+                    dateFormat: RoomDateJSFormat,
+                    showButtonPanel: true,
+                    clearText: 'Clear',
+                    onClose: function () {
+                        this.focus();
+                    }
+                });
+
+        });
+
+        //// Order Save start ///
+
+        $("#dvCreteQuoteToOrder").on("click", "#btnSaveOrders", function () {
+            var validationToken = true;
+            var errMsg = '';
+            var vSupplierName = '';
+            var orderHeaders = new Array();
+            var orderSelected = $("#dvCreteQuoteToOrder").find("table.display").find("input[type='checkbox'][id^='chkOrder']:checked").length;
+            if (orderSelected > 0) {
+                $("#dvCreteQuoteToOrder").find("table.display").find("input[type='checkbox'][id^='chkOrder']:checked").each(function (indx, curchk) {
+                    var vUDF1 = '', vUDF2 = '', vUDF3 = '', vUDF4 = '', vUDF5 = '';
+                    var curRow = $(curchk).parent().parent();
+                    var supplierId = $(curRow).find("input[type='hidden'][id^='hdnSupplierId']").val();
+                    var lineItems = $(curRow).find("input[type='hidden'][id^='hdnNoOfLineItems']").val();
+                    var orderLineItemsIds = $(curRow).find("input[type='hidden'][id^='hdnOrderLineItemsIds']").val();
+                    var orderNumber = $(curRow).find("input[type='text'][id^='txtOrderNumber']").val();
+                    var orderStatus = $(curRow).find("select[id^='ddlOrderStatus']").val();
+                    var comments = $(curRow).find("textarea[id^='txtComment']").val();
+                    var requiredDate = $(curRow).find("input[type='text'][id^='txtRequiredDate']").val();
+                    var shipViaName = $(curRow).find("input[type='text'][id^='txtShipViaName']").val();
+                    var stagingName = $(curRow).find("input[type='text'][id^='txtStagingName']").val();
+                    var customerName = $(curRow).find("input[type='text'][id^='txtCustomerName']").val();
+                    var VendorName = $(curRow).find("input[type='text'][id^='txtVendorName']").val();
+                    var ShippingTrackNumber = $(curRow).find("input[type='text'][id^='ShippingTrackNumber']").val();
+                    var SupplierAccountGuid = $(curRow).find("select[id^='ddlSupplierAccountt_']").val();
+                    vSupplierName = $(curRow).find('#ddlOrderSupplier').text();
+                    var isBlanketOrder = $(curRow).find("input[type='hidden'][id^='hdnIsBlanketOrder']").val();
+
+                    if (isBlanketOrder == "True") {
+                        var blanketPO = $(curRow).find("select[id^='ddlBlanketPO']").val();
+                        if (!isNaN(parseInt(blanketPO)) && parseInt(blanketPO) > 0) {
+                            orderNumber = $(curRow).find("select[id^='ddlBlanketPO'] :selected").text();
+                        }
+                        else {
+                            orderNumber = "";
+                        }
+                    }
+                    if ($(curRow).find('#UDF1').length > 0) {
+                        if ($(curRow).find('#UDF1').attr("class") == 'selectBox') {
+                            vUDF1 = $(curRow).find('#UDF1 option:selected').text();
+                        }
+                        else {
+                            vUDF1 = $(curRow).find('#UDF1').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF2').length > 0) {
+                        if ($(curRow).find('#UDF2').attr("class") == 'selectBox') {
+                            vUDF2 = $(curRow).find('#UDF2 option:selected').text();
+                        }
+                        else {
+                            vUDF2 = $(curRow).find('#UDF2').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF3').length > 0) {
+                        if ($(curRow).find('#UDF3').attr("class") == 'selectBox') {
+                            vUDF3 = $(curRow).find('#UDF3 option:selected').text();
+                        }
+                        else {
+                            vUDF3 = $(curRow).find('#UDF3').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF4').length > 0) {
+                        if ($(curRow).find('#UDF4').attr("class") == 'selectBox') {
+                            vUDF4 = $(curRow).find('#UDF4 option:selected').text();
+                        }
+                        else {
+                            vUDF4 = $(curRow).find('#UDF4').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF5').length > 0) {
+                        if ($(curRow).find('#UDF5').attr("class") == 'selectBox') {
+                            vUDF5 = $(curRow).find('#UDF5 option:selected').text();
+                        }
+                        else {
+                            vUDF5 = $(curRow).find('#UDF5').val();
+                        }
+                    }
+
+                    var udfFlag = 0;
+                    var udfReqMsg = '';
+                    if ($.trim(vUDF1) == "" && '@UDF1IsRequired' == 'True') {
+                        udfReqMsg += ' @ResOrder.UDF1' + ",";
+                        udfFlag++;
+                    }
+                    if ($.trim(vUDF2) == "" && '@UDF2IsRequired' == 'True') {
+                        udfReqMsg += ' @ResOrder.UDF2' + ",";
+                        udfFlag++;
+                    }
+                    if ($.trim(vUDF3) == "" && '@UDF3IsRequired' == 'True') {
+                        udfReqMsg += ' @ResOrder.UDF3' + ",";
+                        udfFlag++;
+                    }
+                    if ($.trim(vUDF4) == "" && '@UDF4IsRequired' == 'True') {
+                        udfReqMsg += ' @ResOrder.UDF4' + ",";
+                        udfFlag++;
+                    }
+                    if ($.trim(vUDF5) == "" && '@UDF5IsRequired' == 'True') {
+                        udfReqMsg += ' @ResOrder.UDF5' + ",";
+                        udfFlag++;
+                    }
+
+                    if ($.trim(udfReqMsg) != '') {
+                        errMsg += "@ResMessage.MsgRequired".replace("{0}", udfReqMsg.slice(0, -1));
+                    }
+                    orderHeaders.push({
+                        ID: 0, OrderNumber: orderNumber,
+                        Supplier: supplierId,
+                        Comment: comments,
+                        RequiredDate: requiredDate, ShipViaName: shipViaName,
+                        StagingName: stagingName, CustomerName: customerName, ShippingVendorName: VendorName,
+                        ShippingTrackNumber: ShippingTrackNumber, OrderLineItemsIds: orderLineItemsIds,
+                        OrderStatus: orderStatus, SupplierAccountGuid: SupplierAccountGuid,
+                        UDF1: vUDF1, UDF2: vUDF2, UDF3: vUDF3, UDF4: vUDF4, UDF5: vUDF5
+                    });
+
+                    if ($.trim(orderNumber) == "") {
+                        $(curRow).css("background-color", "#FFA17F");
+                        if (validationToken == true) {
+                            validationToken = false;
+                            errMsg += "@ResMessage.MsgRequired".replace("{0}", '@ResOrder.OrderNumber');
+                        }
+                    }
+                    else {
+                        $(curRow).css("background-color", "");
+                    }
+                    if ($.trim(errMsg) != "" && udfFlag > 0) {
+                        $(curRow).css("background-color", "#FFA17F");
+                        if (validationToken == true) {
+                            validationToken = false;
+                        }
+                    }
+                    else {
+                        $(curRow).css("background-color", "");
+                    }
+                });
+                if (validationToken == true) {
+                    $('#basic-modal-content-OrderAction').find("#ptextcart").html(orderSelected + " " + "@ResQuoteDetail.ConfirmOrderWillCreatedFromQuote");
+                    $('#basic-modal-content-OrderAction').modal();
+                    IsDeletePopupOpen = true;
+                }
+                else {
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $('div#target').css("z-index", 100000);
+                    $("#spanGlobalMessage").html(vSupplierName + ' ' + errMsg);
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                }
+            }
+            else {
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                $('div#target').css("z-index", 100000);
+                $("#spanGlobalMessage").html("@ResQuoteMaster.ReqOrderToCreate");
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+
+            }
+        });
+        /// Order Save End ///
+
+    function deleteFromArray(ID) {
+        var removedCount = removedFileListName.length;
+        for (var i = 0; i <= removedCount; i++) {
+            var isavailable = removedFileListName.filter(function (item) {
+                return item.id == ID;
+            });
+            var Index = removedFileListName.indexOf(isavailable[0]);
+            if (Index >= 0) {
+                removedFileListName.splice(Index, 1);
+            }
+        }
+
+    }
+</script>
+    <script type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>
+

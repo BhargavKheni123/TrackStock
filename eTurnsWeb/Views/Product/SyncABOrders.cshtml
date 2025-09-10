@@ -1,0 +1,207 @@
+﻿@model SyncABOrderDTO
+@{
+    ViewBag.Title = ResABProducts.PageTitleSyncABOrderedItems; // "SyncABOrders";
+}
+<div class="userListingWrapper">
+    <h2>
+        @ResABProducts.PageHeaderSyncABOrderedItems
+    </h2>
+    <div class="userListBlock">
+        <div id="Ctab" class="tabContener" style="display: block;">
+
+            @using (Ajax.BeginForm("SyncABOrders", "Product", new AjaxOptions { HttpMethod = "Post", OnBegin = "onSyncBegin", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmSyncABOrders" }))
+            {
+                @Html.AntiForgeryToken()
+                <div class="userHead">
+
+                    <div class="editorForm">
+                        <ul>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.Label(@eTurns.DTO.ResReportMaster.StartDate)<em> *</em>
+                                </div>
+                                <div class="editor-field">
+                                    <input type="text" id="txtStartDate" class="dtPicker text-box" style="width: 130px; float: left;"
+                                           readonly="readonly" maxlength="128" />
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.Label(@eTurns.DTO.ResReportMaster.EndDate)<em> *</em>
+                                </div>
+                                <div class="editor-field">
+                                    <input type="text" id="txtEndDate" class="dtPicker text-box" style="width: 130px;float:left;"
+                                           readonly="readonly" maxlength="128" />
+                                </div>
+                            </li>
+                            <li>
+                                <div class="BtnBlockform">
+                                    @Html.HiddenFor(m => m.StartDateStr)
+                                    @Html.HiddenFor(m => m.EndDateStr)
+                                    <input type="submit" value="@eTurns.DTO.ResItemMaster.Sync" id="btnSave" class="CreateBtn" />
+                                </div>
+                                <div class="editor-label">
+                                    &nbsp;
+                                </div>
+                                
+                            </li>
+                        </ul>
+                    </div>
+
+                </div>
+            }
+        </div>
+    </div>
+</div>
+<div id="divSyncProcessing" class="SyncProcessing" style="display: none;">
+</div>
+
+<script type='text/javascript' src="@Url.Content("~/Scripts/jquery-ui-timepicker-addon.js")"></script>
+<script type="text/javascript">
+    var EndDateShouldGreaterThanStartDateValidation = '@ResCommon.EndDateShouldGreaterThanStartDate';
+    $(document).ready(function () {
+        $('#divSyncProcessing').css('height', $(document).height().toString() + 'px');
+        $('#txtStartDate, #txtEndDate').blur(function () { }).datepicker({
+            dateFormat: RoomDateJSFormat, changeMonth: true,
+            changeYear: true
+        });
+
+        $('#txtStartDate, #txtEndDate').blur(function () { }).datepicker({
+            dateFormat: RoomDateJSFormat, changeMonth: true,
+            changeYear: true
+        });
+
+        $('#txtStartDate, #txtEndDate').keyup(function (e) {
+            if (e.keyCode == 8 || e.keyCode == 46) {
+                $.datepicker._clearDate(this);
+            }
+        });
+    });
+
+    $("#frmSyncABOrders").submit(function (e) {
+
+        var startdate = $('#txtStartDate').val();
+        var enddate = $('#txtEndDate').val();
+
+        if (typeof (startdate) == "undefined" || startdate == null || startdate == "")
+        {
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+            $("#spanGlobalMessage").html('@string.Format(ResMessage.MsgRequired, ResReportMaster.StartDate)');
+            $('div#target').fadeToggle();
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            return false;
+        }
+
+        if (typeof (enddate) == "undefined" || enddate == null || enddate == "") {
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+            $("#spanGlobalMessage").html('@string.Format(ResMessage.MsgRequired, ResReportMaster.EndDate)');
+            $('div#target').fadeToggle();
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            return false;
+        }
+
+        var begD = $.datepicker.parseDate(RoomDateJSFormat, startdate);
+        var endD = $.datepicker.parseDate(RoomDateJSFormat, enddate);
+
+        if (begD > endD) {
+
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+            $("#spanGlobalMessage").html(EndDateShouldGreaterThanStartDateValidation);
+            $('div#target').fadeToggle();
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            return false;
+        }
+
+        $("#StartDateStr").val($('#txtStartDate').val());
+        $("#EndDateStr").val($('#txtEndDate').val());
+
+    });
+
+    function onSyncBegin() {
+        return $('#divSyncProcessing').show();
+    }
+
+    function onSuccess(response)
+    {
+
+        if (typeof (response) != "undefined" && response != null && response.Status == "success")
+        {
+            if (typeof (response.IsOfflineMode) != "undefined" && response.IsOfflineMode != null && response.IsOfflineMode == true) {
+
+                if (typeof (response.ID) != "undefined" && response.ID != null && (parseInt(response.ID) || 0) > 0)
+                {
+                    //setTimeout(FetchLatestStatus(parseInt(response.ID)), 3000);
+                    FetchLatestStatus(parseInt(response.ID));
+                }
+                
+            }
+            else
+            {
+                $('#divSyncProcessing').hide();
+                $('#txtStartDate').val("");
+                $('#txtEndDate').val("");
+                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                showNotificationDialog();
+                $("#spanGlobalMessage").html(response.Message);
+            }
+        }
+        else {
+            $('#divSyncProcessing').hide();
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            showNotificationDialog();
+            $("#spanGlobalMessage").html(response.Message);
+        }
+
+    }
+
+    function onFailure(response) {
+        $('#divSyncProcessing').hide();
+        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        $("#spanGlobalMessage").html(response.Message);
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+    }
+
+    function FetchLatestStatus(Id)
+    {
+        $.ajax({
+            url: 'CheckABOrderSyncOfflineStatus',
+            'type': 'Post',
+            'data': { 'Id': Id },
+            'dataType': 'json',
+            //contentType: 'application/json',
+            //async: false,
+            'success': function (result) {
+                //console.log(new Date());
+            },
+            complete: function (data) {
+                if (typeof (data) != "undefined" && data != null && typeof (data.responseText) != "undefined" && data.responseText != null && data.responseText.length > 0)
+                {
+                    var response = JSON.parse(data.responseText);
+
+                    if (typeof (response) != "undefined" && response != null && response.IsCompleted != null && response.IsCompleted == true)
+                    {
+                        $('#divSyncProcessing').hide();
+                        $('#txtStartDate').val("");
+                        $('#txtEndDate').val("");
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html('@ResItemMaster.OrderedItemsSyncSuccessfully');
+                    }
+                    else {
+                        //setInterval(function () { FetchLatestStatus(Id); }, 10000);
+                        setTimeout(function () {  FetchLatestStatus(Id); }, 3000);
+                    }
+                }
+                else {
+                    $('#divSyncProcessing').hide();
+                }
+            },
+            'error': function (xhr) {
+            }
+
+        });
+    }
+
+
+</script>

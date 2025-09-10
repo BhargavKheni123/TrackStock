@@ -1,0 +1,559 @@
+@model eTurns.DTO.ToolsSchedulerDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    SchedulerDTO objSchedulerDTO = new SchedulerDTO();
+    if (Model != null)
+    {
+        objSchedulerDTO = new eTurns.DAL.SupplierMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetRoomScheduleForAsset(Model.GUID, eTurnsWeb.Helper.SessionHelper.RoomID, 2);
+        if (objSchedulerDTO == null)
+        {
+            objSchedulerDTO = new SchedulerDTO();
+            objSchedulerDTO.AssetToolID = Model.GUID;
+            objSchedulerDTO.LoadSheduleFor = 4;
+            objSchedulerDTO.RoomId = eTurnsWeb.Helper.SessionHelper.RoomID;
+        }
+        if (ViewBag.objSchDTo != null)
+        {
+            objSchedulerDTO = ViewBag.objSchDTo;
+        }
+    }
+    List<SelectListItem> TimeBaseUnits = new List<SelectListItem>();
+    TimeBaseUnits.Add(new SelectListItem() { Text = "", Value = "" });
+    TimeBaseUnits.Add(new SelectListItem() { Text = eTurns.DTO.Resources.ResCommon.Days, Value = Convert.ToString((int)TimebasedScheduleFreq.Days) });
+    TimeBaseUnits.Add(new SelectListItem() { Text = eTurns.DTO.Resources.ResCommon.Weeks, Value = Convert.ToString((int)TimebasedScheduleFreq.Weeks) });
+    TimeBaseUnits.Add(new SelectListItem() { Text = eTurns.DTO.Resources.ResCommon.Months, Value = Convert.ToString((int)TimebasedScheduleFreq.Months) });
+    TimeBaseUnits.Add(new SelectListItem() { Text = eTurns.DTO.Resources.ResCommon.Years, Value = Convert.ToString((int)TimebasedScheduleFreq.Years) });
+
+
+    //List<SelectListItem> lstMonths = new List<SelectListItem>();
+    //List<SelectListItem> lstWeeks = new List<SelectListItem>();
+    //lstYears.Add(new SelectListItem() { Text = "1", Value = "1" });
+    //lstYears.Add(new SelectListItem() { Text = "2", Value = "2" });
+    //for (int i = 0; i < length; i++)
+    //{
+    //    lstMonths.Add(new SelectListItem() { Text = "1", Value = "1" });
+    //}
+
+}
+<script src="@Url.Content("~/Scripts/jquery-ui-timepicker-addon.js")" type="text/javascript"></script>
+@{
+    bool isUpdate;
+    bool isInsert;
+    if (ViewBag.ViewOnly == true)
+    {
+        isUpdate = false;
+        isInsert = false;
+    }
+    else
+    {
+        isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AssetToolScheduler, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+        isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AssetToolScheduler, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    }
+}
+@*<div>
+        <span style="font-size: larger; font-style: inherit; color: Navy;">
+            @if (ViewBag.ToolAssetName != null)
+            {
+                @Convert.ToString(ViewBag.ToolAssetName)@Html.Raw("'Scheduler")
+            }
+        </span>
+        <hr />
+        <br />
+    </div>*@
+@using (Ajax.BeginForm("AssetToolSchedulerSave", "Assets", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmScheduler" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="userHead">
+        @Html.ValidationSummary(true)
+        @if (Model.ID > 0)
+        {
+            <div class="infoBlock">
+                <ul>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.RoomName)
+                        </label>
+                        : <span>@(Model.RoomName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.CreatedDate)
+                        </label>
+                        : <span>@Model.CreatedDate</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.CreatedByName)
+                        </label>
+                        : <span>@(Model.CreatedByName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.UpdatedDate)
+                        </label>
+                        : <span>@Model.UpdatedDate</span>
+                    </li>
+                    <li style="border: none">
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.UpdatedByName)
+                        </label>
+                        : <span>@(Model.UpdatedByName)</span>
+                    </li>
+                </ul>
+            </div>
+        }
+        <div class="editorForm">
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.ScheduleFor)<em>*</em>
+                    </div>
+                    <div class="editor-field">
+                        
+                        @Html.DropDownListFor(model => model.ScheduleFor, new SelectList(
+                           new[] {
+                                new {ID = 1, Name = "Asset"},
+                                new {ID = 2, Name = "Tool"},
+                                }, "ID", "Name", Model.ScheduleFor), "", new { @class = "selectBox" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ScheduleFor)</span>
+                       
+                       
+                    </div>
+                </li>
+
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.SchedulerName)<em>*</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.EditorFor(model => model.SchedulerName)
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.SchedulerName)</span>
+                        @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                        @Html.HiddenFor(model => model.GUID)
+                        @Html.HiddenFor(model => model.Created)
+                        @Html.HiddenFor(model => model.Updated)
+                        @Html.HiddenFor(model => model.CreatedBy)
+                        @Html.HiddenFor(model => model.LastUpdatedBy)
+                        @Html.HiddenFor(model => model.CompanyID)
+                        @Html.HiddenFor(model => model.Room)
+                        @Html.HiddenFor(model => model.RoomName)
+                        @Html.HiddenFor(model => model.CreatedByName)
+                        @Html.HiddenFor(model => model.UpdatedByName)
+                        @Html.HiddenFor(model => model.IsDeleted)
+                        @Html.HiddenFor(model => model.IsArchived)
+                        @*@Html.HiddenFor(model => model.AssetGUID)
+                            @Html.HiddenFor(model => model.ToolGUID)
+                            @Html.HiddenFor(model => model.WeekDays)*@
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Description)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextAreaFor(model => model.Description, new { @class = "text-box" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Description)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.RadioButtonFor(model => model.SchedulerType, (int)MaintenanceScheduleType.None)
+                        @*@Html.RadioButton("rdoType", (int)MaintenanceScheduleType.TimeBase, (Model.ScheduleType == (int)MaintenanceScheduleType.TimeBase), new { @id = "rdbDaily", onclick = "fnEnableDisableType(this)" })*@
+                        @Html.Raw("None")
+                    </div>
+                    <div class="editor-field">
+                   
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.RadioButtonFor(model => model.SchedulerType, (int)MaintenanceScheduleType.TimeBase)
+                        @*@Html.RadioButton("rdoType", (int)MaintenanceScheduleType.TimeBase, (Model.ScheduleType == (int)MaintenanceScheduleType.TimeBase), new { @id = "rdbDaily", onclick = "fnEnableDisableType(this)" })*@
+                        @Html.Raw("Time Based")
+                    </div>
+                    <div class="editor-field">
+                        <fieldset id="divTimebased">
+                            @eTurns.DTO.ResSchedulerReportList.Every : @Html.TextBoxFor(model => model.TimeBasedFrequency, new { @class = "text-box numericinput", @style = "width:30px;" })
+                            @Html.DropDownListFor(model => model.TimeBaseUnit, TimeBaseUnits, new { @class = "selectBox" })
+
+                            @Html.HiddenFor(model => model.RecurringDays)
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.TimeBasedFrequency)</span>
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.TimeBaseUnit)</span>
+                        </fieldset>
+                        @*<fieldset id="divTimebased">
+                                @Html.Partial("SchedulerInfo", objSchedulerDTO)
+                            </fieldset>*@
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.RadioButtonFor(model => model.SchedulerType, (int)MaintenanceScheduleType.CheckOuts)
+                        @Html.LabelFor(model => model.CheckOuts)
+                    </div>
+                    <div class="editor-field">
+                        <fieldset id="divCheckOuts">
+                            @Html.TextBoxFor(model => model.CheckOuts, new { @class = "text-box numericinput" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CheckOuts)</span>
+                        </fieldset>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.RadioButtonFor(model => model.SchedulerType, (int)MaintenanceScheduleType.OperationalHours)
+                        @*@Html.RadioButton("rdoType", (int)MaintenanceScheduleType.OperationalHours, (Model.ScheduleType == (int)MaintenanceScheduleType.OperationalHours), new { onclick = "fnEnableDisableType(this)" })*@
+                        @Html.LabelFor(model => model.OperationalHours)
+                    </div>
+                    <div class="editor-field">
+                        <fieldset id="divOperationalHours">
+                            @Html.TextBoxFor(model => model.OperationalHours, new { @class = "text-box numericinput" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.OperationalHours)</span>
+                        </fieldset>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.RadioButtonFor(model => model.SchedulerType, (int)MaintenanceScheduleType.Mileage)
+                        @*@Html.RadioButton("rdoType", (int)MaintenanceScheduleType.Mileage, (Model.ScheduleType == (int)MaintenanceScheduleType.Mileage), new { onclick = "fnEnableDisableType(this)" })*@
+                        @Html.LabelFor(model => model.Mileage)
+                    </div>
+                    <div class="editor-field">
+                        <fieldset id="divMileage">
+                            @Html.TextBoxFor(model => model.Mileage, new { @class = "text-box numericinput" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Mileage)</span>
+                        </fieldset>
+                    </div>
+                </li>
+                
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="BtnBlockform">
+                        <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel3" class="CreateBtn" />
+                        @*@if (isInsert == true && Model.ID == 0)
+                        {
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                        }
+                        else if (isUpdate == true)
+                        {
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                        }*@
+                        @if ((isInsert == true && Model.ID == 0) || (isUpdate == true && Model.ID > 0) || Convert.ToString(Session["IsInsert"]) == "True")
+                        {
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                        }
+                        //WI-6985 Production, Scheduler cancel clicks not working in some case
+                        @*else if (isUpdate == false && isInsert == false)
+                        {
+                            <script type = "text/javascript">
+                                 disableControls('frmScheduler');
+                            </script>
+                        }*@
+                    </div>
+                </li>
+                <li>
+                    <div class="BtnBlockform">
+                        @if (Model.ID > 0)
+                        {
+                            if (isUpdate == true || Convert.ToString(Session["IsInsert"]) == "True")
+                            {
+                                <input type="button" value="New Item" id="btnAddNewItempsSCH" class="CreateBtn" style="float: left;
+                                margin-left: 20px;" />
+                            }
+                        }
+                    </div>
+                </li>
+            </ul>
+        </div>
+        @*<div class="editorForm padRightNone">
+                <ul>
+                    @Html.Partial("UDFLayout", new eTurns.DTO.ResToolsScheduler())
+                </ul>
+            </div>  *@
+    </div>
+    <div id="divProjectSpendItems">
+    </div>
+}
+<div id="ItemModelPS">
+</div>
+@Html.Partial("_RequiredMessages")
+<script type="text/javascript">
+    var ModelGuid = '';
+    $(document).ready(function () {
+        window.location.hash = '';
+        $('form').areYouSure();
+    });
+    $("form").submit(function (e) {
+        $.validator.unobtrusive.parse("#frmScheduler");
+         
+        if ($(this).valid()) {
+            rememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        }
+        e.preventDefault();
+    });
+
+
+    $("input[type='text'][id='TimeBasedFrequency'],select[id='TimeBaseUnit']").change(function () {
+
+        if ($("input[type = 'text'][id = 'TimeBasedFrequency']").val() == "" || $("select[id='TimeBaseUnit']").val() == "") {
+            $("input[type='hidden'][id='RecurringDays']").val("0");
+        }
+        else {
+            var SelectedUnit = $("select[id='TimeBaseUnit']").val();
+            var Enteredvalue = $("input[type = 'text'][id = 'TimeBasedFrequency']").val();
+            var CalcDays = 0;
+            switch (SelectedUnit) {
+                case "1":
+                    CalcDays = Enteredvalue * 1;
+                    break;
+                case "2":
+                    CalcDays = Enteredvalue * 7;
+                    break;
+                case "3":
+                    CalcDays = Enteredvalue * 30;
+                    break;
+                case "4":
+                    CalcDays = Enteredvalue * 365;
+                    break;
+            }
+            $("input[type='hidden'][id='RecurringDays']").val(CalcDays);
+        }
+    });
+
+    function onlyNumeric(event) {
+        var charCode = (event.which) ? event.which : event.keyCode
+        if (charCode > 31 && (charCode < 48 || charCode > 57 || code == 86))
+            return false;
+        return true;
+    }
+    function fnEnableDisableType(obj) {
+        if ($(obj).val() == '@((int)MaintenanceScheduleType.TimeBase)') {
+            $('#divTimebased :input').removeAttr("disabled");
+            $('#divOperationalHours :input').attr("disabled", "disabled");
+            $('#divMileage :input').attr("disabled", "disabled");
+            $('#divCheckOuts :input').attr("disabled", "disabled");
+        }
+        else if ($(obj).val() == '@((int)MaintenanceScheduleType.OperationalHours)') {
+            $('#divTimebased :input').attr("disabled", "disabled");
+            $('#divOperationalHours :input').removeAttr("disabled");
+            $('#divMileage :input').attr("disabled", "disabled");
+            $('#divCheckOuts :input').attr("disabled", "disabled");
+        }
+        else if ($(obj).val() == '@((int)MaintenanceScheduleType.Mileage)') {
+            $('#divTimebased :input').attr("disabled", "disabled");
+            $('#divOperationalHours :input').attr("disabled", "disabled");
+            $('#divMileage :input').removeAttr("disabled");
+            $('#divCheckOuts :input').attr("disabled", "disabled");
+        }
+        else if ($(obj).val() == '@((int)MaintenanceScheduleType.CheckOuts)') {
+            $('#divTimebased :input').attr("disabled", "disabled");
+            $('#divOperationalHours :input').attr("disabled", "disabled");
+            $('#divMileage :input').attr("disabled", "disabled");
+            $('#divCheckOuts :input').removeAttr("disabled");
+        }
+        else if ($(obj).val() == '@((int)MaintenanceScheduleType.None)') {
+            $('#divTimebased :input').attr("disabled", "disabled");
+            $('#divOperationalHours :input').attr("disabled", "disabled");
+            $('#divMileage :input').attr("disabled", "disabled");
+            $('#divCheckOuts :input').attr("disabled", "disabled");
+        }
+    }
+
+    function onBeginChange() {
+        //if scheduler type is weekly then
+    }
+
+    function onSuccess(response) {
+        IsRefreshGrid = true;
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#SchedulerName").val("");
+            $("#SchedulerName").focus();
+        }
+        else if (idValue == 0) {
+            if (response.Status == "duplicate") {
+                $("#SchedulerName").val("");
+                $("#SchedulerName").focus();
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            }
+            else {
+                //clearControls('frmScheduler');
+                //setDefaultUDFValues($("#hdnPageName").val(), '@Model.ID');
+                NeedToOpenItemPopupNow = true;
+                ShowScheduleEditTab('AssetToolScheduleEdit?GUID=' + response.GUID, 'frmScheduler');
+
+
+            }
+        }
+        else if (idValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                $("#SchedulerName").focus();
+            }
+            else {
+                ShowScheduleEditTab('AssetToolScheduleEdit?GUID=' + response.GUID, 'frmScheduler');
+            }
+        }
+    }
+
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        showNotificationDialog();
+        $("#SchedulerName").focus();
+    }
+
+    function SchedulerTypeChange(obj) {
+        onBeginChange();
+        if ($(obj).val() == 'Daily') {
+            //            $('#DailyDIV').show();
+            //            $('#WeeklyDIV').hide();
+            //            $('#MonthlyDIV').hide();
+        }
+        else if ($(obj).val() == 'Weekly') {
+            //            $('#DailyDIV').hide();
+            //            $('#WeeklyDIV').show();
+            //            $('#MonthlyDIV').hide();
+        }
+        else if ($(obj).val() == 'Monthly') {
+            //            $('#DailyDIV').hide();
+            //            $('#WeeklyDIV').hide();
+            //            $('#MonthlyDIV').show();
+        }
+    }
+
+    $(document).ready(function () {
+        fnEnableDisableType($("input[name='SchedulerType']:checked"));
+
+        $("input[type='radio'][name='SchedulerType']").change(function () {
+            fnEnableDisableType($("input[type='radio'][name='SchedulerType']:checked"));
+        });
+        // $('#divOperationalHours :input').attr("disabled", "disabled");
+        // $('#divMileage :input').attr("disabled", "disabled");
+        ModelGuid = '@Model.GUID.ToString()';
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormatSR").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 0
+        });
+
+        $(".odometer").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 2
+        });
+
+        //$.ajaxSetup({
+        //    beforeSend: function (req) {
+        //        $('#DivLoading').show();
+        //    },
+        //    complete: function (req) {
+        //        $('#DivLoading').hide();
+        //    }
+        //});
+        $('#btnCancel3').click(function (e) {
+            //            if (IsRefreshGrid)
+            //                $('#NarroSearchClear').click();
+            SwitchTextTab(0, 'ScheduleCreate', 'frmScheduler');
+            if (oTable !== undefined && oTable != null) {
+                oTable.fnDraw();
+            }
+            $('#NarroSearchClear').click();
+        });
+
+        checkRememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+
+        $("#ItemModelPS").dialog({
+            autoOpen: false,
+            modal: true,
+            draggable: true,
+            resizable: true,
+            width: '82%',
+            height: 710,
+            title: "Add Items to Scheduler",
+            open: function () {
+                $('#DivLoading').show();
+                $("#ItemModelPS").load($(this).data("url"));
+            },
+            close: function (response) {
+                //CallThisFunctionFromModel('success');
+                if (ModelGuid != '') {
+                    ShowScheduleEditTab('AssetToolScheduleEdit?GUID=' + ModelGuid, 'frmScheduler');
+                }
+            }
+        });
+        if (ModelGuid != '') {
+            $('#divProjectSpendItems').empty();
+            $('#DivLoading').show();
+            $('#divProjectSpendItems').load('@Url.Action("LoadScheduleItems", new { ScheduleGUID = @Model.GUID })', function () {
+                $('#DivLoading').hide();
+            });
+
+            //// need to call below block in case of New Item saved and open POPUP Item ... START
+            if (NeedToOpenItemPopupNow) {
+                NeedToOpenItemPopupNow = false;
+                setTimeout("OpenItemPopup()", 3000);
+                return false;
+            }
+            //// need to call below block in case of New Item saved and open POPUP Item ... END
+        }
+
+    });
+
+    $('#btnAddNewItempsSCH').click(function () {
+        return OpenItemPopup();
+    });
+    function OpenItemPopup() {
+        if (parseInt('@Model.ID', 10) > 0) {
+            ClearVariables();
+            var strUrl = '@Url.Action("LoadItemMasterModel")';
+            strUrl = strUrl + '?ParentId=' + '@Model.ID';
+            strUrl = strUrl + '&ParentGuid=' + '@Model.GUID.ToString()';
+            ModelGuid = '@Model.GUID.ToString()';
+            $('#ItemModelPS').data("url", strUrl).dialog('open');
+            if ($("input#global_filter").length > 0) {
+                $("input#global_filter").focus();
+                setTimeout(function () {
+                    $("input#global_filter").focus();
+                }, 600);
+            }
+            if ($("input.searchinput").length > 0) {
+                $("input.searchinput").focus();
+                setTimeout(function () {
+                    $("input.searchinput").focus();
+                }, 600);
+
+            }
+        }
+        //return false;
+    }
+    _Common.addRequiredSign();
+</script>
+@if (isUpdate != false && isInsert != false)
+{
+    <script>
+        $(document).ready(function () {
+            $('#ancStartDate').click(function () {
+                $('#StartDate').focus();
+            });
+            $('#ancEndDate').click(function () {
+                $('#EndDate').focus();
+            });
+        });
+    </script>
+}

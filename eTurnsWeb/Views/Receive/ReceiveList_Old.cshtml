@@ -1,0 +1,467 @@
+﻿@{    
+    ViewBag.Title = eTurns.DTO.ResReceiveOrderDetails.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySettings = true, DisplayContextMenu = false, DisplayColumnSetupButton = true, ColumnSetupFor = "ReceiveMasterList" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ReceiveMaster" };
+}
+<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js")"></script>
+    <script type="text/javascript">
+        var sImageUrl = "/Content/images/";
+        var oTable;
+        var IsRefreshGrid = false;
+        var anOpen = [];
+        var SelectedItemID = 0;
+        HasOrderTab = true;
+
+        $(document).ready(function () {
+            var gaiSelected = [];
+            LoadTabs();
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "150%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[1, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    if (aData.IsDeleted == true && aData.IsArchived == true)
+                        nRow.className = "GridDeleatedArchivedRow";
+                    else if (aData.IsDeleted == true)
+                        nRow.className = "GridDeletedRow";
+                    else if (aData.IsArchived == true)
+                        nRow.className = "GridArchivedRow";
+
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    //if (PostCount > 1) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        //data: { Data: JSON.stringify(oData), ListName: 'ReceiveOrderLineItem' },
+                        data: { Data: JSON.stringify(oData), ListName: 'ReceiveMasterList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                    //}
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        //data: { ListName: 'ReceiveOrderLineItem' },
+                        data: { ListName: 'ReceiveMasterList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Receive/ReceiveMasterListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    //PostCount = PostCount + 1;
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    if (oSettings.aaSorting.length != 0)
+                        aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        cache: false,
+                        "data": aoData,
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable td').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable td').highlight($("#global_filter").val());
+                            }
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [
+                            {
+                                "sClass": "read_only control center",
+                                "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+                                    return '<img src="' + sImageUrl + 'drildown_open.jpg' + '">' + ' <span id="spnItemType" style="display:none">' + obj.aData.ItemType + ' </span> ' + ' <span id="spnItemID" style="display:none">' + obj.aData.ItemGUID.toString() + ' </span> ';
+                                }
+                            },
+                //{ "mDataProp": "ItemID", "sClass": "read_only" },
+                            {"mDataProp": "ItemNumber", "sClass": "read_only" },
+                            { "mDataProp": "Description", "sClass": "read_only" },
+		    ]
+            }).makeEditable();
+
+            //This is Most important
+            jQuery("#btnDiv").click(function (e) {
+                var offset = $(this).offset();
+                var leftpx = (parseInt(e.clientX) + parseInt($(this).css("width").toString().replace("px", "")) + parseInt(15)) + 'px';
+                var toppx = (parseInt(e.clientY) + parseInt(5)) + 'px';
+                jQuery('#myDataTable_wrapper div.ColVis .ColVis_Button').click();
+                jQuery('.ColVis_collection').css("left", leftpx);
+                jQuery('.ColVis_collection').css("top", toppx);
+                e.preventDefault();
+            });
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+            /*Functions used for nasted data binding START*/
+            $('#myDataTable').on('click', 'td.control', function (event) {
+                var nTr = this.parentNode;
+                var i = $.inArray(nTr, anOpen);
+                if (i === -1) {
+                    $('img', this).attr('src', sImageUrl + "drildown_close.jpg");
+                    oTable.fnOpen(nTr, fnFormatDetails(oTable, nTr), '');
+                    anOpen.push(nTr);
+                }
+                else {
+                    $('img', this).attr('src', sImageUrl + "drildown_open.jpg");
+                    oTable.fnClose(nTr);
+                    anOpen.splice(i, 1);
+                }
+            });
+
+
+            function fnFormatDetails(oTable, nTr) {
+
+                var oData = oTable.fnGetData(nTr);
+
+                var sOut = '';
+                $('#DivLoading').show();
+
+                $.ajax({
+                    "url": '@Url.Content("~/Receive/RetrivedItems")',
+                    "type": 'GET',
+                    "data": { 'ItemGUID': oData.ItemGUID, 'ItemType': oData.ItemType },
+                    "async": false,
+                    cache: false,
+                    "dataType": "text",
+                    "success": function (json) {
+                        sOut = json;
+                        $('#DivLoading').hide();
+                    },
+                    error: function (response) {
+                        $('#DivLoading').hide();
+                        //debugger;
+                    }
+                });
+                return sOut;
+            }
+
+        });
+
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+
+       
+              
+    </script>
+}
+<script type="text/javascript">
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+         new TabClass('tab6', 'Orders', 'callbackOrder();', false, true)
+         ];
+    function callbacknew() { ShowNewTab('LoadReceiveListItemsModel', 'frmReceiveItemList'); }
+    function callbackhistory() { } //HistoryTabClick(); }
+    function callbackOrder() { OrdersTabClick(); }
+</script>
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResReceiveOrderDetails.PageHeader
+    </h2>
+    <div class="Infoclass">
+        <a href="~/Uploads/HelpDoc/Receive.pdf" target="_blank">
+            <img src="~/Content/images/Info.png" alt="Help" /></a></div>
+    <div class="userListBlock">
+        <ul class='tabs'>
+            @*<li class="tab1"><a id="atab1" href='#tab1' onclick="TabItemClicked('LoadReceiveListItemsModel','frmReceiveItemList')">
+            </a></li>
+            <li class="tab10"><a id="atab7" class="active" href='#tab7' onclick="javascript:ChangeEditToNew('LoadReceiveListItemsModel','frmReceiveItemList');">
+            </a></li>
+            <li class="tab12" style="display: none;"><a id="atab12" href='#tab12' onclick="javascript:OrdersTabClick();">
+            </a></li>*@
+        </ul>
+        <div id="CtabNew" class="tabContener">
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" /></a>
+                    </div>
+                </div>
+            </div>
+            @Html.GridTopHeader(settings)
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            <div class="userContent ">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                            </th>
+                            @*<th>
+                                @eTurns.DTO.ResReceiveOrderDetails.ItemID
+                            </th>*@
+                            <th>
+                                @eTurns.DTO.ResReceiveOrderDetails.ItemNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResReceiveOrderDetails.Description
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div id='CtabCL' class="tabContener">
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    $(document).ready(function () { $("#tab1").hide(); });
+    function OrdersTabClick() {
+        var ItemSelected = fnGetSelected(oTable);
+
+        if (ItemSelected != undefined && ItemSelected.length == 1) {
+            var ItemGUID = $(ItemSelected).find('#spnItemID').text();
+
+            if (ItemGUID != '') {
+                $.get('LoadReceiveOrders?ItemGUID=' + ItemGUID.toString(), {}, function (data) { $('#CtabCL').html(data); }, "html");
+            }
+        }
+        else {
+            $('#CtabCL').html('');
+            $("#spanGlobalMessage").text("Kindly select single record to orders.");
+            showNotificationDialog();
+            return false;
+        }
+    }
+
+    var objColumns = {
+        '@MvcHtmlString.Create("")': 0,
+        '@MvcHtmlString.Create(eTurns.DTO.ResReceiveOrderDetails.ItemID)': 1,
+        '@MvcHtmlString.Create(eTurns.DTO.ResReceiveOrderDetails.ItemNumber)': 2,
+        '@MvcHtmlString.Create(eTurns.DTO.ResReceiveOrderDetails.Description)': 3
+    };
+    function HandleDropdownList(obj, UniqueID) {
+        var SelectedOrderID = $(obj).val();
+
+        $('#lblRequiredDateDisp' + UniqueID).text('-');
+        $('#lblRequiredQuantityDisp' + UniqueID).text('-');
+        $('#lblReceiveQuantityDisp' + UniqueID).text('-');
+
+        if (SelectedOrderID != '') {
+            $('#LoadInnerGrid_' + UniqueID).empty();
+            $.ajax({
+                url: '@Url.Content("~/Receive/GetOrderDetails")'
+             , type: 'POST'
+             , cache: false
+             , data: { 'OrderDetailID': SelectedOrderID }
+             , success: function (result) {
+                 if (result.Data != null && result.Data != undefined) {
+                     $('#lblRequiredDateDisp' + UniqueID).text(GetDateMMDDYYYYFormat(result.Data.RequiredDate));
+                     $('#lblRequiredQuantityDisp' + UniqueID).text(result.Data.RequestedQuantity);
+                     $('#lblReceiveQuantityDisp' + UniqueID).text(result.Data.ReceivedQuantity);
+                     if (result.Data.StagingID != null && result.Data.StagingID != undefined && parseInt(result.Data.StagingID) > 0) {
+                         //IsStagingOrCustomer = true;
+                         $('#hndStaginId_' + UniqueID).val(result.Data.StagingID);
+                         $('#divQty_' + UniqueID).css('display', 'none')
+                         fillInnerGridForStaging(SelectedOrderID, UniqueID);
+                     }
+                     //                     else if (result.Data.CustomerAddress != null && result.Data.CustomerAddress != undefined && (result.Data.CustomerAddress).length > 0) {
+                     //                         //IsStagingOrCustomer = true;
+                     //                         $('#divQty_' + UniqueID).css('display', '')
+                     //                         fillInnerGridForStaging(SelectedOrderID, UniqueID);
+                     //                     }
+                     else {
+                         $('#divQty_' + UniqueID).css('display', 'none')
+                         $('#hndStaginId' + UniqueID).val('0');
+                         //IsStagingOrCustomer = false;
+                         fillInnerGrid(SelectedOrderID, UniqueID);
+                     }
+                 }
+             }
+             , error: function (xhr) {
+                 // alert(xhr);
+             }
+            });
+        }
+    }
+
+    function fillInnerGridForStaging(SelectedOrderID, UniqueID) {
+        $('#DivLoading').show();
+        $.get('@Url.Content("~/Order/StagingItemRetrived")'
+               , { 'ItemGUID': UniqueID, 'ordDetailGUID': SelectedOrderID }
+               , function (data) {
+                   $('#LoadInnerGrid_' + UniqueID).html(data);
+                   UpdateReceiveQty(SelectedOrderID, UniqueID)
+                   $('#DivLoading').hide();
+               });
+    }
+
+    function SaveNewReceive(ctrl, UniqueID, ItemType) {
+        $('#DivLoading').show();
+        if (parseInt($('#hndStaginId_' + UniqueID).val()) > 0) {
+            var Qty = $('#txtRecieveQty_' + UniqueID).val();
+            var SelectedOrderID = $('#ddlOrders_' + UniqueID).val();
+            $('#DivLoading').show();
+            var ordDetailId = $("#ddlOrders_" + UniqueID).val();
+            var binID = '';
+            if (ordDetailId != null && ordDetailId != '') {
+                var idtype = UniqueID + '#' + ItemType + '#' + ordDetailId + "#" + parseInt($('#hndStaginId_' + UniqueID).val());
+                $("#LocationDetailsForStagingItemReceive").empty();
+                $('#LocationDetailsForStagingItemReceive').data("cdata", idtype).dialog('open');
+            }
+        }
+        else {
+            $('#DivLoading').show();
+            var ordDetailId = $("#ddlOrders_" + UniqueID).val();
+            var binID = '';
+            if (ordDetailId != null && ordDetailId != '') {
+                var idtype = UniqueID + '#' + ItemType + '#' + ordDetailId;
+                $("#LocationDetailsReceiveItems").empty();
+                $('#LocationDetailsReceiveItems').data("cdata", idtype).dialog('open');
+
+            }
+        }
+
+//       if ($('#divQty_' + UniqueID).css('display') == 'none') {
+//            $('#DivLoading').show();
+//            var ordDetailId = $("#ddlOrders_" + UniqueID).val();
+//            var binID = '';
+//            if (ordDetailId != null && ordDetailId != '') {
+//                var idtype = UniqueID + '#' + ItemType + '#' + ordDetailId;
+//                $("#LocationDetailsReceiveItems").empty();
+//                $('#LocationDetailsReceiveItems').data("cdata", idtype).dialog('open');
+
+//            }
+//        }
+//        else if ($('#divQty_' + UniqueID).css('display') != 'none') {
+//            var Qty = $('#txtRecieveQty_' + UniqueID).val();
+//            var SelectedOrderID = $('#ddlOrders_' + UniqueID).val();
+//            $('#DivLoading').show();
+//            var ordDetailId = $("#ddlOrders_" + UniqueID).val();
+//            var binID = '';
+//            if (ordDetailId != null && ordDetailId != '') {
+//                var idtype = UniqueID + '#' + ItemType + '#' + ordDetailId + "#"+ parseInt($('#hndStaginId' + UniqueID).value);
+//                $("#LocationDetailsForStagingItemReceive").empty();
+//                $('#LocationDetailsForStagingItemReceive').data("cdata", idtype).dialog('open');
+
+//            }
+//            //            if (Qty != undefined && Qty.length > 0 && parseFloat(Qty) != NaN && parseFloat(Qty) != undefined && parseFloat(Qty) > 0) {
+//            //                $.ajax({
+//            //                    'url': '@Url.Content("~/Order/AddNewReceiveQuantityFromReceiveModule")',
+//            //                    'type': 'POST',
+//            //                    'data': { 'OrderDetailID': SelectedOrderID, 'ReceivedQuantity': Qty },
+//            //                    'dataType': 'json',
+//            //                    'success': function (response) {
+//            //                        $('#DivLoading').hide();
+//            //                        fillInnerGridForStaging(SelectedOrderID, UniqueID);
+//            //                        UpdateReceiveQty(SelectedOrderID, UniqueID);
+//            //                        $('#txtRecieveQty_' + UniqueID).val('');
+//            //                    },
+//            //                    'error': function (xhr) {
+//            //                        $('#DivLoading').hide();
+//            //                    }
+//            //                });
+//            //            }
+//        }
+        return false;
+    }
+    function UpdateReceiveQty(OrdDetailID, UniqueID) {
+        $('#DivLoading').show();
+        $.ajax({
+            'url': '@Url.Content("~/Order/GetReceivedQuantity")',
+            'data': { 'OrderDetailGUID': OrdDetailID },
+            "async": true,
+            'success': function (response) {
+                if (response.Status = "ok") {
+                    $('#lblReceiveQuantityDisp' + UniqueID).text(response.ReturnDTO.ReceivedQuantity);
+                }
+                $('#DivLoading').hide();
+            },
+            'error': function (xhr) {
+                $('#DivLoading').hide();
+            }
+        });
+    }
+    function fillInnerGrid(SelectedOrderID, UniqueID) {
+        $('#DivLoading').show();
+
+        $.get('@Url.Content("~/Receive/GetReceivedDetailInnerGrid")', { 'OrderDetailID': SelectedOrderID }
+            , function (data) {
+                $('#LoadInnerGrid_' + UniqueID).html(data);
+                UpdateReceiveQty(SelectedOrderID, UniqueID)
+                $('#DivLoading').hide();
+            });
+    }
+</script>
+<script language="javascript" type="text/javascript">
+    $(document).ready(function () {
+        var QueryStringParam1 = getParameterByName('fromdashboard');
+        var QueryStringParam2 = getParameterByName('OrderQuantity');
+        var QueryStringParam3 = getParameterByName('ItemName');
+        if (QueryStringParam1 == 'yes' && QueryStringParam2 == 'yes' && QueryStringParam3 != '') {
+            $('#myDataTable').dataTable().fnFilter(QueryStringParam3, null, null, null);
+        }
+    });
+    function getParameterByName(name) {
+        name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+        var regexS = "[\\?&]" + name + "=([^&#]*)";
+        var regex = new RegExp(regexS);
+        var results = regex.exec(window.location.search);
+        if (results == null)
+            return "";
+        else
+            return decodeURIComponent(results[1].replace(/\+/g, " "));
+    }
+</script>

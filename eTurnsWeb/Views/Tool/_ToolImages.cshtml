@@ -1,0 +1,225 @@
+﻿@model dynamic
+@{
+    // System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    string UNCPathRootLink2 = eTurns.DTO.SiteSettingHelper.ToolPhoto; // Settinfile.Element("ToolPhoto").Value;
+    Int64 EnterpriseId = eTurnsWeb.Helper.SessionHelper.EnterPriceID;
+    Int64 CompanyID = eTurnsWeb.Helper.SessionHelper.CompanyID;
+    Int64 RoomID = eTurnsWeb.Helper.SessionHelper.RoomID;
+    UNCPathRootLink2 = UNCPathRootLink2.Replace("~", string.Empty);
+    string toolImagePath = (UNCPathRootLink2 + EnterpriseId + "/" + CompanyID + "/" + RoomID + "/" + ViewData["ID"]);
+    string GuidForSeparator = Convert.ToString(Guid.NewGuid());
+}
+<input type="hidden" value="@GuidForSeparator" id="hdnGuidForSeparator" name="hdnGuidForSeparator" />
+<input type="hidden" id="hdnUploadedImages" name="hdnUploadedImages" />
+<h4>
+    Tool Certification Images
+</h4>
+<ul style="padding-top:30px;">
+    <li>
+        <table id="tblToolImages" class="display">
+            <thead>
+                <tr>
+                    <th>
+                        @ResToolMaster.Serial
+                    </th>
+                    <th>
+                        @ResToolMaster.Image
+                    </th>
+                    <th>
+                        @ResToolMaster.Upload
+                    </th>                    
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </li>
+</ul>
+
+<script type="text/javascript">
+    var tblToolImages;
+    var columnArr = new Array();
+    columnArr.push({ mDataProp: "SerialNumber", sClass: "read_only" });
+    columnArr.push({
+        "mDataProp": "ImagePath", bSortable: false, sClass: "read_only", "bVisible": true, "fnRender": function (obj, val) {
+            if ((obj.aData.ImagePath != '' && obj.aData.ImagePath != null)) {
+                var Li = "<div id='div" + obj.aData.SerialNumber + "'><table id='tbl" + obj.aData.ID + "' data-SrNo = '" + obj.aData.SerialNumber + "' data-imgId='" + obj.aData.ID + "' ><tr id='" + obj.aData.ID + "' uploaded='true'>";
+                Li += "<td style='width:98%;text-align:left;'><a class='preview' href='" + '@toolImagePath' + "/" + obj.aData.ID + "/" + obj.aData.ImagePath + "' target='_blank'>" + obj.aData.ImagePath + "</a></td><td style='width:2%'><a href='javascript:;' onclick='DeleteExistingFileForSerial(\"" + obj.aData.ID + "\");'><img src='/content/images/delete.png' /></a></td>";
+                Li += "</tr></table></div>";
+                return Li;
+            }
+            else {
+                return "<div id='div" + obj.aData.SerialNumber + "'></div>";
+            }
+        }
+    });
+
+    columnArr.push({
+        mDataProp: null,
+        bSortable: false,
+        sClass: "read_only control alignCenter",
+        sDefaultContent: '',
+        fnRender: function (obj, val) {
+            return "<input type='file' name='fileForSerial' id='file" + obj.aData.SerialNumber + "' data-serial='" + obj.aData.SerialNumber + "' onchange='showSerialImage(this)' >";
+        }
+    });
+
+    $(document).ready(function () {
+        tblToolImages = $("#tblToolImages").dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "sScrollX": "100%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[2, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            //"pageLength": 2147483647,
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) { },
+            "sAjaxSource": '@Url.Action("ToolImagesListAjax", "Tool")',
+            //"bServerSide": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                if (aData.IsDeleted == true && aData.IsArchived == true)
+                    $(nRow).css('background-color', '#B9BCBF');
+                else if (aData.IsDeleted == true)
+                    $(nRow).css('background-color', '#FFCCCC');
+                else if (aData.IsArchived == true)
+                    $(nRow).css('background-color', '#CCFFCC');
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                return nRow;
+            },
+            @*"fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'ToolImages' },
+                    "async": false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        o = json;
+                    }
+                });
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'ToolImages' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },*@
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting.length != 0) {
+                    var sortValue = "";
+                    for (var k = 0; k <= oSettings.aaSorting.length - 1; k++) {
+                        if (sortValue.length > 0)
+                            sortValue += ", "
+                        sortValue += arrCols[oSettings.aaSorting[k][0]] + ' ' + oSettings.aaSorting[k][1];
+
+                    }
+                    aoData.push({ "name": "SortingField", "value": sortValue });
+                }
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+                aoData.push({ "name": "IsArchived", "value": false });
+                aoData.push({ "name": "IsDeleted", "value": false });
+                aoData.push({ "name": "ToolGUID", "value": '@ViewData["ToolGUID"]' });
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    "cache": false,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback,
+                    "beforeSend": function () {
+                        $('#myDataTable').removeHighlight();
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    "error": function (xhr, status, error) {
+                        console.log(xhr);
+                    },
+                    "complete": function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                        imagePreview();
+                    }
+                })
+            },
+            "aoColumns": columnArr,
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+            },
+        });
+        $('.DTTT_container').css('z-index', '-1');
+
+        
+    });
+
+    function showSerialImage(obj)
+    {
+        var Li = '';
+        var serialNumber = obj.dataset["serial"];
+        for (var i = 0, len = obj.files.length; i < len; i++) {
+            var imgId = "img" + serialNumber;
+            Li += "<table id=" + imgId + "> <tr uploaded='false'>";
+            Li += "<td style='width:98%;text-align:left;'>" + obj.files[i].name + "</td><td style='width:2%'><a href='javascript:;' onclick='DeleteImageFileForSerial(\"" + imgId + "\",\"" + serialNumber + "\");'><img src='/content/images/delete.png' /></a></td>";
+            Li += "</tr></table>";
+            var newFileName = obj.files[i].name + "_" + $("#hdnGuidForSeparator").val() + "_" + serialNumber;;
+            obj.files[i].name = newFileName;
+            formData.delete("file" + imgId);
+            formData.append("file" + imgId, obj.files[i], newFileName);
+            $("#hdnUploadedImages").val(true);
+        }
+        var existingImage = $("table[data-SrNo='" + serialNumber + "']");
+        if (existingImage !== undefined && existingImage != null && existingImage.length > 0 && existingImage[0] !== undefined && existingImage[0] != null) {
+            var imageId = existingImage[0].dataset["imgid"];
+            DeleteExistingFileForSerial(imageId);
+        }
+        $("#div" + serialNumber).append(Li);
+        
+    }
+
+    function DeleteImageFileForSerial(imageId, serialNumber)
+    {
+        formData.delete("file" + imageId);
+        $("table#" + imageId + "").remove();
+        $("#file" + serialNumber).val('');
+    }
+
+    function DeleteExistingFileForSerial(FileId) {
+        $("table[data-imgId='" + FileId + "']").remove();
+        if (DeleteToolImageId != '') {
+            DeleteToolImageId += ',' + FileId;
+        }
+        else {
+            DeleteToolImageId = FileId;
+        }
+    }
+</script>

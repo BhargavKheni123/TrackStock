@@ -1,0 +1,2431 @@
+@model eTurnsWeb.Models.RoomViewModel
+@using eTurnsWeb.BAL;
+@using eTurnsMaster.DAL;
+@{
+    var eVMIRequestTypes = new List<SelectListItem>() {
+                                       new SelectListItem(){ Text = eVMISiteSettings.ImmediateVal , Value = eVMISiteSettings.ImmediateVal },
+                                        new SelectListItem(){ Text = eVMISiteSettings.QueuedVal , Value = eVMISiteSettings.QueuedVal }
+                                   };
+    var PollCommandTypes = new List<SelectListItem>() {
+                                       new SelectListItem(){ Text = eVMISiteSettings.PollCommand_W , Value = eVMISiteSettings.PollCommand_W },
+                                        new SelectListItem(){ Text = eVMISiteSettings.PollCommand_H , Value = eVMISiteSettings.PollCommand_H }
+                                   };
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    //SchedulerDTO objSchedulerDTO = new SchedulerDTO();
+    //if (Model != null)
+    //{
+    //    objSchedulerDTO = new eTurns.DAL.SupplierMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetRoomSchedule(0, Model.ID, 1);
+    //    if (objSchedulerDTO == null)
+    //    {
+    //        objSchedulerDTO = new SchedulerDTO();
+    //        objSchedulerDTO.SupplierId = 0;
+    //        objSchedulerDTO.RoomId = eTurnsWeb.Helper.SessionHelper.RoomID;
+    //        objSchedulerDTO.LoadSheduleFor = 1;
+    //    }
+    //}
+    SchedulerDTO objSchedulerDTO = new SchedulerDTO();
+    string strBillingRoomTypeName = string.Empty;
+    var IsRoomOfABInterprise = false;
+
+    if (Model != null)
+    {
+        if (Model.ID > 0)
+        {
+            if (Model.EnterpriseId > 0)
+            {
+                eTurnsMaster.DAL.EnterpriseMasterDAL enterpriseMasterDAL = new eTurnsMaster.DAL.EnterpriseMasterDAL();
+                EnterpriseDTO roomEnterprise = enterpriseMasterDAL.GetEnterpriseByIdPlain(Model.EnterpriseId);
+
+                if (roomEnterprise != null)
+                {
+                    IsRoomOfABInterprise = roomEnterprise.AllowABIntegration;
+                }
+            }
+        }
+        else
+        {
+            IsRoomOfABInterprise = eTurnsWeb.Helper.SessionHelper.IsABEnterprise;
+        }
+
+        eTurns.DAL.RegionSettingDAL objRegionSettingDAL = new eTurns.DAL.RegionSettingDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+        objSchedulerDTO = new eTurns.DAL.SupplierMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetRoomSchedule(0, Model.ID, 1);
+        if (objSchedulerDTO == null)
+        {
+            objSchedulerDTO = new SchedulerDTO();
+            objSchedulerDTO.SupplierId = 0;
+            objSchedulerDTO.LoadSheduleFor = 1;
+            objSchedulerDTO.RoomId = Model.ID;
+        }
+        else
+        {
+
+            objSchedulerDTO.NextRunDateTime = eTurnsWeb.Helper.CommonUtility.ConvertDateByTimeZone(objSchedulerDTO.NextRunDate, eTurnsWeb.Helper.SessionHelper.CurrentTimeZone, eTurnsWeb.Helper.SessionHelper.DateTimeFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture, true);
+            //objSchedulerDTO.ScheduleRunTime = (eTurnsWeb.Helper.CommonUtility.ConvertDateByTimeZonedt(objSchedulerDTO.ScheduleRunDateTime, eTurnsWeb.Helper.SessionHelper.CurrentTimeZone, eTurnsWeb.Helper.SessionHelper.DateTimeFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture) ?? DateTime.MinValue).ToString("HH:mm");
+            objSchedulerDTO.ScheduleRunTime = objSchedulerDTO.ScheduleTime.HasValue ? objSchedulerDTO.ScheduleTime.Value.ToString(@"hh\:mm") : "00:00";
+            //objSchedulerDTO.ScheduleRunTime = eTurnsWeb.Helper.CommonUtility.ConvertDateByTimeZonedt(objSchedulerDTO.ScheduleRunTime, eTurnsWeb.Helper.SessionHelper.CurrentTimeZone, eTurnsWeb.Helper.SessionHelper.DateTimeFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture).Value.ToShortTimeString();
+        }
+
+        /* SET BILLINGROOMTYPE NAME */
+
+        if (Model.BillingRoomType != null && Model.BillingRoomType.Value > 0)
+        {
+            BillingRoomTypeMasterBAL billingRoomTypeMasterBAL = new BillingRoomTypeMasterBAL();
+            var billingRoomTypes = billingRoomTypeMasterBAL.GetBillingRoomTypeMaster(Model.EnterpriseId);
+
+            if (billingRoomTypes != null && billingRoomTypes.Any())
+            {
+                var billingRoomTypeName = billingRoomTypes.Where(e => e.ID == Model.BillingRoomType.Value).FirstOrDefault().ResourceValue;
+
+                if (!string.IsNullOrEmpty(billingRoomTypeName) && !string.IsNullOrWhiteSpace(billingRoomTypeName))
+                {
+                    strBillingRoomTypeName = billingRoomTypeName;
+                }
+
+            }
+
+            //switch (Model.BillingRoomType.Value)
+            //{
+            //    case 1:
+            //        strBillingRoomTypeName = @ResRoomMaster.BillingRoomType_AssetOnly;
+            //        break;
+            //    case 2:
+            //        strBillingRoomTypeName = @ResRoomMaster.BillingRoomType_eVMI;
+            //        break;
+            //    case 3:
+            //        strBillingRoomTypeName = @ResRoomMaster.BillingRoomType_Manage;
+            //        break;
+            //    case 4:
+            //        strBillingRoomTypeName = @ResRoomMaster.BillingRoomType_Replenish;
+            //        break;
+            //    case 5:
+            //        strBillingRoomTypeName = @ResRoomMaster.BillingRoomType_RFID;
+            //        break;
+            //    case 6:
+            //        strBillingRoomTypeName = @ResRoomMaster.BillingRoomType_ToolandAssetOnly;
+            //        break;
+            //    case 7:
+            //        strBillingRoomTypeName = @ResRoomMaster.BillingRoomType_ToolOnly;
+            //        break;
+            //    case 8:
+            //        strBillingRoomTypeName = @ResRoomMaster.BillingRoomType_Truck;
+            //        break;
+            //    case 9:
+            //        strBillingRoomTypeName = ResRoomMaster.BillingRoomType_Optimize;
+            //        break;
+            //    case 10:
+            //        strBillingRoomTypeName = ResRoomMaster.TestBilling1;
+            //        break;
+            //    case 11:
+            //        strBillingRoomTypeName = ResRoomMaster.TestBilling2;
+            //        break;
+            //    case 12:
+            //        strBillingRoomTypeName = ResRoomMaster.BillingRoomType_BillingTools;
+            //        break;
+            //    case 13:
+            //        strBillingRoomTypeName = ResRoomMaster.BillingRoomType_ManageLite;
+            //        break;
+            //    case 14:
+            //        strBillingRoomTypeName = ResRoomMaster.BillingRoomType_TrackStockReplenish;
+            //        break;
+            //    case 15:
+            //        strBillingRoomTypeName = ResRoomMaster.BillingRoomType_TrackStockManageLite;
+            //        break;
+            //    case 16:
+            //        strBillingRoomTypeName = ResRoomMaster.BillingRoomType_TrackStockManage;
+            //        break;
+            //    case 17:
+            //        strBillingRoomTypeName = ResRoomMaster.BillingRoomType_TrackStockOptimize;
+            //        break;
+            //    case 18:
+            //        strBillingRoomTypeName = ResRoomMaster.BillingRoomType_TrackStockTruck;
+            //        break;
+            //}
+        }
+    }
+    string CharCodeList = eTurnsWeb.Helper.CommonUtility.GetNotAllowCharList();
+
+    if (Model == null || Model.ID <= 0)
+    {
+        Model.AllowPullBeyondAvailableQty = true;
+        Model.PullRejectionType = 1;
+    }
+
+    //System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    string ValidatePhoneNumber = eTurns.DTO.SiteSettingHelper.ValidatePhoneNumber; // Settinfile.Element("ValidatePhoneNumber").Value;
+}
+@*<script src="@Url.Content("~/Scripts/jquery-ui-timepicker-addon.js")" type="text/javascript"></script>*@
+@{
+    bool isUpdate;
+    bool isInsert;
+    if (ViewBag.ViewOnly == true)
+    {
+        isUpdate = false;
+        isInsert = false;
+    }
+    else
+    {
+        isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.RoomMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+        isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.RoomMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    }
+}
+<style type="text/css">
+    #NegPull_Action_RejectPull, #NegPull_Action_AdjustmentPull {
+        bottom: -75px;
+        bottom: -115px\9;
+        right: 0px;
+        width: 60%;
+        padding: 15px;
+        background: #fefefe;
+        font-size: .875em;
+        border-radius: 5px;
+        box-shadow: 0 1px 3px #ccc;
+        border: 1px solid #ddd;
+        height: 20%;
+        display: none;
+        margin: 1% 0 0 4%;
+    }
+
+        #NegPull_Action_RejectPull h4, #NegPull_Action_AdjustmentPull h4 {
+            margin: 0 0 10px 0;
+            padding: 0;
+            font-weight: normal;
+        }
+
+        #NegPull_Action_RejectPull div, #NegPull_Action_AdjustmentPull div {
+            font-size: 12px;
+        }
+
+    #pswd_info {
+        position: absolute;
+        /* bottom: -75px; */
+        bottom: -115px\9;
+        right: 0px;
+        width: 11%;
+        padding: 15px;
+        background: #fefefe;
+        font-size: .875em;
+        border-radius: 5px;
+        box-shadow: 0 1px 3px #ccc;
+        border: 1px solid #ddd;
+        height: 20%;
+        left: 80%;
+        top: 70%;
+    }
+
+        #pswd_info h4 {
+            margin: 0 0 10px 0;
+            padding: 0;
+            font-weight: normal;
+        }
+
+    #pswd_info {
+        display: none;
+    }
+
+        #pswd_info li.invalid {
+            background: url(../Content/images/invalid.png) no-repeat 0 50%;
+            padding-left: 14px !important;
+            line-height: 24px;
+            color: #ec3f41;
+        }
+
+        #pswd_info li.valid {
+            background: url(../Content/images/valid.png) no-repeat 0 50%;
+            padding-left: 19px !important;
+            line-height: 24px;
+            color: #3a7d34;
+        }
+</style>
+@using (Ajax.BeginForm("RoomSave", "Master", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmRoom" }))
+{
+@Html.AntiForgeryToken()
+<div class="userHead">
+    @Html.ValidationSummary(true)
+    @if (Model.ID != 0)
+        {
+    <div class="infoBlock">
+        <ul>
+            <li>
+                <label for="RoomName">
+                    @Html.LabelFor(model => model.Created)
+                </label>
+                : <span>@(Model.CreatedDate)</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    @Html.LabelFor(model => model.CreatedByName)
+                </label>
+                : @(Model.CreatedByName)
+            </li>
+            <li>
+                <label for="RoomName">
+                    @Html.LabelFor(model => model.Updated)
+                </label>
+                : <span>@(Model.UpdatedDate)</span>
+            </li>
+            <li style="border: none">
+                <label for="RoomName">
+                    @Html.LabelFor(model => model.UpdatedByName)
+                </label>
+                : @(Model.UpdatedByName)
+            </li>
+        </ul>
+    </div>
+        }
+    <div class="mainForm">
+        <div class="editorForm">
+            <h4>
+                @ResRoomMaster.GeneralDetails
+            </h4>
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.RoomName)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.RoomName, new { id = "RoomName", @class = "text-box", maxlength = 127, onkeypress = "return NotAllowCharacter(event);", ondrop = "return false;", onblur = "return NotAllowedSpecialCharacters(this);" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.RoomName)</span>
+                        @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                        @Html.HiddenFor(model => model.GUID)
+                        @Html.HiddenFor(model => model.Created)
+                        @Html.HiddenFor(model => model.Updated)
+                        @Html.HiddenFor(model => model.CreatedBy)
+                        @Html.HiddenFor(model => model.LastUpdatedBy)
+                        @Html.HiddenFor(model => model.CreatedByName)
+                        @Html.HiddenFor(model => model.UpdatedByName)
+                        @Html.HiddenFor(model => model.IsDeleted)
+                        @Html.HiddenFor(model => model.IsArchived)
+                        @Html.HiddenFor(model => model.CompanyID)
+                        @Html.HiddenFor(model => model.TrendingFormulaType, new { id = "hdnTradingType" })
+                        @Html.HiddenFor(model => model.AutoCreateTransferFrequency, new { id = "hdnAutoCreateTransferFrequency" })
+                        @Html.HiddenFor(model => model.TransferFrequencyOption, new { id = "hdnTransferFrequencyOption" })
+                        @Html.HiddenFor(model => model.TransferFrequencyDays, new { id = "hdnTransferFrequencyDays" })
+                        @Html.HiddenFor(model => model.TransferFrequencyMonth, new { id = "hdnTransferFrequencyMonth" })
+                        @Html.HiddenFor(model => model.TransferFrequencyMainOption, new { id = "hdnTransferFrequencyMainOption" })
+                        @Html.HiddenFor(model => model.EnterpriseId, new { id = "hdnEnterpriseId" })
+                        @*@Html.HiddenFor(model => model.AllowABIntegration)*@
+                        <input type="hidden" id="hdPhoneRegex" />
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.IsRoomActive)
+                    </div>
+                    <div class="editor-field">
+                        @if (Model.IsRoomActive && Model.ID > 0)
+                            {
+                        <input type="checkbox" checked="checked" disabled="disabled" />
+                        @Html.HiddenFor(model => model.IsRoomActive)
+                            }
+                            else
+                            {
+                        @Html.CheckBoxFor(model => model.IsRoomActive)
+                            }
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsRoomActive)</span>
+                    </div>
+                </li>
+            </ul>
+            <h4>
+                @ResRoomMaster.ContactDetails
+            </h4>
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.ContactName)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.ContactName, new { @class = "text-box", maxlength = 127 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ContactName)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.streetaddress)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.streetaddress, new { @class = "text-box", maxlength = 1024 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.streetaddress)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.City)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.City, new { @class = "text-box", maxlength = 127 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.City) </span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.State)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.State, new { @class = "text-box", maxlength = 255 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.State)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.PostalCode)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.PostalCode, new { @class = "text-box", maxlength = 20 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.PostalCode)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Country)
+                    </div>
+                    <div class="editor-field">
+                        @*@Html.DropDownListFor(model => model.Country, new SelectList(ViewBag.CountryList, "CountryName", "CountryName", Model.Country), new { @class = "selectBox" })*@
+                        <span style="position:relative">
+                            <input type="hidden" value="false" id="hdnIsLoadMoreCountry" />
+                            @Html.TextBoxFor(model => model.Country, new { @class = "selectBox", maxlength = 127 })
+                            <a id="lnkShowAllOptionsCR" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;font-size:19px;background-color:#fff;" class="ShowAllOptionsBinCR"><img src="/Content/images/arrow_down_black.png" alt="select" /></a>
+                        </span>
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Country)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Email)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.Email, new { @class = "text-box", maxlength = 255 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Email)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.PhoneNo)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.PhoneNo, new { @class = "text-box", maxlength = 20 }) x @Html.TextBoxFor(model => model.ExtPhoneNo, new { @class = "numericinput text-box", maxlength = 10, @style = "width:30px !important;float;left;", @placeholder = ResRoomMaster.ExtPhoneNo })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.PhoneNo)</span>
+                    </div>
+                </li>
+            </ul>
+            <h4>
+                @ResRoomMaster.InvoicingDetails
+            </h4>
+            <ul>
+                @*    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.InvoiceBranch)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.InvoiceBranch, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.InvoiceBranch)</span>
+                        </div>
+                    </li>*@
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.CustomerNumber)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.CustomerNumber, new { @class = "text-box", maxlength = 128 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CustomerNumber)</span>
+                    </div>
+                </li>
+                <li>
+                    @if (eTurnsWeb.Helper.SessionHelper.UserType == 1 || eTurnsWeb.Helper.SessionHelper.UserType == 2 || (Model != null && Model.ID == 0))
+                        {
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.BillingRoomType)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.DropDownListFor(model => model.BillingRoomType,
+                       Model.BillingRoomTypeList
+                       , "", new { @class = "selectBox" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.BillingRoomType)</span>
+                    </div>
+                        }
+                        else
+                        {
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.BillingRoomType)
+                    </div>
+                    <div class="editor-field">
+                        @strBillingRoomTypeName
+                        @Html.HiddenFor(model => model.BillingRoomType)
+                    </div>
+                        }
+                </li>
+            </ul>
+            <h4 style="display: none;">
+                @ResRoomMaster.TrendingDetails
+            </h4>
+            <ul style="display: none;">
+                @*  <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.BlanketPO)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.BlanketPO, new { @class = "text-box" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.BlanketPO)</span>
+                        </div>
+                    </li>*@
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.SourceOfTrending)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.SourceOfTrending, new { @class = "text-box", maxlength = 10 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.SourceOfTrending)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.AverageUsageTransactions)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.AverageUsageTransactions, new { @class = "text-box" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.AverageUsageTransactions)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.TrendingSampleSize)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.TrendingSampleSize, new { @class = "text-box" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.TrendingSampleSize)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.TrendingSampleSizeDivisor)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.TrendingSampleSizeDivisor, new { @class = "text-box" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.TrendingSampleSizeDivisor)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.AverageUsageSampleSize)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.AverageUsageSampleSize, new { @class = "text-box" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.AverageUsageSampleSize)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.AverageUsageSampleSizeDivisor)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.AverageUsageSampleSizeDivisor, new { @class = "text-box" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.AverageUsageSampleSizeDivisor)</span>
+                    </div>
+                </li>
+                @*<li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                        <div class="editor-field">
+                            @Html.CheckBoxFor(model => model.IsConsignment, new { @class = "check-box" }) @Html.LabelFor(model => model.IsConsignment)
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsConsignment)</span>
+                        </div>
+                    </li>*@
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="editor-field">
+                        @Html.CheckBoxFor(model => model.IsTrending, new { @class = "check-box", id = "chkIsTrending", })
+                        @Html.LabelFor(model => model.IsTrending)
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsTrending)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="editor-field">
+                        @if (Model.TrendingFormulaType == 1)
+                            {
+                        @Html.CheckBox("chkIsTrending1", true)
+                            }
+                            else
+                            {
+                        @Html.CheckBox("chkIsTrending1", false)
+                            }
+                        @Html.Label("1) Manual Min")
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="editor-field">
+                        @Html.Label("Max = ")
+                        @* @Html.DropDownListFor(model => model.TrendingFormulaDays, ViewBag.Days, new { @class = "text-box", id = "txtTrendingFormulaDays" })*@
+                        @Html.DropDownListFor(model => model.TrendingFormulaDays, new SelectList(Model.Days, "Value", "Text", Model.TrendingFormulaDays), new { id = "ddlTrending1Days", @class = "selectBox" })
+                        @*@Html.DropDownListFor(model => model.TrendingFormulaDays, new SelectList (new[] { "1", "2", "3", "4", "5", "6","7","8","9","10", }, Model.TrendingFormulaDays))*@
+                        @*@Html.Label(" * Min ")*@ <em>*</em>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="editor-field">
+                        @if (Model.TrendingFormulaType == 2)
+                            {
+                        @Html.CheckBox("chkIsTrending2", true)
+                            }
+                            else
+                            {
+                        @Html.CheckBox("chkIsTrending2", false)
+                            }
+                        @Html.Label("2) Min = Avg")
+                        @Html.DropDownListFor(model => model.TrendingFormulaAvgDays, new SelectList(Model.AvgDays, "Value", "Text", Model.TrendingFormulaAvgDays), new { id = "ddlTrending2AvgDays", @class = "selectBox" })@Html.Label(" days usage ")
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="editor-field">
+                        @Html.Label("over")
+                        @Html.DropDownListFor(model => model.TrendingFormulaOverDays, new SelectList(Model.AvgDays, "Value", "Text", Model.TrendingFormulaOverDays), new { id = "ddlTrending2OverDays", @class = "selectBox" })
+                        @Html.Label(" days; ")
+                        @Html.Label("Max")
+                        @Html.DropDownListFor(model => model.TrendingFormulaDays, new SelectList(Model.AvgDays, "Value", "Text", Model.TrendingFormulaDays), new { id = "ddlTrending2Days", @class = "selectBox" })
+                        @Html.Label(" * Min ")
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="editor-field">
+                        @if (Model.TrendingFormulaType == 3)
+                            {
+                        @Html.CheckBox("chkIsTrending3", true)
+                            }
+                            else
+                            {
+                        @Html.CheckBox("chkIsTrending3", false)
+                            }
+                        @Html.Label("3) Manual Min; Max =Min + Avg")
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="editor-field">
+                        @Html.DropDownListFor(model => model.TrendingFormulaAvgDays, new SelectList(Model.AvgDays, "Value", "Text", Model.TrendingFormulaAvgDays), new { id = "ddlTrending3AvgDays", @class = "selectBox" })
+                        @Html.Label("days usage over")
+                        @Html.DropDownListFor(model => model.TrendingFormulaOverDays, new SelectList(Model.AvgDays, "Value", "Text", Model.TrendingFormulaOverDays), new { id = "ddlTrending3OverDays", @class = "selectBox" })
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="editor-field">
+                        @Html.Label(" days; ")
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="editor-field">
+                        @if (Model.TrendingFormulaType == 4)
+                            {
+                        @Html.CheckBox("chkIsTrending4", true)
+                            }
+                            else
+                            {
+                        @Html.CheckBox("chkIsTrending4", false)
+                            }
+                        @Html.Label("4) Manual Min; Max =Min + Avg usage")
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="editor-field">
+                        @Html.Label("over")
+                        @Html.DropDownListFor(model => model.TrendingFormulaOverDays, new SelectList(Model.Days, "Value", "Text", Model.TrendingFormulaOverDays), new { id = "ddlTrending4OverDays", @class = "selectBox" })
+                        @Html.Label(" counts * ")
+                        @Html.DropDownListFor(model => model.TrendingFormulaCounts, new SelectList(Model.Days, "Value", "Text", Model.TrendingFormulaCounts), new { id = "ddlTrending4Counts", @class = "selectBox" })
+                    </div>
+                </li>
+                @*<li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                        <div class="editor-field">
+                            @Html.CheckBoxFor(model => model.SuggestedOrder, new { @class = "check-box", id = "chkSuggestedOrder" })
+                            @Html.LabelFor(model => model.SuggestedOrder)
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.SuggestedOrder)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                        <div class="editor-field">
+                            @Html.CheckBoxFor(model => model.SuggestedTransfer, new { @class = "check-box", id = "chkSuggestedTransfer" })
+                            @Html.LabelFor(model => model.SuggestedTransfer)
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.SuggestedTransfer)</span>
+                        </div>
+                    </li>*@ @*@Html.Partial("UDFLayout", new eTurns.DTO.ResRoomMaster())*@ @* <li>
+                            <div class="editor-label">
+                                &nbsp;
+                            </div>
+                            <div class="BtnBlockform">
+                                <input type="button" value="Cancel" id="btnCancel" class="CreateBtn" />
+                                @if (isInsert == true && Model.ID == 0)
+                                {
+                                    <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                                }
+                                else if (isUpdate == true)
+                                {
+                                    <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                                }
+                                else if (isUpdate == false && isInsert == false)
+                                {
+                                    <script>
+                                        //This is the case when archived or deleted record is being viewed..
+                                        disableControls('frmRoom');
+                                    </script>
+                                }
+                            </div>
+                        </li>*@
+                </ul>
+                <h4>
+                    @ResRoomMaster.TransactionNumberFormat
+                </h4>
+                <ul>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CountAutoSequence)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.CountAutoSequence, new SelectList(
+                       new[] {
+                            new {ID = 3, Name = "Incrementing by Count#"},
+                            new {ID = 5, Name = ResSupplierMaster.optDateIncrementing},
+                            new {ID = 6, Name = ResSupplierMaster.optDate},
+                            //new {ID = 7, Name = ResSupplierMaster.optFixedIncrementing}
+                            }, "ID", "Name", Model.CountAutoSequence), "", new { @class = "selectBox", @onclick = "ChangeAutoSequenceDroudown('CountAutoSequence', 'liCountAutoNrFixedValue')" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CountAutoSequence)</span>
+                        </div>
+                    </li>
+                    <li id="liCountAutoNrFixedValue" style="@(Model.CountAutoSequence == 7 ? "" : "display:none")">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CountAutoNrFixedValue)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.CountAutoNrFixedValue, new { @class = "text-box", maxlength = 128 })
+                            <span id="errCountAutoNrFixedValue" class="ErrorMessage"></span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextCountNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextCountNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextCountNo)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.POAutoSequence)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.POAutoSequence, new SelectList(
+                       new[] {
+                            new {ID = 0, Name = ResSupplierMaster.optBlank},
+                            new {ID = 3, Name = ResSupplierMaster.optIncreamentingbyOrder },
+                            new {ID = 4, Name = ResSupplierMaster.optIncreamentingbyDay},
+                            new {ID = 5, Name = ResSupplierMaster.optDateIncrementing},
+                            new {ID = 6, Name = ResSupplierMaster.optDate},
+                            new {ID = 7, Name = ResSupplierMaster.optFixedIncrementing},
+                            new {ID = 8, Name = ResSupplierMaster.optDateIncrementingFixed}
+                            }, "ID", "Name", Model.POAutoSequence), "", new { @class = "selectBox", @onclick = "ChangeAutoSequenceDroudown('POAutoSequence', 'liPOAutoNrFixedValue')" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.POAutoSequence)</span>
+                        </div>
+                    </li>
+                    <li id="liPOAutoNrFixedValue" style="@((Model.POAutoSequence == 7 || Model.POAutoSequence == 8) ? "" : "display:none")">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.POAutoNrFixedValue)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.POAutoNrFixedValue, new { @class = "text-box", maxlength = 128 })
+                            <span id="errPOAutoNrFixedValue" class="ErrorMessage"></span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextOrderNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextOrderNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextOrderNo)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.PullPurchaseNumberType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.PullPurchaseNumberType, new SelectList(
+                       new[] {
+                           new {ID = 0, Name = "" },
+                            new {ID = 1, Name = ResSupplierMaster.optFixed },
+                            new {ID = 3, Name = ResSupplierMaster.optIncreamentingbyOrder },
+                            //new {ID = 2, Name = ResSupplierMaster.optBlanketOrder },
+                            new {ID = 5, Name = ResSupplierMaster.optDateIncrementing },
+                            new {ID = 6, Name = ResSupplierMaster.optDate },
+                            new {ID = 7, Name = ResSupplierMaster.optFixedIncrementing}
+                            }, "ID", "Name", Model.POAutoSequence), new { @class = "selectBox", @onclick = "ChangeAutoSequenceDroudown('PullPurchaseNumberType', 'liPullPurchaseNrFixedValue')" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.PullPurchaseNumberType)</span>
+                        </div>
+                    </li>
+                    <li id="liPullPurchaseNrFixedValue" style="@(Model.PullPurchaseNumberType == 7 ? "" : "display:none")">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.PullPurchaseNrFixedValue)
+                        </div>
+                        @if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL))
+                            {
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.LastPullPurchaseNumberUsed, new { @class = "text-box", maxlength = 22 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.LastPullPurchaseNumberUsed)</span>
+                        </div>
+                            }
+                            else
+                            {
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.LastPullPurchaseNumberUsed, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.LastPullPurchaseNumberUsed)</span>
+                        </div>
+                            }
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.LastPullPurchaseNumberUsed)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.LastPullPurchaseNumberUsed, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.LastPullPurchaseNumberUsed)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ReqAutoSequence)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.ReqAutoSequence, new SelectList(
+                       new[] {
+                            new {ID = 0, Name = ResSupplierMaster.optBlank},
+                            new {ID = 3, Name = ResSupplierMaster.optIncreamentingbyOrder },
+                            new {ID = 4, Name = ResSupplierMaster.optIncreamentingbyDay},
+                            new {ID = 5, Name = ResSupplierMaster.optDateIncrementing},
+                            new {ID = 6, Name = ResSupplierMaster.optDate},
+                            //new {ID = 7, Name = ResSupplierMaster.optFixedIncrementing}
+                            }, "ID", "Name", Model.ReqAutoSequence), "", new { @class = "selectBox", @onclick = "ChangeAutoSequenceDroudown('ReqAutoSequence', 'liReqAutoNrFixedValue')" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ReqAutoSequence)</span>
+                        </div>
+                    </li>
+                    <li id="liReqAutoNrFixedValue" style="@(Model.ReqAutoSequence == 7 ? "" : "display:none")">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ReqAutoNrFixedValue)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.ReqAutoNrFixedValue, new { @class = "text-box", maxlength = 128 })
+                            <span id="errReqAutoNrFixedValue" class="ErrorMessage"></span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextRequisitionNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextRequisitionNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextRequisitionNo)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.IsAllowRequisitionDuplicate)
+                        </div>
+                        <div class="editor-field">
+                            @*@Html.CheckBoxFor(model => model.IsAllowRequisitionDuplicate)*@
+                            @Html.CheckBox("IsAllowRequisitionDuplicate", Model.IsAllowRequisitionDuplicate != null && (bool)Model.IsAllowRequisitionDuplicate)
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.IsAllowOrderDuplicate)
+                        </div>
+                        <div class="editor-field">
+                            @Html.CheckBoxFor(model => model.IsAllowOrderDuplicate)
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.IsAllowWorkOrdersDuplicate)
+                        </div>
+                        <div class="editor-field">
+                            @Html.CheckBoxFor(model => model.IsAllowWorkOrdersDuplicate)
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.IsAllowQuoteDuplicate)
+                        </div>
+                        <div class="editor-field">
+                            @Html.CheckBoxFor(model => model.IsAllowQuoteDuplicate)
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.StagingAutoSequence)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.StagingAutoSequence, new SelectList(
+                               new[] {
+                                    new {ID = 0, Name = ResSupplierMaster.optBlank},
+                                    new {ID = 3, Name = ResSupplierMaster.optIncreamentingbyOrder },
+                                    new {ID = 4, Name = ResSupplierMaster.optIncreamentingbyDay},
+                                    new {ID = 5, Name = ResSupplierMaster.optDateIncrementing},
+                                    new {ID = 6, Name = ResSupplierMaster.optDate},
+                                    new {ID = 7, Name = ResSupplierMaster.optFixedIncrementing},
+                                    new {ID = 8, Name = ResSupplierMaster.optDateIncrementingFixed}
+                                    }, "ID", "Name", Model.StagingAutoSequence), "", new { @class = "selectBox", @onclick = "ChangeAutoSequenceDroudown('StagingAutoSequence', 'liSTGAutoNrFixedValue')" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.StagingAutoSequence)</span>
+                        </div>
+                    </li>
+                    <li id="liSTGAutoNrFixedValue" style="@((Model.StagingAutoSequence == 7 || Model.StagingAutoSequence == 8) ? "" : "display:none")">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.StagingAutoNrFixedValue)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.StagingAutoNrFixedValue, new { @class = "text-box", maxlength = 128 })
+                            <span id="errSTGAutoNrFixedValue" class="ErrorMessage"></span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextStagingNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextStagingNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextStagingNo)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.TransferAutoSequence)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.TransferAutoSequence, new SelectList(
+                                               new[] {
+                                                    new {ID = 0, Name = ResSupplierMaster.optBlank},
+                                                    new {ID = 3, Name = ResSupplierMaster.optIncreamentingbyOrder },
+                                                    new {ID = 4, Name = ResSupplierMaster.optIncreamentingbyDay},
+                                                    new {ID = 5, Name = ResSupplierMaster.optDateIncrementing},
+                                                    new {ID = 6, Name = ResSupplierMaster.optDate},
+                                                    new {ID = 7, Name = ResSupplierMaster.optFixedIncrementing},
+                                                    new {ID = 8, Name = ResSupplierMaster.optDateIncrementingFixed}
+                                                    }, "ID", "Name", Model.TransferAutoSequence), "", new { @class = "selectBox", @onclick = "ChangeAutoSequenceDroudown('TransferAutoSequence', 'liTRSAutoNrFixedValue')" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.TransferAutoSequence)</span>
+                        </div>
+                    </li>
+                    <li id="liTRSAutoNrFixedValue" style="@((Model.TransferAutoSequence == 7 || Model.TransferAutoSequence == 8) ? "" : "display:none")">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.TransferAutoNrFixedValue)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.TransferAutoNrFixedValue, new { @class = "text-box", maxlength = 128 })
+                            <span id="errTRSAutoNrFixedValue" class="ErrorMessage"></span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextTransferNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextTransferNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextTransferNo)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.WorkOrderAutoSequence)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.WorkOrderAutoSequence, new SelectList(
+                               new[] {
+                                    new {ID = 0, Name = ResSupplierMaster.optBlank},
+                                    new {ID = 3, Name = ResSupplierMaster.optIncreamentingbyOrder },
+                                    new {ID = 4, Name = ResSupplierMaster.optIncreamentingbyDay},
+                                    new {ID = 5, Name = ResSupplierMaster.optDateIncrementing},
+                                    new {ID = 6, Name = ResSupplierMaster.optDate},
+                                    new {ID = 7, Name = ResSupplierMaster.optFixedIncrementing},
+                                    new {ID = 8, Name = ResSupplierMaster.optDateIncrementingFixed}
+                                    }, "ID", "Name", Model.WorkOrderAutoSequence), "", new { @class = "selectBox", @onclick = "ChangeAutoSequenceDroudown('WorkOrderAutoSequence', 'liWOAutoNrFixedValue')" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.WorkOrderAutoSequence)</span>
+                        </div>
+                    </li>
+                    <li id="liWOAutoNrFixedValue" style="@((Model.WorkOrderAutoSequence == 7 || Model.WorkOrderAutoSequence == 8) ? "" : "display:none")">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.WorkOrderAutoNrFixedValue)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.WorkOrderAutoNrFixedValue, new { @class = "text-box", maxlength = 128 })
+                            <span id="errWOAutoNrFixedValue" class="ErrorMessage"></span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextWorkOrderNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextWorkOrderNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextWorkOrderNo)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.TAOAutoSequence)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.TAOAutoSequence, new SelectList(
+                       new[] {
+                            new {ID = 0, Name = ResSupplierMaster.optBlank},
+                            new {ID = 3, Name = ResSupplierMaster.optIncreamentingbyOrder },
+                            new {ID = 4, Name = ResSupplierMaster.optIncreamentingbyDay},
+                            new {ID = 5, Name = ResSupplierMaster.optDateIncrementing},
+                            new {ID = 6, Name = ResSupplierMaster.optDate},
+                            new {ID = 7, Name = ResSupplierMaster.optFixedIncrementing},
+                            new {ID = 8, Name = ResSupplierMaster.optDateIncrementingFixed}
+                            }, "ID", "Name", Model.TAOAutoSequence), "", new { @class = "selectBox", @onclick = "ChangeAutoSequenceDroudown('TAOAutoSequence', 'liTAOAutoNrFixedValue')" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.POAutoSequence)</span>
+                        </div>
+                    </li>
+                    <li id="liTAOAutoNrFixedValue" style="@((Model.TAOAutoSequence == 7 || Model.TAOAutoSequence == 8) ? "" : "display:none")">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.TAOAutoNrFixedValue)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.TAOAutoNrFixedValue, new { @class = "text-box", maxlength = 128 })
+                            <span id="errTAOAutoNrFixedValue" class="ErrorMessage"></span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextToolAssetOrderNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextToolAssetOrderNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextToolAssetOrderNo)</span>
+                        </div>
+                    </li>
+                    <li style="display:none;">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextAssetNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextAssetNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextAssetNo)</span>
+                        </div>
+                    </li>
+                    <li style="display:none;">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextBinNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextBinNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextBinNo)</span>
+                        </div>
+                    </li>
+                    <li style="display: none">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextKitNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextKitNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextKitNo)</span>
+                        </div>
+                    </li>
+                    <li style="display: none">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextItemNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextItemNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextItemNo)</span>
+                        </div>
+                    </li>
+                    <li style="display:none;">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextProjectSpendNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextProjectSpendNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextProjectSpendNo)</span>
+                        </div>
+                    </li>
+                    <li style="display:none;">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextToolNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextToolNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextToolNo)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ToolCountAutoSequence)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.ToolCountAutoSequence, new SelectList(
+                       new[] {
+                            new {ID = 3, Name = "Incrementing by Count#"},
+                            new {ID = 5, Name = ResSupplierMaster.optDateIncrementing},
+                            new {ID = 6, Name = ResSupplierMaster.optDate},
+                            }, "ID", "Name", Model.ToolCountAutoSequence), "", new { @class = "selectBox", @onclick = "ChangeAutoSequenceDroudown('ToolCountAutoSequence', 'liToolCountAutoNrFixedValue')" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CountAutoSequence)</span>
+                        </div>
+                    </li>
+                    <li id="liToolCountAutoNrFixedValue" style="@(Model.ToolCountAutoSequence == 7 ? "" : "display:none")">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ToolCountAutoNrFixedValue)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.ToolCountAutoNrFixedValue, new { @class = "text-box", maxlength = 128 })
+                            <span id="errToolCountAutoNrFixedValue" class="ErrorMessage"></span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextToolCountNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextToolCountNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextToolCountNo)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.QuoteAutoSequence)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.QuoteAutoSequence, new SelectList(
+                       new[] {
+                            new {ID = 0, Name = ResSupplierMaster.optBlank},
+                            new {ID = 3, Name = ResSupplierMaster.optIncreamentingbyOrder },
+                            new {ID = 4, Name = ResSupplierMaster.optIncreamentingbyDay},
+                            new {ID = 5, Name = ResSupplierMaster.optDateIncrementing},
+                            new {ID = 6, Name = ResSupplierMaster.optDate},
+                            new {ID = 7, Name = ResSupplierMaster.optFixedIncrementing},
+                            new {ID = 8, Name = ResSupplierMaster.optDateIncrementingFixed}
+                            }, "ID", "Name", Model.QuoteAutoSequence), "", new { @class = "selectBox", @onclick = "ChangeAutoSequenceDroudown('QuoteAutoSequence', 'liQuoteAutoNrFixedValue')" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.QuoteAutoSequence)</span>
+                        </div>
+                    </li>
+                    <li id="liQuoteAutoNrFixedValue" style="@((Model.QuoteAutoSequence == 7 || Model.QuoteAutoSequence == 8) ? "" : "display:none")">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.QuoteAutoNrFixedValue)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.QuoteAutoNrFixedValue, new { @class = "text-box", maxlength = 128 })
+                            <span id="errQuoteAutoNrFixedValue" class="ErrorMessage"></span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NextQuoteNo)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NextQuoteNo, new { @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NextQuoteNo)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.AllowInsertingItemOnScan)
+                        </div>
+                        <div class="editor-field">
+                            @*@Html.CheckBoxFor(model => model.AllowInsertingItemOnScan.Value)*@
+                            @Html.CheckBox("AllowInsertingItemOnScan", Model.AllowInsertingItemOnScan != null && (bool)Model.AllowInsertingItemOnScan)
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.AllowPullBeyondAvailableQty)
+                        </div>
+                        <div class="editor-field">
+                            @Html.CheckBoxFor(model => model.AllowPullBeyondAvailableQty)
+                        </div>
+                    </li>
+                    <li id="liPullRejectionType">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.PullRejectionType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.RadioButtonFor(model => model.PullRejectionType, 1, new { id = "rbDeletePull" })
+                            @ResRoomMaster.RejDeletePull
+                            &nbsp;&nbsp;
+                            @Html.RadioButtonFor(model => model.PullRejectionType, 2, new { id = "rbAdjustmentPull" })
+                            @ResRoomMaster.RejAdjustmentPull
+                            <div id="NegPull_Action_RejectPull">
+                                <h4>Action to be taken on save room: <b>(@ResRoomMaster.RejDeletePull)</b></h4>
+                                <div>
+                                    Room contains items with negative quantity. If you save room with Allow Pull Beyond Available Qty set to false, All pulls which generated negative quantity will be deleted.
+                                </div>
+                            </div>
+                            <div id="NegPull_Action_AdjustmentPull">
+                                <h4>Action to be taken on save room:<b>(@ResRoomMaster.RejAdjustmentPull)</b></h4>
+                                <div>
+                                    Room contains items with negative quantity. If you save room with Allow Pull Beyond Available Qty set to false, Adjustment pull credit will be created automatically.
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    <li style="display:none;">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.AllowToolOrdering)
+                        </div>
+                        <div class="editor-field">
+                            @Html.CheckBoxFor(model => model.AllowToolOrdering)
+                        </div>
+                    </li>
+
+                    @Html.Partial("UDFLayout", new eTurns.DTO.ResRoomMaster())
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                        <div class="BtnBlockform">
+                            <input type="button" value="Cancel" id="btnCancel" class="CreateBtn" />
+                            @if (isInsert == true && Model.ID == 0)
+                                {
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                                }
+                                else if (isUpdate == true)
+                                {
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                                }
+                                else if (isUpdate == false && isInsert == false)
+                                {
+                            <script type="text/javascript">
+                                //This is the case when archived or deleted record is being viewed..
+                                disableControls('frmRoom');
+                            </script>
+                                }
+                        </div>
+                    </li>
+                    @*
+                        <li>
+                            <div class="editor-label">
+                            </div>
+                            <div class="editor-field">
+                                @Html.Label("Time ") @Html.TextBoxFor(model => model.AutoCreateTransferTime, new
+                                { id = "txtExample", maxlength = 5, onkeypress = "javascript:return false;" })
+                            </div>
+                        </li>*@
+                </ul>
+            </div>
+        <div class="editorForm padRightNone">
+            <h4>
+                @ResRoomMaster.ReplenishingDetails
+            </h4>
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.ReplineshmentRoom)
+                    </div>
+                    <div class="editor-field">
+                        @Html.DropDownListFor(model => model.ReplineshmentRoom, new SelectList(Model.ReplineshmentRoomList, "ID", "RoomName", Model.ReplineshmentRoom.HasValue ? (int)Model.ReplineshmentRoom.Value : 0), new { @class = "selectBox" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ReplineshmentRoom)</span>
+                    </div>
+                </li>
+                @* <li>
+                <div class="editor-label">
+                    @Html.Label("Replenishment")&nbsp;
+                </div>
+                <div class="editor-field">
+                    @Html.CheckBoxFor(model => model.IsItemReplenishment, new { @class = "check-box", id = "chkIsItemReplenishment" })
+                    @Html.LabelFor(model => model.IsItemReplenishment)
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsItemReplenishment)</span>
+                </div>
+            </li>*@ @* <li>
+                <div class="editor-label">
+                    &nbsp;
+                </div>
+                <div class="editor-field">
+                    @Html.CheckBoxFor(model => model.IsBinReplenishment, new { @class = "check-box", id = "chkIsBinReplenishment" })
+                    @Html.LabelFor(model => model.IsBinReplenishment)
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsBinReplenishment)</span>
+                </div>
+            </li>*@
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.ReplenishmentType)<em> *</em>
+                </div>
+                <div class="editor-field">
+                    @Html.DropDownListFor(model => model.ReplenishmentType, new SelectList(Model.ReplenishmentTypeList, "ID", "Text", Model.ReplenishmentType), "", new { @class = "selectBox" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ReplenishmentType)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.IseVMI)
+                </div>
+                <div class="editor-field">
+                    @Html.CheckBoxFor(model => model.IseVMI, new { @class = "check-box" })
+                    @*@Html.LabelFor(model => model.IseVMI)
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IseVMI)</span>*@
+                </div>
+            </li>
+            @*   <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.MaxOrderSize)
+            </div>
+            <div class="editor-field">
+                @Html.TextBoxFor(model => model.MaxOrderSize, new { @class = "text-box", maxlength = 128 })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.MaxOrderSize)</span>
+            </div>
+        </li>
+        <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.HighPO)
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.HighPO, new { @class = "text-box", maxlength = 128 })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.HighPO)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.HighJob)
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.HighJob, new { @class = "text-box" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.HighJob)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.HighTransfer)
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.HighTransfer, new { @class = "text-box" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.HighTransfer)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.HighCount)
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.HighCount, new { @class = "text-box" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.HighCount)</span>
+                </div>
+            </li>*@
+        </ul>
+            <div id="room-sensorbin-setting">
+                <h4>SensorBins Settings</h4>
+                <ul>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.GetFirmWareVersionRequestType)
+                            @Html.HiddenFor(model => model.SensorBinRoomSettings.ID, new { id = "sensorBinHiddenID" })
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.GetFirmWareVersionRequestType, eVMIRequestTypes, new { @class = "selectBox" })
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.GetSerialNoRequestType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.GetSerialNoRequestType, eVMIRequestTypes, new { @class = "selectBox" })
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.GetModelRequestType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.GetModelRequestType, eVMIRequestTypes, new { @class = "selectBox" })
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.SetModelRequestType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.SetModelRequestType, eVMIRequestTypes, new { @class = "selectBox" })
+                        </div>
+                    </li>
+
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.GetShelfIDRequestType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.GetShelfIDRequestType, eVMIRequestTypes, new { @class = "selectBox" })
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.SetShelfIDRequestType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.SetShelfIDRequestType, eVMIRequestTypes, new { @class = "selectBox" })
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.GetCalibrationWeightRequestType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.GetCalibrationWeightRequestType, eVMIRequestTypes, new { @class = "selectBox" })
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.SetCalibrationWeightRequestType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.SetCalibrationWeightRequestType, eVMIRequestTypes, new { @class = "selectBox" })
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.CalibrateRequestType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.CalibrateRequestType, eVMIRequestTypes, new { @class = "selectBox", disabled = "disabled" })
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.PollRequestType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.PollRequestType, eVMIRequestTypes, new { @class = "selectBox" })
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.TareRequestType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.TareRequestType, eVMIRequestTypes, new { @class = "selectBox" })
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.ItemWeightPerPieceRequestType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.ItemWeightPerPieceRequestType, eVMIRequestTypes, new { @class = "selectBox" })
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.ResetRequestType)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.ResetRequestType, eVMIRequestTypes, new { @class = "selectBox" })
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SensorBinRoomSettings.PollCommand)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(m => m.SensorBinRoomSettings.PollCommand, PollCommandTypes, new { @class = "selectBox" })
+                        </div>
+                    </li>
+
+                </ul>
+            </div>
+            
+        
+        <h4>
+            @ResRoomMaster.TaxationDetails
+        </h4>
+        <ul>
+            <li>
+                <div class="editor-label">
+                    &nbsp;
+                </div>
+                <div class="editor-field">
+                    @Html.CheckBoxFor(model => model.IsTax1Parts, new { id = "chkIsTax1Parts", name = "chkIsTax1Parts", @class = "check-box" })
+                    @Html.LabelFor(model => model.IsTax1Parts)
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsTax1Parts)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    &nbsp;
+                </div>
+                <div class="editor-field">
+                    @Html.CheckBoxFor(model => model.IsTax1Labor, new { id = "chkIsTax1Labor", name = "chkIsTax1Labor", @class = "check-box", maxlength = 128 })
+                    @Html.LabelFor(model => model.IsTax1Labor)
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsTax1Labor)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.Tax1name)
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.Tax1name, new { id = "txtTax1name", @class = "text-box" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Tax1name)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.Tax1Rate)
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.Tax1Rate, new { id = "txtTax1Rate", @class = "text-box" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Tax1Rate)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    &nbsp;
+                </div>
+                <div class="editor-field">
+                    @Html.CheckBoxFor(model => model.IsTax2Parts, new { id = "chkIsTax2Parts", @class = "check-box" })
+                    @Html.LabelFor(model => model.IsTax2Parts)
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsTax2Parts)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    &nbsp;
+                </div>
+                <div class="editor-field">
+                    @Html.CheckBoxFor(model => model.IsTax2Labor, new { id = "chkIsTax2Labor", @class = "check-box", maxlength = 128 })
+                    @Html.LabelFor(model => model.IsTax2Labor)
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsTax2Labor)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.tax2name)
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.tax2name, new { id = "txttax2name", @class = "text-box", maxlength = 128 })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.tax2name)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.Tax2Rate)
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.Tax2Rate, new { id = "txtTax2Rate", @class = "text-box" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Tax2Rate)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    &nbsp;
+                </div>
+                <div class="editor-field">
+                    @*@Html.CheckBoxFor(model => model.IsTax2onTax1.Value, new { id = "chkIsTax2onTax1", @class = "check-box" })*@
+                    @Html.CheckBox("IsTax2onTax1", Model.IsTax2onTax1 != null && (bool)Model.IsTax2onTax1)
+                    @Html.LabelFor(model => model.IsTax2onTax1)
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsTax2onTax1)</span>
+                </div>
+            </li>
+        </ul>
+        <h4>
+            @ResRoomMaster.OtherDetails
+        </h4>
+        <ul>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.DefaultBinName)<em> *</em>
+                </div>
+                <div class="editor-field">
+                    @Html.EditorFor(model => model.DefaultBinName, new { maxlength = 50 })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.DefaultBinName)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.DefaultSupplierID)<em> *</em>
+                </div>
+                <div class="editor-field">
+                    <span style='position: relative'>
+                        @Html.Hidden("hdnEntCmpRoom", (object)ViewBag.EntCmpRoom)
+                        @Html.EditorFor(model => model.DefaultSupplierName)
+                        <a id='lnkShowAllOptionsDefSup' href='javascript:void(0);' style='position: absolute;
+                                    right: 5px; top: 0px;' class="ShowAllOptionsDefSup">
+                            @*<img src='/Content/images/arrow_down_black.png' alt='select' />*@
+                        </a>
+                    </span>
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.DefaultSupplierID)</span>
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.DefaultSupplierName)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.SlowMovingValue)
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.SlowMovingValue, new { id = "txtSlowMovingValue", @class = "text-box" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.SlowMovingValue)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.FastMovingValue)
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.FastMovingValue, new { id = "txtFastMovingValue", @class = "text-box" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.FastMovingValue)</span>
+                </div>
+            </li>
+            @*  <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.GXPRConsJob)
+            </div>
+            <div class="editor-field">
+                @Html.TextBoxFor(model => model.GXPRConsJob, new { @class = "text-box", maxlength = 128 })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.GXPRConsJob)</span>
+            </div>
+        </li>*@
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.InventoryConsuptionMethod)
+                </div>
+                <div class="editor-field">
+                    @Html.DropDownListFor(model => model.InventoryConsuptionMethod, new SelectList(Model.InventoryConsuptionMethodBAG, "Text", "Text", Model.InventoryConsuptionMethod), "", new { id = "ddlInventoryConsuptionMethod", @class = "selectBox" })
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.GlobMarkupParts)
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.GlobMarkupParts, new { @class = "text-box", maxlength = 128 })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.GlobMarkupParts)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.GlobMarkupLabor)
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.GlobMarkupLabor, new { @class = "text-box" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.GlobMarkupLabor)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.CostCenter)<em> *</em>
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.CostCenter, new { @class = "text-box", maxlength = 128 })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CostCenter)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.UniqueID)<em> *</em>
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.UniqueID, new { @class = "text-box" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.UniqueID)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.MethodOfValuingInventory)
+                </div>
+                <div class="editor-field">
+                    @*@Html.TextBoxFor(model => model.MethodOfValuingInventory, new { @class = "text-box", maxlength = 128 })*@
+                    @Html.DropDownListFor(model => model.MethodOfValuingInventory, Model.MethodOfValuing, new { id = "ddlMethodOfValuingInventory", @class = "selectBox" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.MethodOfValuingInventory)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.BaseOfInventory)
+                </div>
+                <div class="editor-field">
+                    @Html.DropDownListFor(model => model.BaseOfInventory, new SelectList(
+           new[] {
+                new {ID = 1, Name = "Cost"},
+                new {ID = 2, Name = "Turn"}
+                }, "ID", "Name", Model.BaseOfInventory), "", new { @class = "selectBox" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.BaseOfInventory)</span>
+                </div>
+            </li>
+            @* <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.POAutoSequence)
+            </div>
+            <div class="editor-field">
+                @Html.DropDownListFor(model => model.POAutoSequence, new SelectList(
+               new[] {
+                    new {ID = 0, Name = "Blank"},
+                    new {ID = 3, Name = "Increamenting by Order#"},
+                    new {ID = 4, Name = "Increamenting by Day"},
+                    new {ID = 5, Name = "Date + Incrementing#"},
+                    new {ID = 6, Name = "Date"}
+                    }, "ID", "Name", Model.POAutoSequence), "", new { @class = "selectBox" })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.POAutoSequence)</span>
+            </div>
+        </li>*@
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.LicenseBilled)
+                </div>
+                <div class="editor-field">
+                    @*@Html.TextBoxFor(model => model.LicenseBilled, new { @class = "text-box", maxlength = 128 })*@
+                    <div class="divLabel" style="padding-bottom: 10px;">
+                        @*@Html.TextBoxFor(model => model.LicenseBilled, new { @class = "text-box", id = "txtLicenseBilled", maxlength = 128 })*@
+                        @Html.TextBoxFor(model => model.LicenseBilledStri, new { @class = "text-box", id = "txtLicenseBilled", @readonly = "readonly", @style = "background:white", maxlength = 128 })
+                        @*<input id="LicenseBilled" type="text" value="" name="LicenseBilled" data-val-length-max="20"
+                    data-val="true" class="text-box" />*@ @*<a id="ancLicenseBilled" title="" class="datePicker"
+                    style="cursor: pointer">
+                    <img src="~/Content/images/date-picker-icon.png" alt="" title="" /></a>*@
+                </div>
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.LicenseBilled)</span>
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                &nbsp;
+            </div>
+            <div class="editor-field">
+                @Html.CheckBoxFor(model => model.IsProjectSpendMandatory, new { @class = "check-box", id = "chkIsProjectSpendMandatory" })
+                @Html.LabelFor(model => model.IsProjectSpendMandatory)
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsProjectSpendMandatory)</span>
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                &nbsp;
+            </div>
+            <div class="editor-field">
+                @Html.CheckBoxFor(model => model.IsConsignment, new { @class = "check-box" }) @Html.LabelFor(model => model.IsConsignment)
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsConsignment)</span>
+            </div>
+        </li>
+
+        <li>
+            <div class="editor-label">
+                &nbsp;
+            </div>
+            <div class="editor-field">
+                @Html.CheckBoxFor(model => model.SuggestedOrder, new { @class = "check-box", id = "chkSuggestedOrder" })
+                @Html.LabelFor(model => model.SuggestedOrder)
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.SuggestedOrder)</span>
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                &nbsp;
+            </div>
+            <div class="editor-field">
+                @Html.CheckBoxFor(model => model.SuggestedTransfer, new { @class = "check-box", id = "chkSuggestedTransfer" })
+                @Html.LabelFor(model => model.SuggestedTransfer)
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.SuggestedTransfer)</span>
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                &nbsp;
+            </div>
+            <div class="editor-field">
+                @Html.CheckBoxFor(model => model.SuggestedReturn, new { @class = "check-box", id = "chkReturnSuggestedOrder" })
+                @Html.LabelFor(model => model.SuggestedReturn)
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.SuggestedReturn)</span>
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                &nbsp;
+            </div>
+            <div class="editor-field">
+                @Html.CheckBoxFor(model => model.WarnUserOnAssigningNonDefaultBin, new { @class = "check-box" }) @Html.LabelFor(model => model.WarnUserOnAssigningNonDefaultBin)
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.WarnUserOnAssigningNonDefaultBin)</span>
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                &nbsp;
+            </div>
+            <div class="editor-field">
+                @Html.CheckBoxFor(model => model.IsWOSignatureRequired, new { @class = "check-box" }) @Html.LabelFor(model => model.IsWOSignatureRequired)
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsWOSignatureRequired)</span>
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                &nbsp;
+            </div>
+            <div class="editor-field">
+                @if (Model.IsIgnoreCreditRule)
+                {
+                    <input type="checkbox" checked="checked" disabled="disabled" />@Html.LabelFor(model => model.IsIgnoreCreditRule)
+                    @Html.HiddenFor(model => model.IsIgnoreCreditRule)
+                }
+                else
+                {
+                    @Html.CheckBoxFor(model => model.IsIgnoreCreditRule, new { @class = "check-box" }) @Html.LabelFor(model => model.IsIgnoreCreditRule)
+                }
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                &nbsp;
+            </div>
+            <div class="editor-field">
+                @Html.CheckBoxFor(model => model.IsAllowOrderCostuom, new { @class = "check-box" }) @Html.LabelFor(model => model.IsAllowOrderCostuom)
+
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                &nbsp;
+            </div>
+            <div class="editor-field">
+                @if (eTurnsWeb.Helper.SessionHelper.RoleID == -1)
+                {
+                    if (Model.ID > 0)
+                    {
+                        if (Model.ForceSupplierFilter)
+                        {
+                            @Html.HiddenFor(model => model.ForceSupplierFilter)
+                            @Html.CheckBoxFor(model => model.ForceSupplierFilter, new { @class = "check-box", @disabled = "disabled" })
+                        }
+                        else
+                        {
+                            @Html.CheckBoxFor(model => model.ForceSupplierFilter, new { @class = "check-box" })
+                        }
+                    }
+                    else
+                    {
+                        @Html.CheckBoxFor(model => model.ForceSupplierFilter, new { @class = "check-box" })
+                    }
+                    @Html.LabelFor(model => model.ForceSupplierFilter)
+                }
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                &nbsp;
+            </div>
+            <div class="editor-field">
+                @Html.CheckBoxFor(model => model.DoGroupSupplierQuoteToOrder, new { @class = "check-box" }) @Html.LabelFor(model => model.DoGroupSupplierQuoteToOrder)
+
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                &nbsp;
+            </div>
+            <div class="editor-field">
+                @Html.CheckBoxFor(model => model.DoSendQuotetoVendor, new { @class = "check-box" }) @Html.LabelFor(model => model.DoSendQuotetoVendor)
+
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.IsOrderReleaseNumberEditable)
+            </div>
+            <div class="editor-field">
+                @Html.CheckBoxFor(model => model.IsOrderReleaseNumberEditable, new { @class = "check-box" })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsOrderReleaseNumberEditable)</span>
+            </div>
+        </li>
+
+        <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.RequestedXDays)
+
+            </div>
+            <div class="editor-field">
+                @Html.TextBoxFor(model => model.RequestedXDays, new { id = "txtRequestedXDays", @class = "text-box" })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.RequestedXDays)</span>
+            </div>
+        </li>
+        <li style="display: none;">
+            <div class="editor-label">
+                @Html.LabelFor(model => model.eVMIWaitCommand)
+            </div>
+            <div class="editor-field">
+                @Html.TextBoxFor(model => model.eVMIWaitCommand, new { @class = "text-box", maxlength = 10 })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.eVMIWaitCommand)</span>
+            </div>
+        </li>
+        <li style="display: none;">
+            <div class="editor-label">
+                @Html.LabelFor(model => model.eVMIWaitPort)
+            </div>
+            <div class="editor-field">
+                @Html.TextBoxFor(model => model.eVMIWaitPort, new { @class = "text-box", maxlength = 10 })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.eVMIWaitPort)</span>
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.ShelfLifeleadtimeOrdRpt)
+            </div>
+            <div class="editor-field">
+                @Html.TextBoxFor(model => model.ShelfLifeleadtimeOrdRpt, new { @class = "text-box", maxlength = 10 })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ShelfLifeleadtimeOrdRpt)</span>
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.LeadTimeOrdRpt)
+            </div>
+            <div class="editor-field">
+                @Html.TextBoxFor(model => model.LeadTimeOrdRpt, new { @class = "text-box", maxlength = 10 })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.LeadTimeOrdRpt)</span>
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.MaintenanceDueNoticeDays)
+            </div>
+            <div class="editor-field">
+                @Html.TextBoxFor(model => model.MaintenanceDueNoticeDays, new { @class = "text-box", maxlength = 10 })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.MaintenanceDueNoticeDays)</span>
+            </div>
+        </li>
+
+        <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.DefaultRequisitionRequiredDays)
+            </div>
+            <div class="editor-field">
+                @Html.EditorFor(model => model.DefaultRequisitionRequiredDays, new { @class = "text-box", maxlength = 5, @autocomplete = "off" })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.DefaultRequisitionRequiredDays)</span>
+            </div>
+        </li>
+
+
+        <li>
+
+            <div class="editor-label">
+                @Html.LabelFor(model => model.AttachingWOWithRequisition)
+            </div>
+            <div class="editor-field">
+                @Html.DropDownListFor(model => model.AttachingWOWithRequisition, new SelectList(
+            new[] {
+                                    new {ID = 1, Name = ResRoomMaster.AttachedWOReq_NewWO},
+                                    new {ID = 2, Name = ResRoomMaster.AttachedWOReq_ExistingWO},
+                                    new {ID = 3, Name = ResRoomMaster.Mixed}
+            }, "ID", "Name", Model.AttachingWOWithRequisition), new { @class = "selectBox" })
+            </div>
+
+
+        </li>
+        <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.PreventMaxOrderQty)
+            </div>
+            <div class="editor-field">
+                @Html.DropDownListFor(model => model.PreventMaxOrderQty, new SelectList(
+            new[] {
+                                    new {ID = 1, Name = ResRoomMaster.PreventMaxOrderQty_None},
+                                    new {ID = 2, Name = ResRoomMaster.PreventMaxOrderQty_Onorder}
+            }, "ID", "Name", Model.PreventMaxOrderQty), new { @class = "selectBox" })
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.DefaultCountType)
+            </div>
+            <div class="editor-field">
+                @Html.DropDownListFor(model => model.DefaultCountType, new SelectList(
+            new[] {
+                                    new {ID = "A", Name = "Adjustment"},
+                                    new {ID = "M", Name = "Manual"}
+            }, "ID", "Name", Model.DefaultCountType), new { @class = "selectBox" })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.DefaultCountType)</span>
+
+            </div>
+        </li>
+        @if (eTurnsWeb.Helper.SessionHelper.RoleID == -1)
+        {
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.ReportAppIntent)
+                </div>
+                <div class="editor-field">
+                    @Html.DropDownListFor(model => model.ReportAppIntent, new SelectList(
+                new[] {
+                    new {ID = "ReadOnly", Name = "ReadOnly"},
+                    new {ID = "ReadWrite", Name = "ReadWrite"}
+                }, "ID", "Name", Model.ReportAppIntent), new { @class = "selectBox" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ReportAppIntent)</span>
+
+                </div>
+            </li>
+        }
+        @if (IsRoomOfABInterprise)
+        {
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.AllowABIntegration)
+                </div>
+                <div class="editor-field">
+                    @Html.CheckBoxFor(model => model.AllowABIntegration, new { @class = "check-box" })
+                    @*@if (eTurnsWeb.Helper.SessionHelper.RoleID == -1)
+                {
+                    @Html.CheckBoxFor(model => model.AllowABIntegration, new { @class = "check-box" })
+                }
+                else
+                {
+                    @Html.DisplayFor(model => model.AllowABIntegration)
+                    @Html.HiddenFor(model => model.AllowABIntegration)
+                }*@
+
+                </div>
+            </li>
+
+        }
+        else
+        {
+            @Html.HiddenFor(model => model.AllowABIntegration)
+        }
+        <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.AllowOrderCloseAfterDays)
+            </div>
+            <div class="editor-field">
+                @Html.EditorFor(model => model.AllowOrderCloseAfterDays, new { @class = "text-box", maxlength = 5, @autocomplete = "off" })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.AllowOrderCloseAfterDays)</span>
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.IsELabel)
+            </div>
+            <div class="editor-field">
+                @Html.CheckBoxFor(model => model.IsELabel, new { @class = "check-box", id = "chkIsELabel", })
+            </div>
+        </li>
+        <li id="lieLableUserName" style="display:none">
+            <div class="editor-label">
+                @Html.LabelFor(model => model.UserName)<em> *</em>
+            </div>
+            <div class="editor-field">
+                @Html.EditorFor(model => model.UserName, new { @class = "text-box", maxlength = 255, @autocomplete = "off" })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.UserName)</span>
+            </div>
+        </li>
+        <li id="lieLablePassword" style="display:none">
+            <div class="editor-label">
+                @Html.LabelFor(model => model.Password)@if (Model.ID == 0)
+                {<em> *</em>}
+            </div>
+            <div class="editor-field">
+                @Html.PasswordFor(model => model.Password, new { id = "txtPassword", @class = "text-box", maxlength = 255, @autocomplete = "off", ondrop = "return false;", onpaste = "return false;" })
+                <div id="pswd_info">
+                    <h4>@ResUserMaster.TitlePasswordRequirements</h4>
+                    <ul class="password">
+                        <li id="letter" class="invalid">@ResUserMaster.AtLeast <strong>@ResUserMaster.PasswordOneLetter</strong></li>
+                        <li id="capital" class="invalid">@ResUserMaster.AtLeast <strong>@ResUserMaster.PasswordOneCapitalLetter</strong></li>
+                        <li id="number" class="invalid">@ResUserMaster.AtLeast <strong>@ResUserMaster.PasswordOneNumber</strong></li>
+                        <li id="special" class="invalid">@ResUserMaster.BeAtLeast  <strong>@ResUserMaster.PasswordOneSpecialLetter</strong></li>
+                        <li id="length" class="invalid">@ResUserMaster.BeAtLeast <strong>@ResUserMaster.PasswordEightCharacters</strong></li>
+                    </ul>
+                </div>
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Password)</span>
+            </div>
+        </li>
+        <li id="lieLableCompanyCode" style="display:none">
+            <div class="editor-label">
+                @Html.LabelFor(model => model.CompanyCode)<em> *</em>
+            </div>
+            <div class="editor-field">
+                @Html.EditorFor(model => model.CompanyCode, new { id = "txtCompanyCode", @class = "text-box", maxlength = 255 })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CompanyCode)</span>
+            </div>
+        </li>
+        <li id="lieLableStoreCode" style="display:none">
+            <div class="editor-label">
+                @Html.LabelFor(model => model.StoreCode)<em> *</em>
+            </div>
+            <div class="editor-field">
+                @Html.EditorFor(model => model.StoreCode, new { id = "txtStoreCode", @class = "text-box", maxlength = 255 })
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.StoreCode)</span>
+            </div>
+        </li>
+        <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.AllowAutoReceiveFromEDI)
+            </div>
+            <div class="editor-field">
+                @Html.CheckBox("AllowAutoReceiveFromEDI", Model.AllowAutoReceiveFromEDI != null && (bool)Model.AllowAutoReceiveFromEDI)
+            </div>
+        </li>
+        </ul>
+        @Html.Partial("SchedulerInfo", objSchedulerDTO)
+        <h4>
+            @ResRoomMaster.RoomModuleSettings
+        </h4>
+        <ul>
+            <li>
+                <table id="tblRoomModuleSettings" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @ResRoomMaster.ModuleName
+                            </th>
+                            <th>
+                                @ResRoomMaster.CalculationPrice
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.lstRoomModleSettings != null && Model.lstRoomModleSettings.Count > 0)
+                        {
+                            for (int i = 0; i < Model.lstRoomModleSettings.Count; i++)
+                            {
+                                <tr>
+                                    <td>
+                                        @Model.lstRoomModleSettings[i].ModuleNameFromResource
+                                        @Html.HiddenFor(m => m.lstRoomModleSettings[i].ID)
+                                        @Html.HiddenFor(m => m.lstRoomModleSettings[i].CompanyId)
+                                        @Html.HiddenFor(m => m.lstRoomModleSettings[i].RoomId)
+                                        @Html.HiddenFor(m => m.lstRoomModleSettings[i].ModuleId)
+                                    </td>
+                                    <td>
+                                        @Html.RadioButtonFor(m => m.lstRoomModleSettings[i].PriseSelectionOption, 1, new { id = "rbSellPrice" })
+                                        <label for="rbSellPrice">@ResRoomMaster.SellPrice</label>
+                                        @Html.RadioButtonFor(m => m.lstRoomModleSettings[i].PriseSelectionOption, 2, new { id = "rbLastCost" })
+                                        <label for="rbLastCost">@ResRoomMaster.LastCost</label>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </li>
+        </ul>
+        </div>
+                </div>
+                @if (Model.ID != 0)
+                    {
+                @Html.Hidden("hdnPageMode", new { value = "Edit" })
+
+                    }
+                    else
+                    {
+                @Html.Hidden("hdnPageMode", new { value = "New" })
+                    }
+            </div>
+            }
+@Html.Partial("_RequiredMessages")
+<script type="text/javascript">
+    var RoomId = '@Model.ID';
+    var GetSupplierURL = '@Url.Action("GetRoomSuppliers", "Master")';
+    var GetCountryURL = '@Url.Action("GetCountryList", "Master")';
+    var GetRoomListURL = '@Url.Action("RoomList", "Master",new { @roomsave=1})';
+    var EntCmpRoom = '';
+    var MsgTaxValidation = '@ResRoomMaster.MsgTaxValidation';
+    var MsgTaxPercentRequired = '@ResRoomMaster.MsgTaxPercentRequired';
+    var MsgTaxTwoRequired = '@ResRoomMaster.MsgTaxTwoRequired';
+    var MsgTaxTwoPercentRequired = '@ResRoomMaster.MsgTaxTwoPercentRequired';
+
+
+    $("#txtRequestedXDays").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: 0
+    });
+    var charCode = '@CharCodeList';
+
+    $(document).ready(function () {
+        var intNotAllowededCode = charCode.split(',');
+        if (intNotAllowededCode != null && intNotAllowededCode.length > 0) {
+            for (i = 0; i < intNotAllowededCode.length; i++) {
+                specialKeys.push(parseInt(intNotAllowededCode[i])); //Backspace
+            }
+        }
+    });
+
+    $(document).ready(function () {
+        EntCmpRoom = $("#hdnEntCmpRoom").val();
+    });
+
+    $(document).ready(function () {
+        $('form').areYouSure();
+        GetPhoneRegex();
+        $('.ShowAllOptionsDefSup').click(function () {
+            $(this).siblings('#DefaultSupplierName').trigger("focus");
+            //$(this).siblings("#DefaultSupplierName").autocomplete("search", " ");
+        });
+
+        $('.ShowAllOptionsBinCR').click(function () {
+            $(this).siblings('#Country').trigger("focus");
+            $(this).siblings("#Country").autocomplete("search", " ");
+        });
+
+        if ($('#IseVMI').is(':checked')) {
+            $('#room-sensorbin-setting').show();
+        } else {
+            $('#room-sensorbin-setting').hide();
+        }
+
+        $('#IseVMI').change(function () {
+            if ($(this).is(':checked')) {
+                $('#room-sensorbin-setting').show();
+            } else {
+                $('#room-sensorbin-setting').hide();
+                $('#room-sensorbin-setting select').val('default_value');//Reset default value for the specific div here
+            }
+        });
+
+        function GetPhoneRegex() {
+            // if ($("#Country").val() != "") {
+            $.ajax({
+                url: '@Url.Action("PhoneNumberRegexFromCountry", "Master")',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: {
+                    CountryName: $("#Country").val()
+                },
+                success: function (Message) {
+                    if (Message.Regex != "")
+                        $("#hdPhoneRegex").val(Message.Regex);
+                    else
+                        $("#hdPhoneRegex").val("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{0,13})[-. )]*(\d{3})[-. ]*(\d{0,13})(?: *x(\d+))?\s*$");
+                },
+                error: function (err) {
+                    $("#hdPhoneRegex").val("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{0,13})[-. )]*(\d{3})[-. ]*(\d{0,13})(?: *x(\d+))?\s*$");
+                }
+            });
+            //}
+            //else {
+            //    $("#hdPhoneRegex").val("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{0,13})[-. )]*(\d{3})[-. ]*(\d{0,13})(?: *x(\d+))?\s*$");
+            //}
+        }
+
+        $("#Country").change(function () {
+            GetPhoneRegex();
+        });
+
+
+        $("form").submit(function (e) {
+
+            $('#DivLoading').show();
+            if ($("#PullPurchaseNumberType").val() == "1") {
+                if ($("#LastPullPurchaseNumberUsed").val().trim() == '') {
+                    alert('@ResRoomMaster.errmsgBlankFixedLastPullPurchaseNumberUsed');
+                    $('#DivLoading').hide();
+                    return false;
+                }
+
+            }
+            if ('@ValidatePhoneNumber' != "" && ('@ValidatePhoneNumber' == "YES" || '@ValidatePhoneNumber' == "yes")) {
+                if ($("#PhoneNo").val() != "" && $("#Country").val() != "" && $("#hdPhoneRegex").val() != "") {
+                    var regexpattern = new RegExp($("#hdPhoneRegex").val());
+                    var inputVal = $("#PhoneNo").val();
+                    if (!regexpattern.test(inputVal)) {
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#spanGlobalMessage").html("@ResCommon.InvalidPhoneValue");
+                        $("#ContactPhone").focus();
+                        $('#DivLoading').hide();
+                        return false;
+                    }
+                }
+                else {
+                    if ($("#PhoneNo").val() != "" && $("#hdPhoneRegex").val() != "") {
+                        var regexpattern = new RegExp($("#hdPhoneRegex").val());
+                        var inputVal = $("#PhoneNo").val();
+                        if (!regexpattern.test(inputVal)) {
+                            showNotificationDialog();
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            $("#spanGlobalMessage").html("@ResCommon.InvalidPhoneValue");
+                            $("#ContactPhone").focus();
+                            $('#DivLoading').hide();
+                            return false;
+                        }
+                    }
+                }
+            }
+            $('#DivLoading').show();
+        });
+
+        var ShowWarningMessage = false;
+        $("#rbDeletePull").change(function () {
+            if (ShowWarningMessage == true) {
+                if ($('#rbDeletePull').is(':checked')) {
+                    $('#NegPull_Action_RejectPull').show();
+                    $('#NegPull_Action_AdjustmentPull').hide();
+                }
+                else if ($('#rbAdjustmentPull').is(':checked')) {
+                    $('#NegPull_Action_RejectPull').hide();
+                    $('#NegPull_Action_AdjustmentPull').show();
+                }
+            }
+        });
+
+        $("#rbAdjustmentPull").change(function () {
+            if (ShowWarningMessage == true) {
+                if ($('#rbDeletePull').is(':checked')) {
+                    $('#NegPull_Action_RejectPull').show();
+                    $('#NegPull_Action_AdjustmentPull').hide();
+                }
+                else if ($('#rbAdjustmentPull').is(':checked')) {
+                    $('#NegPull_Action_RejectPull').hide();
+                    $('#NegPull_Action_AdjustmentPull').show();
+                }
+            }
+        });
+
+        $("#AllowPullBeyondAvailableQty").change(function () {
+            $('#NegPull_Action_RejectPull').hide();
+            $('#NegPull_Action_AdjustmentPull').hide();
+            var ischecked = $(this).is(':checked');
+            if (!ischecked) {
+                $('#liPullRejectionType').show();
+                if ('@Model.ID' != '' && '@Model.ID' != '0') {
+                    $.ajax({
+                        url: '@Url.Action("IsRoomContainingNegativeQuantityItems", "Master")',
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        data: {
+                            RoomId: "@Model.ID"
+                        },
+                        success: function (data) {
+                            if (data.HasNegativeQtyItems == true) {
+                                ShowWarningMessage = true;
+                                if ($('#rbDeletePull').is(':checked')) {
+                                    $('#NegPull_Action_RejectPull').show();
+                                    $('#NegPull_Action_AdjustmentPull').hide();
+                                }
+                                else if ($('#rbAdjustmentPull').is(':checked')) {
+                                    $('#NegPull_Action_RejectPull').hide();
+                                    $('#NegPull_Action_AdjustmentPull').show();
+                                }
+                            }
+                        },
+                        error: function (err) {
+
+                        }
+                    });
+                }
+            }
+            else {
+                $('#liPullRejectionType').hide();
+            }
+
+        });
+
+        if ($("#AllowPullBeyondAvailableQty").is(':checked')) {
+            $('#liPullRejectionType').hide();
+        }
+
+        $('#tblRoomModuleSettings').dataTable({
+            "bPaginate": false,
+            "bLengthChange": false,
+            "bFilter": false,
+            "bSort": false,
+            "bInfo": false,
+            "bAutoWidth": false,
+            "bRetrieve": true,
+            "bDestroy": true
+        });
+    });
+
+    function ChangeAutoSequenceDroudown(objDDLId, objLiFixId) {
+        if ($('#' + objDDLId).val() == '7' || $('#' + objDDLId).val() == '8') {
+            $('#' + objLiFixId).show();
+        }
+        else {
+            $('#' + objLiFixId).hide();
+        }
+    }
+    $(document).ready(function () {
+        if ($('#chkIsELabel').is(':checked')) {
+            $('#lieLableUserName').toggle(true);
+            $('#lieLablePassword').toggle(true);
+            $('#lieLableCompanyCode').toggle(true);
+            $('#lieLableStoreCode').toggle(true);
+        }
+        $('#chkIsELabel').change(function () {
+            var returnVal = $(this).is(':checked');
+            if ($("#UserName").val() != '') {
+                if (this.checked == false) {
+                    var returnVal = confirm('@ResRoomMaster.AreYouSureELabelDetailWillBeDeleted');
+                $(this).prop("checked", returnVal==false? true: false);
+                }
+            }
+            $('#lieLableUserName').toggle($(this).is(':checked'));
+            $('#lieLablePassword').toggle($(this).is(':checked'));
+            $('#lieLableCompanyCode').toggle($(this).is(':checked'));
+            $('#lieLableStoreCode').toggle($(this).is(':checked'));
+        });
+    });
+
+    $('input#txtPassword').keyup(function () {
+        pswd = $(this).val();
+        if (pswd.length < 8) {
+            $('#length').removeClass('valid').addClass('invalid');
+        } else {
+            $('#length').removeClass('invalid').addClass('valid');
+        }
+        if (pswd.match(/[a-z]/)) {
+            $('#letter').removeClass('invalid').addClass('valid');
+        } else {
+            $('#letter').removeClass('valid').addClass('invalid');
+        }
+
+        //validate capital letter
+        if (pswd.match(/[A-Z]/)) {
+            $('#capital').removeClass('invalid').addClass('valid');
+        } else {
+            $('#capital').removeClass('valid').addClass('invalid');
+        }
+        if (pswd.match(/\W/g)) {
+            $('#special').removeClass('invalid').addClass('valid');
+        } else {
+            $('#special').removeClass('valid').addClass('invalid');
+        }
+
+        //validate number
+        if (pswd.match(/\d/)) {
+            $('#number').removeClass('invalid').addClass('valid');
+        } else {
+            $('#number').removeClass('valid').addClass('invalid');
+        }
+        $('#pswd_info').show();
+    });
+    $("input#txtPassword").focus(function (e) {
+        $('#pswd_info').show();
+    });
+
+    $("input#txtPassword").focusout(function (e) {
+        $('#pswd_info').hide();
+    });
+
+    $("input#txtPassword").click(function (e) {
+        $('#pswd_info').show();
+    });
+</script>
+<script src="@Url.Content("~/Scripts/PageScripts/RoomDetails.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())" type="text/javascript"></script>

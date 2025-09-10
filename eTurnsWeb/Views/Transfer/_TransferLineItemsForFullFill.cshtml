@@ -1,0 +1,885 @@
+﻿@model eTurns.DTO.TransferMasterDTO
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = true, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = false, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, ShowSelectAll = true, DataTableName = "FullFillTransferLineItem" + Model.ID };
+}
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="InnerItem_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_QLItem_filter" />
+                        </a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Orders)
+            <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="FullFillTransferLineItem@(Model.ID)" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                            </th>
+                            <th>
+                            </th>
+                            <th>
+                            </th>
+                            <th>
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.RequireDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.RequestedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.Approved
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.ReceivedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.FulFillQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.InTransitQuantity
+                            </th>
+                            @*<th>
+                                @eTurns.DTO.ResTransfer.ShippedQuantity
+                            </th>*@
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Cost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnHandQuantity
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.TransferDetailList != null && Model.TransferDetailList.Count > 0)
+                        {
+                            foreach (var item in Model.TransferDetailList)
+                            {
+                                <tr id="tr_@item.ID">
+                                    <td>
+                                        <a href="javascript:void(0);" id="aPlusMinus" onclick="return ShowHideInnerGrid(this,@item.ID);">
+                                            <img src="/Content/images/drildown_open.jpg" alt="" />
+                                        </a>
+                                    </td>
+                                    <td>
+                                        @*<input id='btnInlineTransfer' type='button' onclick="return MoveQuantityTransfer(this,'@item.GUID.ToString()','@item.ItemGUID.ToString()');"
+                                            value='@eTurns.DTO.ResTransfer.TransferBtn' class='GridBtnStyle inLineBtn' />*@
+                                        <input id='btnInlineTransfer' type='button' onclick="return TranserInLineReceive(this);"
+                                               value='@eTurns.DTO.ResTransfer.TransferBtn' class='GridBtnStyle inLineBtn' />
+                                    </td>
+                                    <td>
+                                        @{
+                                            double qty = (item.RequestedQuantity - (item.ReceivedQuantity.GetValueOrDefault(0) + item.FulFillQuantity.GetValueOrDefault(0)));
+                                            if (qty <= 0)
+                                            {
+                                                qty = 0;
+                                            }
+                                        }
+                                        @if (item.SerialNumberTracking)
+                                        {
+                                            @Html.TextBox("txtQtyToFullfill" + item.ID, @qty, "{0:0}", new { @style = "width:80px;", @maxlength = "10", @class = "text-boxQuantityFormatSR text-boxinner" })
+                                        }
+                                        else
+                                        {
+                                            @Html.TextBox("txtQtyToFullfill" + item.ID, @qty, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @style = "width:80px;", @maxlength = "10", @class = "text-boxQuantityFormat text-boxinner" })
+                                        }
+                                        @*<input type='text' style="width: 80px; background: white;" class='text-box' id='txtQtyToFullfill@(item.ID)' value="@qty" />*@
+                                    </td>
+                                    <td>
+                                        @Html.DropDownList("ddlReceiveBin" + item.ID, new SelectList((List<CommonDTO>)ViewData["Location_" + item.ItemGUID.ToString()], "ID", "Text", item.Bin), new { @class = "selectBox", @style = "width:120px;" })
+                                    </td>
+                                    <td>
+                                        @item.ID
+                                    </td>
+                                    <td>
+                                        @item.ItemNumber
+                                        <input id="hdnID" type="hidden" value="@item.ID" />
+                                        <input id="hdnGUID" type="hidden" value="@item.GUID" />
+                                        <input id="hdnItemGUID" type="hidden" value="@item.ItemGUID" />
+                                        <input id="hdnTransferGUID" type="hidden" value="@item.TransferGUID" />
+                                        <input id="hdnItemNumber" type="hidden" value="@item.ItemNumber" />
+                                    </td>
+                                    <td>
+                                        <input type='text' style="width:80px;background:white;" readonly="readonly" class='myDatePicker text-box' value='@item.RequiredDateString' id='hiddenDatePicker@(item.ID)' />
+                                    </td>
+                                    <td>
+                                        <input type="text" onkeydown="return OnlyNumeric(event,this);" readonly="readonly" id="txtQty" value='@(item.RequestedQuantity)' class="text-box" style="width:90px;background:white;" />
+                                    </td>
+                                    <td>
+                                        <span id="spnReceivedQty">@item.ApprovedQuantity</span>
+                                    </td>
+                                    <td>
+                                        <span id="spnReceivedQty">@item.ReceivedQuantity</span>
+                                    </td>
+                                    <td>
+                                        <span id="spnFullFillQty">@item.FulFillQuantity</span>
+                                    </td>
+                                    <td>
+                                        @item.IntransitQuantity
+                                    </td>
+                                    @*<td>
+                                        @item.ShippedQuantity
+                                    </td>*@
+                                    <td>
+                                        @item.Description
+                                    </td>
+                                    <td>
+                                        @item.Cost
+                                    </td>
+                                    <td>
+                                        @item.OnHandQuantity
+                                    </td>
+                                </tr>
+                                                }
+                                            }
+                    </tbody>
+                </table>
+            </div>
+            <input id="btnTransferALL" type="button" value="Transfer ALL" style="float: left;" class="CreateBtn" />&nbsp;
+            <input id="btnCloseTransfer" type="button" value="Close Transfer" style="float: left;" class="CreateBtn" />
+        </div>
+    </div>
+</div>
+<div id="TransferQtyModel">
+</div>
+<div class="dialog" id="TrnReceiveProcessing" style="display: none;">
+    <div class="inner">
+        <p class="text" id="TrnReceiveGWait" style="text-align: left; padding-left: 10px;">
+            <b style="color: Red;">@*Kindly wait, transfer transaction is going on.....*@ 
+            @eTurns.DTO.Resources.ResMessage.PleaseWaitTransGoingOn
+            </b>
+        </p>
+        <p class="text" id="TrnReceiveGWaitImg" style="text-align: center; padding-left: 10px;">
+            <img src="@Url.Content("~/Content/images/ajax.gif")" alt="loding" />
+        </p>
+    </div>
+</div>
+<div class="dialog" id="TrnReceivedInfoDialog" style="display: none; width: 470px;">
+    <div class="inner" style="width: 470px;">
+        <p class="text" id="TrnReceivedMSG" style="text-align: left; padding-left: 10px;">
+        </p>
+        <p class="text" style="text-align: center; padding-left: 10px;">
+            <a href="javascript:void(0)" class="no" onclick="closeTrnReceiveInfoModel()">
+                <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.InformOk" />@eTurns.DTO.Resources.ResMessage.InformOk
+            </a>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="CloseTrnDialog" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            Are you sure you want to close this transfer?
+        </p>
+        <a href="JavaScript:void(0)" id="bntCloseConfirmYes" class="yes yesornooryes">
+            <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResCommon.Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no"
+               onclick="closeModalCloseTrnDialog();">
+            <img src="~/Content/images/no.png" alt="@eTurns.DTO.Resources.ResCommon.No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<script type="text/javascript">
+
+    $('#aSelectAll').on('click', function (e) {
+        $('#FullFillTransferLineItem' + '@(Model.ID)').find("tbody tr").each(function (e) {
+            if ($(this).hasClass('row_selected') == false)
+                $(this).addClass('row_selected');
+
+        });
+
+        $(this).css('display', 'none');
+        $('#aDeSelectAll').css('display', 'block');
+        return false;
+    });
+
+    $('#aDeSelectAll').on('click', function (e) {
+        $('#FullFillTransferLineItem' + '@(Model.ID)').find("tbody tr").each(function (e) {
+            if ($(this).hasClass('row_selected'))
+                $(this).removeClass('row_selected');
+        });
+        $(this).css('display', 'none');
+        $('#aSelectAll').css('display', 'block');
+        return false;
+    });
+    $('#btnTransferALL').click(function () {
+        $('#FullFillTransferLineItem' + '@Model.ID' + ' tbody tr').each(function (i) {
+            $(this).removeAttr('style');
+        });
+        $('#TrnReceiveProcessing').modal();
+        $('#TrnReceiveProcessing').parent().parent().find(".modalCloseImg").css('display', 'none');
+
+        TranserAllItemOnbyOne();
+        return false;
+    });
+
+    function TranserAllItemOnbyOne() {
+        @*$('#TransferLineItem' + '@Model.ID' + ' tbody tr.row_selected').each(function (i) {
+            $(this).removeAttr('style');
+        });*@
+        $('#TrnReceiveProcessing').modal();
+        $('#TrnReceiveProcessing').parent().parent().find(".modalCloseImg").css('display', 'none');
+
+        var errorMsg = '';
+        var iserror = 0;
+        var ErrorSrNo = 0;
+        var duration = 500;
+
+        $('#FullFillTransferLineItem' + '@Model.ID' + ' tbody tr.row_selected').each(function (i) {
+            // setTimeout(function () {
+            var tr = $(this);
+            var isQtyExist = false;
+            var trcolor = 'Olive';
+            var arr = new Array();
+            var id = $(tr).find('#hdnID').val();
+            
+            var qty = $(tr).find("#txtQtyToFullfill" + id).val();
+            var itemGUID = $(tr).find('#hdnItemGUID').val();
+            var itemNumber = $(tr).find('#hdnItemNumber').val();
+            var GUid = $(tr).find('#hdnGUID').val();
+
+            var binID = $(tr).find("#ddlReceiveBin" + id).val();
+
+            var arr = new Array();
+
+
+            if (isNaN(parseFloat(qty)) == true) {
+                qty = 0;
+            }
+
+            var arrLocWiseQty = new Array();
+            var objLocWiseQty = { 'LocationID': binID, 'Quantity': qty };
+            arrLocWiseQty.push(objLocWiseQty);
+
+            var objMoveQty = { 'BinWiseQty': arrLocWiseQty, 'TotalQty': qty, 'ItemGUID': itemGUID, 'DetailGUID': GUid };
+            var obj = { 'objMoveQty': objMoveQty, 'InventoryConsuptionMethod': $("#hdnInventoryConsuptionMethod").val() };
+
+            $.ajax({
+                url: 'ApproveQuantityToInTransit',
+                data: JSON.stringify(obj),
+                type: 'POST',
+                async: false,
+                contentType: "application/json",
+                dataType: "json",
+                success: function (response) {
+                    if (response.Status === "ok") {
+
+                        trcolor = 'Green';
+                        ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                        errorMsg = errorMsg + '<b style="color: Green;">' + ErrorSrNo + ') ' + itemNumber + ': Transfered Successfully. </b> <br />';
+                    }
+                    else {
+                        iserror = 1;
+                        ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                        errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': ' + response.Message + ' </b> <br />';
+
+                    }
+                },
+                error: function (xhr) {
+                    iserror = 1;
+                    ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                    errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': Internal Server Error. </b> <br />';
+                    var trcolor = 'Red';
+                }
+
+            });
+            $(tr).css('background-color', trcolor);
+            //}, duration * i);
+
+        });
+
+        setTimeout(function () {
+            if (iserror >= 1) {
+                closeTrnReceiveInfoModel();
+                errorMsg = '<b>Some of the Item(s) is(are) not able to approve, due to following reasons.</b><br />' + errorMsg;
+                $('#TrnReceivedInfoDialog').find("#TrnReceivedMSG").html(errorMsg);
+                $('#TrnReceivedInfoDialog').modal();
+                //FillTransferDetailGrid();
+            }
+            else {
+                closeTrnReceiveInfoModel();
+                errorMsg = '<b>Transfered successfully</b><br />'
+                $('#TrnReceivedInfoDialog').find("#TrnReceivedMSG").html(errorMsg);
+                $('#TrnReceivedInfoDialog').modal();
+                FillTransferDetailGrid();
+            }
+
+            // ShowTransferOutEditTab('TransferEdit/' + '@Model.ID', 'frmTransfer');
+
+        }, 5500);
+
+    }
+
+
+    @*function TranserAllItemOnbyOne() {
+        alert('hi1');
+        var errorMsg = '';
+        var iserror = 0;
+        var ErrorSrNo = 0;
+        var duration = 500;
+
+        $('#FullFillTransferLineItem' + '@Model.ID' + ' tbody tr').each(function (i) {
+
+            var tr = $(this);
+            setTimeout(function () {
+                var isQtyExist = false;
+                var trcolor = 'Olive';
+                var arr = new Array();
+                var id = $(tr).find('#hdnID').val();
+                var qty = $(tr).find("#txtQtyToFullfill" + id).val();
+
+                var itemGUID = $(tr).find('#hdnItemGUID').val();
+                var binID = $(tr).find("#ddlReceiveBin" + id).val();
+                var itemNumber = $(tr).find('#hdnItemNumber').val();
+
+                var GUid = $(tr).find('#hdnGUID').val();
+
+                if (isNaN(parseFloat(qty)) == false && parseFloat(qty) > 0) {
+                    if (isNaN(parseInt(binID)) == false && parseInt(binID) > 0) {
+
+                        $.ajax({
+                            url: '@Url.Content("~/Kit/CheckMoveInQuantity")',
+                            data: { 'BinID': binID, 'ItemGUID': itemGUID, 'Qty': qty },
+                            type: 'POST',
+                            async: false,
+                            dataType: 'json',
+                            success: function (response) {
+                                if (response.Status == 'ok') {
+                                    var arrLocWiseQty = new Array();
+
+                                    var locationName = $(tr).find("#ddlReceiveBin" + id).text();
+
+                                    var objLocWiseQty = { 'LocationID': binID, 'Quantity': qty };
+                                    arrLocWiseQty.push(objLocWiseQty);
+
+                                    var obj = { 'BinWiseQty': arrLocWiseQty, 'TotalQty': qty, 'ItemGUID': itemGUID, 'DetailGUID': GUid };
+                                    $.ajax({
+                                        url: 'MoveQuantityToInTransit',
+                                        data: JSON.stringify(obj),
+                                        type: 'POST',
+                                        async: false,
+                                        contentType: "application/json",
+                                        dataType: "json",
+                                        success: function (response) {
+                                            if (response.Status === "ok") {
+
+                                                trcolor = 'Green';
+                                                ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                                                errorMsg = errorMsg + '<b style="color: Green;">' + ErrorSrNo + ') ' + itemNumber + ': Transfered Succesfully. </b> <br />';
+
+                                                $(tr).find("#spnFullFillQty").text(qty);
+                                                var ReqQty = $(tr).find("#txtQty").val();
+
+                                                if (parseFloat(ReqQty) - parseFloat(qty) > 0)
+                                                    $(tr).find("#txtQtyToFullfill" + id).val(parseFloat(ReqQty) - parseFloat(qty));
+                                                else
+                                                    $(tr).find("#txtQtyToFullfill" + id).val(0);
+                                            }
+                                            else {
+                                                iserror = 1;
+                                                ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                                                errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': ' + response.Message + ' </b> <br />';
+
+                                            }
+                                        },
+                                        error: function (xhr) {
+                                            iserror = 1;
+                                            ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                                            errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': Internal Server Error. </b> <br />';
+                                            var trcolor = 'Red';
+                                        }
+
+                                    });
+                                }
+                                else {
+                                    isQtyExist = false;
+                                    iserror = 1;
+                                    ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                                    errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': ' + response.Message + ' </b> <br />';
+
+                                }
+                            },
+                            error: function (xhr) {
+                                isQtyExist = false;
+                                iserror = 1;
+                                ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                                errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': Server Error not enough quantity. </b> <br />';
+                                var trcolor = 'Red';
+                            }
+                        });
+
+
+                    }
+                    else {
+                        iserror = 1;
+                        ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                        errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': Location is mandatory. </b> <br />';
+                    }
+                }
+                else {
+                    iserror = 1;
+                    ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                    errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': Please enter quantity to transfer </b> <br />';
+
+                }
+                $(tr).css('background-color', trcolor);
+            }, duration * i);
+        });
+
+        setTimeout(function () {
+            if (iserror >= 1) {
+                closeTrnReceiveInfoModel();
+                errorMsg = '<b>Some of the Item(s) is(are) not able to receive, due to following reasons.</b><br />' + errorMsg;
+                $('#TrnReceivedInfoDialog').find("#TrnReceivedMSG").html(errorMsg);
+                $('#TrnReceivedInfoDialog').modal();
+            }
+            else {
+                closeTrnReceiveInfoModel();
+                errorMsg = '<b>Transfer Received successfully</b><br />'
+                $('#TrnReceivedInfoDialog').find("#TrnReceivedMSG").html(errorMsg);
+                $('#TrnReceivedInfoDialog').modal();
+                FillTransferDetailGrid();
+            }
+        }, 5500);
+    }*@
+
+    function TranserInLineReceive(btn) {
+        $('#DivLoading').show();
+
+        var tr = $(btn).parent().parent();
+        //$(tr).attr('class', 'row_selected');
+        if($(tr).hasClass('row_selected')==false){
+            $(tr).addClass('row_selected');
+        }
+        TranserAllItemOnbyOne();
+        return;
+
+
+        var isQtyExist = false;
+        var trcolor = 'Olive';
+        var arr = new Array();
+        var id = $(tr).find('#hdnID').val();
+        var qty = $(tr).find("#txtQtyToFullfill" + id).val();
+
+        var itemGUID = $(tr).find('#hdnItemGUID').val();
+        var binID = $(tr).find("#ddlReceiveBin" + id).val();
+        var itemNumber = $(tr).find('#hdnItemNumber').val();
+
+        var GUid = $(tr).find('#hdnGUID').val();
+
+        if (isNaN(parseFloat(qty)) == false && parseFloat(qty) > 0) {
+            if (isNaN(parseInt(binID)) == false && parseInt(binID) > 0) {
+
+                $.ajax({
+                    url: '@Url.Content("~/Kit/CheckMoveInQuantity")',
+                    data: { 'BinID': binID, 'ItemGUID': itemGUID, 'Qty': qty },
+                    type: 'POST',
+                    async: false,
+                    dataType: 'json',
+                    success: function (response) {
+                        if (response.Status == 'ok') {
+                            var arrLocWiseQty = new Array();
+
+                            var locationName = $(tr).find("#ddlReceiveBin" + id).text();
+
+                            var objLocWiseQty = { 'LocationID': binID, 'Quantity': qty };
+                            arrLocWiseQty.push(objLocWiseQty);
+
+                            var obj = { 'BinWiseQty': arrLocWiseQty, 'TotalQty': qty, 'ItemGUID': itemGUID, 'DetailGUID': GUid };
+                            $.ajax({
+                                url: 'MoveQuantityToInTransit',
+                                data: JSON.stringify(obj),
+                                type: 'POST',
+                                async: false,
+                                contentType: "application/json",
+                                dataType: "json",
+                                success: function (response) {
+                                    if (response.Status === "ok") {
+                                        FillTransferDetailGrid();
+                                    }
+                                    else {
+                                        alert(response.Message);
+                                    }
+                                },
+                                error: function (xhr) {
+                                    alert('@ResCommon.ErrorInProcess');
+                                }
+
+                            });
+                            $('#DivLoading').hide();
+                        }
+                        else {
+                            alert(response.Message);
+                            $('#DivLoading').hide();
+                        }
+                    },
+                    error: function (xhr) {
+                        alert('@ResCommon.ErrorInProcess');
+                        $('#DivLoading').hide();
+                    }
+                });
+            }
+            else {
+                alert('@ResLocation.SelectLocation');
+                $('#DivLoading').hide();
+            }
+        }
+        else {
+            alert('@ResCommon.ReqQuantity');
+            $('#DivLoading').hide();
+        }
+
+    }
+
+    function closeTrnReceiveInfoModel() {
+        $.modal.impl.close();
+    }
+
+    function closeModalCloseTrnDialog() {
+        $.modal.impl.close();
+    }
+
+    $('#bntCloseConfirmYes').click(function () {
+        $.ajax({
+            'url': 'UpdateTransferToClose',
+            'data': { 'TransferID': '@Model.ID' },
+            'success': function (result) {
+                closeModalCloseTrnDialog();
+                if (result.Status == "fail") {                    
+                    var errorMsg = '<b style="color: Olive;">' + result.Message + '</b> <br />';
+                    errorMsg = '<b> Not able to close the transfer due to following reasons.</b><br />' + errorMsg;
+                    $('#TrnReceivedInfoDialog').find("#TrnReceivedMSG").html(errorMsg);
+                    $('#TrnReceivedInfoDialog').modal();
+                    FillTransferDetailGrid();
+                }
+                else
+                {
+                    SwitchTransferTab('CreateTransfer', 'frmTransfer');
+                }                
+            },
+            'error': function (result) {
+                closeModalCloseTrnDialog();
+                alert('@ResCommon.ErrorInProcess');
+            }
+
+        });
+    });
+
+    var anOpen = [];
+    function ShowHideInnerGrid(ctrl, id) {
+        $('#DivLoading').show();
+
+        var tr = $('#tr_' + id);
+
+
+        var nTr = tr[0];
+
+        var i = $.inArray(nTr, anOpen);
+
+        var dtTable = $('#FullFillTransferLineItem' + TrfID).dataTable();
+
+        if (i === -1) {
+            $('img', ctrl).attr('src', sImageUrl + "drildown_close.jpg");
+            dtTable.fnOpen(nTr, fnFormatDetails(dtTable, nTr), '');
+            anOpen.push(nTr);
+        }
+        else {
+
+            $('img', ctrl).attr('src', sImageUrl + "drildown_open.jpg");
+            dtTable.fnClose(nTr);
+            anOpen.splice(i, 1);
+            $('#DivLoading').hide();
+        }
+    }
+
+    function fnFormatDetails(oTable, nTr) {
+
+        var oData = oTable.fnGetData(nTr);
+        var sOut = '';
+        var ItemGUId = $(nTr).find('#hdnItemGUID').val();
+        var GUId = $(nTr).find('#hdnGUID').val();
+
+        //ItemUniqueID = ItemId;
+        $('#DivLoading').show();
+        $.ajax({
+            "url": '@Url.Content("~/Transfer/ItemTransferedQty")',
+            data: { 'ItemID': ItemGUId, 'DetailID': GUId },
+            "async": false,
+            cache: false,
+            "dataType": "text",
+            "success": function (json) {
+                sOut = json;
+                $('#DivLoading').hide();
+            },
+            error: function (response) {
+            }
+        });
+
+        return sOut;
+    }
+
+    function MoveQuantityTransfer(obj, GUid, itemGUId) {
+        $('#TransferQtyModel').data("DetailGUID", GUid).dialog('open')
+        return false;
+    }
+</script>
+<script type="text/javascript">
+    var TrfID = '@Model.ID';
+    var TrfStatus = '@Model.TransferStatus';
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var oTableFullFillTransferLineItems;
+    var bIsFilter = false;
+    var objTrfLineItemForFullFillCols = {};
+
+    $(document).ready(function () {
+        /*
+        $("#TransferQtyModel").dialog({ autoOpen: false, modal: true, draggable: true, resizable: true, width: '50%', height: 450, title: "Transfer",
+        open: function () {
+        $('#DivLoading').show();
+        $("#TransferQtyModel").empty();
+        var DetailGUID = $(this).data("DetailGUID");
+        $.ajax({
+        url: '@Url.Action("ShowTransferQtyModel")',
+        type: 'POST',
+        data: { 'DetailID': DetailGUID },
+        success: function (r) {
+            $('#TransferQtyModel').html(r);
+            $('#DivLoading').hide();
+        }
+    });
+    },
+    close: function () {
+        $("#TransferQtyModel").empty();
+    }
+    });
+
+    */
+
+    $(".text-boxPriceFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+    });
+    $(".text-boxQuantityFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+    });
+
+    $(".text-boxQuantityFormatSR").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: 0
+    });
+
+    var ColumnObject = new Array();
+    ColumnObject.push({ "bSortable": false });
+    ColumnObject.push({ "bSortable": false });
+    ColumnObject.push({ "bSortable": false });
+    ColumnObject.push({ "bSortable": false });
+    ColumnObject.push({ "bSortable": true });
+    ColumnObject.push({ "bSortable": true });
+    ColumnObject.push({ "bSortable": true });
+    ColumnObject.push({ "bSortable": false });
+
+    ColumnObject.push({ "bSortable": false });
+    ColumnObject.push({ "bSortable": true });
+    ColumnObject.push({ "bSortable": true });
+    ColumnObject.push({ "bSortable": true });
+    //ColumnObject.push({ "bSortable": true });
+
+    ColumnObject.push({ "bSortable": true });
+    ColumnObject.push({ "bSortable": true });
+    ColumnObject.push({ "bSortable": true });
+
+
+    var gaiSelected = [];
+    oTableFullFillTransferLineItems = $('#FullFillTransferLineItem' + TrfID).dataTable({
+        "bJQueryUI": true,
+        "bRetrieve": true,
+        "bDestroy": true,
+        "bScrollCollapse": true,
+        "sScrollX": "110%",
+        "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+        "oColVis": {},
+        "aaSorting": [[0, "desc"]],
+        "oColReorder": {},
+        "sPaginationType": "full_numbers",
+        "bProcessing": true,
+        "bStateSave": true,
+        "oLanguage": {
+            "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+            "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+            "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+            "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+        },
+
+        "fnStateSaveParams": function (oSettings, oData) {
+            oData.oSearch.sSearch = "";
+            //if (!bIsFilter) {
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'FullFillTransferLineItemList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = json;
+                    }
+                });
+            //}
+            bIsFilter = false;
+        },
+        "fnStateLoad": function (oSettings) {
+            var o;
+            $.ajax({
+                "url": '@Url.Content("~/Master/LoadGridState")',
+                "type": "POST",
+                data: { ListName: 'FullFillTransferLineItemList' },
+                "async": false,
+                cache: false,
+                "dataType": "json",
+                "success": function (json) {
+                    if (json.jsonData != '')
+                        o = JSON.parse(json.jsonData);
+                }
+            });
+            return o;
+        }
+          , "aoColumns": ColumnObject
+    });
+
+    $('.DTTT_container').css('z-index', '-1');
+    $('#btnblock').css({ 'margin-right': '45px' });
+
+    $.fn.dataTableExt.afnSortData['dom-text'] = function (oSettings, iColumn) {
+        var aData = [];
+        $('td:eq(' + iColumn + ') input', oSettings.oApi._fnGetTrNodes(oSettings)).each(function () {
+            aData.push(this.value);
+        });
+        return aData;
+    }
+    $('#deleteRows1').css('display', 'none');
+    $('#saveRows').css('display', 'none');
+    });
+
+
+
+
+    if ('@Model.IsRecordNotEditable' === 'True') {
+        $('select', '#FullFillTransferLineItem' + TrfID)
+         .not('#btnInlineTransfer,#aPlusMinus')
+            .attr('disabled', 'disabled');
+
+        $(':input[type=text], textarea', '#FullFillTransferLineItem' + TrfID)
+            .attr('readonly', 'readonly');
+
+        $('#saveRows').attr('style', 'display:none');
+        $('#deleteRows1').attr('style', 'display:none');
+
+
+    }
+    $('#FullFillTransferLineItem' + TrfID + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    $('#FullFillTransferLineItem' + TrfID + ' tbody tr').live('tap click', function () {
+        $(this).toggleClass('row_selected');
+        return false;
+    });
+
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+
+        $('#FullFillTransferLineItem' + TrfID).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+    /* global search function */
+    function fnFilterFullFillTransferLineItem() {
+        //set filter only if more than 2 characters are pressed
+        //if (typeof $("#InnerItem_filter") != 'undefined' && ($("#InnerItem_filter").val().length > 2 || $("#InnerItem_filter").val().length == 0)) {
+
+        bIsFilter = true;
+        var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+        $('#FullFillTransferLineItem' + TrfID).dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+
+        $('#FullFillTransferLineItem' + TrfID + ' td').removeHighlight();
+
+        if (searchtext.length > 0)
+            $('#FullFillTransferLineItem' + TrfID + ' td').highlight($("#InnerItem_filter").val());
+        // }
+    }
+
+
+    $("#InnerItem_filter").on("keyup", function (e) {
+
+        var code = (e.keyCode ? e.keyCode : e.which);
+        var index = $.inArray(code, NotAllowedCharCodes);
+        if (index >= 0) return false;
+
+        fnFilterFullFillTransferLineItem();
+
+    });
+
+    $("#InnerItem_filter").on("keydown", function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            fnFilterFullFillTransferLineItem();
+        }
+
+    });
+
+
+    $("#clear_QLItem_filter").click(function () {
+        $("#InnerItem_filter").val('');
+        fnFilterFullFillTransferLineItem();
+        $("#InnerItem_filter").focus();
+        return false;
+    });
+
+</script>

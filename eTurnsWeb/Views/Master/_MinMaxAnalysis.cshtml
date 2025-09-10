@@ -1,0 +1,1903 @@
+﻿<script type="text/javascript">
+
+    var SelectedItems = [];
+
+    var Manufacturer = '@eTurns.DTO.Resources.ResNarrowSearch.Manufacturer';
+    var Supplier = '@eTurns.DTO.Resources.ResNarrowSearch.Supplier';
+    var Category = '@eTurns.DTO.Resources.ResNarrowSearch.Category';
+    var ItemTypeInventoryClassification = '@eTurns.DTO.Resources.ResNarrowSearch.InventoryClassification';
+    var ItemLocation = '@eTurns.DTO.Resources.ResNarrowSearch.ItemLocation';
+    var ItemTrackingType = '@eTurns.DTO.Resources.ResNarrowSearch.ItemTrackingType';
+    var ItemStockStatus = '@eTurns.DTO.Resources.ResNarrowSearch.StockStatus';
+    var ItemType = '@eTurns.DTO.Resources.ResNarrowSearch.ItemType';
+    var UserCreatedBy = '@eTurns.DTO.Resources.ResNarrowSearch.UserCreatedby';
+    var UserUpdatedby = '@eTurns.DTO.Resources.ResNarrowSearch.UserUpdatedby';
+    var UpdatedBy = '@eTurns.DTO.Resources.ResNarrowSearch.Updatedby';
+    var CreatedBy = '@eTurns.DTO.Resources.ResNarrowSearch.Createdby';
+    var selected = '@eTurns.DTO.Resources.ResNarrowSearch.selected';    
+
+    $(document).ready(function () {
+
+        $(".handle").each(function () {
+            $(this).find("img").attr("src", "../../Content/images/Drage.png");
+        });
+
+        $("#nssortable").sortable({
+            handle: "> .handle",
+            stop: function (event, ui) {
+                var linkOrderData = $("#nssortable").sortable("toArray", { attribute: 'attrsortOrder' });
+
+                $.ajax({
+                    "type": "POST",
+                    "url": '/Master/SaveGridState',
+                    "data": { Data: JSON.stringify(linkOrderData), ListName: 'MinMaxTuningTable' + "_NarrowSearch" },
+                    "dataType": "json",
+                    "cache": false,
+                    "async": false,
+                    "success": function (json1) {
+                    }
+                });
+            }
+        });
+
+        $.ajax({
+            "type": "POST",
+            "url": '/Master/LoadGridState',
+            "data": { ListName: 'MinMaxTuningTable' + "_NarrowSearch" },
+            "dataType": "json",
+            "cache": false,
+            "async": false,
+            "success": function (json1) {
+
+                if (json1.jsonData != null && json1.jsonData != '') {
+
+                    var sorted = JSON.parse(json1.jsonData);
+                    sorted = sorted.reverse();
+
+                    sorted.forEach(function (id) {
+                        $("#nssortable [attrsortOrder=" + parseInt(id) + "]").prependTo("#nssortable");
+                    });
+                }
+            }
+        });
+
+        $(document).on("click", "a#MinMaxTableSelectAll", function () {
+            $("#MinMaxTable").find("tbody tr").removeClass("row_selected").addClass("row_selected");
+            $(this).next("a#MinMaxTableDeSelectAll").css('display', '');
+            $(this).css('display', 'none');
+        });
+
+        $(document).on("click", "a#MinMaxTableDeSelectAll", function () {
+            $("#MinMaxTable").find("tbody tr").removeClass("row_selected");
+            $(this).prev("a#MinMaxTableSelectAll").css('display', '');
+            $(this).css('display', 'none');
+        });
+
+        //$(document).on("click", "#MinMaxTable tbody tr", function (e) {
+        //    $(this).toggleClass('row_selected');
+        //});
+
+        var lastChecked;
+        var starttrvalue = "";
+
+        $(document).on("tap click", "#MinMaxTable tbody tr", function (e) {            
+            if (!$.isReady) {
+                // return if document dom not loaded
+                return false;
+            }
+            if ($(e.target).hasClass("control") == true || e.target.nodeName.toLowerCase() == "img" || e.target.type == "checkbox" || e.target.type == "radio" || e.target.type == "text" || e.target.type == "button" || $(e.target).is('a') == true || $(e.target).is('span') == true
+                || $(e.target).hasClass("selectBox")
+            ) {
+                e.stopPropagation();
+            } else {
+
+                if (!lastChecked) {
+                    lastChecked = this;
+                }
+
+                if (e.shiftKey) {
+                    var start = $('#MinMaxTable tbody tr').index(this);
+                    var end = $('#MinMaxTable tbody tr').index(lastChecked);
+
+
+                    var stringval1 = readCookieforshift("selectstartindex");
+                    if (stringval1 != null) {
+                        var endindex = $(this).closest('tr').attr('id');
+                        createCookieforshift("selectendindex", endindex, 1);
+                        if ($("#hdnPageName").val() !== undefined) {
+                            var pagename = '';
+                            pagename = $("#hdnPageName").val();
+                            GetOnlyIdsForPassPagesForshift(pagename, true);
+                        }
+                    }
+
+                    for (i = Math.min(start, end); i <= Math.max(start, end); i++) {
+                        if (!$('#MinMaxTable tbody tr').eq(i).hasClass('row_selected')) {
+                            $('#MinMaxTable tbody tr').eq(i).addClass("row_selected");
+                        }
+                    }
+                    if (window.getSelection) {
+                        if (window.getSelection().empty) {  // Chrome
+                            window.getSelection().empty();
+                        } else if (window.getSelection().removeAllRanges) {  // Firefox
+                            window.getSelection().removeAllRanges();
+                        }
+                    } else if (document.selection) {  // IE?
+                        document.selection.empty();
+                    }
+                } else if ((e.metaKey || e.ctrlKey)) {
+                    $(this).toggleClass('row_selected');
+                } else {
+                    $(this).toggleClass('row_selected');
+
+                    if ($(this).hasClass('row_selected')) {
+                        (starttrvalue == "") ? starttrvalue = $(this).closest('tr').attr('id') : starttrvalue = starttrvalue + "," + $(this).closest('tr').attr('id');
+                        createCookieforshift("selectstartindex", starttrvalue, 1);
+                    } else {
+
+                        var stringval = readCookieforshift("selectstartindex");
+                        if (stringval != "undefined") {
+                            if (stringval != null) {
+                                var tmp = stringval.split(',');
+                                var index = tmp.indexOf($(this).closest('tr').attr('id'));
+                                if (index !== -1) {
+                                    tmp.splice(index, 1);
+                                    stringval = tmp.join(',');
+                                    createCookieforshift("selectstartindex", stringval, 1);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                lastChecked = this;
+                return false;
+            }
+        });
+
+        $('#DateCFromIM').blur(function () {
+        }).datepicker({
+            changeMonth: true,
+            changeYear: true, dateFormat: RoomDateJSFormat, date: true
+        });
+        $('#DateCToIM').blur(function () {
+        }).datepicker({
+            changeMonth: true,
+            changeYear: true, dateFormat: RoomDateJSFormat, date: true
+        });
+        $('#DateUFromIM').blur(function () {
+        }).datepicker({
+            changeMonth: true,
+            changeYear: true, dateFormat: RoomDateJSFormat, date: true
+        });
+        $('#DateUToIM').blur(function () {
+        }).datepicker({
+            changeMonth: true,
+            changeYear: true, dateFormat: RoomDateJSFormat, date: true
+        });
+
+        $('#ancDateCFromIM').click(function () {
+            $('#DateCFromIM').focus();
+        });
+        $('#ancDateCToIM').click(function () {
+            $('#DateCToIM').focus();
+        });
+        $('#ancDateUFromIM').click(function () {
+            $('#DateUFromIM').focus();
+        });
+        $('#ancDateUToIM').click(function () {
+            $('#DateUToIM').focus();
+        });
+
+        $('#DateCFromIM,#DateCToIM').change(function () {
+            var DateCFromValidIM = true;
+            var DateCToValidIM = true;
+            try {
+                if ($('#DateCFromIM').val() != "") {
+                    $.datepicker.parseDate(RoomDateJSFormat, $('#DateCFromIM').val());
+                    DateCFromValidIM = true;
+                }
+            } catch (e) {
+                DateCFromValidIM = false;
+            }
+
+            try {
+                if ($('#DateCToIM').val() != "") {
+                    $.datepicker.parseDate(RoomDateJSFormat, $('#DateCToIM').val());
+                    DateCToValidIM = true;
+                }
+            } catch (e) {
+                DateCToValidIM = false;
+            }
+            if (DateCFromValidIM && DateCToValidIM) {
+                DoMMNarrowSearch();
+            }
+            else {
+                if (!DateCFromValidIM)
+                    $('#DateCFromIM').val('');
+                if (!DateCToValidIM)
+                    $('#DateCToIM').val('');
+            }
+        });
+
+        $('#DateUFromIM,#DateUToIM').change(function () {
+
+            var DateUFromValidIM = true;
+            var DateUToValidIM = true;
+            try {
+                if ($('#DateUFromIM').val() != "") {
+                    $.datepicker.parseDate(RoomDateJSFormat, $('#DateUFromIM').val());
+                    DateUFromValidIM = true;
+                }
+            } catch (e) {
+                DateUFromValidIM = false;
+            }
+
+            try {
+                if ($('#DateUToIM').val() != "") {
+                    $.datepicker.parseDate(RoomDateJSFormat, $('#DateUToIM').val());
+                    DateUToValidIM = true;
+                }
+            } catch (e) {
+                DateUToValidIM = false;
+            }
+            if (DateUFromValidIM && DateUToValidIM) {
+                DoMMNarrowSearch();
+            }
+            else {
+                if (!DateUFromValidIM)
+                    $('#DateUFromIM').val('');
+                if (!DateUToValidIM)
+                    $('#DateUToIM').val('');
+            }
+        });
+
+        $('#DateCreatedClearIM').click(function () {
+            if ($('#DateCFromIM').val() != '' || $('#DateCToIM').val() != '') {
+                $('#DateCFromIM').val('');
+                $('#DateCToIM').val('');
+                DoMMNarrowSearch();
+            }
+        });
+        $('#DateUpdatedClearIM').click(function () {
+            if ($('#DateUFromIM').val() != '' || $('#DateUToIM').val() != '') {
+                $('#DateUFromIM').val('');
+                $('#DateUToIM').val('');
+                DoMMNarrowSearch();
+            }
+        });
+
+        $('a.downarrow').click(function (e) {
+            e.preventDefault();
+            $(this).closest('.accordion').find('.dropcontent').slideToggle();
+        });
+
+        $('#ExpandMMNarrowSearch').click(function (e) {
+            ExpandNarrowSearchMM();
+        });
+        $('#CollapseMMNarrowSearch').click(function (e) {
+            CollapseNarrowSearchMM();
+        });
+        var NarrowSearchStateMM = getCookieMM('NarrowSearchStateMM');
+
+        if (NarrowSearchStateMM == 'Expanded') {
+            CollapseNarrowSearchMM();
+        }
+        else {
+            ExpandNarrowSearchMM();
+        }
+
+        function getCookieMM(name) {
+            var arg = name + "=";
+            var alen = arg.length;
+            var clen = document.cookie.length;
+            var i = 0;
+            while (i < clen) {
+                var j = i + alen;
+                if (document.cookie.substring(i, j) == arg) {
+                    return getCookieValMM(j);
+                }
+                i = document.cookie.indexOf(" ", i) + 1;
+                if (i == 0) break;
+            }
+            return null;
+        }
+
+        function getCookieValMM(offset) {
+            var endstr = document.cookie.indexOf(";", offset);
+            if (endstr == -1) { endstr = document.cookie.length; }
+            return unescape(document.cookie.substring(offset, endstr));
+        }
+
+        $("#MMNarroSearchClear").click(function () {
+            if (typeof ($("#MMItemSupplier").multiselect("getChecked").length) != undefined && $("#MMItemSupplier").multiselect("getChecked").length > 0) {                
+                $('#MMItemSupplier').multiselect('refresh')
+                $("#MMItemSupplier").multiselect("widget").find(":checkbox").removeAttr("checked");                               
+                $("#MMItemSupplierCollapse").html('');
+                $("#MMItemSupplierCollapse").hide();
+                $("#MMItemSupplier").multiselect({ selectedText: "" });
+            }
+
+            if (typeof ($("#MMItemCategory").multiselect("getChecked").length) != undefined && $("#MMItemCategory").multiselect("getChecked").length > 0) {
+                $('#MMItemCategory').multiselect('refresh')
+                $("#MMItemCategory").multiselect("widget").find(":checkbox").removeAttr("checked");
+                $("#MMItemCategoryCollapse").html('');
+                $("#MMItemCategoryCollapse").hide();
+                $("#MMItemCategory").multiselect({ selectedText: "" });
+            }
+
+            if (typeof ($("#MMItemManufacturer").multiselect("getChecked").length) != undefined && $("#MMItemManufacturer").multiselect("getChecked").length > 0) {
+
+                $('#MMItemManufacturer').multiselect('refresh')
+                $("#MMItemManufacturer").multiselect("widget").find(":checkbox").removeAttr("checked");
+                $("#MMItemManufacturerCollapse").html('');
+                $("#MMItemManufacturerCollapse").hide();
+                $("#MMItemManufacturer").multiselect({ selectedText: "" });
+            }
+
+            if (typeof ($("#MMItemLocation").multiselect("getChecked").length) != undefined && $("#MMItemLocation").multiselect("getChecked").length > 0) {
+
+                $('#MMItemLocation').multiselect('refresh')
+                $("#MMItemLocation").multiselect("widget").find(":checkbox").removeAttr("checked");
+                $("#MMItemLocationCollapse").html('');
+                $("#MMItemLocationCollapse").hide();
+                $("#MMItemLocation").multiselect({ selectedText: "" });
+            }
+
+            if (typeof ($("#MMItemTrackingType").multiselect("getChecked").length) != undefined && $("#MMItemTrackingType").multiselect("getChecked").length > 0) {
+
+                $('#MMItemTrackingType').multiselect('refresh')
+                $("#MMItemTrackingType").multiselect("widget").find(":checkbox").removeAttr("checked");
+                $("#MMItemTrackingTypeCollapse").html('');
+                $("#MMItemTrackingTypeCollapse").hide();
+                $("#MMItemTrackingType").multiselect({ selectedText: "" });
+            }
+
+            if (typeof ($("#MMItemStockStatus").multiselect("getChecked").length) != undefined && $("#MMItemStockStatus").multiselect("getChecked").length > 0) {
+
+                $('#MMItemStockStatus').multiselect('refresh')
+                $("#MMItemStockStatus").multiselect("widget").find(":checkbox").removeAttr("checked");
+                $("#MMItemStockStatusCollapse").html('');
+                $("#MMItemStockStatusCollapse").hide();
+                $("#MMItemStockStatus").multiselect({ selectedText: "" });
+            }
+
+            if (typeof ($("#MMItemType").multiselect("getChecked").length) != undefined && $("#MMItemType").multiselect("getChecked").length > 0) {
+                $('#MMItemType').multiselect('refresh')
+                $("#MMItemType").multiselect("widget").find(":checkbox").removeAttr("checked");
+                $("#MMItemTypeCollapse").html('');
+                $("#MMItemTypeCollapse").hide();
+                $("#MMItemType").multiselect({ selectedText: "" });
+            }
+
+            if (typeof ($("#MMInventoryClassification").multiselect("getChecked").length) != undefined && $("#MMInventoryClassification").multiselect("getChecked").length > 0) {
+                $('#MMInventoryClassification').multiselect('refresh')
+                $("#MMInventoryClassification").multiselect("widget").find(":checkbox").removeAttr("checked");
+                $("#UserTypeCollapse").html('');
+                $("#UserTypeCollapse").hide();
+                $("#MMInventoryClassification").multiselect({ selectedText: "" });
+            }
+
+            if (typeof ($("#UserType").multiselect("getChecked").length) != undefined && $("#UserType").multiselect("getChecked").length > 0) {
+                $('#UserType').multiselect('refresh')
+                $("#UserType").multiselect("widget").find(":checkbox").removeAttr("checked");
+                $("#MMInventoryClassificationCollapse").html('');
+                $("#MMInventoryClassificationCollapse").hide();
+                $("#UserType").multiselect({ selectedText: "" });
+            }
+            if ($('#DateCFromIM').val() != '') $('#DateCFromIM').val('');
+            if ($('#DateCToIM').val() != '') $('#DateCToIM').val('');
+            if ($('#DateUFromIM').val() != '') $('#DateUFromIM').val('');
+            if ($('#DateUToIM').val() != '') $('#DateUToIM').val('');
+            if ($('#global_filterMinMaxTuning').val() != '') $('#global_filterMinMaxTuning').val('');
+
+            if (typeof ($("#UserCreatedIM").multiselect("getChecked").length) != undefined && $("#UserCreatedIM").multiselect("getChecked").length > 0) {
+                $('#UserCreatedIM').multiselect('refresh')
+                $("#UserCreatedIM").multiselect("widget").find(":checkbox").removeAttr("checked");
+                $("#UserCreatedCollapseIM").html('');
+                $("#UserCreatedCollapseIM").hide();
+                $("#UserCreatedIM").multiselect({ selectedText: "" });
+            }
+
+            if (typeof ($("#UserUpdatedIM").multiselect("getChecked").length) != undefined && $("#UserUpdatedIM").multiselect("getChecked").length > 0) {
+                $('#UserUpdatedIM').multiselect('refresh')
+                $("#UserUpdatedIM").multiselect("widget").find(":checkbox").removeAttr("checked");
+                $("#UserUpdatedCollapseIM").html('');
+                $("#UserUpdatedCollapseIM").hide();
+                $("#UserUpdatedIM").multiselect({ selectedText: "" });
+            }
+
+            MMSupplierNarroValues = "";
+            MMCategoryNarroValues = "";
+            MMManufacturerNarroValues = "";
+            MMItemLocationNarroValues = "";
+            MMItemTrackingTypeNarroValues = "";
+            MMItemStockStatusNarroValues = "";
+            MMItemTypeNarroSearchValue = "";
+            MMInventoryClassificationNarroSearchValue = "";
+            MMItemActiveNarroSearchValue = "";
+            MMCostNarroSearchValue = "";
+            MMAverageCostNarroSearchValue = "";
+            MMTurnsNarroSearchValue = "";
+            MMUDF1NarrowValues = "";
+            MMUDF2NarrowValues = "";
+            MMUDF3NarrowValues = "";
+            MMUDF4NarrowValues = "";
+            MMUDF5NarrowValues = "";
+            MMUDF6NarrowValues = "";
+            MMUDF7NarrowValues = "";
+            MMUDF8NarrowValues = "";
+            MMUDF9NarrowValues = "";
+            MMUDF10NarrowValues = "";
+            MMUserCreatedNarroValues = "";
+            MMUserUpdatedNarroValue = "";
+
+            $("#MMItemIsActive").val("");
+            $("#MMItemCost").val("");
+            $("#MMItemAverageUsage").val("");
+            $("#MMItemTTurns").val("");
+
+            //UDFs
+            $("select[name='udflist']").each(function (index) {
+                if (typeof ($(this).multiselect("getChecked").length) != undefined && $(this).multiselect("getChecked").length > 0) {
+                    var UDFUniqueID = this.getAttribute('UID');
+
+                    $('#' + UDFUniqueID).multiselect('refresh')
+                    $('#' + UDFUniqueID).multiselect("widget").find(":checkbox").removeAttr("checked");
+                    $('#' + UDFUniqueID + 'Collapse').html('');
+                    $('#' + UDFUniqueID + 'Collapse').hide();
+                    $('#' + UDFUniqueID).multiselect({ selectedText: "" });
+                }
+            });
+            DoMMNarrowSearch();
+        });
+
+        var _IsArchived = false;
+        var _IsDeleted = false;
+        GetItemMMNarrowSearchData();
+        GetMMNarroHTMLForUDF("MinMaxTunnigGrid", '@eTurnsWeb.Helper.SessionHelper.CompanyID', '@eTurnsWeb.Helper.SessionHelper.RoomID', _IsArchived, _IsDeleted);
+
+        $("#CalculatedMinMax").dialog({
+            autoOpen: false, modal: true, draggable: true, resizable: true, width: '60%', height: 450
+            , title: '@ResInventoryAnalysis.TitleNegativeCalMinMax',
+            open: function () {
+                var htmlData = $('#MinMaxNegativeQty').html();
+                $("#CalculatedMinMax").html(htmlData);
+            },
+            close: function () {
+                $("#CalculatedMinMax").empty();
+            }
+        });
+
+    });
+
+    function UpdateMinMaxSingle(CallerButton, Mode) {
+        SelectedItems = [];
+        var newRowContent = "";
+        $("#tblCalculatedMinMax tbody").empty();
+        //SelectedItems.push($($(CallerButton)[0].parentNode).find('#hdnItemGuid').val() + "~" + $($(CallerButton)[0].parentNode).find('#hdnBinID').val());
+
+        var CalculatedMin = $($(CallerButton)[0].parentNode).find('#hdnCalculatedMin').val();
+        var CalculatedMax = $($(CallerButton)[0].parentNode).find('#hdnCalculatedMax').val();
+
+        var ItemNumber = $($(CallerButton)[0].parentNode).find('#hdnItemNumber').val();
+        var IsActive = $($(CallerButton)[0].parentNode).find('#hdnIsActive').val();
+        var BinNumber = $($(CallerButton)[0].parentNode).find('#hdnBinNumber').val();
+        var OnHandQuantity = $($(CallerButton)[0].parentNode).find('#hdnOnHandQuantity').val();
+        var MinimumQuantity = $($(CallerButton)[0].parentNode).find('#hdnMinimumQuantity').val();
+        var MaximumQuantity = $($(CallerButton)[0].parentNode).find('#hdnMaximumQuantity').val();
+
+        if (Mode == "MIN") {
+            if (CalculatedMin >= 0) {
+                SelectedItems.push($($(CallerButton)[0].parentNode).find('#hdnItemGuid').val() + "~" + $($(CallerButton)[0].parentNode).find('#hdnBinID').val());
+            }
+            else {
+                newRowContent = "<tr><td>" + ItemNumber + "</td><td>" + IsActive + "</td> <td>" + BinNumber + "</td> <td>" + OnHandQuantity + "</td><td>" + MinimumQuantity + "</td><td>" + CalculatedMin + "</td><td>" + MaximumQuantity + "</td><td>" + CalculatedMax + "</td></tr>";
+                $("#tblCalculatedMinMax tbody").append(newRowContent);
+            }
+        }
+        else if (Mode == "MAX") {
+            if (CalculatedMax >= 0) {
+                SelectedItems.push($($(CallerButton)[0].parentNode).find('#hdnItemGuid').val() + "~" + $($(CallerButton)[0].parentNode).find('#hdnBinID').val());
+            }
+            else {
+                newRowContent = "<tr><td>" + ItemNumber + "</td><td>" + IsActive + "</td> <td>" + BinNumber + "</td> <td>" + OnHandQuantity + "</td><td>" + MinimumQuantity + "</td><td>" + CalculatedMin + "</td><td>" + MaximumQuantity + "</td><td>" + CalculatedMax + "</td></tr>";
+                $("#tblCalculatedMinMax tbody").append(newRowContent);
+            }
+        }
+        else {
+            if (CalculatedMax >= 0 && CalculatedMin >= 0) {
+                SelectedItems.push($($(CallerButton)[0].parentNode).find('#hdnItemGuid').val() + "~" + $($(CallerButton)[0].parentNode).find('#hdnBinID').val());
+            }
+            else {
+                newRowContent = "<tr><td>" + ItemNumber + "</td><td>" + IsActive + "</td> <td>" + BinNumber + "</td> <td>" + OnHandQuantity + "</td><td>" + MinimumQuantity + "</td><td>" + CalculatedMin + "</td><td>" + MaximumQuantity + "</td><td>" + CalculatedMax + "</td></tr>";
+                $("#tblCalculatedMinMax tbody").append(newRowContent);
+            }
+        }  
+        if (SelectedItems != null && SelectedItems != undefined && SelectedItems.length > 0) {
+            UpdateMinMaxAjaz(Mode,true);
+        }
+        if (newRowContent != "") {
+            $("#CalculatedMinMax").empty();
+            $('#CalculatedMinMax').dialog('open');
+        }
+        return false;
+    }
+
+    function UpdateMinMaxGlobal(Mode) {
+        SelectedItems = [];
+        var newRowContent = "";
+        var NoManualSettingCount = 0;
+        $("#tblCalculatedMinMax tbody").empty();
+        $("#MinMaxTable").find("tbody tr.row_selected").each(function () {
+            if ($(this).find('#hdnTrendingSetting').val() == 1) {
+
+                var CalculatedMin = $(this).find('#hdnCalculatedMin').val();
+                var CalculatedMax = $(this).find('#hdnCalculatedMax').val();
+
+                var ItemNumber = $(this).find('#hdnItemNumber').val();
+                var IsActive = $(this).find('#hdnIsActive').val();
+                var BinNumber = $(this).find('#hdnBinNumber').val();
+                var OnHandQuantity = $(this).find('#hdnOnHandQuantity').val();
+                var MinimumQuantity = $(this).find('#hdnMinimumQuantity').val();
+                var MaximumQuantity = $(this).find('#hdnMaximumQuantity').val();
+
+                if (Mode == "MIN") {
+                    if (CalculatedMin >= 0) {
+                        SelectedItems.push($(this).find('#hdnItemGuid').val() + "~" + $(this).find('#hdnBinID').val());
+                    }
+                    else {
+                        newRowContent = "<tr><td>" + ItemNumber + "</td><td>" + IsActive + "</td> <td>" + BinNumber + "</td> <td>" + OnHandQuantity + "</td><td>" + MinimumQuantity + "</td><td>" + CalculatedMin + "</td><td>" + MaximumQuantity + "</td><td>" + CalculatedMax + "</td></tr>";
+                        $("#tblCalculatedMinMax tbody").append(newRowContent);
+                    }
+                }
+                else if (Mode == "MAX") {
+                    if (CalculatedMax >= 0) {
+                        SelectedItems.push($(this).find('#hdnItemGuid').val() + "~" + $(this).find('#hdnBinID').val());
+                    }
+                    else {
+                        newRowContent = "<tr><td>" + ItemNumber + "</td><td>" + IsActive + "</td> <td>" + BinNumber + "</td> <td>" + OnHandQuantity + "</td><td>" + MinimumQuantity + "</td><td>" + CalculatedMin + "</td><td>" + MaximumQuantity + "</td><td>" + CalculatedMax + "</td></tr>";
+                        $("#tblCalculatedMinMax tbody").append(newRowContent);
+                    }
+                }
+                else {
+                    if (CalculatedMax >= 0 && CalculatedMin >= 0) {
+                        SelectedItems.push($(this).find('#hdnItemGuid').val() + "~" + $(this).find('#hdnBinID').val());
+                    }
+                    else {
+                        newRowContent = "<tr><td>" + ItemNumber + "</td><td>" + IsActive + "</td> <td>" + BinNumber + "</td> <td>" + OnHandQuantity + "</td><td>" + MinimumQuantity + "</td><td>" + CalculatedMin + "</td><td>" + MaximumQuantity + "</td><td>" + CalculatedMax + "</td></tr>";
+                        $("#tblCalculatedMinMax tbody").append(newRowContent);
+                    }
+                }
+            }
+            else {
+                NoManualSettingCount++;
+            }
+        });
+
+        if (SelectedItems != null && SelectedItems != undefined && SelectedItems.length > 0) {
+            UpdateMinMaxAjaz(Mode,false);
+        }
+        else {
+            if (NoManualSettingCount > 0) {
+                alert('@ResInventoryAnalysis.TrendingSettingManualAlert');
+            }
+        }
+
+        if (newRowContent != "") {
+            $("#CalculatedMinMax").empty();
+            $('#CalculatedMinMax').dialog('open');
+        }
+
+        return false;
+    }
+
+    function UpdateMinMaxAjaz(Mode,IsRawWise) {
+
+        if (SelectedItems != null && SelectedItems != undefined && SelectedItems.length > 0) {
+            //alert(SelectedItems);
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("SaveCalculatedMinMaxInSelected", "Master")',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify({ ItemGuid: SelectedItems, UpdateMode: Mode,IsRawWise : IsRawWise }),
+                success: function (retdt) {
+                    
+                    if (typeof (oTableMinMaxTuning) != "undefined") {
+
+                       
+                        $("#hdnminper").val(0);
+                        $("#minSlideValue").text("0");
+                        $("#MinSlider").slider("value", 0);
+                        $("#hdnmaxper").val(0);
+                        $("#maxSlideValue").text("0");
+                        $("#MaxSlider").slider("value", 0);
+                        $("div#MaxSlider a.ui-slider-handle").css({ left: 0 });
+
+                        $('#DivLoading').hide();
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(2000).fadeOut(5000);
+                        $("#spanGlobalMessage").html(retdt.Message);
+                        if (retdt.Status == "fail") {
+                            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                        }
+                        else {
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        }
+                        SelectedRawForSlider = [];
+                        oTableMinMaxTuning.fnDraw();
+                    }
+                },
+                error: function (err) {
+                    alert("There is some Error");
+                }
+            });
+        }
+        else
+        {
+            alert('@ResInventoryAnalysis.TrendingSettingManualAlert');
+        }
+    }
+
+</script>
+<style>
+    .DTTT_container .DTTT_button {
+        display: none !important;
+    }
+
+    .handle {
+        height: 20px;
+        width: 5%;
+        vertical-align: middle;
+        cursor: move;
+        float: right;
+    }
+
+        .handle img {
+            height: 20px;
+            width: 6%;
+            display: block;
+            position: absolute;
+            background-repeat: no-repeat;
+            margin: 0;
+            padding: 0;
+        }
+    /*#tblCalculatedMinMax thead th {
+        background-color: #f6f6f6;
+        color: black;
+        border: 1px solid #cccccc
+    }
+    #tblCalculatedMinMax tbody td {
+        background-color: #f6f6f6;
+        color: black;
+        border: 1px solid #cccccc
+    }*/
+</style>
+<div class="tabContener">           
+    <div class="leftopenContent" style="display: none;">
+        <a class="openBtnMM" id="ExpandMMNarrowSearch">
+            <img src="~/Content/images/open.png" />
+        </a>
+    </div>  
+    <div class="searchWrapper" style="margin: 0px; width: 99%">
+        <div class="searchBlock">
+            <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+            <div class="searchinputB">
+                <input type="text" class="searchinputE" id="global_filterMinMaxTuning" />
+                <a href="javascript:void(0);" class="xclose">
+                    <img src="~/Content/images/x.png" alt="X" id="clear_global_filterMinMaxTuning" />
+                </a>
+            </div>
+        </div>
+    </div> 
+    <div style="display: block; padding: 10px; float: right;" class="BtnBlock">
+        <input type="button" value="@ResInventoryAnalysis.ApplyMinMaxOnSelect" id="btnApplyMinMaxOnSelect" name="btnApplyMinMaxOnSelect" class="btnGeneral" style="float: left; font-weight: bold; margin-left: 3px;" onclick="return UpdateMinMaxGlobal('BOTH');" />
+        <input type="button" value="@ResInventoryAnalysis.ApplyMinOnSelect" id="btnApplyMinOnSelect" name="btnApplyMinOnSelect" class="btnGeneral" style="float: left; font-weight: bold; margin-left: 3px;" onclick="return UpdateMinMaxGlobal('MIN');" />
+        <input type="button" value="@ResInventoryAnalysis.ApplyMaxOnSelect" id="btnApplyMaxOnSelect" name="btnApplyMaxOnSelect" class="btnGeneral" style="float: left; font-weight: bold; margin-left: 3px;" onclick="return UpdateMinMaxGlobal('MAX');" />
+        @*<input type="button" value="Apply Changes" id="btnApplyChanges" name="btnApplyChanges" class="btnGeneral" style="float: left; font-weight: bold; margin-left: 3px;" />*@
+        <input type="button" value="@ResInventoryAnalysis.Reset" id="btnReset" name="btnReset" class="btnGeneral" style="float: left; font-weight: bold; margin-left: 3px;" />
+        <div class="printMM" style="padding:5px;">
+            <div class="refresh">
+                <a href="javascript:void(null);">
+                    <img src="/content/images/print.png" alt="">
+                </a>
+                <div class="refreshBlock">
+                    <ul>
+                        <li class="refreshBlockswf">
+                            <a id="lnkExpExcel" onclick="ExportDataForDashboardMinMaxTune('MinMaxTable', 'MinMaxTuningList', 'Excel', false);">
+                                <span>@eTurns.DTO.Resources.ResCommon.ExcelExport</span>
+                            </a>
+                        </li>
+                        <li class="refreshBlockswf">
+                            <a id="lnkExpCSV" onclick="ExportDataForDashboardMinMaxTune('MinMaxTable', 'MinMaxTuningList', 'CSV', false);">
+                                <span>@eTurns.DTO.Resources.ResCommon.CSVExport</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <a title="Select all" href="javascript:void(null);" id="MinMaxTableSelectAll" class="MinMaxTableSelectAll" style="float: right; margin-top: 2px;">
+            <img src="/content/images/selectall.png" alt="Select all" width="25px" height="25px">
+        </a>
+        <a title="Select all" href="javascript:void(null);" id="MinMaxTableDeSelectAll" class="MinMaxTableDeSelectAll" style="float: right; margin-top: 2px; display: none">
+            <img src="/content/images/UnSelectAll.png" alt="Select all" width="25px" height="25px">
+        </a>
+        <a id="MinMaxTableColumnOrderSetup" style="float: right; margin-top: 2px;"><img src="/content/images/column-setup.png" alt="@ResGridHeader.Reorder" title="@ResGridHeader.Reorder"></a>
+    </div>
+    <div class="IteamBlock" style="clear:both;">        
+        <a class="closedBtn" id="CollapseMMNarrowSearch">
+            <img src="~/Content/images/closed.png" />
+        </a>
+        <h2>@eTurns.DTO.Resources.ResNarrowSearch.NarrowSearchHeader2</h2>       
+        <ul id="nssortable" class="NarrowUL">
+            <li attrsortorder="1">
+                <p class="handle"><img /></p>
+                <select id="MMItemSupplier" multiple="multiple" name="example-basic" size="5"></select>
+                <div class="accordion" id="accordion">
+                    <a href='#' class='downarrow'>
+                        <img src="~/Content/images/down-arrow.gif" alt="" height="24">
+                    </a>
+                    <div class='dropcontent' id="MMItemSupplierCollapse">
+                    </div>
+                </div>
+            </li>
+            <li attrsortorder="2">
+                <p class="handle"><img /></p>
+                <select id="MMItemCategory" multiple="multiple" name="example-basic" size="5"></select>
+                <div class="accordion" id="accordion">
+                    <a href='#' class='downarrow'>
+                        <img src="~/Content/images/down-arrow.gif" alt="" height="24">
+                    </a>
+                    <div class='dropcontent' id="MMItemCategoryCollapse">
+                    </div>
+                </div>
+            </li>
+            <li attrsortorder="3">
+                <p class="handle"><img /></p>
+                <select id="MMItemManufacturer" multiple="multiple" name="example-basic" size="5"></select>
+                <div class="accordion" id="accordion">
+                    <a href='#' class='downarrow'>
+                        <img src="~/Content/images/down-arrow.gif" alt="" height="24">
+                    </a>
+                    <div class='dropcontent' id="MMItemManufacturerCollapse">
+                    </div>
+                </div>
+            </li>
+            <li attrsortorder="4">
+                <p class="handle"><img /></p>
+                <select id="MMItemLocation" multiple="multiple" name="example-basic" size="5"></select>
+                <div class="accordion" id="accordion">
+                    <a href='#' class='downarrow'>
+                        <img src="~/Content/images/down-arrow.gif" alt="" height="24" />
+                    </a>
+                    <div class='dropcontent' id="MMItemLocationCollapse">
+                    </div>
+                </div>
+            </li>
+            <li attrsortorder="5">
+                <p class="handle"><img /></p>
+                <select id="MMItemTrackingType" multiple="multiple" name="example-basic" size="5"></select>
+                <div class="accordion" id="accordion">
+                    <a href='#' class='downarrow'>
+                        <img src="~/Content/images/down-arrow.gif" alt="" height="24" />
+                    </a>
+                    <div class='dropcontent' id="MMItemTrackingTypeCollapse">
+                    </div>
+                </div>
+            </li>
+            <li attrsortorder="6">
+                <p class="handle"><img /></p>
+                <div class="stockroom">
+                    <select id="MMItemStockStatus" class="selectBox"></select>
+                    <div class="accordion" id="accordion">
+                        <a href='#' class='downarrow'>
+                            <img src="~/Content/images/down-arrow.gif" alt="" height="24" />
+                        </a>
+                        <div class='dropcontent' id="MMItemStockStatusCollapse">
+                        </div>
+                    </div>
+                </div>
+            </li>
+            <li attrsortorder="7">
+                <p class="handle"><img /></p>
+                <select id="MMItemType" multiple="multiple" name="example-basic" size="5"></select>
+                <div class="accordion" id="accordion">
+                    <a href='#' class='downarrow'>
+                        <img src="~/Content/images/down-arrow.gif" alt="" height="24">
+                    </a>
+                    <div class='dropcontent' id="MMItemTypeCollapse">
+                    </div>
+                </div>
+            </li>
+            <li attrsortorder="8">
+                <p class="handle"><img /></p>
+                <select id="MMInventoryClassification" multiple="multiple" name="example-basic" size="5"></select>
+                <div class="accordion" id="accordion">
+                    <a href='#' class='downarrow'>
+                        <img src="~/Content/images/down-arrow.gif" alt="" height="24">
+                    </a>
+                    <div class='dropcontent' id="MMInventoryClassificationCollapse">
+                        Inventory Classification
+                    </div>
+                </div>
+            </li>
+            @*<li attrsortorder="9">
+                <p class="handle"><img /></p>
+                <div class="editor-field">
+                    @eTurns.DTO.ResItemMaster.IsActive:
+                    <select id="MMItemIsActive" class="selectBox" onchange="MMSActive(this);">
+                        <option value=""></option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
+            </li>*@
+            <li attrsortorder="10">
+                <p class="handle"><img /></p>
+                <div class="editor-field">
+                    @eTurns.DTO.Resources.ResNarrowSearch.Cost:
+                    <select id="MMItemCost" class="selectBox" onchange="MMCostNarroSearch(this);">
+                        <option value="0_-1"></option>
+                        <option value="100_1000">>$100 </option>
+                        <option value="50_99.99">>$50 to 99.99 </option>
+                        <option value="25_49.99">>$25 to 49.99 </option>
+                        <option value="10_24.99">>$10 to 24.99 </option>
+                        <option value="10_1000"><$10</option>
+                    </select>
+                </div>
+            </li>
+            <li attrsortorder="11">
+                <p class="handle"><img /></p>
+                <div class="editor-field">
+                    @eTurns.DTO.Resources.ResNarrowSearch.AverageUsage:
+                    <select id="MMItemAverageUsage" class="selectBox" onchange="MMAverageCostNarroSearch(this);">
+                        <option value="0_-1"></option>
+                        <option value="100_-1">> 100</option>
+                        <option value="75_99.9">75 - 99.9</option>
+                        <option value="50_74.9">50 - 74.9</option>
+                        <option value="30_49.9">30 - 49.9</option>
+                        <option value="20_29.9">20 - 29.9</option>
+                        <option value="10_19.9">10 - 19.9</option>
+                        <option value="7.5_9.9">7.5 - 9.9</option>
+                        <option value="5_7.4">5 - 7.4</option>
+                        <option value="2_4.9">2 - 4.9</option>
+                        <option value="1_1.9">1 - 1.9</option>
+                        <option value="0.5_0.9">0.5 - 0.9</option>
+                        <option value="0.4_-1">< 0.4</option>
+                    </select>
+                </div>
+            </li>
+            <li attrsortorder="12">
+                <p class="handle"><img /></p>
+                <div class="editor-field">
+                    @eTurns.DTO.Resources.ResNarrowSearch.Turns:
+                    <select id="MMItemTTurns" class="selectBox" onchange="MMTurnsNarroSearch(this);">
+                        <option value="0_-1"></option>
+                        <option value="20_-1">> 20</option>
+                        <option value="15_19.9">15 - 19.9</option>
+                        <option value="12_14.9">12 - 14.9</option>
+                        <option value="9_11.9">9 - 11.9</option>
+                        <option value="6_8.9">6 - 8.9</option>
+                        <option value="4_5.9">4 - 5.9</option>
+                        <option value="2_3.9">2 - 3.9</option>
+                        <option value="1_1.9">1 - 1.9</option>
+                        <option value="1_-1">< 1</option>
+                    </select>
+                </div>
+            </li>
+            <li attrsortorder="13">
+                <p class="handle"><img /></p>
+                <select id="UserCreatedIM" multiple="multiple" name="example-basic" size="5"></select>
+                <div class="accordion" id="accordion">
+                    <a href='#' class='downarrow'>
+                        <img src="~/Content/images/down-arrow.gif" alt="" height="24">
+                    </a>
+                    <div class='dropcontent' id="UserCreatedCollapseIM">
+                    </div>
+                </div>
+            </li>
+            <li attrsortorder="14">
+                <p class="handle"><img /></p>
+                <select id="UserUpdatedIM" multiple="multiple" name="example-basic" size="5"></select>
+                <div class="accordion" id="accordion">
+                    <a href='#' class='downarrow'>
+                        <img src="~/Content/images/down-arrow.gif" alt="" height="24">
+                    </a>
+                    <div class='dropcontent' id="UserUpdatedCollapseIM">
+                    </div>
+                </div>
+            </li>
+            <li attrsortorder="15">
+                <p class="handle"><img /></p>
+                <div class="dateForm">
+                    <span class="dateText">@eTurns.DTO.Resources.ResNarrowSearch.DateCreated</span>
+                    <div style="float: right; margin-top: -24px; cursor: pointer;">
+                        <img id="DateCreatedClearIM" src="~/Content/images/XClear.png" alt="@ResNarrowSearch.Clear" />
+                    </div>
+                    <div class="divLabel" style="padding-bottom: 4px;">
+                        <label for="From" class="labelText">
+                            @eTurns.DTO.Resources.ResNarrowSearch.From
+                        </label>
+                        <input id="DateCFromIM" type="text" value="" name="From" data-val-length-max="20"
+                               data-val="true" class="text-box" />
+                        <a href="javascript:;" title="" class="datePicker" id="ancDateCFromIM">
+                            <img src="~/Content/images/date-picker-icon.png" alt="" title="" />
+                        </a>
+                    </div>
+                    <div class="divLabel">
+                        <label for="To" class="labelText">
+                            @eTurns.DTO.Resources.ResNarrowSearch.To
+                        </label>
+                        <input id="DateCToIM" type="text" value="" name="To" data-val-length-max="20" data-val="true"
+                               class="text-box" />
+                        <a href="javascript:;" title="" class="datePicker" id="ancDateCToIM">
+                            <img src="~/Content/images/date-picker-icon.png" alt="" title="" />
+                        </a>
+                    </div>
+                </div>
+            </li>
+            <li attrsortorder="16">
+                <p class="handle"><img /></p>
+                <div class="dateForm">
+                    <span class="dateText">@eTurns.DTO.Resources.ResNarrowSearch.DateUpdated</span>
+                    <div style="float: right; margin-top: -24px; cursor: pointer;">
+                        <img id="DateUpdatedClearIM" src="~/Content/images/XClear.png" alt="@ResNarrowSearch.Clear" />
+                    </div>
+                    <div class="divLabel" style="padding-bottom: 4px;">
+                        <label for="From" class="labelText">
+                            @eTurns.DTO.Resources.ResNarrowSearch.From
+                        </label>
+                        <input id="DateUFromIM" type="text" value="" name="From" data-val-length-max="20"
+                               data-val="true" class="text-box" />
+                        <a href="javascript:;" title="" class="datePicker" id="ancDateUFromIM">
+                            <img src="~/Content/images/date-picker-icon.png" alt="" title="" />
+                        </a>
+                    </div>
+                    <div class="divLabel">
+                        <label for="To" class="labelText">
+                            @eTurns.DTO.Resources.ResNarrowSearch.To
+                        </label>
+                        <input id="DateUToIM" type="text" value="" name="To" data-val-length-max="20" data-val="true"
+                               class="text-box" />
+                        <a href="javascript:;" title="" class="datePicker" id="ancDateUToIM">
+                            <img src="~/Content/images/date-picker-icon.png" alt="" title="" />
+                        </a>
+                    </div>
+                </div>
+            </li>
+                @Html.RenderUDFForNarrowSearchForMM("ItemMaster")
+        </ul>        
+        <input id="MMNarroSearchClear" type="button" value="@ResNarrowSearch.Clear" class="ClearBtn" />
+    </div>
+    @*style="float: left; width: 100%;"*@
+    <div id="dvItemMinMaxTuningGrid" class="userContent">
+        <table id="MinMaxTable" class="display">
+            <thead>
+                <tr>
+                    <th>
+                        @ResInventoryAnalysis.Actions
+                    </th>
+                    <th>
+                        @eTurns.DTO.Resources.ResCommon.RowNo
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.MinAnalysis
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.MaxAnalysis
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.ItemNumber
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.IsActive
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.DefaultReorderQuantity
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.CostUOMValue
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.DateCreated
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.IsitemLevelMinMax
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.Description
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.InventoryClassification
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.Category
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.SupplierName
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.SupplierPartNo
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.Manufacturer
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.ManufacturerNumber
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.Location
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.AvailableQty
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.InventoryValue
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.AverageCost
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.PeriodPullValueUsage
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.AvgDailyPullValueUsage
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.PeriodPullUsage
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.AvgDailyPullUsage
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.QtyUntilOrder
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.NoOfDaysUntilOrder
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.LeadTimeInDays
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.DateofOrder
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.DemandPlanningQtyToOrder
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.PeriodOrdersUsage
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.AvgDailyOrdersUsage
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.PullValueTurns
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.PullTurns
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.OrderTurns
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.Critical
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.CurrentMinimum
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.CalculatedMinimum
+                    </th>
+                    <th>
+                        @HttpUtility.HtmlDecode(ResInventoryAnalysis.AbsvaluediffcurrcalcMinimum)
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.TrialCalculatedMinimum
+                    </th>
+                    <th>
+                        @HttpUtility.HtmlDecode(ResInventoryAnalysis.AbsValDifCurrCalcMinimum)
+                    </th>
+                    <th>
+                        @HttpUtility.HtmlDecode(ResInventoryAnalysis.AutocurrentminPercentage)
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.OptimizedInvValueUsesQOHofAvgCalcdMinMax
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.OptimizedInvValueChange
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.TrialCalcInvValueUsesQOHofAvgTrialMinMax
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.TrialInvValueChange
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.CurrentMaximum
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.CalculatedMaximum
+                    </th>
+                    <th>
+                        @HttpUtility.HtmlDecode(ResInventoryAnalysis.AbsvaluediffcurrcalcMaximum)
+                    </th>
+                    <th>
+                        @HttpUtility.HtmlDecode(ResInventoryAnalysis.TrialCalculatedMaximum)
+                    </th>
+                    <th>
+                        @HttpUtility.HtmlDecode(ResInventoryAnalysis.AbsValDifCurrCalcMaximum)
+                    </th>
+                    <th>
+                        @HttpUtility.HtmlDecode(ResInventoryAnalysis.AutocurrentmaxPercentage)
+                    </th>
+                    <th>
+                        @ResInventoryAnalysis.Cost
+                    </th>
+                    @Html.RenderColumnsHeader("ItemMaster", typeof(eTurns.DTO.ResItemMaster))
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+<div class="refresh setup" style="display:none;">
+    <div id="MinMaxColumnSortableModal" style="display: none;">
+        <div class="sortableContainer">
+            <ul id="ColumnSortable"></ul>
+        </div>
+        <input type="submit" class="CreateBtn" id="btnSaveOrder" value="Reorder" onclick="UpdateMinMaxColumnOrder('MinMaxTable','MinMaxTuningTable')" />
+    </div>
+</div>
+<div id="CalculatedMinMax" class="container">
+</div>
+<div id="MinMaxNegativeQty" class="userContent" style="display:none">
+            <table id='tblCalculatedMinMax' class="display dataTable">
+                <thead>
+                    <tr>
+                        <th class="ui-state-default" colspan="1" rowspan="1">@ResInventoryAnalysis.ItemNumber</th>
+                        <th class="ui-state-default" colspan="1" rowspan="1">@ResInventoryAnalysis.IsActive</th>
+                        <th class="ui-state-default" colspan="1" rowspan="1">@ResInventoryAnalysis.Location</th>
+                        <th class="ui-state-default" colspan="1" rowspan="1">@ResInventoryAnalysis.AvailableQty</th>
+                        <th class="ui-state-default" colspan="1" rowspan="1">@ResInventoryAnalysis.CurrentMinimum</th>
+                        <th class="ui-state-default" colspan="1" rowspan="1">@ResInventoryAnalysis.CalculatedMinimum</th>
+                        <th class="ui-state-default" colspan="1" rowspan="1">@ResInventoryAnalysis.CurrentMaximum</th>
+                        <th class="ui-state-default" colspan="1" rowspan="1">@ResInventoryAnalysis.CalculatedMaximum</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        @*@if (false)
+            {
+                <script src="../../Scripts/jquery-1.9.1-vsdoc.js" type="text/javascript"></script>
+            }*@
+        <script type="text/javascript">
+        var MinMaxColumns = new Array();
+        var oTableMinMaxTuning;
+        var objDashboardMinMaxColumns = {}
+        var globalSearchMinMaxTuning = false;
+        var MsgRecordToPrint = '@ResDashboard.MsgRecordToPrint';
+        jQuery(function () {
+            //        MinMaxColumns.push({ mDataProp: null, sClass: "read_only control center", bSortable: false, sDefaultContent: '', fnRender: function (obj, val) {
+            //            var ID = obj.aData.GUID;
+            //            if (obj.aData.ItemTrendingSetting == 1) {
+            //                return "<input type='button' value='Save Manual' id='btnApplyManual' class='btnGeneral' />" + "<span id='spnItemGUID' style='display:none'>" + obj.aData.GUID + "</span>";
+            //            }
+            //            else if (obj.aData.ItemTrendingSetting == 2) {
+            //                return "<input type='button' value='Save Automatic' id='btnApplyAuto' class='btnGeneral' />" + "<span id='spnItemGUID' style='display:none'>" + obj.aData.GUID + "</span>";
+            //            }
+            //        }
+            //        });
+            MinMaxColumns.push({
+                "mDataProp": null, "bSortable": false, "sClass": "read_only control center NotHide", "sDefaultContent": '',
+                "fnRender": function (obj, val) {                    
+                    if (obj.aData.TrendingSetting == 1) {
+                        return '<input value="@ResInventoryAnalysis.ApplyMinMax" id="btnApplyMinMaxOnSelect" name="btnApplyMinMaxOnSelect" class="btnGeneral" style="float: left; font-weight: bold; margin-left: 3px;" type="button" onclick="return UpdateMinMaxSingle(this, \'BOTH\');">' +
+                               '<input value="@ResInventoryAnalysis.ApplyMin" id="btnApplyMinOnSelect" name="btnApplyMinOnSelect" class="btnGeneral" style="float: left; font-weight: bold; margin-left: 3px;" type="button" onclick="return UpdateMinMaxSingle(this, \'MIN\');">' +
+                               '<input value="@ResInventoryAnalysis.ApplyMax" id="btnApplyMaxOnSelect" name="btnApplyMaxOnSelect" class="btnGeneral" style="float: left; font-weight: bold; margin-left: 3px;" type="button" onclick="return UpdateMinMaxSingle(this, \'MAX\');">' +
+                            '<input type="hidden" id="hdnItemGuid" name="hdnItemGuid" value="' + obj.aData.GUID + '"/>' +
+                            '<input type="hidden" id="hdnCalculatedMin" name="hdnCalculatedMin" value="' + obj.aData.CalulatedMinimum + '"/>' +
+                            '<input type="hidden" id="hdnCalculatedMax" name="hdnCalculatedMax" value="' + obj.aData.CalulatedMaximum + '"/>' +
+
+                            '<input type="hidden" id="hdnItemNumber" name="hdnItemNumber" value="' + obj.aData.ItemNumber + '"/>' +
+                            '<input type="hidden" id="hdnIsActive" name="hdnIsActive" value="' + obj.aData.IsActive + '"/>' +
+                            '<input type="hidden" id="hdnBinNumber" name="hdnBinNumber" value="' + obj.aData.BinNumber + '"/>' +
+                            '<input type="hidden" id="hdnOnHandQuantity" name="hdnOnHandQuantity" value="' + obj.aData.OnHandQuantity + '"/>' +
+                            '<input type="hidden" id="hdnMinimumQuantity" name="hdnMinimumQuantity" value="' + obj.aData.MinimumQuantity + '"/>' +
+                            '<input type="hidden" id="hdnMaximumQuantity" name="hdnMaximumQuantity" value="' + obj.aData.MaximumQuantity + '"/>' +
+
+                        '<input type="hidden" id="hdnBinID" name="hdnBinID" value="' + obj.aData.BinID + '"/>' +
+                        '<input type="hidden" id="hdnTrendingSetting" name="hdnTrendingSetting" value="' + obj.aData.TrendingSetting + '"/>';
+                    }
+                    else {
+                        return '<input type="hidden" id="hdnItemGuid" name="hdnItemGuid" value="' + obj.aData.GUID + '"/><input type="hidden" id="hdnBinID" name="hdnBinID" value="' + obj.aData.BinID + '"/>' +
+                            '<input type="hidden" id="hdnCalculatedMin" name="hdnCalculatedMin" value="' + obj.aData.CalulatedMinimum + '"/>' +
+                            '<input type="hidden" id="hdnCalculatedMax" name="hdnCalculatedMax" value="' + obj.aData.CalulatedMaximum + '"/>' +
+
+                            '<input type="hidden" id="hdnItemNumber" name="hdnItemNumber" value="' + obj.aData.ItemNumber + '"/>' +
+                            '<input type="hidden" id="hdnIsActive" name="hdnIsActive" value="' + obj.aData.IsActive + '"/>' +
+                            '<input type="hidden" id="hdnBinNumber" name="hdnBinNumber" value="' + obj.aData.BinNumber + '"/>' +
+                            '<input type="hidden" id="hdnOnHandQuantity" name="hdnOnHandQuantity" value="' + obj.aData.OnHandQuantity + '"/>' +
+                            '<input type="hidden" id="hdnMinimumQuantity" name="hdnMinimumQuantity" value="' + obj.aData.MinimumQuantity + '"/>' +
+                            '<input type="hidden" id="hdnMaximumQuantity" name="hdnMaximumQuantity" value="' + obj.aData.MaximumQuantity + '"/>' +
+
+                            '<input type="hidden" id="hdnTrendingSetting" name="hdnTrendingSetting" value="' + obj.aData.TrendingSetting + '"/>';
+                    }
+                }
+            });
+            MinMaxColumns.push({
+                "mDataProp": null,
+                "bSortable": false,
+                "sClass": "read_only center NotHide RowNo",
+                "sDefaultContent": ''
+            });
+            MinMaxColumns.push({
+                mDataProp: "MinAnalysis", sClass: "read_only", sDefaultContent: '', bSortable: true, bSearchable: false, fnRender: function (obj, val) {
+                    if (val == 'Green') {
+                        return "<img src='" + sImageUrl + "Green.png' ><input type='hidden' id='txtGUID' value='" + obj.aData.GUID + "' />";
+                    }
+                    else if (val == 'Red') {
+                        return "<img src='" + sImageUrl + "Red.png' ><input type='hidden' id='txtGUID' value='" + obj.aData.GUID + "' />";
+                    }
+                    else if (val == 'Yellow') {
+                        return "<img src='" + sImageUrl + "Yellow.png' />";
+                    }
+                    else {
+                        return "";
+                    }
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "MaxAnalysis", sClass: "read_only", sDefaultContent: '', bSortable: true, bSearchable: false, fnRender: function (obj, val) {
+                    if (val == 'Green') {
+                        return "<img src='" + sImageUrl + "Green.png' >";
+                    }
+                    else if (val == 'Red') {
+                        return "<img src='" + sImageUrl + "Red.png' >";
+                    }
+                    else if (val == 'Yellow') {
+                        return "<img src='" + sImageUrl + "Yellow.png' />";
+                    }
+                    else {
+                        return "";
+                    }
+                }
+            });
+            MinMaxColumns.push({ mDataProp: "ItemNumber", sClass: "read_only" });
+            MinMaxColumns.push({ mDataProp: "IsActive", sClass: "read_only" });
+            MinMaxColumns.push({ mDataProp: "DefaultReorderQuantity", sClass: "read_only" });
+            MinMaxColumns.push({ mDataProp: "CostUOMValue", sClass: "read_only" });
+            MinMaxColumns.push({ mDataProp: "DateCreated", sClass: "read_only" })
+            MinMaxColumns.push({
+                mDataProp: "IsItemLevelMinMaxQtyRequired", sClass: "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+            });
+            MinMaxColumns.push({ mDataProp: "Description", sClass: "read_only" });
+            MinMaxColumns.push({ mDataProp: "InventoryClassification", sClass: "read_only" });
+            MinMaxColumns.push({ mDataProp: "Category", sClass: "read_only" });
+            MinMaxColumns.push({ mDataProp: "SupplierName", sClass: "read_only" });
+            MinMaxColumns.push({ mDataProp: "SupplierPartNo", sClass: "read_only" });
+            MinMaxColumns.push({ mDataProp: "Manufacturer", sClass: "read_only" });
+            MinMaxColumns.push({ mDataProp: "ManufacturerNumber", sClass: "read_only" });
+            MinMaxColumns.push({ mDataProp: "BinNumber", sClass: "read_only" });
+            MinMaxColumns.push({
+                mDataProp: "OnHandQuantity", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.OnHandQuantity != null && obj.aData.OnHandQuantity != NaN)
+                        return "<span id='spnOnHand_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.OnHandQuantity, 2) + "</span>";
+                    else
+                        return "<span id='spnOnHand_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "ItemInventoryValue", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.ItemInventoryValue != null && obj.aData.ItemInventoryValue != NaN)
+                        return "<span id='spnIv_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.ItemInventoryValue, 1) + "</span>";
+                    else
+                        return "<span id='spnIv_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 1) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "AverageCost", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.AverageCost != null && obj.aData.AverageCost != NaN)
+                        return "<span id='spnAverageCost_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AverageCost, 1) + "</span>";
+                    else
+                        return "<span id='spnAverageCost_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 1) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "PullCost", sClass: "read_only", "fnRender": function (obj, val) {
+                    
+                    if (obj.aData.PullCost != null && obj.aData.PullCost != NaN)
+                    {
+                        var tmpPullCost = obj.aData.PullCost;
+                        if (obj.aData.TransferCost != null && typeof (obj.aData.TransferCost) != "undefined" && obj.aData.TransferCost != NaN) {
+                            return "<span id='spnPullCost_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(tmpPullCost + obj.aData.TransferCost , 4) + "</span>";
+                        }
+                        else
+                        {
+                            return "<span id='spnPullCost_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.PullCost, 4) + "</span>";
+                        }
+                    }                    
+                    else
+                        return "<span id='spnPullCost_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 4) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "AvgDailyPullValueUsage", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.AvgDailyPullValueUsage != null && obj.aData.AvgDailyPullValueUsage != NaN)
+                        return "<span id='spnAvgDailyPullValueUsage_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AvgDailyPullValueUsage, 4) + "</span>";
+                    else
+                        return "<span id='spnAvgDailyPullValueUsage_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 4) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "PullQuantity", sClass: "read_only", "fnRender": function (obj, val) {
+                   
+                    if (obj.aData.PullQuantity != null && obj.aData.PullQuantity != NaN)
+                    {
+                        var tmpTransferQty = obj.aData.TransferQuantity;
+
+                        if (tmpTransferQty != null && typeof (tmpTransferQty) != "undefined" && tmpTransferQty != NaN) {
+                            return "<span id='spnPullQuantity_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.PullQuantity + tmpTransferQty, 2) + "</span>";
+                        }
+                        else {
+                            return "<span id='spnPullQuantity_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.PullQuantity, 2) + "</span>";
+                        }
+                        
+                    }                    
+                    else
+                        return "<span id='spnPullQuantity_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "AvgDailyPullUsage", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.AvgDailyPullUsage != null && obj.aData.AvgDailyPullUsage != NaN)
+                        return "<span id='spnAvgDailyPullUsage_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AvgDailyPullUsage, 4) + "</span>";
+                    else
+                        return "<span id='spnAvgDailyPullUsage_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 4) + "</span>";
+                }
+            });
+
+            MinMaxColumns.push({
+                mDataProp: "QtyUntilOrder", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.QtyUntilOrder != null && obj.aData.QtyUntilOrder != NaN)
+                        return "<span id='spnQtyUntilOrder_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.QtyUntilOrder, 2) + "</span>";
+                    else
+                        return "<span id='spnQtyUntilOrder_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "NoOfDaysUntilOrder", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.NoOfDaysUntilOrder != null && !isNaN(obj.aData.NoOfDaysUntilOrder)) {
+                        if (obj.aData.MinimumQuantity > 0) {
+                            return "<span id='spnNoOfDaysUntilOrder_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.NoOfDaysUntilOrder, 2) + "</span>";
+                        }
+                        else
+                            return "<span id='spnNoOfDaysUntilOrder_" + obj.aData.GUID + "'></span>";
+                    }
+                    else
+                        return "<span id='spnNoOfDaysUntilOrder_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "LeadTimeInDays", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.LeadTimeInDays != null && !isNaN(obj.aData.LeadTimeInDays))
+                        return "<span id='spnLeadTimeInDays_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.LeadTimeInDays, 3) + "</span>";
+                    else
+                        return "<span id='spnLeadTimeInDays_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 3) + "</span>";
+                }
+            });
+            MinMaxColumns.push({ mDataProp: "DateofOrder", sClass: "read_only" });
+            MinMaxColumns.push({
+                mDataProp: "DemandPlanningQtyToOrder", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.DemandPlanningQtyToOrder != null && obj.aData.DemandPlanningQtyToOrder != NaN) {
+                        if (obj.aData.MinimumQuantity != obj.aData.MaximumQuantity) {
+                            return "<span id='spnDemandPlanningQtyToOrder_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.DemandPlanningQtyToOrder, 2) + "</span>";
+                        }
+                        else {
+                            return "<span id='spnDemandPlanningQtyToOrder_" + obj.aData.GUID + "'></span>";
+                        }
+                    }
+                    else
+                        return "<span id='spnDemandPlanningQtyToOrder_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "OrderedQuantity", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.OrderedQuantity != null && obj.aData.OrderedQuantity != NaN)
+                        return "<span id='spnOrderedQuantity_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.OrderedQuantity, 2) + "</span>";
+                    else
+                        return "<span id='spnOrderedQuantity_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "AvgDailyOrderUsage", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.AvgDailyOrderUsage != null && obj.aData.AvgDailyOrderUsage != NaN)
+                        return "<span id='spnAvgDailyOrderUsage_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AvgDailyOrderUsage, 4) + "</span>";
+                    else
+                        return "<span id='spnAvgDailyOrderUsage_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 4) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "PullValueTurn", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.PullValueTurn != null && obj.aData.PullValueTurn != NaN)
+                        return "<span id='spnPullValueTurn_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.PullValueTurn, 4) + "</span>";
+                    else
+                        return "<span id='spnPullValueTurn_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 4) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "PullTurn", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.PullTurn != null && obj.aData.PullTurn != NaN)
+                        return "<span id='spnPullTurn_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.PullTurn, 4) + "</span>";
+                    else
+                        return "<span id='spnPullTurn_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 4) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "OrderTurn", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.OrderTurn != null && obj.aData.OrderTurn != NaN)
+                        return "<span id='spnOrderTurn_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.OrderTurn, 4) + "</span>";
+                    else
+                        return "<span id='spnOrderTurn_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 4) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "CriticalQuantity", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.CriticalQuantity != null && obj.aData.CriticalQuantity != NaN)
+                        return "<span id='spnCriticalQuantity_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.CriticalQuantity, 2) + "</span>";
+                    else
+                        return "<span id='spnCriticalQuantity_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "MinimumQuantity", sClass: "read_only mincellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.MinimumQuantity != null && obj.aData.MinimumQuantity != NaN)
+                        return "<span id='spnMinimumQuantity_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.MinimumQuantity, 2) + "</span>";
+                    else
+                        return "<span id='spnMinimumQuantity_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "CalulatedMinimum", sClass: "read_only mincellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.CalulatedMinimum != null && obj.aData.CalulatedMinimum != NaN)
+                        return "<span id='spnCalulatedMinimum_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.CalulatedMinimum, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnCalulatedMinimum_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 4) + "</span>";
+                }
+            });
+
+            MinMaxColumns.push({
+                mDataProp: "AbsoluteMinPerCent", sClass: "read_only mincellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.AbsoluteMinPerCent != null && obj.aData.AbsoluteMinPerCent != NaN)
+                        return "<span id='spnAbsoluteMinPerCent_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AbsoluteMinPerCent, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnAbsoluteMinPerCent_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, vdecimalPointFromConfig) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "AutoCurrentMin", sClass: "read_only Autocellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.AutoCurrentMin != null && obj.aData.AutoCurrentMin != NaN)
+                        return "<span id='spnAutoCurrentMin_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AutoCurrentMin, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnAutoCurrentMin_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, vdecimalPointFromConfig) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "AbsValDifCurrCalcMinimum", sClass: "read_only Autocellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.AbsValDifCurrCalcMinimum != null && obj.aData.AbsValDifCurrCalcMinimum != NaN)
+                        return "<span id='spnAutoCurrentMinPercent_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AbsValDifCurrCalcMinimum, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnAutoCurrentMinPercent_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, vdecimalPointFromConfig) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "AutoCurrentMinPercent", sClass: "read_only Autocellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.AutoCurrentMinPercent != null && obj.aData.AutoCurrentMinPercent != NaN)
+                        return "<span id='spnAutoCurrentMinPercent_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AutoCurrentMinPercent, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnAutoCurrentMinPercent_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, vdecimalPointFromConfig) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "OptimizedInvValueUsesQOHofAvgCalcdMinMax", sClass: "read_only Autocellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.OptimizedInvValueUsesQOHofAvgCalcdMinMax != null && obj.aData.OptimizedInvValueUsesQOHofAvgCalcdMinMax != NaN)
+                        return "<span id='spnOptimizedInvValueUsesQOHofAvgCalcdMinMax_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.OptimizedInvValueUsesQOHofAvgCalcdMinMax, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnOptimizedInvValueUsesQOHofAvgCalcdMinMax_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, vdecimalPointFromConfig) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "OptimizedInvValueChange", sClass: "read_only Autocellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.OptimizedInvValueChange != null && obj.aData.OptimizedInvValueChange != NaN)
+                        return "<span id='spnOptimizedInvValueChange_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.OptimizedInvValueChange, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnOptimizedInvValueChange_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, vdecimalPointFromConfig) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "TrialCalcInvValueUsesQOHofAvgTrialMinMax", sClass: "read_only Autocellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.TrialCalcInvValueUsesQOHofAvgTrialMinMax != null && obj.aData.TrialCalcInvValueUsesQOHofAvgTrialMinMax != NaN)
+                        return "<span id='spnTrialCalcInvValueUsesQOHofAvgTrialMinMax_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.TrialCalcInvValueUsesQOHofAvgTrialMinMax, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnTrialCalcInvValueUsesQOHofAvgTrialMinMax_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, vdecimalPointFromConfig) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "TrialInvValueChange", sClass: "read_only Autocellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.TrialInvValueChange != null && obj.aData.TrialInvValueChange != NaN)
+                        return "<span id='spnTrialInvValueChange_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.TrialInvValueChange, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnTrialInvValueChange_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, vdecimalPointFromConfig) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "MaximumQuantity", sClass: "read_only maxcellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.MaximumQuantity != null && obj.aData.MaximumQuantity != NaN)
+                        return "<span id='spnMaximumQuantity_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.MaximumQuantity, 2) + "</span>";
+                    else
+                        return "<span id='spnMaximumQuantity_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                }
+            });
+
+            MinMaxColumns.push({
+                mDataProp: "CalulatedMaximum", sClass: "read_only maxcellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.CalulatedMaximum != null && obj.aData.CalulatedMaximum != NaN)
+                        return "<span id='spnCalulatedMaximum_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.CalulatedMaximum, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnCalulatedMaximum_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, vdecimalPointFromConfig) + "</span>";
+                }
+            });
+
+            MinMaxColumns.push({
+                mDataProp: "AbsoluteMAXPerCent", sClass: "read_only maxcellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.AbsoluteMAXPerCent != null && obj.aData.AbsoluteMAXPerCent != NaN)
+                        return "<span id='spnAbsoluteMAXPerCent_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AbsoluteMAXPerCent, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnAbsoluteMAXPerCent_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, vdecimalPointFromConfig) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "AutoCurrentMax", sClass: "read_only Autocellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.AutoCurrentMax != null && obj.aData.AutoCurrentMax != NaN)
+                        return "<span id='spnAutoCurrentMax_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AutoCurrentMax, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnAutoCurrentMax_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, vdecimalPointFromConfig) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "AbsValDifCurrCalcMax", sClass: "read_only Autocellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.AbsValDifCurrCalcMax != null && obj.aData.AbsValDifCurrCalcMax != NaN)
+                        return "<span id='spnAutoCurrentMinPercent_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AbsValDifCurrCalcMax, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnAutoCurrentMinPercent_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, vdecimalPointFromConfig) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "AutoCurrentMaxPercent", sClass: "read_only Autocellcolor", "fnRender": function (obj, val) {
+                    if (obj.aData.AutoCurrentMaxPercent != null && obj.aData.AutoCurrentMaxPercent != NaN)
+                        return "<span id='spnAutoCurrentMaxPercent_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AutoCurrentMaxPercent, vdecimalPointFromConfig) + "</span>";
+                    else
+                        return "<span id='spnAutoCurrentMaxPercent_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, vdecimalPointFromConfig) + "</span>";
+                }
+            });
+            MinMaxColumns.push({
+                mDataProp: "Cost", sClass: "read_only", "fnRender": function (obj, val) {
+                    if (obj.aData.Cost != null && obj.aData.Cost != NaN)
+                        return "<span id='spnCost_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.Cost, 1) + "</span>";
+                    else
+                        return "<span id='spnCost_" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 1) + "</span>";
+                }
+            });
+            MinMaxColumns.push(@(Html.RenderColumnsArray("ItemMaster",false)));
+
+            objDashboardMinMaxColumns = GetGridHeaderColumnsObject('MinMaxTable');
+
+            oTableMinMaxTuning = $('#MinMaxTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "100%",
+                "sScrollY": "500px",
+                //"sDom": 'frtiS',
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "bDestroy": true,
+                "aaSorting": [[1, "asc"]],
+                "oColReorder": {},
+                "bProcessing": true,
+                "bStateSave": true,
+                "bDeferRender": true,
+                //"iDeferLoading": 1,
+                "aoColumns": MinMaxColumns,
+                "sPaginationType": "full_numbers",
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+
+                    //                if (aData.IsDeleted == true && aData.IsArchived == true)
+                    //                    nRow.className = "GridDeleatedArchivedRow";
+                    //                else if (aData.IsDeleted == true)
+                    //                    nRow.className = "GridDeletedRow";
+                    //                else if (aData.IsArchived == true)
+                    //                    nRow.className = "GridArchivedRow";
+                    //                if (aData.IsDeleted || aData.IsArchived) {
+                    //                    $(nRow).find("input,select").attr("disabled", "disabled");
+                    //                    $("#thUpdate").css("display", 'none');
+                    //                    $(nRow).find("input[type='button'][id^='btnUpdateCartItem']").parent("td").hide();
+                    //                }
+                    //                return nRow;
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    var SelectedRecodsID = aData.GUID + "~" + aData.BinID;
+
+                    var index = -1;
+                    for (var i = 0; i < SelectedRawForSlider.length; ++i) {
+                        if (SelectedRawForSlider[i] == SelectedRecodsID) {
+                            index = i;
+                            break;
+                        }
+                    }
+                    if (index > -1) {
+                        $(nRow).removeClass("row_selected").addClass("row_selected");
+                    }
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+
+                    oData.oSearch.sSearch = "";
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'MinMaxTuningTable' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                },
+                "fnStateLoad": function (oSettings) {
+
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'MinMaxTuningTable' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '') {
+                                o = JSON.parse(json.jsonData);
+                            }
+                        }
+                    });
+                    return o;
+                },
+                "bServerSide": true,
+                "oScroller": {
+                    "trace": true,
+                    "boundaryScale": 0.5
+                },
+                "sAjaxSource": '@Url.Action("MinMaxTuningListAjax", "Master")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    if (oSettings.aaSorting.length != 0) {
+                        var sortValue = "";
+                        for (var k = 0; k <= oSettings.aaSorting.length - 1; k++) {
+                            if (sortValue.length > 0)
+                                sortValue += ", "
+                            sortValue += arrCols[oSettings.aaSorting[k][0]] + ' ' + oSettings.aaSorting[k][1];
+
+                        }
+                        aoData.push({ "name": "SortingField", "value": sortValue });
+                    }
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+                    aoData.push({ "name": "AutoMinPer", "value": $("#hdnminper").val() });
+                    aoData.push({ "name": "AutoMaxPer", "value": $("#hdnmaxper").val() });
+                    aoData.push({ "name": "IsItemLevelMinMax", "value": false });
+                    aoData.push({ "name": "LargestAnnualCashSavings", "value": $("#hdLargestAnnualCashSavings").val() });
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        cache: false,
+                        "data": aoData,
+                        "headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#MinMaxTable td').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function (datum) {
+
+                            $("#lblMinRed").text(JSON.parse(datum.responseText).MinRedCounts);
+                            $("#lblMinYellow").text(JSON.parse(datum.responseText).MinYelloCounts);
+                            $("#lblMinGreen").text(JSON.parse(datum.responseText).MinGreenCounts);
+                            $("#lblMaxRed").text(JSON.parse(datum.responseText).MaxRedCounts);
+                            $("#lblMaxYellow").text(JSON.parse(datum.responseText).MaxYelloCounts);
+                            $("#lblMaxGreen").text(JSON.parse(datum.responseText).MaxGreenCounts);
+
+                            $("#lblOptimizedInvValueUsesQOHofAvgCalcdMinMax").text(JSON.parse(datum.responseText).OptimizedInvValueUsesQOHofAvgCalcdMinMax);
+                            $("#lblOptimizedInvValueChange").text(JSON.parse(datum.responseText).OptimizedInvValueChange);
+                            $("#lblTrialCalcInvValueUsesQOHofAvgTrialMinMax").text(JSON.parse(datum.responseText).TrialCalcInvValueUsesQOHofAvgTrialMinMax);
+                            $("#lblTrialInvValueChange").text(JSON.parse(datum.responseText).TrialInvValueChange);
+
+                            $("#lnkInventoryVal").text(JSON.parse(datum.responseText).InventoryValue);
+                            $("#lnkExtendedCostVal").text(JSON.parse(datum.responseText).TotalExtendedCostValue);
+                            $("#aTurns").text(FormatedCostQtyValues(JSON.parse(datum.responseText).StockRoomTurns, 4));
+                            $("#lblStockOutCount").text(JSON.parse(datum.responseText).ItemsStockOutCount);
+                            $("#lnkMTDSO").text(JSON.parse(datum.responseText).MTDStockouts);
+                            $("#lnkYTDSO").text(JSON.parse(datum.responseText).YTDStockouts);
+                            $("#lblItemsCount").text(JSON.parse(datum.responseText).ItemsCount);
+                            $("#lblItemLocationsCount").text(JSON.parse(datum.responseText).ItemsLocationCount);
+                            $("#lblItemsWithoutCostCount").text(JSON.parse(datum.responseText).ItemsWithOutCostCount);
+                            $("#lblItemsTuningUpdateSettingCount").text(JSON.parse(datum.responseText).ItemsTuningUpdateSettingCount);
+
+                            $("#lblAnnualCarryingCostofInventoryValue").text(JSON.parse(datum.responseText).AnnualCarryingCost);
+                            $("#lblReductionOptimizedInvValue").text(JSON.parse(datum.responseText).ReductionOptimizedInvValue);
+                            $("#lblAnnualCashSavingsfromReducedCarryingCost").text(JSON.parse(datum.responseText).AnnualCashSavingsfromReducedCarryingCost);
+                            $("#lblLargestAnnualCashSavingsfromReducedCarryingCost").text(JSON.parse(datum.responseText).LargestAnnualCashSavingsWithFormat);
+                            $("#hdLargestAnnualCashSavings").val(JSON.parse(datum.responseText).LargestAnnualCashSavings);
+
+                            $("#lblItemLocationsPeriodOrderUsage").text(JSON.parse(datum.responseText).PeriodOrderUsage);
+                            $("#lblItemLocationsPeriodPullUsage").text(JSON.parse(datum.responseText).PeriodPullUsage);
+                            $("#lblItemLocationsPeriodPullValueUsage").text(JSON.parse(datum.responseText).PeriodPullValueUsage);
+
+
+                            //                        refreshChart("#MinSliderChart", "/Master/MinSliderChart");
+                            //                        refreshChart("#MaxSliderChart", "/Master/MaxSliderChart");
+                            if (globalSearchMinMaxTuning == false) {
+                                $("#minbarchart").load('@Url.Action("MinChart", "Master")');
+                                $("#maxbarchart").load('@Url.Action("MaxChart", "Master")');
+                            }
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filterMinMaxTuning").val() != '') {
+                                $('#MinMaxTable td').highlight($("#global_filterMinMaxTuning").val());
+                            }
+                        }
+                    })
+                },
+                "fnInitComplete": function (o) {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                }
+            }).makeEditable({
+                fnShowError: function (errorText, action) {
+                },
+                sUpdateURL: function (value, settings) {
+
+                    var MinOrMax = oTableMinMaxTuning.fnSettings().aoColumns[oTableMinMaxTuning.fnGetPosition(this)[2]].mDataProp;
+                    var AutoMin = parseFloat(value);
+                    var AutoMax = parseFloat(value);
+                    //var id = $(this.parentNode).find('#spnID').text();
+                    var spCalculatedMin = $(this.parentNode).find('#spCalculatedMin').text();
+                    var spCalculatedMax = $(this.parentNode).find('#spCalculatedMax').text();
+                    var vGUID = $(this.parentNode).find('#txtGUID').val();
+                    $.ajax({
+                        type: "POST",
+                        url: '@Url.Action("UpdateInventoryQuantity", "Master")',
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        data: "{ItemGUID:'" + aData.GUID + "',MinmumQuantity:'" + AutoCurrentMin + "',MaximumQuantity:'" + AutoCurrentMax + "'}",
+                        success: function (retdt) {
+                        },
+                        error: function (err) {
+                            //                        alert("There is some Error");
+                        }
+                    });
+                }
+            });
+            //setTimeout(function () {
+            //    oTableMinMaxTuning.fnSettings().oScroller.fnMeasure();
+            //}, 3000);
+
+            var timeoutsc1;
+            $('#global_filterMinMaxTuning').bind('textchange', function (event) {
+                globalSearchMinMaxTuning = true;
+                clearTimeout(timeoutsc1);
+                var self = this;
+                timeoutsc1 = setTimeout(function () {
+                    if (SearchPattern == 2 || SearchPattern == "2") {
+                        fnFilterMinMaxtable();
+                    }
+                    else
+                    {
+                        $('#global_filterMinMaxTuning').unbind("keypress");
+                        $('#global_filterMinMaxTuning').keypress(function (event) {
+                            var KeyCode = (event.keyCode ? event.keyCode : event.which);
+                            setTimeout(function () {
+                                if (typeof $("#global_filterMinMaxTuning") != 'undefined' && (KeyCode == 13 || $("#global_filterMinMaxTuning").val().length == 0)) {
+                                    fnFilterMinMaxtable();
+                                }
+                            }, 200);
+                        });
+                        if ($("#global_filterMinMaxTuning").val().length == 0) {
+                            var KeyCode = 0;
+                            setTimeout(function () {
+                                if (typeof $("#global_filterMinMaxTuning") != 'undefined' && (KeyCode == 13 || $("#global_filterMinMaxTuning").val().length == 0)) {
+                                    fnFilterMinMaxtable();
+                                }
+                            }, 200);
+                        }
+                    }
+                }, 600);
+                return false;
+            });
+
+            if (SearchPattern == 2 || SearchPattern == "2") {
+                $("#global_filterMinMaxTuning").keydown(function (e) {
+                    var code = (e.keyCode ? e.keyCode : e.which);
+                    if (code == 13 && $("#global_filterMinMaxTuning").val().length >= 2) {
+                        fnFilterMinMaxtable();                       
+                        return false;
+                    }
+                });
+            }
+
+            //        $("#dvItemMinMaxTuningGrid").find(".dataTables_scrollBody").scroll(function (evnt) {
+            //            if ($(this).scrollLeft() >= 1420) {
+            //                $("#dvItemMinMaxTuningGrid").find(".dataTables_scrollBody").scrollLeft(1420);
+            //            }
+
+            //        });
+        });
+
+        function fnFilterMinMaxtable() {
+            //set filter only if more than 2 characters are pressed
+            if (typeof $("#global_filterMinMaxTuning") != 'undefined' && ($("#global_filterMinMaxTuning").val().length > 2 || $("#global_filterMinMaxTuning").val().length == 0)) {
+                clearNarrowSearchFilter();
+                //var searchtext = $("#global_filterMinMaxTuning").val().replace(/'/g, "''");
+                DoMMNarrowSearch();
+                $("#global_filterMinMaxTuning").focus();                
+                //oTableMinMaxTuning.fnFilter(searchtext, null, null, null);
+                /* $("#global_filterMinMaxTuning").select();   // commented for WI-4679 */
+            }
+            else {
+                $('#MinMaxTable td').removeHighlight();
+                $('#MinMaxTable td').highlight($("#global_filterMinMaxTuning").val());
+            }
+
+            HideOtherTabs();
+        }
+
+        $("#clear_global_filterMinMaxTuning").click(ClearFilterSC);
+
+        function ClearFilterSC() {
+
+            //Check length first
+            if ($("#global_filterMinMaxTuning").val().length > 0) {
+                $("#global_filterMinMaxTuning").val('');
+                //$('#MinMaxTable').dataTable().fnFilter(
+                //                $("#global_filterMinMaxTuning").val(),
+                //                null,
+                //                null,
+                //                null
+                //            );
+            }
+            DoMMNarrowSearch();
+            $("#global_filterMinMaxTuning").focus();
+            return false;
+        }
+        _Common.setGloblaSearch('global_filterMinMaxTuning', 'MinMaxTable');
+    </script>

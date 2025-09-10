@@ -1,0 +1,2746 @@
+﻿@model eTurns.DTO.BOMItemDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    string menufURL = Url.Action("ManufacturerCreate", "Master", new { ITEMGUID = Model.GUID });
+    string supURL = Url.Action("SupplierCreate", "Master", new { ITEMGUID = Model.GUID });
+    bool isForBom = true;
+    // System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+
+    string BOMUNCPathRootLink2 = eTurns.DTO.SiteSettingHelper.BOMInventoryLink2; // Settinfile.Element("BOMInventoryLink2").Value;
+    string BOMUNCPathRootImage = eTurns.DTO.SiteSettingHelper.BOMInventoryPhoto; // Settinfile.Element("BOMInventoryPhoto").Value;
+    BOMUNCPathRootLink2 = BOMUNCPathRootLink2.Replace("~", string.Empty);
+    BOMUNCPathRootImage = BOMUNCPathRootImage.Replace("~", string.Empty);
+    Int64 EnterpriseId = eTurnsWeb.Helper.SessionHelper.EnterPriceID;
+    Int64 CompanyID = eTurnsWeb.Helper.SessionHelper.CompanyID;
+    string BOMLogoPathImage = (BOMUNCPathRootLink2 + EnterpriseId + "/" + CompanyID  );
+    string BOMLogoPathItemImage = (BOMUNCPathRootImage + EnterpriseId + "/" + CompanyID );
+}
+<script type='text/javascript' src="@Url.Content("~/Scripts/ajaxfileupload.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+<style>
+    .ui-autocomplete {
+        max-height: 100px;
+        overflow-y: auto; /* prevent horizontal scrollbar */
+        overflow-x: hidden; /* add padding to account for vertical scrollbar */
+        padding-right: 20px;
+    }
+    /* IE 6 doesn't support max-height
+    * we use height instead, but this forces the menu to always be this tall
+    */
+    * html .ui-autocomplete {
+        height: 100px;
+    }
+</style>
+<div class="userHead">
+    @{
+
+        bool isUpdate;
+        bool isInsert;
+        //bool onlyView = false;
+        bool isCost = false;
+        bool isSupplierInsert;
+        if (ViewBag.ViewOnly == true)
+        {
+            isUpdate = false;
+            isInsert = false;
+            // onlyView = true;
+            isSupplierInsert = false;
+        }
+        else
+        {
+            isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+            isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+            isSupplierInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.SupplierMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+            isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+        }
+        isCost = true;
+        ItemSupplierDetailsDTO objItemSupplierDetailsDTO = ViewBag.strItemSupplierDetailsDTO;
+        ItemManufacturerDetailsDTO objItemManufacturerDetailsDTO = ViewBag.strItemManufacturerDetailsDTO;
+        if (objItemSupplierDetailsDTO == null)
+        {
+            objItemSupplierDetailsDTO = new ItemSupplierDetailsDTO();
+        }
+        if (objItemManufacturerDetailsDTO == null)
+        {
+            objItemManufacturerDetailsDTO = new ItemManufacturerDetailsDTO();
+        }
+    }
+    @using (Ajax.BeginForm("ItemSave", "BOM", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", OnBegin = "onBegin", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmItemMaster" }))
+    {
+        @Html.ValidationSummary(true)
+        @Html.AntiForgeryToken()
+        if (Model.ID != 0)
+        {
+            <div class="infoBlock">
+                <ul>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Created)
+                        </label>
+                        : <span>@(Model.CreatedDate)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.CreatedByName)
+                        </label>
+                        : @Model.CreatedByName
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Updated)
+                        </label>
+                        : <span>@(Model.UpdatedDate)</span>
+                    </li>
+                    <li style="border: none">
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.UpdatedByName)
+                        </label>
+                        : <span>@(Model.UpdatedByName)</span>
+                    </li>
+                </ul>
+            </div>
+        }
+        else
+        {
+
+
+        }
+        <div class="mainForm">
+            <div class="editorForm">
+                <h4>@eTurns.DTO.ResItemMaster.GeneralDetails</h4>
+                <ul>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ItemType)<em> *</em>
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.ItemType, new SelectList(ViewBag.ItemTypeBag, "ID", "Text", Model.ItemType), "", new { @class = "selectBox", @id = "dlItemType" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ItemType)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ItemNumber)<em> *</em>
+                        </div>
+                        <div class="editor-field" id="dvhdns">
+                            @Html.TextBoxFor(model => model.ItemNumber, new { id = "ItemNumber", @class = "text-box", maxlength = 127 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ItemNumber)</span>
+                            @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                            @Html.HiddenFor(model => model.ItemNumber)
+                            @Html.HiddenFor(model => model.GUID)
+                            @Html.HiddenFor(model => model.Created)
+                            @Html.HiddenFor(model => model.Updated)
+                            @Html.HiddenFor(model => model.CreatedBy)
+                            @Html.HiddenFor(model => model.LastUpdatedBy)
+                            @Html.HiddenFor(model => model.Room)
+                            @Html.HiddenFor(model => model.RoomName)
+                            @Html.HiddenFor(model => model.CompanyID)
+                            @Html.HiddenFor(model => model.CreatedByName)
+                            @Html.HiddenFor(model => model.UpdatedByName)
+                            @Html.HiddenFor(model => model.IsDeleted)
+                            @Html.HiddenFor(model => model.IsArchived)
+                            @Html.HiddenFor(model => model.CompanyID)
+                            @Html.HiddenFor(model => model.ManufacturerName)
+                            @Html.HiddenFor(model => model.SupplierName)
+                            @Html.HiddenFor(model => model.CategoryID)
+                            @Html.HiddenFor(model => model.UOMID)
+                            @Html.HiddenFor(model => model.DefaultLocation)
+                            @Html.HiddenFor(model => model.GLAccount)
+                            @Html.HiddenFor(model => model.ItemUniqueNumber)
+                            @Html.HiddenFor(model => model.ItemType)
+                            @Html.HiddenFor(model => model.SupplierID)
+                            @Html.HiddenFor(model => model.ManufacturerID)
+                            @Html.HiddenFor(model => model.SupplierPartNo)
+                            @Html.HiddenFor(model => Model.ManufacturerNumber)
+                            @Html.HiddenFor(model => Model.ManufacturerNumber)
+                            @Html.HiddenFor(model => Model.AddedFrom)
+                            @Html.HiddenFor(model => Model.EditedFrom)
+                            <input type="hidden" name="DestinationModule" value="@ViewBag.DestinationModule" />
+                            <input type="hidden" name="SupplierCatalogQty" value="@ViewBag.SupplierCatalogQty" />
+                            <input type="hidden" name="SupplierCatalogOrderGUID" value="@ViewBag.SupplierCatalogOrderGUID" />
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.IsActive)
+                        </div>
+                        <div class="editor-field">
+                            @Html.CheckBoxFor(model => model.IsActive)
+                        </div>
+                    </li>
+                </ul>
+                <ul id="ulkitdetails" style="display: none;">
+                    <li>
+                        <h4>
+                            @eTurns.DTO.ResItemMaster.KitDetails
+                        </h4>
+                        <ul>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.IsBuildBreak)
+                                </div>
+                                <div class="editor-field">
+                                    @if (Model.ID > 0)
+                                    {
+                                        @Html.CheckBox("IsBuildBreak", (Model.IsBuildBreak.HasValue ? Convert.ToBoolean(Model.IsBuildBreak) : false), new { @class = "check-box", @style = "display:none" })
+                                        @Html.Label(((Model.IsBuildBreak.HasValue ? Convert.ToBoolean(Model.IsBuildBreak) : false) ? "Yes" : "No"), new { @style = "display:block" })
+                                    }
+                                    else
+                                    {
+                                        @Html.CheckBox("IsBuildBreak", (Model.IsBuildBreak.HasValue ? Convert.ToBoolean(Model.IsBuildBreak) : false), new { @class = "check-box", @style = "display:block" })
+                                        @Html.Label(((Model.IsBuildBreak.HasValue ? Convert.ToBoolean(Model.IsBuildBreak) : false) ? "Yes" : "No"), new { @style = "display:none" })
+                                    }
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsBuildBreak)</span>
+                                </div>
+                            </li>
+                            <li id="liKitDetails">
+                                <div id="divKitDetails">
+                                </div>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>
+                    @eTurns.DTO.ResItemMaster.ManufacturerDetails
+                </h4>
+                <ul>
+                    <li id="liManufacturerListInline">
+                        <div id="divItemManufacturer">
+                        </div>
+                    </li>
+                </ul>
+                <ul id="ulSupplierDetails">
+                    <li>
+                        <h4>
+                            @eTurns.DTO.ResItemMaster.SupplierDetails <em style="color: Red;">*</em> @* @if (@eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.SupplierMaster,
+                                eTurnsWeb.Helper.SessionHelper.PermissionType.Insert) && onlyView == false)
+                                        {
+                                            <label>
+                                                <a onclick="AddNewFromPopup('Supplier');" id="btnAddNewSupplier" class="addNewLink">
+                                                    (Add New)</a>
+                                            </label>
+                                        }*@
+                        </h4>
+                    <li id="liSupplierListInline">
+                        <div id="divItemSupplier">
+                        </div>
+                    </li>
+                    </li>
+                </ul>
+                <h4>
+                    @eTurns.DTO.ResItemMaster.Prices
+                </h4>
+                <ul>
+                    @*<li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.PricePerTerm)<em> *</em>
+                            </div>
+                            <div class="editor-field">
+                                @Html.TextBoxFor(model => model.PricePerTerm, eTurnsWeb.Helper.SessionHelper.PriceFormat,
+                                new { @class = "text-boxPriceFormat", @name = "costdata" }) <span class="ErrorMessage">
+                                    @Html.ValidationMessageFor(model => model.PricePerTerm)</span>
+                            </div>
+                        </li>*@
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CostUOMID)
+                            <em>*</em>
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.CostUOMID, new SelectList(ViewBag.CostUOMBag, "ID", "Text", Model.CostUOMID), "", new { @class = "selectBox" })
+                            @*@if (@eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.CostUOMMaster,
+                                eTurnsWeb.Helper.SessionHelper.PermissionType.Insert))
+                                                            {*@
+                            <label>
+                                <a onclick="AddNewFromPopup('CostUOM');" id="btnAddNewCostUOM" class="addNewLink">
+                                    (Add
+                                    New)
+                                </a>
+                            </label>
+                            @*}*@
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CostUOMID)</span>
+                        </div>
+                    </li>
+                    @if (isCost)
+                    {
+                        <li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.Cost)
+                                @*<em> *</em>*@
+                            </div>
+                            <div class="editor-field">
+                                @Html.TextBoxFor(model => model.Cost, new { @class = "numericinput", @name = "costdata", @autocomplete = "off", maxlength = 20 })
+                                @*<span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Cost)</span>*@
+                                <input type="hidden" value="@Model.Cost" id="hdnOldCost" />
+                            </div>
+                        </li>
+                        <li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.Markup)
+                            </div>
+                            <div class="editor-field">
+                                @Html.HiddenFor(model => model.Markup)
+                                @Html.TextBoxFor(model => model.Markup, new { @class = "numericinput", @name = "costdata", @autocomplete = "off", maxlength = 20 })
+                                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Markup)</span>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.SellPrice)
+                            </div>
+                            <div class="editor-field">
+                                @Html.TextBoxFor(model => model.SellPrice, new { @class = "numericinput", @name = "costdata", @autocomplete = "off", maxlength = 20 })
+                                @*<span class="ErrorMessage">@Html.ValidationMessageFor(model => model.SellPrice)</span>*@
+                                <input type="hidden" value="@Model.SellPrice" id="hdnOldSellPrise" />
+                            </div>
+                        </li>
+
+
+                        <li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.PerItemCost)
+                            </div>
+                            <div class="editor-field">
+                                @Html.TextBoxFor(model => model.PerItemCost, new { @class = "numericinput disableBack", @readonly = "readonly", @name = "costdata" })
+                                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.PerItemCost)</span>
+                            </div>
+                        </li>
+                    }
+                    else
+                    {
+                        <li>
+                            @Html.HiddenFor(t => t.Cost)
+                            @Html.HiddenFor(t => t.Markup)
+                            @Html.HiddenFor(t => t.SellPrice)
+                            @Html.HiddenFor(t => t.ExtendedCost)
+                            @Html.HiddenFor(t => t.AverageCost)
+                            @Html.HiddenFor(t => t.PerItemCost)
+                        </li>
+                    }
+
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.WeightPerPiece)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.WeightPerPiece, new { @class = "text-box text-boxWeightPerPieceFormat", @autocomplete = "off", @name = "costdata", maxlength = 10 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.WeightPerPiece)</span>
+                        </div>
+                    </li>
+                </ul>
+                <h4>
+                    @eTurns.DTO.ResItemMaster.OtherDetails
+                </h4>
+                <ul>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.UPC)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.UPC, new { @class = "text-box" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.UPC)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.UNSPSC)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.UNSPSC, new { @class = "text-box" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.UNSPSC)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.Description)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.Description, new { @class = "text-box" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Description)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CategoryID)
+                        </div>
+                        <div class="editor-field">
+                            <span style='position:relative'>
+                                @Html.TextBoxFor(model => model.CategoryName, new { @class = "text-box disableBack", @id = "CategoryName",  @disabled = "disabled"})
+                                @*                            @Html.DropDownListFor(model => model.CategoryID, new SelectList(ViewBag.CategoryIDBag, "ID", "Text", Model.CategoryID), "", new { @class = "selectBox", @onchange = "SetNames();" })
+                    @if (@eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.CategoryMaster,
+                        eTurnsWeb.Helper.SessionHelper.PermissionType.Insert) && onlyView == false)
+                    {
+                        <a onclick="AddNewFromPopup('Category');" id="btnAddNewCategory" class="addNewLink">
+                            (Add New)</a>
+                    }*@
+                                <a id='lnkShowAllOptionsCat' href='javascript:void(0);' style='position: absolute; right: 5px; top: 0px; pointer-events: none; opacity: 0.5;' class="ShowAllOptionsCat">
+                                    <img src='/Content/images/arrow_down_black.png' alt='select' />
+                                </a>
+                            </span>
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CategoryName)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.GLAccountID)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.GLAccountID, new SelectList(ViewBag.GLAccountIDBag, "ID", "Text", Model.GLAccountID), "", new { @class = "selectBox", @onchange = "SetNames();" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.GLAccountID)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.UOMID)<em> *</em>
+                        </div>
+                        <div class="editor-field">
+                            @*@Html.DropDownListFor(model => model.UOMID, new SelectList(ViewBag.UOMIDBag, "ID", "Text", Model.UOMID), "", new { @class = "selectBox", @onchange = "SetNames();" })*@
+                            <span style='position:relative'>
+                                @Html.TextBoxFor(model => model.Unit, new { @class = "text-box", @id = "txtUnit" })
+                                @*                            @if (@eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.UnitMaster,
+                        eTurnsWeb.Helper.SessionHelper.PermissionType.Insert) && onlyView == false)
+                    {
+                        <a onclick="AddNewFromPopup('Unit');" id="btnAddNewUnit" class="addNewLink">(Add New)</a>
+                    }*@
+                                <a id='lnkShowAllOptionsUnit' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsUnit">
+                                    <img src='/Content/images/arrow_down_black.png' alt='select' />
+                                </a>
+                            </span>
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Unit)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.LeadTimeInDays)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.LeadTimeInDays, new { @class = "text-box", @onkeypress = "return onlyNumeric(event)" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.LeadTimeInDays)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ItemDocExternalURL)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.ItemDocExternalURL, new { @class = "text-box", maxlength = 500, width = 100, @onblur = "return is_valid_url(this);" })
+                            @if (!string.IsNullOrEmpty(Model.ItemDocExternalURL))
+                            {
+                                string varURL = Model.ItemDocExternalURL;
+                                if (!string.IsNullOrEmpty(varURL) && !varURL.Contains("http"))
+                                {
+                                    varURL = "http://" + varURL;
+                                }
+                                <label>
+                                    <a class="addNewLinkForDOC" href="@(varURL)" target="_blank">View </a>
+                                </label>
+                            }
+                        </div>
+                        @Html.HiddenFor(model => Model.ItemDocExternalURL)
+                    </li>
+                    @*                    <li>
+            <div class="editor-label">
+                @Html.LabelFor(model => model.Link1)
+
+            </div>
+            <div class="editor-field">
+                <input name="Link1" id="Link1" type="file" />
+                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Link1)</span>
+            </div>
+        </li>*@
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.Taxable)
+                        </div>
+                        <div class="editor-field">
+                            @*@if (Model.Taxable == null)
+                {
+                    Model.Taxable = false;
+                }*@
+                            @Html.CheckBoxFor(model => model.Taxable, new { @class = "check-box" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Taxable)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.Consignment)
+                        </div>
+                        <div class="editor-field">
+
+                            @Html.CheckBoxFor(model => model.Consignment, new { @class = "check-box" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Consignment)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.IsTransfer) AND/OR @Html.LabelFor(model => model.IsPurchase)
+                            <em>*</em>
+                        </div>
+                        <div class="editor-field">
+                            @*@if (Model.IsTransfer == null)
+                {
+                    Model.IsTransfer = false;
+                }*@
+                            @Html.LabelFor(model => model.IsTransfer)@Html.CheckBoxFor(model => model.IsTransfer, new { @class = "check-box" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsTransfer)</span>
+                            <span>&nbsp;&nbsp;&nbsp;</span>
+                            @*@if (Model.IsPurchase == null)
+                {
+                    Model.IsPurchase = false;
+                }*@
+                            @Html.LabelFor(model => model.IsPurchase)@Html.CheckBoxFor(model => model.IsPurchase, new { @class = "check-box" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsPurchase)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.InventoryClassification)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.InventoryClassification, new SelectList(ViewBag.InventoryClassificationBag, "ID", "Text", Model.InventoryClassification), "", new { @class = "selectBox" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.InventoryClassification)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.LongDescription)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextAreaFor(model => model.LongDescription, 10, 100, new { @class = "text-box", onkeypress = "return NotAllowCharacter(event);", ondrop = "return false;", onblur = "return NotAllowedSpecialCharacters(this);" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.LongDescription)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.EnrichedProductData)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.EnrichedProductData, new { id = "EnrichedProductData", @class = "text-box", maxlength = 100 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.EnrichedProductData)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.EnhancedDescription)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextAreaFor(model => model.EnhancedDescription, new { @class = "text-box" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.EnhancedDescription)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                        <div class="BtnBlockform">
+                            <input type="button" value="Cancel" id="btnCancel" class="CreateBtn" />
+                            @if (isInsert == true && Model.ID == 0)
+                            {
+                                <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                            }
+                            else if (isUpdate == true)
+                            {
+                                <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                            }
+                            else if (isUpdate == false && isInsert == false)
+                            {
+                                <script>
+                                    //This is the case when archived or deleted record is being viewed..
+                                    disableControls('frmItemMaster');
+                                </script>
+                            }
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="editorForm padRightNone">
+                <h4>
+                    @eTurns.DTO.ResItemMaster.QuantityDetails
+                </h4>
+                <ul id="ulQuantity">
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.IsItemLevelMinMaxQtyRequired)
+                        </div>
+                        <div class="editor-field">
+                            @if (Model.ID > 0)
+                            {
+                                @(Model.IsItemLevelMinMaxQtyRequired == true ? "Yes" : "No")
+                                @Html.HiddenFor(model => model.IsItemLevelMinMaxQtyRequired)
+                            }
+                            else
+                            {
+                                bool IsItemLevelMinMaxQtyRequired = false;
+                                if (Model.IsItemLevelMinMaxQtyRequired == null)
+                                {
+                                    IsItemLevelMinMaxQtyRequired = false;
+                                }
+                                else
+                                {
+                                    IsItemLevelMinMaxQtyRequired = (Model.IsItemLevelMinMaxQtyRequired == true ? true : false);
+                                }
+                                if (ViewBag.LockReplenishmentType)
+                                {
+                                    @Html.CheckBox("dummy", IsItemLevelMinMaxQtyRequired, new { @class = "check-box", @disabled = "disabled" })
+                                    @Html.HiddenFor(model => model.IsItemLevelMinMaxQtyRequired)
+                                }
+                                else
+                                {
+                                    @Html.CheckBox("IsItemLevelMinMaxQtyRequired", IsItemLevelMinMaxQtyRequired, new { @class = "check-box", @id = "IsItemLevelMinMaxQtyRequired" })
+                                }
+                            }
+                        </div>
+                    </li>
+
+                    <li id="liMinimumQuantity">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.MinimumQuantity)
+                        </div>
+                        <div class="editor-field">
+                            @if (Model.ID > 0 && Model.SerialNumberTracking)
+                            {
+                                @Html.TextBoxFor(model => model.MinimumQuantity, new { @class = "numericinput", @autocomplete = "off", ondragstart = "return false", draggable = "false" })
+                            }
+                            else
+                            {
+                                @Html.TextBoxFor(model => model.MinimumQuantity, new { @class = "numericinput", @autocomplete = "off", ondragstart = "return false", draggable = "false" })
+                            }
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.MinimumQuantity)</span>
+                        </div>
+                    </li>
+                    <li id="liMaximumQuantity">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.MaximumQuantity)
+                        </div>
+                        <div class="editor-field">
+                            @if (Model.ID > 0 && Model.SerialNumberTracking)
+                            {
+                                @Html.TextBoxFor(model => model.MaximumQuantity, new { @class = "numericinput", @autocomplete = "off" })
+                            }
+                            else
+                            {
+                                @Html.TextBoxFor(model => model.MaximumQuantity, new { @class = "numericinput", @autocomplete = "off" })
+                            }
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.MaximumQuantity)</span>
+                        </div>
+                    </li>
+                    @*<li id="liLocationListInline">
+                            <div id="divBinReplanish">
+                            </div>
+                        </li>*@
+                    <li></li>
+
+                    <li id="liDefaultPullQuantity">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.DefaultPullQuantity)<em> *</em>
+                        </div>
+                        <div class="editor-field">
+                            @if (Model.ID > 0 && Model.SerialNumberTracking)
+                            {
+                                @Html.TextBoxFor(model => model.DefaultPullQuantity, new { @class = "numericinput", @autocomplete = "off", maxlength = 10 })
+                            }
+                            else
+                            {
+                                @Html.TextBoxFor(model => model.DefaultPullQuantity, new { @class = "numericinput", @autocomplete = "off", maxlength = 10 })
+                            }
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.DefaultPullQuantity)</span>
+                        </div>
+                    </li>
+                    <li id="liDefaultReorderQuantity">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.DefaultReorderQuantity)<em> *</em>
+                        </div>
+                        <div class="editor-field">
+                            @if (Model.ID > 0 && Model.SerialNumberTracking)
+                            {
+                                @Html.TextBoxFor(model => model.DefaultReorderQuantity, new { @class = "numericinput", @autocomplete = "off", maxlength = 10 })
+                            }
+                            else
+                            {
+                                @Html.TextBoxFor(model => model.DefaultReorderQuantity, new { @class = "numericinput", @autocomplete = "off", maxlength = 10 })
+                            }
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.DefaultReorderQuantity)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                        <div class="editor-field">
+                            @Html.CheckBox("IsEnforceDefaultReorderQuantity", (Model.IsEnforceDefaultReorderQuantity == null ? false : Model.IsEnforceDefaultReorderQuantity.Value), new { @id = "IsEnforceDefaultReorderQuantity", @class = "check-box" })
+                            &nbsp;
+                            @Html.LabelFor(model => model.IsEnforceDefaultReorderQuantity)
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsEnforceDefaultReorderQuantity)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                        <div class="editor-field">
+                            @Html.CheckBox("PullQtyScanOverride", (Model.PullQtyScanOverride), new { @id = "PullQtyScanOverride", @class = "check-box" })@*Model.PullQtyScanOverride == null ? false :*@
+                            &nbsp;
+                            @Html.LabelFor(model => model.PullQtyScanOverride)
+                        </div>
+                    </li>
+
+                </ul>
+
+                <h4>
+                    @eTurns.DTO.ResItemMaster.TrackingDetails
+                </h4>
+                <ul id="ulTracking">
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SerialNumberTracking)
+                        </div>
+                        <div class="editor-field">
+                            @if (Model.ID > 0)
+                            {
+                                @(Model.SerialNumberTracking == true ? "Yes" : "No")
+                                @Html.HiddenFor(model => model.SerialNumberTracking)
+                            }
+                            else
+                            {
+                                //if (Model.SerialNumberTracking == null)
+                                //{
+                                //    Model.SerialNumberTracking = false;
+                                //}
+                                @Html.CheckBoxFor(model => model.SerialNumberTracking, new { @class = "check-box", @id = "chkSerialNumberTracking" })
+                            }
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.SerialNumberTracking)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.LotNumberTracking)
+                        </div>
+                        <div class="editor-field">
+                            @if (Model.ID > 0)
+                            {
+                                @(Model.LotNumberTracking == true ? "Yes" : "No")
+                                @Html.HiddenFor(model => model.LotNumberTracking)
+                            }
+                            else
+                            {
+                                //if (Model.LotNumberTracking == null)
+                                //{
+                                //    Model.LotNumberTracking = false;
+                                //}
+                                @Html.CheckBoxFor(model => model.LotNumberTracking, new { @class = "check-box", @id = "chkLotNumberTracking" })
+                            }
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.LotNumberTracking)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.DateCodeTracking)
+                        </div>
+                        <div class="editor-field">
+                            @if (Model.ID > 0)
+                            {
+                                @(Model.DateCodeTracking == true ? "Yes" : "No")
+                                @Html.HiddenFor(model => model.DateCodeTracking)
+                            }
+                            else
+                            {
+
+                                @Html.CheckBoxFor(model => model.DateCodeTracking, new { @class = "check-box", @id = "chkDateCodeTracking" })
+
+                            }
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.DateCodeTracking)</span>
+                        </div>
+                    </li>
+                </ul>
+                <h4>
+                    @eTurns.DTO.ResItemMaster.UDFDetails
+                </h4>
+                <ul>
+                    @Html.Partial("UDFLayout", new eTurns.DTO.ResBomItemMaster())
+                </ul>
+                <h4>
+                    @eTurns.DTO.ResItemMaster.ImagePath
+                </h4>
+                <ul>
+                    <li>
+                        @Html.RadioButtonFor(e => e.ImageType, "ImagePath", new { id = "ImagePath", onchange = "ShowImage(this);" })
+                        @Html.Label("ImagePath", "Local Image")
+                        @Html.RadioButtonFor(e => e.ImageType, "ExternalImage", new { id = "ExternalImage", onchange = "ShowImage(this);" })
+                        @Html.Label("ExternalImage", "External Url")
+                    </li>
+
+                    <li id="ExternalURL">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ItemImageExternalURL)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.ItemImageExternalURL, new { @class = "text-box", maxlength = 500, @onblur = "return CheckValidURLForImage(this);" })
+                        </div>
+                        @Html.HiddenFor(model => Model.ItemImageExternalURL)
+                    </li>
+                    <li>
+                        <ul>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.ImagePath)@*<em> *</em>*@
+                                </div>
+                                <div class="editor-field" style="width: 1000px;">
+                                    <a href="javascript:void(null);" onclick="DeleteItemImage('@Model.GUID');" title="Delete Image" id="btnDeleteImage" name="btnDeleteImage">
+                                                    <img src="~/Content/images/delete.png" />
+                                    </a>
+                                    <input name="ItemImage" id="ItemImage" type="file" />
+                                    @if (!string.IsNullOrEmpty(Model.ImagePath))
+                                    {
+                                        <input type="hidden" value="@(BOMLogoPathItemImage + "/" + Model.ID + "/" + Model.ImagePath)" id="currentpath" />
+                                    }
+                                    else
+                                    {
+                                        <input type="hidden" value="~/Content/images/no-image.jpg" id="currentpath" />
+                                    }
+                                    <div style="float: left;">
+                                        @if (!string.IsNullOrEmpty(Model.ImagePath) && Model.ImageType.Trim().ToLower() == "imagepath")
+                                        {
+                                            <img id="previewHolder" style="width:120px;height:120px;" src="@(BOMLogoPathItemImage+ "/" + Model.ID+ "/" + Model.ImagePath)">
+                                        }
+                                        else if (!string.IsNullOrEmpty(Model.ItemImageExternalURL) && Model.ImageType.Trim().ToLower() == "externalimage")
+                                        {
+                                            <img id="previewHolder" style="width:120px;height:120px;" src="@( Model.ItemImageExternalURL)">
+                                        }
+                                        else
+                                        {
+                                            <img id="previewHolder" style="width: 120px; height: 120px;" alt="No Image" src="~/Content/images/no-image.jpg" />
+                                        }
+                                    </div>
+                                </div>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <h4>
+                    @eTurns.DTO.ResItemMaster.Link2
+                </h4>
+                <ul>
+                    <li>
+                        @Html.RadioButtonFor(e => e.ItemLink2ImageType, "InternalLink", new { id = "InternalLink", onchange = "ShowLink2Image(this);" })
+                        @Html.Label("InternalLink", "Internal Link")
+                        @Html.RadioButtonFor(e => e.ItemLink2ImageType, "ExternalURL", new { id = "Link2ExternalURL", onchange = "ShowLink2Image(this);" })
+                        @Html.Label("Link2ExternalURL", "External Url")
+                    </li>
+
+                    <li id="lnkExternalURL">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ItemLink2ExternalURL)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.ItemLink2ExternalURL, new { @class = "text-box", maxlength = 500 })
+                        </div>
+                        @Html.HiddenFor(model => Model.ItemLink2ExternalURL)
+                    </li>
+                    <li>
+                        <ul>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.Link2)@*<em> *</em>*@
+
+                                </div>
+                                <div class="editor-field" style="width: 1000px;">
+                                    <a href="javascript:void(null);" onclick="DeleteItemLink('@Model.GUID');" title="Delete Link" id="btnDeleteLink" name="btnDeleteLink">
+                                                <img src="~/Content/images/delete.png" />
+                                    </a>
+                                    <input name="Link2" id="Link2" type="file" />
+                                    @if (!string.IsNullOrEmpty(Model.Link2))
+                                    {
+                                        <input type="hidden" value="@(BOMLogoPathImage + "/" + Model.ID + "/" + Model.Link2)" id="currentpathLink2" />
+                                    }
+                                    else
+                                    {   
+                                        <input type="hidden" value="~/Content/images/no-image.jpg" id="currentpathLink2" />
+                                    }
+                                    <div style="float: left;">
+
+                                        @if ((!string.IsNullOrWhiteSpace(Model.ItemLink2ImageType)) && !string.IsNullOrEmpty(Model.Link2) && Model.ItemLink2ImageType.Trim().ToLower() == "internallink")
+                                        {
+
+                                            <a id="previewHolderLink2" style="width:120px;height:120px;" href="@( BOMLogoPathImage + "/" + Model.ID + "/" + Model.Link2)" target='_blank'> View</a>
+                                        }
+                                        else if (!string.IsNullOrEmpty(Model.ItemLink2ExternalURL) && Model.ItemLink2ImageType.Trim().ToLower() == "externalurl")
+                                        {
+                                            <a id="previewHolderLink2" style="width:120px;height:120px;" href="@( Model.ItemLink2ExternalURL)" target='_blank'>View</a>
+                                        }
+                                        else
+                                        {
+                                            <a id="previewHolderLink2" style="width:120px;height:120px;" href="~/Content/images/no-image.jpg" target='_blank'>View</a>
+                                            @*<span></span>*@
+                                        }
+                                        <input type="hidden" value="@(Model.ItemLink2ExternalURL)" id="currentpathLink2External" />
+                                    </div>
+                                </div>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+
+                @*<h4>
+                        @eTurns.DTO.ResItemMaster.UDFDetails
+                    </h4>
+                    <ul>
+                        @Html.Partial("UDFLayout", new eTurns.DTO.ResItemMaster())
+                    </ul>*@
+            </div>
+        </div>
+    }
+</div>
+@Html.Partial("_RequiredMessages")
+
+<div id="ItemModelPS">
+</div>
+
+<script type="text/javascript">
+
+    $("form").submit(function (e) {
+
+
+        if ($(this).valid()) {
+            rememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        }
+        e.preventDefault();
+        $('#NarroSearchClear').click();
+    });
+
+</script>
+<script language="javascript" type="text/javascript">
+    var sImageUrl = "/Content/images/";
+    var giCount = 1;
+    var oTableLocations;
+    var GlobalFileUpload = '';
+    var GlobalID = '';
+    var GlobalURLID = '';
+    var GlobalItemNumber = '';
+    var isForBom = '@isForBom';
+    var ItemGUID = '@Model.GUID';
+    var Status = 'ok';
+
+    function CheckBeforeSave() {
+
+
+        var itemt = 0;
+        if (parseInt('@Model.ID') == 0) {
+            itemt = $("#dlItemType").val();
+        }
+        else {
+            itemt = $("#ItemType").val();
+        }
+
+        if (!($('#IsTransfer').attr("checked") || $('#IsPurchase').attr("checked"))) {
+            //            alert('Transfer AND/OR Purchase is Required');
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#spanGlobalMessage").html('@ResItemMaster.RequiredTransferOrPurchase');
+            $('div#target').fadeToggle();
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            return false;
+        }
+
+        if (parseInt(itemt) != 4) {
+            var Temprows1 = $("#ItemSupplier").dataTable().fnGetNodes();
+            var iCountManuDefault = 0;
+            var iCountSupPartNo = 0;
+            if (Temprows1 != null && Temprows1.length > 0) {
+                for (var i = 0; i < Temprows1.length; i++) {
+                    if (!(Temprows1[i].cells[0].getElementsByTagName('input')[0].value == '' && Temprows1[i].cells[1].getElementsByTagName('input')[0].value == '')) {
+                        if (Temprows1[i].cells[3].getElementsByTagName('input')[0].checked) {
+                            iCountManuDefault += 1;
+                        }
+                        if (Temprows1[i].cells[1].getElementsByTagName('input')[0].value == '') {
+                            iCountSupPartNo += 1;
+
+                        }
+                    }
+                }
+            }
+
+            if (!(iCountManuDefault == 1)) {
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                $("#spanGlobalMessage").html('@eTurns.DTO.ResItemMaster.OnedefaultSupplierisRequired');
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                return false;
+            }
+
+            if (iCountSupPartNo > 0) {
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                $("#spanGlobalMessage").html('@ResItemMaster.RequiredSupplierNumber');
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                return false;
+            }
+
+            if (!SavetoSeesionItemSupplierAllSave()) {
+                return false;
+            }
+
+
+            if (!SavetoSeesionItemManufactureAllSave()) {
+                return false;
+            }
+
+            //if (!SavetoSeesionItemKitComponentAll()) {
+            //    return false;
+            //}
+        }
+        else if (parseInt(itemt) == 4) {
+
+            if (!SavetoSeesionItemManufactureAllSave()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function onBegin() {
+
+        return CheckBeforeSave();
+    }
+
+    function onSuccess(response) {
+        IsRefreshGrid = true;
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#dvhdns").find("input[type='hidden'][id='hiddenID']").val();
+
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#ItemNumber").val("");
+            $("#ItemNumber").focus();
+        }
+        else if (response.Status == "Fa") {
+            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+            $("#ItemNumber").focus();
+        }
+        else if (idValue == 0) {
+            IsRefreshGrid = true;
+            $("#itemnumber").val("");
+            $("#ItemNumber").focus();
+            //clearControls('frmItemMaster');
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+                if ($("#Link2").val() != "") {
+                    ajaxFileUpload(response.ItemID);
+                }
+
+                if ($("#ItemImage").val() != "") {
+                    if (ajaxFileUpload1(response, idValue)) {
+
+                    }
+                    else {
+                        $('#DivLoading').show();
+                        CallHistoryDialog(response);
+                        CallGridFunction(response, idValue);
+                    }
+                }
+                else {
+                    setDefaultUDFValues($("#hdnPageName").val(), '@Model.ID');
+
+                    var _IsArchived12 = false;
+                    var _IsDeleted12 = false;
+                    if (typeof ($('#IsArchivedRecords')) != undefined)
+                        _IsArchived12 = $('#IsArchivedRecords').is(':checked');
+                    if (typeof ($('#IsDeletedRecords')) != undefined)
+                        _IsDeleted12 = $('#IsDeletedRecords').is(':checked');
+                    GetPullNarrowSearchData('BOMItemMaster', _IsArchived12, _IsDeleted12);
+                    CallNarrowfunctions();
+
+                    $('#chkLotNumberTracking').attr("disabled", false);
+                    $('#chkSerialNumberTracking').attr("disabled", false);
+                    $('#chkDateCodeTracking').attr("disabled", false);
+                    if (response.DestinationModule != null && response.DestinationModule != "") {
+                        if (response.DestinationModule == "CartItemMaster") {
+                            $("#divSupplierCatalogItems").dialog("close");
+                            SwitchTextTab(0, '', '');
+                            if (oTable !== undefined && oTable != null) {
+                                oTable.fnDraw();
+                            }
+
+                        }
+                        if (response.DestinationModule == "OrderMaster") {
+                            $("#divSupplierCatalogItems").dialog("close");
+                            CallThisFunctionFromModel('success');
+                        }
+                    }
+
+                    $('#DivLoading').hide();
+                    $("#tab5").click();
+                }
+
+               // clearControls('frmItemMaster');
+
+
+                //ShowNewTab('ItemCreate', 'frmItemMaster');
+            }
+        }
+        else if (idValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                $("#ItemNumber").val("");
+                $("#ItemNumber").focus();
+            }
+            else {
+                if ($("#Link2").val() != "") {
+                    ajaxFileUpload(response.ItemID);
+                }
+                if ($("#ItemImage").val() != "") {
+                    if (ajaxFileUpload1(response, idValue)) {
+
+                    }
+                    else {
+                        $('#DivLoading').show();
+                        CallHistoryDialog(response);
+                        CallGridFunction(response, idValue);
+                    }
+                }
+                else {
+                    var _IsArchived12 = false;
+                    var _IsDeleted12 = false;
+                    if (typeof ($('#IsArchivedRecords')) != undefined)
+                        _IsArchived12 = $('#IsArchivedRecords').is(':checked');
+                    if (typeof ($('#IsDeletedRecords')) != undefined)
+                        _IsDeleted12 = $('#IsDeletedRecords').is(':checked');
+                    GetPullNarrowSearchData('BOMItemMaster', _IsArchived12, _IsDeleted12);
+                    CallNarrowfunctions();
+                    if ($("#Link2").val() != "") {
+                        ajaxFileUpload(response.ItemID);
+                    }
+                    clearControls('frmItemMaster');
+                    SwitchTextTab(0, 'ItemCreate', 'frmItemMaster');
+                    $('#DivLoading').hide();
+                    $("#tab5").click();
+
+
+                }
+            }
+        }
+    }
+    function onFailure(message) {
+        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        $("#spanGlobalMessage").html(message.statusText);
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#ItemNumber").focus();
+    }
+
+    function ToggleSerialLotExpiry() {
+        var isSerialNumberTracking = $('#chkSerialNumberTracking').attr('checked') ? true : false;
+        var isLotNumberTracking = $('#chkLotNumberTracking').attr('checked') ? true : false;
+        var isDateCodeTracking = $('#chkDateCodeTracking').attr('checked') ? true : false;
+
+        if (isSerialNumberTracking)
+            $('#chkLotNumberTracking').attr("disabled", true);
+        else
+            $('#chkLotNumberTracking').attr("disabled", false);
+
+        if (isLotNumberTracking)
+            $('#chkSerialNumberTracking').attr("disabled", true);
+        else
+            $('#chkSerialNumberTracking').attr("disabled", false);
+    }
+
+
+    function DisableSerialLotExpiry() {
+        $('#chkLotNumberTracking').attr("disabled", true);
+        $('#chkSerialNumberTracking').attr("disabled", true);
+        $('#chkDateCodeTracking').attr("disabled", true);
+    }
+
+    function CallGridFunction(response, Id) {
+
+        if (oTable !== undefined && oTable != null) {
+            oTable.fnDraw();
+        }
+        $('#DivLoading').hide();
+        $("#tab5").click();
+    }
+
+    function fnGetSelected(oTableLocal) {
+        var aReturn = new Array();
+        var aTrs = oTableLocal.fnGetNodes();
+
+        for (var i = 0; i < aTrs.length; i++) {
+            if ($(aTrs[i]).hasClass('row_selected')) {
+                aReturn.push(aTrs[i]);
+            }
+        }
+        return aReturn;
+    }
+
+    function onlyNumeric(event) {
+        var charCode = (event.which) ? event.which : event.keyCode
+
+        if (charCode > 31 && (charCode < 48 || charCode > 57 || code == 86))
+            return false;
+
+        return true;
+
+    }
+
+
+    function SetNames() {
+        //$("#CategoryName").val($("#CategoryID option:selected").text());
+
+        //$("#Unit").val($("#UOMID option:selected").text());
+        $("#GLAccount").val($("#GLAccountID option:selected").text());
+    }
+
+
+    $(document).ready(function () {
+
+        //$('#frmItemMaster').validate();
+        $.validator.unobtrusive.parse("#frmItemMaster");
+        var Itemfrmvalidator = $("#frmItemMaster").validate();
+        $(".userHead").on("blur", "input[data-val='true']", function () {
+            Itemfrmvalidator.element("#" + $(this).attr("id"));
+        });
+
+        $('#btnCancel').click(function (e) {
+            //            if (IsRefreshGrid)
+            //                $('#NarroSearchClear').click();
+            SwitchTextTab(0, 'ItemCreate', 'frmItemMaster');
+            if (oTable !== undefined && oTable != null) {
+                oTable.fnDraw();
+            }
+            $('#NarroSearchClear').click();
+        });
+
+        $('.ShowAllOptionsUnit').click(function () {
+            $(this).siblings("#txtUnit").autocomplete("search", "");
+            $(this).siblings('#txtUnit').trigger("focus");
+        });
+
+        $('.ShowAllOptionsCat').click(function () {
+            $(this).siblings("#CategoryName").autocomplete("search", "");
+            $(this).siblings('#CategoryName').trigger("focus");
+        });
+
+        checkRememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        BindItemManufacture();
+        BindItemSupplier();
+
+        $("#divKitDetails").on("change", "input[type='text'][id='txtQuantityPerKit']", function () {
+            var curobj = $(this);
+            var itmguid = $(curobj).parent().parent().find("input[type='hidden'][id='hdnItemGUID']").val();
+
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("SaveKitQty", "BOM")',
+                contentType: 'application/json',
+                dataType: 'json',                
+                data: "{ItemGUID:'" + '@(Model.GUID)' + "',KitItemGuid:'" + itmguid + "',QuantityPerKit:'" + $(curobj).val() + "'}",
+                success: function (retdt) {
+                },
+                error: function (err) {
+                    console.log(err);
+                    alert("There is some Error");
+                }
+            });
+        });
+
+        if ('@Model.ID' > 0) {
+            DisableSerialLotExpiry();
+
+            $('#dlItemType').attr('disabled', true);
+            $('#dlItemType').val('@Model.ItemType');
+
+            if ('@Model.ItemType' == '3') {
+
+                BindBOMKitDetails();//consol 1
+            }
+
+            if ('@Model.ItemType' == '4') {
+                BOMEnableDisableLabour(true);
+            }
+        }
+        else {
+            $('#chkSerialNumberTracking').click(ToggleSerialLotExpiry);
+            $('#chkLotNumberTracking').click(ToggleSerialLotExpiry);
+        }
+
+        $('#dlItemType').change(function (e) {
+
+
+
+            if ($(this).val() == '4') {
+
+                BOMEnableDisableLabour(true);
+                $('#liMinimumQuantity').find('#MinimumQuantity').addClass('disableBack');
+                $('#liMaximumQuantity').find('#MaximumQuantity').addClass('disableBack');
+
+                $('#liDefaultReorderQuantity').find('#DefaultReorderQuantity').addClass('disableBack');
+
+                $('#liMinimumQuantity').find('#MinimumQuantity')[0].value = '';
+                $('#liMaximumQuantity').find('#MaximumQuantity')[0].value = '';
+                DisableSerialLotExpiry();
+            }
+            else {
+
+
+                BOMEnableDisableLabour(false);
+                $('#liMinimumQuantity').find('#MinimumQuantity').removeClass('disableBack');
+                $('#liMaximumQuantity').find('#MaximumQuantity').removeClass('disableBack');
+                $('#liDefaultReorderQuantity').find('#DefaultReorderQuantity').removeClass('disableBack');
+                $('#liMinimumQuantity').find('#MinimumQuantity')[0].value = FormatedCostQtyValues(0, 2);
+                $('#liMaximumQuantity').find('#MaximumQuantity')[0].value = FormatedCostQtyValues(0, 2);
+                ToggleSerialLotExpiry();
+            }
+
+            BindBOMKitDetails();//console 2
+
+
+
+        });
+
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormatSR").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 0
+        });
+
+
+        $("#ItemModelPS").dialog({
+            autoOpen: false,
+            modal: true,
+            draggable: true,
+            resizable: true,
+            width: '82%',
+            height: 710,
+            title: "Add Kit Component to Kit",
+            open: function () {
+                $('#DivLoading').show();
+                $("#ItemModelPS").load($(this).data("url"));
+            },
+            close: function () {
+                BindBOMKitDetails();
+            }
+        });
+
+
+    });
+
+
+    function BOMEnableDisableLabour(IsDisable) {
+        $('#ulQuantity').find('*').attr('disabled', IsDisable);
+        $('#ulTracking').find('*').attr('disabled', IsDisable);
+        $('#ulQuantity').find('li#liDefaultPullQuantity').removeAttr('disabled');
+        $('#ulQuantity').find('li#liDefaultPullQuantity').find("input#DefaultPullQuantity").removeAttr('disabled');
+
+        if (IsDisable) {
+            $('#ulSupplierDetails').hide();
+            $('#IsItemLevelMinMaxQtyRequired').attr('disabled', true);
+        }
+        else {
+            $('#ulSupplierDetails').show();
+            $('#IsItemLevelMinMaxQtyRequired').removeAttr('disabled');
+        }
+    }
+
+    function BindBOMKitDetails() {
+        if ($('#dlItemType').val() == 3) {
+            $('#ulkitdetails').show();
+            $('#divKitDetails').empty();
+            $('#DivLoading').show();
+            $.get('@Url.Action("LoadKitComponentofItem", "BOM")' + '?ItemGUID=' + ItemGUID + '&AddCount=0', function (data) {
+                $('#divKitDetails').html(data);
+                $('#DivLoading').hide();
+            });
+        }
+        else {
+            $('#ulkitdetails').hide();
+        }
+    }
+
+    function AddNewKitComponent() {
+
+        var strUrl = '@Url.Action("LoadItemKitModel", "BOM")';
+        strUrl = strUrl + '?Parentid=1';
+        strUrl = strUrl + '&ParentGuid=' + ItemGUID;
+        $('#ItemModelPS').data("url", strUrl).dialog('open');
+        return false;
+    }
+
+    function SavetoSeesionItemKitComponentAll(obj) {
+        //
+        if ($("#ItemKitComponent").length > 0) {
+            var TempSuprows4 = $("#ItemKitComponent").dataTable().fnGetNodes();
+            if (TempSuprows4 != null && TempSuprows4.length > 0) {
+                for (var i = 0; i < TempSuprows4.length; i++) {
+                    if (!SavetoSeesionItemKitComponent(TempSuprows4[i])) {
+                        //                    return false;
+                    }
+                }
+                if (Status != 'Error') {
+                    BindBOMKitDetails(); //console 4
+                }
+            }
+        }
+        return true;
+    }
+
+    function SavetoSeesionItemKitComponent(obj) {
+
+        var vtxtQuantityPerKit = $(obj).find('#txtQuantityPerKit').val();
+        var vitemQuantityPerKit = $(obj).find('#item_QuantityPerKit').val();
+        var vItemguid = $(obj).find('#hdnItemGUID').val();
+        var vKitGUID = $(obj).find('#hdnKitGUID').val();
+        var vhdnID = $(obj).find('#hdnID').val();
+        var vhdnGUID = $(obj).find('#hdnGUID').val();
+        var vhdnSessionSr = $(obj).find('#hdnSessionSr').val();
+        //var TempLrows = $("#ItemKitComponent").dataTable().fnGetNodes();
+
+        $.ajax({
+            url: '@Url.Action("SavetoSeesionItemKitComponent", "BOM")',
+            data: { 'ID': vhdnID, 'SessionSr': vhdnSessionSr, 'GUID': vhdnGUID, 'ITEMGUID': vItemguid, 'KitGUID': vKitGUID, 'QuantityPerKit': vtxtQuantityPerKit },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                if (response.status == 'ok') {
+                    //  $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                    //$("#spanGlobalMessage").text('Kit Component Added.');
+                    // $('div#target').fadeToggle();
+                    //  $("div#target").delay(2000).fadeOut(200);
+                }
+                else {
+                    Status = 'Error';
+                    alert("Error");
+                }
+            }
+        });
+        return false;
+    }
+
+    function DeletetoSeesionItemKitComponentSingle(obj) {
+        var vtxtQuantityPerKit = $(obj).parent().parent().find('#txtQuantityPerKit').val();
+        var vItemguid = $(obj).parent().parent().find('#hdnItemGUID').val();
+        var vKitGUID = $(obj).parent().parent().find('#hdnKitGUID').val();
+        var vhdnID = $(obj).parent().parent().find('#hdnID').val();
+        var vhdnGUID = $(obj).parent().parent().find('#hdnGUID').val();
+        var vhdnSessionSr = $(obj).parent().parent().find('#hdnSessionSr').val();
+
+        //        if (vhdnGUID == '00000000-0000-0000-0000-000000000000') {
+        //            //client side remove
+        //            $(obj).parent().parent().remove();
+        //            BindKitDetails();
+        //        }
+        //        else {
+
+        $.ajax({
+            url: '@Url.Action("DeletetoSeesionItemKitComponentSingle", "BOM")',
+            data: { 'ID': vhdnID, 'SessionSr': vhdnSessionSr, 'GUID': vhdnGUID, 'ITEMGUID': vItemguid, 'KitGUID': vKitGUID, 'QuantityPerKit': vtxtQuantityPerKit },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                if (response.status == 'reference') {
+                    $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                    $("#spanGlobalMessage").html('@ResItemMaster.msgKiCannotDelete');
+                    $('div#target').fadeToggle();
+                    //$("div#target").delay(2000).fadeOut(200);
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                }
+                else if (response.status == 'deleted') {
+
+                    BindBOMKitDetails();//console 5
+                    $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                    $("#spanGlobalMessage").html('@ResMessage.DeletedSuccessfully');
+                    $('div#target').fadeToggle();
+                    //$("div#target").delay(2000).fadeOut(200);
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+
+                }
+            }
+        });
+        //}
+        return false;
+    }
+
+
+
+
+    function BindItemManufacture() {
+        $('#divItemManufacturer').empty();
+        $('#DivLoading').show();
+        $.get('@Url.Action("LoadManufaturerofItem", "BOM")' + '?ItemGUID=' + '@(Model.GUID)' + '&AddCount=0', function (data) {
+            $('#divItemManufacturer').html(data);
+            $('#DivLoading').hide();
+        });
+    }
+    function AddNewItemManufacture() {
+        if (SavetoSeesionItemManufactureAll()) {
+
+            $('#divItemManufacturer').empty();
+            $('#DivLoading').show();
+            $.get('@Url.Action("LoadManufaturerofItem", "BOM")' + '?ItemGUID=' + '@(Model.GUID)' + '&AddCount=1', function (data) {
+                $('#divItemManufacturer').html(data);
+                $('#DivLoading').hide();
+            });
+        }
+        return false;
+    }
+
+
+    function SavetoSeesionItemManufacture(obj) {
+        
+        //var vdlManufacturerID = $(obj).parent().parent().find('#dlManufacturer')[0].value == '' ? 0 : $(obj).parent().parent().find('#dlManufacturer')[0].value;
+        var vdlManufacturerID = $(obj).find('#SubManufacturerID').val();
+        var vtxtManufacturer = $(obj).find('#txtManufacturer').val();
+        var vtxtManufacturerNumber = $(obj).find('#txtManufacturerNumber').val();
+        var vIsDefault = $(obj).find('#IsDefault').is(':checked');
+        var vItemguid = $(obj).find('#hdnItemGUID').val();
+        var vhdnID = $(obj).find('#hdnID').val();
+        var vhdnGUID = $(obj).find('#hdnGUID').val();
+        var vhdnSessionSr = $(obj).find('#hdnSessionSr').val();
+
+        if (vdlManufacturerID == 0 && vtxtManufacturer == '' && vtxtManufacturerNumber == '') {
+            return true;
+        }
+
+        if (vtxtManufacturer == '')
+            vdlManufacturerID = 0;
+
+        //if (vtxtManufacturer == '') {
+        //    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        //    $("#spanGlobalMessage").text('Manufacturer is required.');
+        //    $('div#target').fadeToggle();
+        //    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        //    $(obj).find('#txtManufacturer').focus();
+        //    return false;
+        //}
+
+        //if (vtxtManufacturerNumber == '') {
+        //    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        //    $("#spanGlobalMessage").text('Manufacturer Number is required.');
+        //    $('div#target').fadeToggle();
+        //    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        //    $(obj).find('#txtManufacturerNumber').focus();
+        //    return false;
+        //}
+
+        var TempSuprows = $("#ItemManufacturer").dataTable().fnGetNodes();
+        var iCountSup = 0;
+        var iCountSupDefault = 0;
+        var iCountBlanketPO = 0;
+        if (TempSuprows != null && TempSuprows.length > 0) {
+            for (var i = 0; i < TempSuprows.length; i++) {
+                if (TempSuprows[i].cells[0].getElementsByTagName('input').txtManufacturer.value == vtxtManufacturer) {
+                    iCountSup += 1;
+                    if (iCountSup > 1) {
+                        $(TempSuprows[i]).css("background-color", "red");
+                        $(TempSuprows[i].cells[0].getElementsByTagName('input').txtManufacturer).css("background-color", "yellow");
+                        $(TempSuprows[i].cells[0].getElementsByTagName('input').txtManufacturer).focus();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#spanGlobalMessage").html('@ResItemMaster.MsgManufacturerExist');
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        return false;
+                    }
+                }
+                if (vtxtManufacturerNumber == '') {
+                    IsBlankAlreadyAdded = true;
+                }
+
+                if (TempSuprows[i].cells[2].getElementsByTagName('input')[0].checked) {
+                    iCountSupDefault += 1;
+
+                    if (iCountSupDefault > 1) {
+                        $(TempSuprows[i]).css("background-color", "red");
+                        $(TempSuprows[i].cells[2].getElementsByTagName('input')[0]).css("background-color", "yellow");
+                        $(TempSuprows[i].cells[2].getElementsByTagName('input')[0]).focus();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#spanGlobalMessage").html('@ResItemMaster.MsgDefaultManufacturerExist');
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        return false;
+                    }
+                }
+            }
+        }
+        
+        $.ajax({
+            url: '@Url.Content("~/BOM/SavetoSeesionItemManufacture")',
+            data: { 'ID': vhdnID, 'SessionSr': vhdnSessionSr, 'GUID': vhdnGUID, 'ITEMGUID': vItemguid, 'ManufacturerID': vdlManufacturerID, 'ManufactureName': vtxtManufacturer, 'ManufacturerNumber': vtxtManufacturerNumber, 'IsDefault': vIsDefault },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                if (response.status == 'ok') {
+                    //BindItemManufacture();
+
+                    if (vIsDefault) {
+                        $("#ManufacturerID").val(vdlManufacturerID);
+                        $("#ManufacturerName").val($(obj).parent().parent().find('#txtManufacturer')[0].text);
+                        $("#ManufacturerNumber").val($(obj).parent().parent().find('#txtManufacturerNumber').val());
+                    }
+
+                    //                    $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                    //                    $("#spanGlobalMessage").text('Manufacturer Added.');
+                    //                    $('div#target').fadeToggle();
+                    //                    $("div#target").delay(2000).fadeOut(200);
+                }
+                else if (response.status == 'duplicate') {
+                    $(obj).parent().parent().find('#ManufacturerName').focus();
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    $("#spanGlobalMessage").html('@ResItemMaster.MsgManufacturerExist');
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                }
+            }
+        });
+
+        return true;
+    }
+
+
+    function SavetoSeesionItemManufactureAll(obj) {
+        if ($("#ItemManufacturer").length > 0) {
+
+            var TempSuprows2 = $("#ItemManufacturer").dataTable().fnGetNodes();
+            var iCountSup = 0;
+            var iCountSupDefault = 0;
+            if (TempSuprows2 != null && TempSuprows2.length > 0) {
+                for (var i = 0; i < TempSuprows2.length; i++) {
+                    //if (!(TempSuprows2[i].cells[0].getElementsByTagName('input').txtManufacturer.value == '' && TempSuprows2[i].cells[1].getElementsByTagName('input').txtManufacturerNumber.value == '')) {
+
+                    if (TempSuprows2[i].cells[0].getElementsByTagName('input').txtManufacturer.value == '') {
+                        $(TempSuprows2[i]).css("background-color", "red");
+                        $(TempSuprows2[i].cells[0].getElementsByTagName('input')[0]).css("background-color", "yellow");
+                        $(TempSuprows2[i].cells[0].getElementsByTagName('input')[0]).focus();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#spanGlobalMessage").html('@ResItemMaster.MsgManufacturerRequired');
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        return false;
+                    }
+
+                    if (TempSuprows2[i].cells[1].getElementsByTagName('input').txtManufacturerNumber.value == '') {
+                        $(TempSuprows2[i]).css("background-color", "red");
+                        $(TempSuprows2[i].cells[1].getElementsByTagName('input')[0]).css("background-color", "yellow");
+                        $(TempSuprows2[i].cells[1].getElementsByTagName('input')[0]).focus();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#spanGlobalMessage").html('@ResItemMaster.MsgManufacturerNumberRequired');
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        return false;
+                    }
+
+                    if (TempSuprows2[i].cells[2].getElementsByTagName('input')[0].checked) {
+                        iCountSupDefault += 1;
+
+                        if (iCountSupDefault > 1) {
+                            $(TempSuprows2[i]).css("background-color", "red");
+                            $(TempSuprows2[i].cells[2].getElementsByTagName('input')[0]).css("background-color", "yellow");
+                            $(TempSuprows2[i].cells[2].getElementsByTagName('input')[0]).focus();
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            $("#spanGlobalMessage").html('@ResItemMaster.MsgDefaultManufacturerExist');
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            return false;
+                        }
+                    }
+
+                    if (!SavetoSeesionItemManufacture(TempSuprows2[i])) {
+                        return false;
+                    }
+                    // }
+                }
+            }
+        }
+        return true;
+    }
+
+    function SavetoSeesionItemManufactureAllSave(obj) {
+        if ($("#ItemManufacturer").length > 0) {
+
+            var TempSuprows2 = $("#ItemManufacturer").dataTable().fnGetNodes();
+            var iCountSup = 0;
+            var iCountSupDefault = 0;
+            if (TempSuprows2 != null && TempSuprows2.length > 0) {
+                for (var i = 0; i < TempSuprows2.length; i++) {
+                    if ((TempSuprows2[i].cells[0].getElementsByTagName('input').txtManufacturer.value != '') || (TempSuprows2[i].cells[1].getElementsByTagName('input').txtManufacturerNumber.value != '')) {
+                    ////if (!(TempSuprows2[i].cells[0].getElementsByTagName('input').txtManufacturer.value == '' && TempSuprows2[i].cells[1].getElementsByTagName('input').txtManufacturerNumber.value == '')) {
+
+                    //    if (TempSuprows2[i].cells[0].getElementsByTagName('input').txtManufacturer.value == '') {
+                    //        $(TempSuprows2[i]).css("background-color", "red");
+                    //        $(TempSuprows2[i].cells[0].getElementsByTagName('input')[0]).css("background-color", "yellow");
+                    //        $(TempSuprows2[i].cells[0].getElementsByTagName('input')[0]).focus();
+                    //        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    //        $("#spanGlobalMessage").text('Manufacturer is required.');
+                    //        $('div#target').fadeToggle();
+                    //        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    //        return false;
+                    //    }
+
+                    //    if (TempSuprows2[i].cells[1].getElementsByTagName('input').txtManufacturerNumber.value == '') {
+                    //        $(TempSuprows2[i]).css("background-color", "red");
+                    //        $(TempSuprows2[i].cells[1].getElementsByTagName('input')[0]).css("background-color", "yellow");
+                    //        $(TempSuprows2[i].cells[1].getElementsByTagName('input')[0]).focus();
+                    //        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    //        $("#spanGlobalMessage").html('Manufacturer Number is required.');
+                    //        $('div#target').fadeToggle();
+                    //        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    //        return false;
+                    //    }
+
+                        if (TempSuprows2[i].cells[2].getElementsByTagName('input')[0].checked) {
+                            iCountSupDefault += 1;
+
+                            if (iCountSupDefault > 1) {
+                                $(TempSuprows2[i]).css("background-color", "red");
+                                $(TempSuprows2[i].cells[2].getElementsByTagName('input')[0]).css("background-color", "yellow");
+                                $(TempSuprows2[i].cells[2].getElementsByTagName('input')[0]).focus();
+                                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                                $("#spanGlobalMessage").html('@ResItemMaster.MsgDefaultManufacturerExist');
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                                return false;
+                            }
+                        }
+
+                        if (!SavetoSeesionItemManufacture(TempSuprows2[i])) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+
+    function DeletetoSeesionItemManufactureSingle(obj) {
+        //  var vdlManufacturerID = $(obj).parent().parent().find('#dlManufacturer')[0].value == '' ? 0 : $(obj).parent().parent().find('#dlManufacturer')[0].value;
+        var vdlManufacturerID = $(obj).parent().parent().find('#hdnManufacturerID').val();
+        var vtxtManufacturer = $(obj).parent().parent().find('#txtManufacturer').val();
+        var vtxtManufacturerNumber = $(obj).parent().parent().find('#txtManufacturerNumber').val();
+        var vIsDefault = $(obj).parent().parent().find('#IsDefault').is(':checked');
+        var vItemguid = $(obj).parent().parent().find('#hdnItemGUID').val();
+        var vhdnID = $(obj).parent().parent().find('#hdnID').val();
+        var vhdnGUID = $(obj).parent().parent().find('#hdnGUID').val();
+        var vhdnSessionSr = $(obj).parent().parent().find('#hdnSessionSr').val();
+
+        if (vhdnGUID == '00000000-0000-0000-0000-000000000000') {
+            //client side remove
+            $(obj).parent().parent().remove();
+            BindItemManufacture();
+        }
+        else {
+
+            ////Delete///
+            $.ajax({
+                url: '@Url.Content("~/BOM/DeletetoSeesionItemManufactureSingle")',
+                data: { 'ID': vhdnID, 'SessionSr': vhdnSessionSr, 'GUID': vhdnGUID, 'ITEMGUID': vItemguid, 'ManufacturerID': vdlManufacturerID, 'ManufacturerNumber': vtxtManufacturerNumber, 'IsDefault': vIsDefault },
+                dataType: 'json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (response) {
+                    if (response.status = 'deleted') {
+                        //client side remove
+                        $(obj).parent().parent().remove();
+                        //bind grid
+                        BindItemManufacture();
+
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        $("#spanGlobalMessage").html('@ResItemMaster.Manufacturerdeleted');
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+
+                    }
+                    else if (response.status = 'error') {
+                        alert('@ResCommon.ErrorInProcess');
+                    }
+                }
+            });
+            ///Delete///
+
+
+        }
+        return false;
+    }
+
+    function checkInventoryclassification(curobj) {
+        var vdlID = $(curobj).val();
+
+        ////Delete///
+        $.ajax({
+            url: '@Url.Content("~/BOM/checkInventoryclassification")',
+            data: { 'ID': vdlID },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                if (response.status != '0') {
+                    $('#InventoryClassification').val(response.status);
+                    //                    $('#InventoryClassification').selectedval = response;
+                }
+                else if (response.status == '0') {
+                    $('#InventoryClassification').val(0);
+                    //                    $('#InventoryClassification').selectedval = response;
+                }
+                else if (response.status = 'error') {
+                    // alert('Opps...Error....!');
+                }
+            }
+        });
+        ///Delete///
+
+        return false;
+    }
+
+    function BindItemSupplier() {
+        $('#divItemSupplier').empty();
+        $('#DivLoading').show();
+        $.get('@Url.Action("LoadSupplierofItem", "BOM")' + '?ItemGUID=' + '@(Model.GUID)' + '&AddCount=0', function (data) {
+            $('#divItemSupplier').html(data);
+            $('#DivLoading').hide();
+        });
+    }
+    function AddNewItemSupplier() {
+        if (SavetoSeesionItemSupplierAll()) {
+
+            $('#divItemSupplier').empty();
+            $('#DivLoading').show();
+            $.get('@Url.Action("LoadSupplierofItem", "BOM")' + '?ItemGUID=' + '@(Model.GUID)' + '&AddCount=1', function (data) {
+                $('#divItemSupplier').html(data);
+                $('#DivLoading').hide();
+            });
+        }
+
+        return false;
+    }
+
+
+    function SavetoSeesionItemSupplierAll() {
+        if ($("#ItemSupplier").length > 0) {
+            var TempSuprowsAdd = $("#ItemSupplier").dataTable().fnGetNodes();
+            var iCountSupD = 0;
+            if (TempSuprowsAdd != null && TempSuprowsAdd.length > 0) {
+                for (var k = 0; k < TempSuprowsAdd.length; k++) {
+                    // if (!(TempSuprowsAdd[k].cells[0].getElementsByTagName('input').txtSupplier.value == '' && TempSuprowsAdd[k].cells[1].getElementsByTagName('input').txtSupplierNumber.value == '')) {
+                    if (TempSuprowsAdd[k].cells[0].getElementsByTagName('input').txtSupplier.value == '') {
+                        $(TempSuprowsAdd[k]).css("background-color", "red");
+                        $(TempSuprowsAdd[k].cells[0].getElementsByTagName('input').txtSupplier).css("background-color", "yellow");
+                        $(TempSuprowsAdd[k].cells[0].getElementsByTagName('input').txtSupplier).focus();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#spanGlobalMessage").html('@ResItemMaster.MsgSupplierRequired');
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        return false;
+                    }
+
+                    if (TempSuprowsAdd[k].cells[1].getElementsByTagName('input').txtSupplierNumber.value == '') {
+                        $(TempSuprowsAdd[k]).css("background-color", "red");
+                        $(TempSuprowsAdd[k].cells[1].getElementsByTagName('input').txtSupplierNumber).css("background-color", "yellow");
+                        $(TempSuprowsAdd[k].cells[1].getElementsByTagName('input').txtSupplierNumber).focus();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#spanGlobalMessage").html('@ResItemMaster.MsgSupplierNumberRequired');
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        return false;
+                    }
+
+                    if (TempSuprowsAdd[k].cells[3].getElementsByTagName('input')[0].checked) {
+                        iCountSupD += 1;
+                    }
+
+                    if (!SavetoSeesionItemSupplier(TempSuprowsAdd[k])) {
+                        return false;
+                    }
+                    //}
+                }
+            }
+        }
+        return true;
+    }
+
+
+    function SavetoSeesionItemSupplierAllSave() {
+        if ($("#ItemSupplier").length > 0) {
+            var TempSuprowsAdd = $("#ItemSupplier").dataTable().fnGetNodes();
+            var iCountSupD = 0;
+            if (TempSuprowsAdd != null && TempSuprowsAdd.length > 0) {
+                for (var k = 0; k < TempSuprowsAdd.length; k++) {
+                    if (!(TempSuprowsAdd[k].cells[0].getElementsByTagName('input').txtSupplier.value == '' && TempSuprowsAdd[k].cells[1].getElementsByTagName('input').txtSupplierNumber.value == '')) {
+                        if (TempSuprowsAdd[k].cells[0].getElementsByTagName('input').txtSupplier.value == '') {
+                            $(TempSuprowsAdd[k]).css("background-color", "red");
+                            $(TempSuprowsAdd[k].cells[0].getElementsByTagName('input').txtSupplier).css("background-color", "yellow");
+                            $(TempSuprowsAdd[k].cells[0].getElementsByTagName('input').txtSupplier).focus();
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            $("#spanGlobalMessage").html('@ResItemMaster.MsgSupplierRequired');
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            return false;
+                        }
+
+                        if (TempSuprowsAdd[k].cells[1].getElementsByTagName('input').txtSupplierNumber.value == '') {
+                            $(TempSuprowsAdd[k]).css("background-color", "red");
+                            $(TempSuprowsAdd[k].cells[1].getElementsByTagName('input').txtSupplierNumber).css("background-color", "yellow");
+                            $(TempSuprowsAdd[k].cells[1].getElementsByTagName('input').txtSupplierNumber).focus();
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            $("#spanGlobalMessage").html('@ResItemMaster.MsgSupplierNumberRequired');
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            return false;
+                        }
+
+                        if (TempSuprowsAdd[k].cells[3].getElementsByTagName('input')[0].checked) {
+                            iCountSupD += 1;
+                        }
+
+                        if (!SavetoSeesionItemSupplier(TempSuprowsAdd[k])) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+
+    function SavetoSeesionItemSupplier(obj) {
+
+        var vdlSupplierID = $(obj).find('#SubSupplierID').val();
+        var vtxtSupplier = $(obj).find('#txtSupplier').val();
+        var vtxtSupplierNumber = $(obj).find('#txtSupplierNumber').val();
+        var vsupIsDefault = $(obj).find('#IsDefault').is(':checked');
+        var vItemguid = $(obj).find('#hdnItemGUID').val();
+        var vsuphdnID = $(obj).find('#hdnID').val();
+        var vsuphdnGUID = $(obj).find('#hdnGUID').val();
+        var vsuphdnSessionSr = $(obj).find('#hdnSessionSr').val();
+        var vBlanketPOIDCount = $(obj).find("#BlanketPOID").val() == '' ? 0 : $(obj).find("#BlanketPOID").val();
+
+        if (vdlSupplierID == 0 && vtxtSupplier == '' && vtxtSupplierNumber == '') {
+            return true;
+        }
+
+        if (vtxtSupplier == '') {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#spanGlobalMessage").html('@ResItemMaster.MsgSupplierRequired');
+            $('div#target').fadeToggle();
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            $(obj).find('#txtSupplier').focus();
+            return false;
+        }
+
+        if (vtxtSupplierNumber == '') {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#spanGlobalMessage").html('@ResItemMaster.MsgSupplierNumberRequired');
+            $('div#target').fadeToggle();
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            $(obj).find('#txtSupplierNumber').focus();
+            return false;
+        }
+
+        var TempSuprows = $("#ItemSupplier").dataTable().fnGetNodes();
+        var iCountSup = 0;
+        var iCountSupDefault = 0;
+        var iCountBlanketPO = 0;
+        if (TempSuprows != null && TempSuprows.length > 0) {
+            for (var i = 0; i < TempSuprows.length; i++) {
+                if (TempSuprows[i].cells[0].getElementsByTagName('input').txtSupplier.value == vtxtSupplier) {
+                    iCountSup += 1;
+                    if (iCountSup > 1) {
+                        $(TempSuprows[i]).css("background-color", "red");
+                        $(TempSuprows[i].cells[0].getElementsByTagName('input').txtSupplier).css("background-color", "yellow");
+                        $(TempSuprows[i].cells[0].getElementsByTagName('input').txtSupplier).focus();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#spanGlobalMessage").html('@ResItemMaster.MsgSupplierExist');
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        return false;
+                    }
+                }
+                if (TempSuprows[i].cells[3].getElementsByTagName('input')[0].checked) {
+                    iCountSupDefault += 1;
+
+                    if (iCountSupDefault > 1) {
+                        $(TempSuprows[i]).css("background-color", "red");
+                        $(TempSuprows[i].cells[3].getElementsByTagName('input')[0]).css("background-color", "yellow");
+                        $(TempSuprows[i].cells[3].getElementsByTagName('input')[0]).focus();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#spanGlobalMessage").html('@ResItemMaster.MsgDefaultSupplierExist');
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        return false;
+                    }
+                }
+            }
+        }
+
+
+        $.ajax({
+            url: '@Url.Content("~/BOM/SavetoSeesionItemSupplier")',
+            data: { 'ID': vsuphdnID, 'SessionSr': vsuphdnSessionSr, 'GUID': vsuphdnGUID, 'ITEMGUID': vItemguid, 'SupplierID': vdlSupplierID, 'SupplierName': vtxtSupplier, 'SupplierNumber': vtxtSupplierNumber, 'IsDefault': vsupIsDefault, 'BlanketPOID': vBlanketPOIDCount },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                if (response.status == 'ok') {
+                    if (vsupIsDefault == true) {
+                        $("#SupplierID").val(vdlSupplierID);
+                        $("#SupplierName").val(vtxtSupplier);
+                        $("#SupplierPartNo").val(vtxtSupplierNumber);
+                    }
+                    //BindItemSupplier();
+                    //$("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                    //$("#spanGlobalMessage").text('Supplier Added.');
+                    //$('div#target').fadeToggle();
+                    //$("div#target").delay(2000).fadeOut(200);
+                }
+                else if (response.status == 'duplicate') {
+                    $(obj).find('#txtSupplier').focus();
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    $("#spanGlobalMessage").html('@ResItemMaster.MsgSupplierExist');
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                }
+            },
+            error: function (err) {
+                alert(err);
+            }
+        });
+        return true;
+    }
+
+    function DeletetoSeesionItemSupplierSingle(obj) {
+
+        var vdlSupplierID = $(obj).parent().parent().find('#SubSupplierID').val();
+        var vtxtSupplier = $(obj).parent().parent().find('#txtSupplier').val();
+        var vtxtSupplierNumber = $(obj).parent().parent().find('#txtSupplierNumber').val();
+        var vsupIsDefault = $(obj).parent().parent().find('#IsDefault').is(':checked');
+        var vItemguid = $(obj).parent().parent().find('#hdnItemGUID').val();
+        var vsuphdnID = $(obj).parent().parent().find('#hdnID').val();
+        var vsuphdnGUID = $(obj).parent().parent().find('#hdnGUID').val();
+        var vsuphdnSessionSr = $(obj).parent().parent().find('#hdnSessionSr').val();
+        var vBlanketPOIDCount = $(obj).parent().parent().find("#BlanketPOID").val() == '' ? 0 : $(obj).parent().parent().find("#BlanketPOID").val();
+
+
+        if (vsuphdnGUID == '00000000-0000-0000-0000-000000000000') {
+            //client side remove
+            $(obj).parent().parent().remove();
+            BindItemSupplier();
+        }
+        else {
+
+            ////Delete///
+            $.ajax({
+                url: '@Url.Content("~/BOM/DeletetoSeesionItemSupplierSingle")',
+                data: { 'ID': vsuphdnID, 'SessionSr': vsuphdnSessionSr, 'GUID': vsuphdnGUID, 'ITEMGUID': vItemguid, 'SupplierID': vdlSupplierID, 'SupplierNumber': vtxtSupplierNumber, 'IsDefault': vsupIsDefault, 'BlanketPOID': vBlanketPOIDCount },
+                dataType: 'json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (response) {
+                    if (response.status = 'deleted') {
+                        //client side remove
+                        $(obj).parent().parent().remove();
+                        //bind grid
+                        BindItemSupplier();
+
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        $("#spanGlobalMessage").html('@ResItemMaster.SupplierDeleted');
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+
+                    }
+                    else if (response.status = 'error') {
+                        alert('@ResCommon.ErrorInProcess');
+                    }
+                }
+            });
+            ///Delete///
+
+
+        }
+        return false;
+    }
+
+    //End
+
+</script>
+<div id="NewMasterPopUP">
+</div>
+<script type="text/javascript">
+    var ItemLink2ImageType = '@Model.ItemLink2ImageType';
+    var ItemImageType = '@Model.ImageType';
+    var ItemImagePath = '@Model.ImagePath';
+    var ItemLink2ImageType = '@Model.ItemLink2ImageType';
+    var ItemImageLink = '@Model.Link2';
+    $(document).ready(function () {
+        setTimeout(function () {
+            AddMarkupAndCostToSellPrice('cost');
+
+            AddMarkupAndCostToSellPrice('sell');
+            if (ItemImageType == 'ImagePath' || ItemImageType == '') {
+                $("#ItemImage").show();
+                $("#ExternalURL").hide();
+
+                if (ItemImagePath != undefined && ItemImagePath != null && ItemImagePath != '') {
+                    $("#btnDeleteImage").show();
+                }
+                else {
+                    $("#btnDeleteImage").hide();
+                }
+            }
+            else {
+                $("#ItemImage").hide();
+                $("#ExternalURL").show();
+                $("#btnDeleteImage").hide();
+            }
+            if (ItemLink2ImageType == 'InternalLink' || ItemImageType == '') {
+                $("#Link2").show();
+                $("#lnkExternalURL").hide();
+
+                if (ItemImageLink != undefined && ItemImageLink != null && ItemImageLink != '') {
+                    $("#btnDeleteLink").show();
+                }
+                else {
+                    $("#btnDeleteLink").hide();
+                }
+            }
+            else {
+                $("#Link2").hide();
+                $("#lnkExternalURL").show();
+                $("#btnDeleteLink").hide();
+            }
+            $("#ItemImage").change(function () {
+                readURL(this);
+            });
+            $("#Link2").change(function () {
+                readURLLink2(this);
+            });
+        }, 300);
+    });
+
+
+    $("#txtUnit").autocomplete({
+        source: function (request, response) {
+            $.ajax({
+                url: '/BOM/GetUnits',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: {
+                    maxRows: 1000,
+                    name_startsWith: request.term
+                },
+                success: function (data) {
+                    response($.map(data, function (item) {
+                        return {
+                            label: item.Unit,
+                            value: item.Unit,
+                            selval: item.ID
+                        }
+                    }));
+                },
+                error: function (err) {
+                    alert(err);
+                }
+            });
+        },
+        autoFocus: false,
+        minLength: 0,
+        select: function (event, ui) {
+            $("#UOMID").val(ui.item.selval);
+        },
+        open: function () {
+            $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+
+            $(this).autocomplete('widget').css('z-index', 100);
+        },
+        close: function () {
+            $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+        }
+    });
+
+    $("#CategoryName").autocomplete({
+        source: function (request, response) {
+            $.ajax({
+                url: '/BOM/GetCategory',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: {
+                    maxRows: 1000,
+                    name_startsWith: request.term
+                },
+                success: function (data) {
+                    response($.map(data, function (item) {
+                        return {
+                            label: item.Category,
+                            value: item.Category,
+                            selval: item.ID
+                        }
+                    }));
+                }
+            });
+        },
+        autoFocus: false,
+        minLength: 0,
+        select: function (event, ui) {
+            $("#CategoryID").val(ui.item.selval);
+        },
+        open: function () {
+            $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+
+            $(this).autocomplete('widget').css('z-index', 100);
+        },
+        close: function () {
+            $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+        }
+    });
+
+
+
+    $("#NewMasterPopUP").dialog({
+        autoOpen: false,
+        show: "blind",
+        hide: "explode",
+        height: 600,
+        width: 800,
+        modal: true,
+        open: function () {
+            $(this).parent().find("span.ui-dialog-title").html("Add New " + $(this).data("data"));
+        },
+        close: function () {
+            $('#DivLoading').show();
+
+            RefreshDropdownList($(this).data("data"), $(this).data("IDVal"));
+            $(this).data("data", null);
+            $(this).data("IDVal", null);
+            $(this).parent().find("span.ui-dialog-title").html('');
+        }
+    });
+    function AddNewFromPopup(PopupFor) {
+        $('#DivLoading').show();
+        var _URL = ''
+        if (PopupFor == 'Manufacturer') {
+            _URL = '@menufURL';
+        }
+        else if (PopupFor == 'Supplier') {
+            _URL = '@supURL';
+        }
+        else if (PopupFor == 'Unit') {
+            _URL = '@Url.Action("../Master/UnitCreate")';
+        }
+        else if (PopupFor == 'Category') {
+            _URL = '@Url.Action("../Master/CategoryCreate")';
+        }
+        else if (PopupFor == 'Location') {
+            _URL = '@Url.Action("../Master/BinCreate")';
+        }
+        else if (PopupFor == 'CostUOM') {
+            _URL = '@Url.Action("CostUOMCreate", "Master")?isforbom=' + isForBom;
+        }
+        else if (PopupFor == 'InventoryClassification') {
+            _URL = '@Url.Action("../Master/InventoryClassificationCreate")';
+        }
+        else {
+            return false;
+        }
+        $('#NewMasterPopUP').load(_URL, function () {
+            $('#NewMasterPopUP').data("data", PopupFor).dialog('open');
+            $('#DivLoading').hide();
+        });
+    }
+    function RefreshDropdownList(PopupFor, IDVal) {
+        if (IDVal != undefined) {
+            var _ControlID = '';
+
+            if (PopupFor == 'Manufacturer') {
+                _ControlID = "dlManufacturer";
+
+                BindItemManufacture();
+            }
+            else if (PopupFor == 'Supplier') {
+                _ControlID = "dlSupplier";
+
+                BindItemSupplier();
+            }
+            else if (PopupFor == 'Unit') {
+                _ControlID = "UOMID";
+            }
+            else if (PopupFor == 'Category') {
+                _ControlID = "CategoryID";
+            }
+
+            else if (PopupFor == 'InventoryClassification') {
+                _ControlID = "InventoryClassification";
+            }
+            else if (PopupFor == 'CostUOM') {
+                _ControlID = "CostUOMID";
+            }
+            var arrdata = IDVal.split("~");
+            var listData = $('select[id*="' + _ControlID + '"]');
+            $(listData).each(function () {
+                $(this).append($("<option />").val(arrdata[0]).text(arrdata[1]));
+            });
+        }
+
+        $('#DivLoading').hide();
+    }
+    $("#Cost").change(function () {
+
+        //checkInventoryclassification(this);
+        setDecimal(this);
+        return AddMarkupAndCostToSellPrice('cost');
+    });
+    $("input[type='text'][id='Markup']").change(function () {
+
+        setDecimal(this);
+        return AddMarkupAndCostToSellPrice('markup');
+
+
+    });
+    $("#SellPrice").change(function () {
+
+        setDecimal(this);
+        return AddMarkupAndCostToSellPrice('sell');
+    });
+
+    function AddMarkupAndCostToSellPrice(ActionType) {
+
+        var cost1 = $("#Cost").val();
+        var price1 = $("#SellPrice").val();
+        var markup1 = $("input[type='text'][id='Markup']").val();
+        if (cost1 == "" || isNaN(cost1)) {
+            cost1 = 0;
+        }
+        if (price1 == "" || isNaN(price1)) {
+            price1 = 0;
+        }
+        if (markup1 == "" || isNaN(markup1)) {
+            markup1 = 0;
+        }
+
+        if (cost1 == 0 && price1 > 0) {
+            if (ActionType == "sell") {
+                cost1 = price1;
+            }
+            if (ActionType == "cost") {
+                cost1 = 0;
+                price1 = 0;
+                markup1 = 0;
+            }
+        }
+
+        if (markup1 == 0 && ActionType == "markup" && $.trim($("input[type='text'][id='Markup']").val()) != "") {
+            price1 = cost1;
+        }
+        //if (markup1 == 0 && ActionType == "markup" && $.trim($("input[type='text'][id='Markup']").val()) == "") {
+        //    price1 = cost1;
+        //}
+
+        if (cost1 != 0 && price1 != 0 && markup1 != 0) {
+            if (ActionType == "markup") {
+                price1 = parseFloat(cost1) + parseFloat(((cost1 * markup1) / 100));
+            }
+            else {
+                markup1 = parseFloat(((price1 * 100) / cost1)) - 100;
+            }
+
+        }
+        else if (cost1 != 0 && price1 == 0 && markup1 == 0) {
+            price1 = cost1;
+        }
+        else if (cost1 != 0 && price1 != 0 && markup1 == 0) {
+            markup1 = parseFloat(((price1 * 100) / cost1)) - 100;
+        }
+        else if (cost1 != 0 && price1 == 0 && markup1 != 0) {
+            price1 = parseFloat(cost1) + parseFloat(((cost1 * markup1) / 100));
+        }
+        else if (cost1 == 0 && price1 != 0 && markup1 != 0) {
+            cost1 = parseFloat(price1) - parseFloat(((price1 * markup1) / 100));
+        }
+        else if (cost1 == 0 && price1 == 0 && markup1 == 0) {
+
+        }
+        else if (cost1 == 0 && price1 != 0 && markup1 == 0) {
+            cost1 = price1;
+        }
+        else if (cost1 == 0 && price1 == 0 && markup1 != 0) {
+            markup1 = 0;
+        }
+
+
+        markup1 = FormatedCostQtyValues(markup1, 1);
+        //price1 = FormatedCostQtyValues(price1, 1);
+        //cost1 = FormatedCostQtyValues(cost1, 1);
+
+        $("#Cost").val(cost1);
+        $("#SellPrice").val(price1);
+        $("input[type='text'][id='Markup']").val(markup1);
+
+        if (ActionType != "markup") {
+            $("input[type='hidden'][id='Markup']").val($("input[type='text'][id='Markup']").val());
+        }
+        else {
+            $("input[type='hidden'][id='Markup']").val($("input[type='text'][id='Markup']").val());
+        }
+    }
+    function setDecimal(curobj) {
+        var vdlID = $(curobj).val();
+        if (vdlID != "") {
+            var te = $(curobj).val().split(".");
+            if (te[0] == '') {
+                $(curobj).val("0" + $(curobj).val());
+                vdlID = $(curobj).val();
+            }
+        }
+    }
+
+    function readURL(input) {
+
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                var filePath = $("#currentpath").val().split('\\').pop();
+
+                if (filePath.toString().indexOf("&") >= 0 || filePath.toString().indexOf("<") >= 0 || filePath.toString().indexOf(">") >= 0
+                    || filePath.toString().indexOf("*") >= 0 || filePath.toString().indexOf(":") >= 0
+                    || filePath.toString().indexOf("?") >= 0) {
+                    //alert("Please select correct file name.");
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    $("#spanGlobalMessage").html('@ResCommon.ValidFileName');
+                    $('div#target').fadeToggle();
+                    //$("div#target").delay(5000).fadeOut(200);
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+
+                    $("input#currentpath").val('');
+                }
+                else {
+                    $('#previewHolder').attr('src', e.target.result);
+                    $("input#currentpath").val(e.target.result);
+                    $("#btnDeleteImage").show();
+                }
+            }
+
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+    function readURLLink2(input) {
+
+        if (input.files && input.files[0]) {
+
+            if (input.files[0].name.toString().indexOf(".jpg") >= 0 || input.files[0].name.toString().indexOf(".png") >= 0 || input.files[0].name.toString().indexOf(".gif") >= 0
+                || input.files[0].name.toString().indexOf(".xls") >= 0 || input.files[0].name.toString().indexOf(".xlsx") >= 0 || input.files[0].name.toString().indexOf(".doc") >= 0 || input.files[0].name.toString().indexOf(".docx") >= 0 || input.files[0].name.toString().indexOf(".pdf") >= 0) {
+            }
+            else {
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                $("#spanGlobalMessage").html('@ResCommon.ValidFileName');
+                $('div#target').fadeToggle();
+                //$("div#target").delay(5000).fadeOut(200);
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+
+            }
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                var filePath = $("#currentpathLink2").val().split('\\').pop();
+
+                if (filePath.toString().indexOf("&") >= 0 || filePath.toString().indexOf("<") >= 0 || filePath.toString().indexOf(">") >= 0
+                    || filePath.toString().indexOf("*") >= 0 || filePath.toString().indexOf(":") >= 0
+                    || filePath.toString().indexOf("?") >= 0) {
+                    //alert("Please select correct file name.");
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    $("#spanGlobalMessage").html('@ResCommon.ValidFileName');
+                    $('div#target').fadeToggle();
+                    //$("div#target").delay(5000).fadeOut(200);
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+
+                    //$("input#currentpathLink2").val('');
+                }
+                else {
+                    $("#previewHolderLink2").attr('href', e.target.result);
+                    // $('#previewHolderLink2').attr('src', e.target.result);
+                    // $("input#currentpathLink2").val(e.target.result);
+                    $("#btnDeleteLink").show();
+                }
+            }
+
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function ShowImage(currentRadio) {
+
+        var currentId = $(currentRadio).attr("id");
+
+        if (currentId == "ImagePath") {
+            $("#ItemImage").show();
+            $("#ExternalURL").hide();
+            setImagePath();
+            $("#btnDeleteImage").hide();
+            if ((ItemImagePath != undefined && ItemImagePath != null && ItemImagePath != '') || ($("input#currentpath").val() != '' && $("input#currentpath").val() != '/Content/images/no-image.jpg')) {
+                $("#btnDeleteImage").show();
+            }
+
+
+            // $("img#previewHolder").attr('src', '/Content/images/no-image.jpg');
+            // $("#ImageExternalURL").val('');
+        }
+        else {
+            CheckValidURLForImage($("input#ItemImageExternalURL"));
+            //  $("#SupplierImage").val('');
+            $("#ItemImage").hide();
+            $("#ExternalURL").show();
+            $("#btnDeleteImage").hide();
+            //  $("img#previewHolder").attr('src','/Content/images/no-image.jpg');
+        }
+    }
+
+    function DeleteItemImage(ItemGUID) {
+        $.ajax({
+            url: '/Inventory/RemoveItemImage',
+            data: { 'ItemGUID': ItemGUID },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                if (response.status == 'ok') {
+
+                    $('#previewHolder').attr('src', '/Content/images/no-image.jpg');
+                    $("input#currentpath").val('/Content/images/no-image.jpg');
+                    $("input#ItemImage").val('');
+                    $("#btnDeleteImage").hide();
+                    ItemImagePath = '';
+                }
+                else {
+                    Status = 'Error';
+                    alert("Error");
+                }
+            }
+        });
+    }
+
+    function ShowLink2Image(currentRadio) {
+        var currentId = $(currentRadio).attr("id");
+
+        if (currentId == "InternalLink") {
+            $("#Link2").show();
+            $("#lnkExternalURL").hide();
+            setImagePathLink2();
+
+            $("#btnDeleteLink").hide();
+            if ((ItemImageLink != undefined && ItemImageLink != null && ItemImageLink != '')
+            || ($("input#currentpathLink2").val() != '' && $("input#currentpathLink2").val() != '/Content/images/no-image.jpg')
+            || ($("input#Link2").val() != '' && $("input#Link2").val() != '/Content/images/no-image.jpg')) {
+                $("#btnDeleteLink").show();
+            }
+
+            // $("img#previewHolder").attr('src', '/Content/images/no-image.jpg');
+            // $("#ImageExternalURL").val('');
+        }
+        else {
+            // CheckValidURLForLink2($("input#ItemLink2ExternalURL"));
+            //  $("#SupplierImage").val('');
+            $("#Link2").hide();
+            $("#lnkExternalURL").show();
+            //  $("img#previewHolder").attr('src','/Content/images/no-image.jpg');
+
+            $("#btnDeleteLink").hide();
+            setImagePathLink2External();
+        }
+    }
+
+    function DeleteItemLink(ItemGUID) {
+
+        $.ajax({
+            url: '/Inventory/RemoveItemLink',
+            data: { 'ItemGUID': ItemGUID },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                if (response.status == 'ok') {
+
+
+                    $('#previewHolderLink2').attr('href', '/Content/images/no-image.jpg');
+                    $("input#currentpathLink2").val('/Content/images/no-image.jpg');
+                    //$('#previewHolderLink2').css('display', 'none');
+
+                    $("input#Link2").val('');
+                    $("#btnDeleteLink").hide();
+                    ItemImageLink = '';
+                }
+                else {
+                    Status = 'Error';
+                    alert("Error");
+                }
+            }
+        });
+    }
+
+    function setImagePath() {
+        $('#previewHolder').attr('src', $("input#currentpath").val());
+    }
+    function setImagePathLink2() {
+        $('#previewHolderLink2').attr('href', $("input#currentpathLink2").val());
+    }
+    function setImagePathLink2External() {
+        var Path = $("input#currentpathLink2External").val()
+        if (Path == '') {
+            $("input#currentpathLink2External").val('/Content/images/no-image.jpg');
+        }
+
+        $('#previewHolderLink2').attr('href', $("input#currentpathLink2External").val());
+    }
+    function ajaxFileUpload1(Response, idValue) {
+        //starting setting some animation when the ajax starts and completes
+        $("#loading")
+    .ajaxStart(function () {
+        $(this).show();
+    })
+    .ajaxComplete(function () {
+        $(this).hide();
+    });
+        $('#DivLoading').show();
+        $.ajaxFileUpload
+    (
+        {
+            url: '/api/fileupload/PostBOMItemFile/' + Response.ItemID,
+            secureuri: false,
+            type: "POST",
+            fileElementId: 'ItemImage',
+            dataType: 'json',
+            async: false,
+            success: function (data, status) {
+
+                CallGridFunction(Response, idValue);
+                //  window.location.reload();
+                return true;
+            },
+            error: function (data, status, e) {
+
+                CallGridFunction(Response, idValue);
+                //    window.location.reload();
+                return false;
+            }
+        }
+    )
+        //return false;
+        return true;
+    }
+
+    function ajaxFileUpload(retid) {
+        //starting setting some animation when the ajax starts and completes
+        $("#loading")
+    .ajaxStart(function () {
+        $(this).show();
+    })
+    .ajaxComplete(function () {
+        $(this).hide();
+    });
+
+        $.ajaxFileUpload
+    (
+        {
+            url: '/api/fileupload/BOMItemLink2/' + retid,
+            secureuri: false,
+            type: "POST",
+            fileElementId: 'Link2',
+            dataType: 'json',
+            async: false,
+            success: function (data, status) {
+                //  window.location.reload();
+                return false;
+            },
+            error: function (data, status, e) {
+                return false;
+            }
+        }
+    )
+        // return false;
+    }
+
+    function is_valid_url(curobj) {
+        var url = $(curobj).val();
+        if (url != '' && url != null) {
+            var IsValidURL = /^(http(s)?:\/\/)?(www\.)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$/.test(url);
+            if (IsValidURL == false) {
+                //alert('Invalid URL, kindly enter valid URL');
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                $("#spanGlobalMessage").html('@ResCommon.InvalidURL');
+                $('div#target').fadeToggle();
+                //$("div#target").delay(5000).fadeOut(200);
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+
+                $(curobj).val("");
+                $(curobj).focus();
+            }
+            else if (IsValidURL == true) {
+                if (url.indexOf(".pdf") >= 0 || url.indexOf(".doc") >= 0 || url.indexOf(".docx") >= 0 || url.indexOf(".xls") >= 0
+                    || url.indexOf(".xlsx") >= 0 || url.indexOf(".txt") >= 0) {
+                    return true;
+                }
+                else {
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    $("#spanGlobalMessage").html('@ResCommon.InvalidURL');
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        $(curobj).val("");
+                        $(curobj).focus();
+                }
+            }
+        }
+        return false;
+    }
+
+    function CheckValidURLForImage(curobj) {
+        var strURL = $(curobj).val();
+
+        if (strURL != '' && strURL != null) {
+            $("<img>", {
+                src: strURL,
+                error: function () {
+                    //alert('Invalid URL. please enter valid URL');
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    $("#spanGlobalMessage").html('@ResCommon.InvalidURL');
+                    $('div#target').fadeToggle();
+                    //$("div#target").delay(5000).fadeOut(200);
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+
+                    $(curobj).val("");
+                    $("input#ItemImageExternalURL").val('');
+
+                    curobj.focus();
+
+                },
+                load: function () {
+
+                    $('#previewHolder').attr('src', strURL);
+
+                }
+            });
+        }
+        else {
+            $('#previewHolder').attr('src', '/Content/images/no-image.jpg');
+        }
+        return false;
+    }
+
+</script>

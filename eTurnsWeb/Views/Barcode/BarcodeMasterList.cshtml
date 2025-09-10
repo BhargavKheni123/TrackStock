@@ -1,0 +1,350 @@
+﻿@model IEnumerable<eTurns.DTO.BarcodeMasterDTO>
+@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    ViewBag.Title = "Barcode Master";// eTurns.DTO.ResAssetMaster.PageTitle;
+    var settings = new GridHeaderSettings() { DisplaySaveButton = false, ShowSelectAll = true, DisplayUDFButton = false, UDFSetupFor = "AssetMaster&UDFHeader=" + @ResAssetMaster.PageHeader, DisplayPrintBlock = true, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "BarcodeItemMasterList", dataViewType = DataViewType.text, /*TextToDispaly = ResAssetMaster.ClickToEdit*/ };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "BarcodeMaster" };
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Barcode, eTurnsWeb.Helper.SessionHelper.PermissionType.IsChecked);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Barcode, eTurnsWeb.Helper.SessionHelper.PermissionType.IsChecked);
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    List<ModuleMasterDTO> lstModulename = new List<ModuleMasterDTO>();
+    if (ViewBag.ModuleMasterList != null)
+    {
+        lstModulename = ViewBag.ModuleMasterList;
+        lstModulename = lstModulename.Where(t => t.ModuleName == "Item Master" || t.ModuleName == "Assets").ToList();
+        lstModulename = lstModulename.OrderBy(t => t.ModuleName).ToList();
+    }
+    if (string.IsNullOrWhiteSpace(Convert.ToString(Session["SetCurrentModule"])))
+    {
+        Session["SetCurrentModule"] = 1;
+    }
+    bool IsSuperAdmin = false;
+    if (eTurnsWeb.Helper.SessionHelper.RoleID == -1)
+    {
+        IsSuperAdmin = true;
+    }
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Barcode", (int)HelpDocType.Module);
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script type="text/javascript">
+
+        var IsRefreshGrid = false;
+        var deleteURL = "/Barcode/DeleteBarcodeRecords";
+        //var PostCount = 0;
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+        var SelectedHistoryRecordID = 0;
+        HasScheduleTab = true;
+
+        var IsReloadItemList = false;
+        var GenerateBarcodeForRoomURL = '@Url.Action("GenerateBarcodeForRoom", "Barcode")';
+        $(document).ready(function () {
+
+            LoadTabs();
+            var gaiSelected = [];
+
+            /* HISTORY related data deleated and archived END */
+        });
+    </script>
+}
+<script type="text/javascript">
+    var isTabClick = false;
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+
+    ];
+    function callbacknew() { window.location.hash = '#new'; ShowNewTab('BarcodeCreate', 'frmbarcode'); }
+    function callbackhistory() {
+        window.location.hash = '#list';
+        if (IsReloadItemList == true) {
+         
+            
+            $('#myDataTable').dataTable().fnDraw();
+            IsReloadItemList = false;
+
+        }
+    }
+
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+        }
+    }
+
+    $(document).ready(function () {
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+    });
+</script>
+<div class="userListingWrapper">
+    <h2>
+        @ResBarcodeMaster.PageHeader
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener" style="min-height: 970px;">
+        </div>
+        <div id="Ctab" class="tabContener" style="min-height: 970px;">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                    @*<input type="button" value="Search" class="searchBtn" />*@
+                </div>
+            </div>
+            <div style="clear:both" id="divModule">
+                <b>@eTurns.DTO.Resources.ResNarrowSearch.ModuleType:</b> 
+                <select id="ddlModuleType" class="selectBox">
+                    <option value="1">Item Master</option>
+                    <option value="2">Assets</option>
+                    <option value="3">Tools</option>
+                </select>
+                @if (IsSuperAdmin == true)
+                {
+                    <button id="GenerateBarcodeForRoom" class="CreateBtn" style="float: right;margin: 0.5% 1% 1% 0;" onclick="GenerateBarcodeForRoom();">@ResCommon.GenerateBarcodeForRoom</button>
+                }
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Barcode)
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            <div class="userContent">
+                <div id="divModuleList">
+                   
+                </div>
+            </div>
+        </div>
+        <script type="text/javascript">
+
+        </script>
+        <script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+       
+        <script language="javascript" type="text/javascript">
+            $(document).ready(function () {
+                $("select#ddlModuleType").change(function () {
+                    var currentModule = $(this).val();
+                    getModulewiseData(currentModule);
+                });
+            });
+            $(document).ready(function () {
+                var QueryStringParam1 = getParameterByName('fromdashboard');
+                var QueryStringParam2 = getParameterByName('GUID');
+                if (QueryStringParam1 == 'yes' && QueryStringParam2 != '') {
+
+                    $('#tab5').removeClass('selected');
+                    $('#tabMaintenance').addClass('selected');
+                    CurrentListTabID = 'tabMaintenance';
+                    $("#" + CurrentListTabID).click();
+                }
+                getModulewiseData($("#ddlModule").val());
+
+
+            });
+            $('#ddlModuleType').change(function () {
+
+                var selectedVal = $('#ddlModuleType option:selected').attr('value');
+
+                if (selectedVal != "") {
+                    $.ajax({
+                        url: '@Url.Content("~/Barcode/SetSelectedModule")'
+                                                , type: 'GET'
+                                                , data: { 'CurModule': selectedVal }
+                                                , contentType: "application/json"
+                                                , success: function (result) { }
+                                                , error: function (msg) { }
+                    });
+                }
+            });
+            function getModulewiseData(currentModule) {
+                
+                if (currentModule == null)
+                {
+                    currentModule = "1";
+                }
+                if (currentModule == "2") {
+                    $.ajax({
+                        url: "GetAssetPartialView",
+                        data: { "currentModel": '@Model' },
+                        type: "POST",
+                        cache: false,
+                        async: true,
+                        success: function (result) {
+                            $("div#divModuleList").html(result);
+                            GetModuleWiseCreatedData('BarcodeMaster', '@eTurnsWeb.Helper.SessionHelper.CompanyID', '@eTurnsWeb.Helper.SessionHelper.RoomID', currentModule);
+                            var clickevent = $("body").find("input#btnSaveOrder").attr("onclick");
+                            clickevent = clickevent.replace("BarcodeItemMasterList", "BarcodeAssetMasterList");
+                            $("body").find("input#btnSaveOrder").attr("onclick", clickevent);
+                        }
+                    });
+                }
+                else if(currentModule == "3") {
+                    $.ajax({
+                        url: "GetToolPartialView",
+                        data: { "currentModel": '@Model' },
+                        type: "POST",
+                        cache: false,
+                        async: true,
+                        success: function (result) {
+                            $("div#divModuleList").html(result);
+                            GetModuleWiseCreatedData('BarcodeMaster', '@eTurnsWeb.Helper.SessionHelper.CompanyID', '@eTurnsWeb.Helper.SessionHelper.RoomID', currentModule);
+                            var clickevent = $("body").find("input#btnSaveOrder").attr("onclick");
+                            clickevent = clickevent.replace("BarcodeItemMasterList", "BarcodeAssetMasterList");
+                            $("body").find("input#btnSaveOrder").attr("onclick", clickevent);
+                        }
+                    });
+                }
+                
+                else {
+                    $.ajax({
+                        url: "GetItemPartialView",
+                        data: { "currentModel": '@Model' },
+                        type: "POST",
+                        cache: false,
+                        async: true,
+                        success: function (result) {
+                            $("div#divModuleList").html(result);
+                            GetModuleWiseCreatedData('BarcodeMaster', '@eTurnsWeb.Helper.SessionHelper.CompanyID', '@eTurnsWeb.Helper.SessionHelper.RoomID', currentModule);
+                            var clickevent = $("body").find("input#btnSaveOrder").attr("onclick");
+                            clickevent = clickevent.replace("BarcodeAssetMasterList", "BarcodeItemMasterList");
+                            $("body").find("input#btnSaveOrder").attr("onclick", clickevent);
+                        }
+                    });
+                }
+            }
+            function getParameterByName(name) {
+                name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+                var regexS = "[\\?&]" + name + "=([^&#]*)";
+                var regex = new RegExp(regexS);
+                var results = regex.exec(window.location.search);
+                if (results == null)
+                    return "";
+                else
+                    return decodeURIComponent(results[1].replace(/\+/g, " "));
+            }
+            function GenerateBarcodeForRoom() {
+                var ModuleName = 'Item Master';
+                var AddedFrom = 'Web';
+                $('#DivLoading').show();
+                 $.ajax({
+                     url: GenerateBarcodeForRoomURL,
+                     data: { "ModuleName": ModuleName, "AddedFrom": AddedFrom},
+                        type: "POST",
+                        cache: false,
+                        async: true,
+                     success: function (result) {
+                         if (result == "success") {
+                             showNotificationDialog();
+                             $("#spanGlobalMessage").html("@ResBarcodeMaster.BarcodeGeneratedSuccessfully" + ModuleName);
+                             $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                             setTimeout(function () { window.location.reload(); }, 3000);
+                         }
+                         else {
+                             showNotificationDialog();
+                             $("#spanGlobalMessage").html(result);
+                             $("#spanGlobalMessage").removeClass('succesIcon').addClass('errorIcon WarningIcon');
+                         }
+                            $('#DivLoading').hide();
+                     },
+                     error: function () {
+                         $('#DivLoading').hide();
+                         showNotificationDialog();
+                         $("#spanGlobalMessage").html('@ResBarcodeMaster.ErrorGenerateBarcode');
+                         $("#spanGlobalMessage").removeClass('succesIcon').addClass('errorIcon WarningIcon');
+                     }
+                    });
+            }
+        </script>

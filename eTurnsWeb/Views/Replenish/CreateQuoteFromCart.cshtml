@@ -1,0 +1,182 @@
+@model IList<eTurns.DTO.QuoteMasterDTO>
+@{    
+    List<SelectListItem> quoteStatusList = null;
+    bool IsApprove = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowanquotetobeApproved);
+    bool isQuoteUDF = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetNonDeletedUDFCountByUDFTableName("QuoteMaster", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID) > 0;
+    string lstSuppliers = string.Empty;
+}
+<table style="width: 100%" class="display" id="tableCartQuote">
+    <thead>
+        <tr>            
+            <th style="text-align: left;width:11%;">
+                @eTurns.DTO.ResQuoteMaster.QuoteNumber
+            </th>
+            <th style="text-align: left;">
+                @eTurns.DTO.ResQuoteMaster.QuoteStatus
+            </th>
+            <th style="text-align: left;">
+                @eTurns.DTO.ResQuoteMaster.ReleaseNumber
+            </th>
+            <th style="text-align: left;">
+                @eTurns.DTO.ResQuoteMaster.NoOfLineItems
+            </th>
+            <th style="text-align: left;">
+                @eTurns.DTO.ResQuoteMaster.Comment
+            </th>
+            <th style="text-align: left;width:8%;">
+                @eTurns.DTO.ResQuoteMaster.RequiredDate
+            </th>
+            <th style="text-align: left;width:8%;">
+                @eTurns.DTO.ResQuoteMaster.QuoteSupplierNamesCSV
+            </th>
+            @if (isQuoteUDF)
+            {
+                @Html.RenderColumnsHeaderByName("QuoteMaster", typeof(eTurns.DTO.ResQuoteMaster))
+            }
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model != null && Model.Count() > 0)
+        {
+            quoteStatusList = ViewBag.QuoteStatusList;
+            string clasname = "";
+            lstSuppliers = Model[0].SelectedSuppliers;
+
+            for (int i = 0; i < Model.Count(); i++)
+            {
+                if ((i + 1) % 2 == 0)
+                {
+                    clasname = "even";
+                }
+                else
+                {
+                    clasname = "odd";
+                }
+                <tr class="@clasname">
+                    <td style="text-align: left;">
+                        @Html.HiddenFor(m => Model[i].NoOfLineItems, new { @id = "hdnNoOfLineItems_" + i })
+                        @Html.HiddenFor(m => Model[i].QuoteLineItemsIds, new { @id = "hdnQuoteLineItemsIds_" + i })
+                        @Html.HiddenFor(m => Model[i].QuoteLineItemUDF1, new { @id = "hdnQuoteLineUDF1_" + i })
+                        @Html.HiddenFor(m => Model[i].QuoteLineItemUDF2, new { @id = "hdnQuoteLineUDF2_" + i })
+                        @Html.HiddenFor(m => Model[i].QuoteLineItemUDF3, new { @id = "hdnQuoteLineUDF3_" + i })
+                        @Html.HiddenFor(m => Model[i].QuoteLineItemUDF4, new { @id = "hdnQuoteLineUDF4_" + i })
+                        @Html.HiddenFor(m => Model[i].QuoteLineItemUDF5, new { @id = "hdnQuoteLineUDF5_" + i })
+                        @Html.TextBoxFor(m => Model[i].QuoteNumber, new { @class = "text-boxinner", @style = "width:90%;", @maxlength = 22, @id = "txtQuoteNumber_" + i })
+                        @Html.HiddenFor(m => Model[i].QuoteQuantityString, new { @id = "hdnCartQuantity_" + i })
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.DropDownListFor(m => Model[i].QuoteStatus, new SelectList(quoteStatusList, "value", "Text", Model[i].QuoteStatus), new { id = "ddlQuoteStatus_" + i, @class = "selectBox", @style = "width:120px" })
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.DisplayFor(m => Model[i].ReleaseNumber)
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.DisplayFor(m => Model[i].NoOfLineItems)
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.TextAreaFor(m => Model[i].Comment, new { @maxlength = 1024, @class = "text-boxinner", @style = "width:90%;", @cols = 20, @id = "txtQuoteComment_" + i })
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.TextBoxFor(m => Model[i].RequiredDateString, new { @class = "text-boxinner", @readonly = "readonly", @style = "width:90%;", @id = "txtQuoteRequiredDate_" + i })
+                    </td>
+                    <td style="text-align: left;" class="editor-field rightEdit">
+                        <select id="ddlQuoteSupplierIdsCSV_@i" multiple="multiple" width="150px" name="example-basic" size="5" class="text-box selectBox">
+                        </select>                        
+                    </td>
+            @if (isQuoteUDF)
+            {
+                @Html.RenderColumnsArrayEditableObjectForDOMByName("QuoteMaster", controlIDPostfix: "")
+            }
+        </tr>
+            }
+
+        }
+    </tbody>
+</table>
+<table style="width: 100%">
+    <tr>
+        <td>
+            &nbsp;
+        </td>
+    </tr>
+    <tr>
+        <td style="text-align: right;">
+            <input type="button" class="btnGeneral" value="@ResCommon.Save" id="btnSaveQuotes" name="btnSaveQuotes" />
+            <input type="button" class="btnGeneral" value="@ResCommon.Cancel" id="btnCancel" name="btnCancel" />
+        </td>
+    </tr>
+</table>
+<script>
+    $(document).ready(function () {
+        $("table#tableCartQuote tbody tr").each(function () {
+            var currentTr = $(this);
+            var ddlQuoteSupplierIdsCSV = $(currentTr).find("select[id^='ddlQuoteSupplierIdsCSV_']");
+            var selectedSuppliers = '@lstSuppliers';
+
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("GetSupplierData", "Replenish")',
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function (response) {
+                    var s = "";
+                    $(ddlQuoteSupplierIdsCSV).html('');
+                    $.each(response.DDData, function (Data,supp) {
+                        s += '<option value="' + supp.ID + '">' + supp.SupplierName + '</option>';
+                    });
+                    $(ddlQuoteSupplierIdsCSV).append(s);
+                    if ($(ddlQuoteSupplierIdsCSV).length > 0) {
+                        $(ddlQuoteSupplierIdsCSV)[0].selectedIndex = -1;
+                    }
+                    $(ddlQuoteSupplierIdsCSV).multiselect("refresh");
+                    //$(ddlQuoteSupplierIdsCSV).multiselectfilter('refresh');
+
+                    $(ddlQuoteSupplierIdsCSV).multiselect({
+                        checkAllText: '@ResNarrowSearch.Check',
+                        uncheckAllText: '@ResNarrowSearch.UnCheck',
+                        noneSelectedText: '@ResCommon.Select' + ' ' + '@ResQuoteMaster.SupplierFilter', selectedList: 5,
+                        selectedText: function (numChecked, numTotal, checkedItems) {
+                            return '@ResQuoteMaster.SupplierFilter' + ' ' + numChecked + ' ' + '@ResNarrowSearch.selected';
+                        }
+                    }).unbind("multiselectclick multiselectcheckall multiselectuncheckall").bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+                        if (ui.checked) {
+                            $(ddlQuoteSupplierIdsCSV).multiselect("widget").find(":checkbox[value='" + ui.value + "']").attr("checked", "checked");
+                            $(ddlQuoteSupplierIdsCSV).val(ui.value);
+                        }
+                        var selectedValues = $.map($(this).multiselect("getChecked"), function (input) {
+                            return input.value;
+                        });
+                        if (selectedValues.length == 1) {
+                            $.ajax({
+                                "url": '@Url.Action("getQuoteNumberForSupplier", "Replenish")',
+                                "data": { SupplierID: selectedValues[0] },
+                                "async": false,
+                                "cache": false,
+                                "dataType": "json",
+                                success: function (response) {
+                                    $(event.currentTarget).closest("tr").find("[id^='txtQuoteNumber_']").val(response.DDData.QuoteNumber);
+                                }
+                            });
+
+                        } else {
+                            $(event.currentTarget).closest("tr").find("[id^='txtQuoteNumber_']").val('');
+                        }
+
+
+                    }).multiselectfilter({ label: '@ResNarrowSearch.Filter', placeholder: '@ResNarrowSearch.Enterkeywords' });
+                    $(ddlQuoteSupplierIdsCSV).multiselect("refresh");
+                    if (selectedSuppliers != undefined && selectedSuppliers != '') {
+                        var selectedSup = selectedSuppliers.split(',');
+                        selectedSup.forEach(function (ID) {
+                            $(ddlQuoteSupplierIdsCSV).multiselect("widget").find(":checkbox[value='" + ID + "']").attr("checked", "checked");
+                            $(ddlQuoteSupplierIdsCSV).find("option[value=" + ID + "]").attr("selected", 1);
+                        });
+                        $(ddlQuoteSupplierIdsCSV).multiselect("refresh");
+
+                    }
+                }
+            });
+        });
+        UDFfillEditableOptionsForGridTrnsAndOrd();
+    });
+</script>

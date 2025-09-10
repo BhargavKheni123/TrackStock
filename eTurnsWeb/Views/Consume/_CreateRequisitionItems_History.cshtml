@@ -1,0 +1,459 @@
+﻿@model eTurns.DTO.RequisitionMasterDTO
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = false, DisplayColumnSetupButton = false, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = false, DataTableName = "RequisitionItemsTableHistory" + Model.ID };
+}
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%; height: 800px;">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="InnerItem_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_QLItem_filter" /></a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Requisitions)
+            <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="RequisitionItemsTableHistory@(Model.ID)" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.HistoryID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Action
+                            </th>
+                            <th>@eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th>@eTurns.DTO.ResRequisitionDetails.QuantityRequisitioned
+                            </th>
+                            <th>@eTurns.DTO.ResRequisitionDetails.QuantityApproved
+                            </th>
+                            <th>@eTurns.DTO.ResRequisitionDetails.QuantityPulled
+                            </th>
+                            <th>@eTurns.DTO.ResWorkOrderLineItems.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.RequisitionListItem != null && Model.RequisitionListItem.Count > 0)
+                        {
+                            foreach (var item in Model.RequisitionListItem)
+                            { 
+                            <tr>
+                                <td>
+                                    @if (item.QuantityPulled.GetValueOrDefault(0) > 0)
+                                    {
+                                        <img src="~/Content/images/drildown_open.jpg" name="pullDrillDown" alt="Show/Hide Pull" />
+                                    }
+                                </td>
+                                <td>
+                                    @item.HistoryID
+                                </td>
+                                <td>
+                                    @item.Action
+                                </td>
+                                <td>
+                                    @item.ItemNumber
+                                </td>
+                                <td>
+                                    @item.QuantityRequisitioned
+                                </td>
+                                <td>
+                                    @item.QuantityApproved
+                                </td>
+                                <td>
+                                    @item.QuantityPulled
+                                </td>
+                                <td>@item.ID
+                                    <input id="hdnID" type="hidden" value="@item.GUID" />
+                                    <input id="hdnBigID" type="hidden" value="@item.HistoryID" />
+                                </td>
+                                <td>
+                                    @item.AddedFrom
+                                </td>
+                                <td>
+                                    @item.EditedFrom
+                                </td>
+                                <td>
+                                    @item.ReceivedOnDate
+                                </td>
+                                <td>
+                                    @item.ReceivedOnWebDate
+                                </td>
+                            </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var oTableProjectItems;
+    var deleteURL1 = "/WorkOrder/WOItemsDelete";
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var ReqItemsHistoryDTName = 'RequisitionItemsTableHistory' + '@Model.ID';
+    var bIsFilter = false;
+    var anOpen = [];
+    var sImageUrl1 = "/Content/images/";
+    AllowDeletePopup = false;
+    $(document).ready(function () {
+        var ReqItemsHistoryDTName = 'RequisitionItemsTableHistory' + '@Model.ID';
+        $(".text-boxPriceFormatinner").priceFormat({
+            prefix: '',
+            thousandsSeparator: ''
+        });
+        $(".myDatePicker").datepicker({ dateFormat: 'm/d/yy' });
+        $("#saveRows").click(function () {
+            SaveAllClick();
+        });
+        var gaiSelected = [];
+        oTableProjectItems = $('#' + ReqItemsHistoryDTName).dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "900px",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            "aaSorting": [],
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+            "sLengthMenu": MsgShowRecordsGridBtn,
+            "sEmptyTable": MsgNoDataAvailableInTable,
+            "sInfo": MsgShowingNoOfEntries,
+            "sInfoEmpty": MsgShowingZeroEntries,
+            "sZeroRecords": MsgNoDataAvailableInTable,
+            "sInfoFiltered": ""
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                if (!bIsFilter) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'WorkOrderDetails' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                }
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'WorkOrderDetails' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            }
+        });
+        $('.DTTT_container').css('z-index', '-1');
+
+        //Apply filter
+        $("#InnerItem_filter").keyup(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            //var index = $.inArray(code, NotAllowedCharCodes);
+            if (code == 13) {
+            }
+            else {
+                fnFilterRequisitionItemsHistory();
+            }
+        });
+
+        //Keydown event is required to handle ENTER KEY to work in IE
+        $("#InnerItem_filter").keydown(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                fnFilterRequisitionItemsHistory();
+            }
+        });
+
+        //Clear Filter
+        $("#clear_QLItem_filter").click(function () {
+            $("#InnerItem_filter").val('');
+            fnFilterRequisitionItemsHistory();
+            $("#InnerItem_filter").focus();
+            return false;
+        });
+        var timeoutscheduler;
+        $(document).on('propertychange input', "#InnerItem_filter", function () {
+            clearTimeout(timeoutscheduler);
+            var self = this;
+            timeoutscheduler = setTimeout(function () {
+                if (SearchPattern == 2 || SearchPattern == "2") {
+                    fnFilterRequisitionItemsHistory();
+                }
+                else {
+                    $('#InnerItem_filter').unbind("keypress");
+                    $('#InnerItem_filter').keypress(function (event) {
+                        var keycode = (event.keyCode ? event.keyCode : event.which);
+                        if (keycode == 13) {
+                            fnFilterRequisitionItemsHistory();
+                        }
+                    });
+                    if ($("#InnerItem_filter").val().length == 0) {
+                        setTimeout(function () { fnFilterRequisitionItemsHistory();; }, 200);
+                    }
+                }
+            }, 500);
+        });
+    });
+
+    function fnFilterRequisitionItemsHistory() {
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#InnerItem_filter") != 'undefined' && ($("#InnerItem_filter").val().length > 2 || $("#InnerItem_filter").val().length == 0)) {
+            //if (typeof $("#InnerItem_filter") != 'undefined') {
+            bIsFilter = true;
+            var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+            $('#' + ReqItemsHistoryDTName).dataTable().fnFilter(
+                searchtext,
+                null,
+                null,
+                null
+            );
+            $('#' + ReqItemsHistoryDTName + ' td').removeHighlight();
+
+            if (searchtext.length > 0)
+                $('#' + ReqItemsHistoryDTName + ' td').highlight($("#InnerItem_filter").val());
+        }
+    }
+    $("#" + ReqItemsHistoryDTName + " tbody tr").click(function (e) {
+        return false;
+    });
+
+
+    if ('@ViewBag.IsRecordEditableBag' == 'False') {
+
+        $('select', ReqItemsHistoryDTName)
+            .attr('disabled', 'disabled');
+
+        $(':input[type=text], textarea', ReqItemsHistoryDTName)
+            .attr('readonly', 'readonly');
+
+        $('#saveRows').attr('style', 'display:none');
+        $('#deleteRows1').attr('style', 'display:none');
+    }
+
+    $('#' + ReqItemsHistoryDTName + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    //$('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+    $('[name = "pullDrillDown"]').die("click");
+
+
+    // To adjust the print block next to colvis button
+    $('#btnblock').css({ 'margin-right': '45px' });
+
+    $('#' + ReqItemsHistoryDTName + ' tbody tr').live('tap click', function () {
+        $(this).toggleClass('row_selected');
+        return false;
+    });
+
+
+    $('#' + ReqItemsHistoryDTName).on("click", "td", function (event) {
+        event.preventDefault();
+    });
+
+    /* Add a click handler for the delete rows multiple rows */
+    /*Functions used for nasted data binding START*/
+    $('[name = "pullDrillDown"]').on("click", function (event) {
+
+        var nTr = this.parentNode.parentNode;
+        var i = $.inArray(nTr, anOpen);
+        if (i === -1) {
+            $(this).attr('src', sImageUrl1 + "drildown_close.jpg");
+            $('#' + ReqItemsHistoryDTName).dataTable().fnOpen(nTr, fnFormatDetails($('#' + ReqItemsHistoryDTName).dataTable(), nTr), '');
+            anOpen.push(nTr);
+            //$('#' + ReqItemsHistoryDTName).dataTable().fnDraw();
+        }
+        else {
+            $(this).attr('src', sImageUrl1 + "drildown_open.jpg");
+            $('#' + ReqItemsHistoryDTName).dataTable().fnClose(nTr);
+            anOpen.splice(i, 1);
+        }
+    });
+
+    function fnFormatDetails(oTableProjectItems, nTr) {
+        var sOut = '';
+        var hdnID = $(nTr).find('#hdnID').val();
+        var hdnbigID = $(nTr).find('#hdnBigID').val();
+        $('#DivLoading').show();
+        $.ajax({
+            "url": '@Url.Content("~/Consume/RequisitionPulls")',
+            data: { RequisitionDetailGUID: hdnID, BigID: hdnbigID },
+            "async": false,
+            cache: false,
+            "dataType": "text",
+            "success": function (json) {
+                sOut = json;
+                $('#DivLoading').hide();
+            },
+            error: function (response) {
+                //;
+            }
+        });
+        return sOut;
+    }
+
+    $('#deleteRows1').click(function () {
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+        if ($("body").hasClass('DTTT_Print')) {
+            return false;
+        }
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+
+
+        var anSelected = fnGetSelected(oTableProjectItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            //anSelected[0].cells[0].innerHTML
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+            IsDeletePopupOpen = false;
+        }
+    });
+    var TempIdsForDelete = "";
+    $("#btnModelYesInnerGrid").live("click", function () {
+
+        var anSelected = fnGetSelected(oTableProjectItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+
+            var txtQuantityPulled = $(anSelected[i]).find('#txtQuantityPulled').val() == '' ? 0 : $(anSelected[i]).find('#txtQuantityPulled').val();
+            var txtAvalQuantity = $(anSelected[i]).find('#hdnQuantity').val() == '' ? 0 : $(anSelected[i]).find('#hdnQuantity').val();
+            var txxt = $(anSelected[i]).find('#txtQty').val() == '' ? 0 : $(anSelected[i]).find('#txtQty').val();
+            var vBinID = $(anSelected[i]).find("#item_BinID").val();
+            var txtQty = parseInt(txxt, 10);
+
+            txtQuantityPulled = parseInt(txtQuantityPulled, 10);
+            txtAvalQuantity = parseInt(txtAvalQuantity, 10);
+
+            //            if (txtQuantityPulled == txtAvalQuantity || txtQuantityPulled == 0) {
+            //                stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+            //            }
+            //            else {
+            //                TempIdsForDelete = TempIdsForDelete + $(anSelected[i]).find("#hdnID").val() + ",";
+            //            }
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+
+        if (stringIDs.length !== 0) {
+            $.ajax({ 'url': deleteURL1,
+                data: { ids: stringIDs },
+                success: function (response) {
+
+                    if (response == "ok") {
+                        for (var i = 0; i <= anSelected.length - 1; i++) {
+                            oTableProjectItems.fnDeleteRow(anSelected[i]);
+                        }
+                        if (anSelected.length > 0) {
+                            if (TempIdsForDelete.length > 0) {
+                                $("#spanGlobalMessage").html("@ResCommon.RecordDeletedSuccessfully".replace("{0}", "(" + anSelected.length + ")") + "@ResRequisitionDetails.validateDeleteRecords".replace("{0}",TempIdsForDelete));
+                            }
+                            else {
+                                $("#spanGlobalMessage").html("@ResCommon.RecordDeletedSuccessfully".replace("{0}", "(" + anSelected.length + ")"));
+                            }
+
+                            // here needs to write code for delete the data from PULL Master
+                            // based on WO Detail ID , needs to remove the record from Pull Master Table ...
+                        }
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        ReDirectData();
+                    }
+                },
+                error: function (response) {
+
+                    // through errror message
+                }
+            });
+            $.modal.impl.close();
+        }
+        else {
+            if (TempIdsForDelete.length > 0) {
+                $("#spanGlobalMessage").html("@ResRequisitionDetails.validateDeleteRecords".replace("{0}",TempIdsForDelete));
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                $.modal.impl.close();
+                TempIdsForDelete = "";
+            }
+        }
+    });
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+        $('#' + ReqItemsHistoryDTName).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+
+
+    function callPrint1(DataTableName) {
+        var oConfig = {
+            "sInfo": "<h6>Print view</h6><p>Please use your browser's print function to " + "print this table. Press escape when finished.",
+            "sMessage": null,
+            "bShowAll": false,
+            "sToolTip": "View print view",
+            "sButtonClass": "DTTT_button_print",
+            "sButtonText": "Print"
+        };
+        if (typeof (TableTools) != undefined && typeof (TableTools) != 'undefined')
+            TableTools.fnGetInstance(DataTableName).fnPrint(true, oConfig);
+    }
+
+    /* DATA TABLE GRID COMMON FUNCTIONS END */
+
+</script>

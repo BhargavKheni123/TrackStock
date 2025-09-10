@@ -1,0 +1,239 @@
+﻿@model eTurns.DTO.PullPOMasterDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+
+    bool isUpdate;
+    bool isInsert;
+
+    isUpdate = true;
+    isInsert = true;
+}
+@using (Ajax.BeginForm("PullPOSave", "Pull", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmPullPO" }))
+{
+@Html.AntiForgeryToken()
+<div class="userHead">
+    @Html.ValidationSummary(true)
+    @if (Model.ID != 0)
+        {
+    <div class="infoBlock">
+        <ul>
+            <li>
+                <label for="RoomName">
+                    @Html.LabelFor(model => model.RoomName)
+                </label>
+                : <span>@(Model.RoomName)</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    @Html.LabelFor(model => model.CreatedDate)
+                </label>
+                @*: <span>@eTurnsWeb.Helper.CommonUtility.ToClientDateTime(Model.Created)</span></li>*@
+                : <span>@Model.ReceivedOnDateWeb</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    @Html.LabelFor(model => model.CreatedByName)
+                </label>
+                : <span>@(Model.CreatedByName)</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    @Html.LabelFor(model => model.UpdatedDate)
+                </label>
+                @*: <span>@eTurnsWeb.Helper.CommonUtility.ToClientDateTime(Model.Updated)</span></li>*@
+                : <span>@Model.ReceivedOnDate</span>
+            </li>
+            <li style="border: none">
+                <label for="RoomName">
+                    @Html.LabelFor(model => model.UpdatedByName)
+                </label>
+                : <span>@(Model.UpdatedByName)</span>
+            </li>
+        </ul>
+    </div>
+        }
+    <div class="editorForm">
+        <ul>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.PullOrderNumber) <em>*</em>
+                </div>
+                <div class="editor-field">
+                    @*@Html.DropDownListFor(model => model.ToolCategoryID, new SelectList(ViewBag.ToolCategoryList, "ID", "ToolCategory", Model.ToolCategoryID), "", new { @class = "selectBox" })*@
+                    @Html.EditorFor(model => model.PullOrderNumber)
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.PullOrderNumber)</span>
+                </div>
+            </li>
+            <li id="BinDetailLI">
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.IsActive)
+                </div>
+                <div class="editor-field">
+                    @Html.CheckBoxFor(model =>model.IsActive)
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsActive)</span>
+                </div>
+            </li>
+            <li>
+                @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                @Html.HiddenFor(model => model.Created)
+                @Html.HiddenFor(model => model.Updated)
+                @Html.HiddenFor(model => model.CreatedBy)
+                @Html.HiddenFor(model => model.UpdatedBy)
+                @Html.HiddenFor(model => model.CompanyID)
+                @Html.HiddenFor(model => model.RoomId)
+                @Html.HiddenFor(model => model.RoomName)
+                @Html.HiddenFor(model => model.CreatedByName)
+                @Html.HiddenFor(model => model.UpdatedByName)
+                @Html.HiddenFor(model => model.IsDeleted)
+                @Html.HiddenFor(model => model.IsArchived)
+            </li>
+            <li>
+                <div class="editor-label">
+                    &nbsp;
+                </div>
+                <div class="BtnBlockform">
+                    <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+                    @if ((isInsert == true && Model.ID == 0) || (isUpdate == true && Model.ID > 0) || Convert.ToString(Session["IsInsert"]) == "True")
+                        {
+                    <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn"  />
+                        }
+                        else //if (isUpdate == false && isInsert == false)
+                        {
+                    <script>
+                        //This is the case when archived or deleted record is being viewed..
+                        disableControls('frmPullPO');
+                    </script>
+                        }
+                </div>
+            </li>
+        </ul>
+    </div>
+
+</div>
+}
+@Html.Partial("_RequiredMessages")
+<script type="text/javascript">
+    $(document).ready(function () {
+        $('form').areYouSure();
+
+        $('#PullOrderNumber').on('input', function () {
+            var maxLength = 22; // Set the desired maximum length
+            if ($(this).val().length > maxLength) {
+                $(this).val($(this).val().substring(0, maxLength));
+            }
+        });
+    });
+
+
+    $("form").submit(function (e) {
+        $.validator.unobtrusive.parse("#frmPullPO");
+
+        e.preventDefault();
+    });
+
+
+
+    function onSuccess(response) {
+        IsRefreshGrid = true;
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Massage);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#PullOrderNumber").val("");
+            $("#PullOrderNumber").focus();
+        }
+        else if (idValue == 0) {
+            $("#PullOrderNumber").val("");
+            $("#PullOrderNumber").focus();
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+
+                var _IsArchived = false;
+                var _IsDeleted = false;
+
+                if (typeof ($('#IsArchivedRecords')) != undefined)
+                    _IsArchived = $('#IsArchivedRecords').is(':checked');
+
+                if (typeof ($('#IsDeletedRecords')) != undefined)
+                    _IsDeleted = $('#IsDeletedRecords').is(':checked');
+                ShowNewTab('PullPOCreate', 'frmPullPO');
+            }
+
+        }
+        else if (idValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                $("#PullOrderNumber").focus();
+            }
+            else {
+
+
+                SwitchTextTab(0, 'PullPOCreate', 'frmPullPO');
+            }
+        }
+        return false;
+    }
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+
+        showNotificationDialog();
+        $("#PullOrderNumber").focus();
+    }
+
+    $(document).ready(function () {
+
+
+
+        //$.ajaxSetup({
+        //    beforeSend: function (req) {
+        //        $('#DivLoading').show();
+        //    },
+        //    complete: function (req) {
+        //        $('#DivLoading').hide();
+        //    }
+        //});
+        $('#btnCancel').click(function (e) {
+            //            if (IsRefreshGrid)
+            //                $('#NarroSearchClear').click();
+            SwitchTextTab(0, 'PullPOCreate', 'frmPullPO');
+            if (oTable !== undefined && oTable != null) {
+                oTable.fnDraw();
+            }
+        });
+
+        checkRememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+
+
+    });
+
+</script>
+@if (isUpdate != false && isInsert != false)
+{
+<script>
+    $(document).ready(function () {
+
+    });
+</script>
+}
+<div id="NewMasterPopUP">
+</div>
+<script type="text/javascript">
+    $(document).ready(function () {
+
+    });
+
+
+
+
+</script>

@@ -1,0 +1,171 @@
+﻿@model eTurns.DTO.VenderMasterDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+}
+
+    @{             
+        bool isUpdate;
+        bool isInsert;
+        if (ViewBag.ViewOnly == true)
+        {
+            isUpdate = false;
+            isInsert = false;
+        }
+        else
+        {
+            isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.VenderMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+            isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.VenderMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+        }
+    }
+    @using (Ajax.BeginForm("VenderSave", "Master", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmVenderMaster" }))
+    {        
+      @Html.AntiForgeryToken()
+      <div class="userHead">                        
+        @Html.ValidationSummary(true)        
+        @if (Model.ID != 0)
+        {        
+        <div class="infoBlock">
+            <ul>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.RoomName)
+                    </label>
+                    : <span>@(Model.RoomName)</span></li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.Created)
+                    </label>
+                    : <span>@(Model.CreatedDate)</span></li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.CreatedByName)
+                    </label>
+                    : <span>@(Model.CreatedByName)</span></li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.Updated)
+                    </label>
+                    : <span>@(Model.UpdatedDate)</span></li>
+                <li style="border: none">
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.UpdatedByName)
+                    </label>
+                    : <span>@(Model.UpdatedByName)</span></li>
+            </ul>
+        </div>
+        }         
+        <div class="editorForm">
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Vender)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.Vender, new { id = "Vender", @class = "text-box", maxlength = 128 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Vender)</span>
+                        @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                        @Html.HiddenFor(model => model.GUID)
+                        @Html.HiddenFor(model => model.Created)
+                        @Html.HiddenFor(model => model.Updated)
+                        @Html.HiddenFor(model => model.CreatedBy)
+                        @Html.HiddenFor(model => model.LastUpdatedBy)
+                        @Html.HiddenFor(model => model.CompanyID)
+                        @Html.HiddenFor(model => model.Room)
+                        @Html.HiddenFor(model => model.RoomName)
+                        @Html.HiddenFor(model => model.CreatedByName)
+                        @Html.HiddenFor(model => model.UpdatedByName)
+                        @Html.HiddenFor(model => model.IsDeleted)
+                        @Html.HiddenFor(model => model.IsArchived)
+                    </div>
+                </li>
+                @Html.Partial("UDFLayout", new eTurns.DTO.ResVenderMaster())
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="BtnBlockform">
+                        <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+                        @if ((isInsert == true && Model.ID == 0) || (isUpdate == true && Model.ID > 0))
+                        {                            
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />                            
+                        }
+                        else if (isUpdate == false && isInsert == false)
+                        {                             
+                            <script>
+                                //This is the case when archived or deleted record is being viewed..
+                                disableControls('frmBin');
+                            </script>
+                        }
+                    </div>
+                </li>
+            </ul>
+        </div> 
+</div>    }
+<script type="text/javascript">
+    $("form").submit(function (e) {
+        $.validator.unobtrusive.parse("#frmVenderMaster");
+        if ($(this).valid()) {
+            rememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        }
+        e.preventDefault();
+    });
+</script>
+<script   type="text/javascript">
+
+    function onSuccess(response) {
+        IsRefreshGrid = true;
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+
+        if (response.Status == "fail") {
+
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#Vender").val("");
+            $("#Vender").focus();
+        }
+        else if (idValue == 0) {
+            $("#Vender").val("");
+            $("#Vender").focus();
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+                clearControls('frmVenderMaster');
+                setDefaultUDFValues($("#hdnPageName").val(), '@Model.ID');
+            }
+        }
+        else if (idValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                $("#Vender").val("");
+                $("#Vender").focus();
+            }
+            else
+                SwitchTab(0, 'VenderMasterCreate', 'frmVenderMaster');
+        }
+    }
+    function onFailure(message) {
+
+        $("#spanGlobalMessage").html(message.statusText);
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        $("#BinNumber").focus();
+    }
+
+    $(document).ready(function () {
+        $('form').areYouSure();
+        $('#btnCancel').click(function (e) {
+            if (IsRefreshGrid)
+                $('#NarroSearchClear').click();
+            SwitchTab(0, 'VenderMasterCreate', 'frmVenderMaster');
+        });
+        checkRememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+    });    
+
+    _Common.addRequiredSign();
+
+</script>

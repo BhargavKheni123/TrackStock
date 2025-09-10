@@ -1,0 +1,792 @@
+﻿@using Newtonsoft.Json;
+@model eTurns.DTO.ProductSearchResultDTO
+@{
+
+    ViewBag.Title = eTurns.DTO.ResABProducts.PageTitleGridPage;
+    int TotalPages = 0, CurrentPage = 1;
+    bool SearchResultAvailable = false;
+    int MatchingProductCount = 0;
+
+    if (Model != null && Model.products != null && Model.products.Count > 0)
+    {
+        TotalPages = Model.numberOfPages;
+        SearchResultAvailable = true;
+    }
+
+    if (Model != null && Model.matchingProductCount > 0)
+    {
+        MatchingProductCount = Model.matchingProductCount;
+    }
+
+    if (Request.QueryString["page"] != null)
+    {
+        if (!int.TryParse(Request.QueryString["page"], out CurrentPage))
+        {
+            CurrentPage = 1;
+        }
+
+    }
+    string SearchK = Request.QueryString["k"];
+    string ListViewURL = Url.Action("ProductList", "Product") + HttpContext.Current.Request.Url.Query;
+    bool IsAllowToInsertItem = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool IsAllowToInsertCart = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Cart, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+
+    List<SelectListItem> lstpagesize = new List<SelectListItem>();
+    lstpagesize.Add(new SelectListItem() { Text = ResABProducts.SelectPageSize, Value = "" });
+    for (int i = 1; i < 25; i++)
+    {
+        if (i % 4 == 0)
+        {
+            lstpagesize.Add(new SelectListItem() { Text = i.ToString(), Value = i.ToString() });
+        }
+    }
+    System.Collections.Specialized.NameValueCollection qscoll = HttpUtility.ParseQueryString(HttpContext.Current.Request.Url.Query);
+    qscoll["asin"] = "";
+    qscoll["PageName"] = "Grid";
+
+    RouteValueDictionary rQuery = new RouteValueDictionary();
+    foreach (string s in qscoll.AllKeys)
+    {
+        rQuery.Add(s, qscoll[s]);
+    }
+    
+    var selectedPageSize = string.Empty;
+
+    if (Model != null && Model.pageSize > 0)
+    {
+        selectedPageSize = Model.pageSize.ToString();
+    }
+}
+
+<script src="@Url.Content("~/Scripts/jquery.twbsPagination.min.js")" type="text/javascript"></script>
+<script src="@Url.Content("~/Scripts/URI.min.js")" type="text/javascript"></script>
+<script src="~/Scripts/ABProduct.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css" rel="stylesheet" />
+<div class="userListingWrapper main-wrap">
+    <div class="userListBlock">
+        <div id="Ctab" class="tabContener" style="width:99.5%; padding:0;">
+            <div class="page-wrapper">
+                <main id="maincontent" class="product-grid-blk">
+                    <div class="search-blk">
+                        <div class="search-container d-flex align-items-center justify-content-between">
+                            @using (Html.BeginForm("ProductListGrid", "Product", FormMethod.Get, new { @id = "frmSearchAmazonProductsGrid" }))
+                            {
+                                <input type="text" value="@SearchK" placeholder="@ResCommon.Search" name="k" id="k">
+                                <button type="submit" class="searchIcon">@ResCommon.Search</button>
+                                @Html.DropDownList("pageSize", new SelectList(lstpagesize, "Value", "Text"), new { @class = "selectBox", @style= "margin-left: 10px;min-width:130px;" , @onchange = "PageChanged();" })
+                            }
+                        </div>
+                    </div>
+
+                    <div class="supplie-selection d-flex align-items-start justify-content-between">
+                        <span>@ViewBag.StartingRecord - @ViewBag.EndingRecord of over @MatchingProductCount results for <strong>"@ViewBag.CurrentFilter"</strong> supplied by <strong>amazon business</strong></span>
+                        <div class="select-product">
+                            <div class="pageSwitch">
+                                <a href="@ListViewURL" class="listView" title="List View">@ResABProducts.List</a>
+                                <a href="return:javascript:void(0);" class="gridView selected" title="Grid View">@ResABProducts.Grid</a>
+                            </div>                           
+                        </div>
+                    </div>
+                    <div class="product-listing">
+                        <div id="sidebar">
+                            <div class="filter-content">
+                                @if (Model != null && Model.refinements != null)
+                                {
+                                <div class="sidebar-filter">
+                                    <div class="filter-inner">
+                                        <a href="javascript:void(0);" title="filter">@ResABProducts.RefineBy</a>
+                                    </div>
+
+                                    @if (!string.IsNullOrEmpty(ViewBag.Category) && !string.IsNullOrWhiteSpace(ViewBag.Category))
+                                    {
+                                        <div class="filter-category">
+                                            <div class="filter-title">@ResABProducts.Categories</div>
+                                            <div>
+                                                <ul>
+                                                    <li>
+                                                        <a onclick="FilterList(true);"> @ResABProducts.AnyCategory </a>
+                                                        <ul>
+                                                            <li>
+                                                                @if (!string.IsNullOrEmpty(ViewBag.SubCategory) && !string.IsNullOrWhiteSpace(ViewBag.SubCategory))
+                                                                {
+                                                                    <a onclick="FilterList(false, '@ViewBag.Category', '@ViewBag.CategoryName');"> < @ViewBag.CategoryName</a>
+
+                                                                    <ul>
+                                                                        @if (Session["ProductListGridSubCategories"] != null && ((List<Category>)Session["ProductListGridSubCategories"]).Any() && ((List<Category>)Session["ProductListGridSubCategories"]).Count > 0)
+                                                                        {
+                                                                            var subCategories = (List<Category>)Session["ProductListGridSubCategories"];
+
+                                                                            if (subCategories != null && subCategories.Any() && subCategories.Count > 0)
+                                                                            {
+                                                                                var noOfCategories = subCategories.Count;
+                                                                                int subCategoryCounter = 1;
+                                                                                foreach (var subCategory in subCategories)
+                                                                                {
+                                                                                    if (subCategoryCounter == noOfCategories)
+                                                                                    {
+                                                                                        break;
+                                                                                    }
+
+                                                                                    <li><a onclick="FilterList(false, '@ViewBag.Category', '@ViewBag.CategoryName', '@subCategory.id', '@subCategory.displayName');">< @subCategory.displayName</a></li>
+
+                                                                                    subCategoryCounter++;
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                        <li>
+                                                                            @*<a onclick="FilterList(false, '@ViewBag.Category', '@ViewBag.CategoryName', '@ViewBag.SubCategory', '@ViewBag.SubCategoryName');">< @ViewBag.SubCategoryName</a>*@
+                                                                            <label>@ViewBag.SubCategoryName</label>
+                                                                            @if (Model != null && Model.refinements != null && Model.refinements.subCategories != null && Model.refinements.subCategories.Any() &&
+                                                                                Model.refinements.subCategories.Count > 0)
+                                                                            {
+                                                                                <ul>
+                                                                                    @foreach (var subCategory in Model.refinements.subCategories)
+                                                                                    {
+                                                                                        var subcategory = JsonConvert.DeserializeObject<Category>(subCategory.ToString());
+
+                                                                                        if (subcategory != null && !string.IsNullOrEmpty(subcategory.displayName) && !string.IsNullOrWhiteSpace(subcategory.displayName))
+                                                                                        {
+                                                                                            <li><a onclick="FilterList(false, '@ViewBag.Category', '@ViewBag.CategoryName', '@subcategory.id','@subcategory.displayName');">@subcategory.displayName</a></li>
+
+                                                                                        }
+                                                                                    }
+                                                                                </ul>
+                                                                            }
+
+                                                                        </li>
+                                                                    </ul>
+                                                                }
+                                                                else if (Model != null && Model.refinements != null && Model.refinements.subCategories != null && Model.refinements.subCategories.Any() && Model.refinements.subCategories.Count > 0)
+                                                                {
+                                                                    <label id="selectedCategory">@ViewBag.CategoryName</label>
+                                                                    <ul>
+                                                                        @foreach (var subCategory in Model.refinements.subCategories)
+                                                                        {
+                                                                            var subcategory = JsonConvert.DeserializeObject<Category>(subCategory.ToString());
+
+                                                                            if (subcategory != null && !string.IsNullOrEmpty(subcategory.displayName) && !string.IsNullOrWhiteSpace(subcategory.displayName))
+                                                                            {
+                                                                                <li><a onclick="FilterList(false, '@ViewBag.Category', '@ViewBag.CategoryName', '@subcategory.id','@subcategory.displayName');">@subcategory.displayName </a></li>
+
+                                                                            }
+                                                                        }
+                                                                    </ul>
+                                                                }
+                                                            </li>
+                                                        </ul>
+                                                    </li>
+
+                                                </ul>
+
+                                                @*<br />*@
+
+                                            </div>
+                                        </div>
+                                    }
+
+                                    @if (Model != null && Model.refinements != null && Model.refinements.categories != null && Model.refinements.categories.Any() && Model.refinements.categories.Count > 0)
+                                    {
+                                        <div class="filter-category">
+                                            <div class="filter-title">@ResABProducts.Categories</div>
+
+                                            @foreach (var category in Model.refinements.categories.OrderBy(e=>e.displayName))
+                                            {
+                                                <div class="form-check">
+                                                    <a onclick="FilterList(false, '@category.id', '@category.displayName');"> @category.displayName </a>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+
+                                    @if (Model != null && Model.refinements != null && Model.refinements.primeEligible != null && Model.refinements.primeEligible.Any() && Model.refinements.primeEligible.Count > 0)
+                                    {
+                                        <div class="filter-category">
+                                            <div class="filter-title">@ResABProducts.EligibleForPrime</div>
+                                            <div class="form-check">
+                                                @if (!string.IsNullOrEmpty(ViewBag.PrimeEligible) && !string.IsNullOrWhiteSpace(ViewBag.PrimeEligible))
+                                                {
+                                                    <input class="form-check-input" type="checkbox" id="PrimeEligible" name="PrimeEligible" checked="checked" onclick="FilterList();" value="@Model.refinements.primeEligible[0].id">
+                                                }
+                                                else
+                                                {
+                                                    <input class="form-check-input" type="checkbox" id="PrimeEligible" name="PrimeEligible" onclick="FilterList();" value="@Model.refinements.primeEligible[0].id">
+                                                }
+
+                                                <label class="form-check-label">@Model.refinements.primeEligible[0].displayName</label>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    @if (Model != null && Model.refinements != null && Model.refinements.eligibleForFreeShippingOptions != null && Model.refinements.eligibleForFreeShippingOptions.Any() && Model.refinements.eligibleForFreeShippingOptions.Count > 0)
+                                    {
+                                        <div class="filter-category">
+                                            <div class="filter-title">@ResABProducts.EligibleForFreeShipping</div>
+                                            <div class="form-check">
+                                                @if (!string.IsNullOrEmpty(ViewBag.EligibleForFreeShipping) && !string.IsNullOrWhiteSpace(ViewBag.EligibleForFreeShipping))
+                                                {
+                                                    <input class="form-check-input" type="checkbox" id="EligibleForFreeShipping" name="EligibleForFreeShipping" checked="checked" onclick="FilterList();" value="@Model.refinements.eligibleForFreeShippingOptions[0].id">
+                                                }
+                                                else
+                                                {
+                                                    <input class="form-check-input" type="checkbox" id="EligibleForFreeShipping" name="EligibleForFreeShipping" onclick="FilterList();" value="@Model.refinements.eligibleForFreeShippingOptions[0].id">
+                                                }
+
+                                                <label class="form-check-label">@Model.refinements.eligibleForFreeShippingOptions[0].displayName</label>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    @if (Model != null && Model.refinements != null && Model.refinements.deliveryDayOptions != null && Model.refinements.deliveryDayOptions.Any() && Model.refinements.deliveryDayOptions.Count > 0)
+                                    {
+                                        <div class="filter-category">
+
+                                            <div class="filter-title">@ResABProducts.DeliveryDay</div>
+
+                                            @foreach (var delivery in Model.refinements.deliveryDayOptions)
+                                            {
+                                                var displayName = delivery.displayName;
+                                                if (!string.IsNullOrWhiteSpace(displayName) && !string.IsNullOrEmpty(displayName) && displayName == "1")
+                                                {
+                                                    displayName = ResABProducts.GetItByToday;
+                                                }
+                                                else if (!string.IsNullOrWhiteSpace(displayName) && !string.IsNullOrEmpty(displayName) && displayName == "2")
+                                                {
+                                                    displayName = ResABProducts.GetItByTommorrow;
+                                                }
+
+                                                <div class="form-check">
+
+                                                    @if (!string.IsNullOrEmpty(ViewBag.DeliveryDay) && !string.IsNullOrWhiteSpace(ViewBag.DeliveryDay) && ViewBag.DeliveryDay == delivery.id)
+                                                    {
+                                                        <input class="form-check-input" type="checkbox" name="DeliveryDay" checked="checked" value="@delivery.id">
+                                                    }
+                                                    else
+                                                    {
+                                                        <input class="form-check-input" type="checkbox" name="DeliveryDay" value="@delivery.id">
+                                                    }
+
+                                                    <label class="form-check-label">@displayName</label>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+
+                                    @if (Model != null && Model.refinements != null && Model.refinements.availabilityOptions != null && Model.refinements.availabilityOptions.Any() && Model.refinements.availabilityOptions.Count > 0)
+                                    {
+                                        <div class="filter-category">
+
+                                            <div class="filter-title">@ResABProducts.Availability</div>
+
+                                            @foreach (var availability in Model.refinements.availabilityOptions)
+                                            {
+                                                var displayName = availability.displayName;
+                                                if (!string.IsNullOrWhiteSpace(displayName) && !string.IsNullOrEmpty(displayName) && displayName == "0")
+                                                {
+                                                    displayName = ResABProducts.IncludeOutofStock;
+                                                }
+                                                else if (!string.IsNullOrWhiteSpace(displayName) && !string.IsNullOrEmpty(displayName) && displayName == "1")
+                                                {
+                                                    displayName = ResABProducts.InStockOnly;
+                                                }
+
+                                                <div class="form-check">
+
+                                                    @if (!string.IsNullOrEmpty(ViewBag.Availability) && !string.IsNullOrWhiteSpace(ViewBag.Availability) && ViewBag.Availability == availability.id)
+                                                    {
+                                                        <input class="form-check-input" type="checkbox" name="Availability" checked="checked" value="@availability.id">
+                                                    }
+                                                    else
+                                                    {
+                                                        <input class="form-check-input" type="checkbox" name="Availability" value="@availability.id">
+                                                    }
+
+                                                    <label class="form-check-label" id="lbl_@availability.id">@displayName</label>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+
+                                </div>
+                                }
+
+                            </div>
+                        </div>
+
+                        @if (SearchResultAvailable)
+                        {
+                            <div id="products" class="row list-group">
+                                <div class="results">@ResABProducts.Results</div>
+                                <div class="item list-group-item">
+                                    @foreach (var item in Model.products)
+                                    {
+                                        rQuery["asin"] = item.asin;
+                                        string Imagesrc = string.Empty;
+                                        string ImgAlt = string.Empty;
+                                        double ListPrice = 0;
+                                        double OfferPrice = 0;
+                                        double DiscountPrice = 0;
+                                        decimal RatePercentage = 0;
+                                        string meanFeedbackRating = "";
+                                        string starRating = "";
+                                        if (item.includedDataTypes != null)
+                                        {
+                                            if (item.includedDataTypes.IMAGES != null && item.includedDataTypes.IMAGES.Count > 0)
+                                            {
+                                                Imagesrc = item.includedDataTypes.IMAGES.First().small.url;
+                                                ImgAlt = item.includedDataTypes.IMAGES.First().altText;
+                                            }
+                                            if (item.includedDataTypes.OFFERS != null && item.includedDataTypes.OFFERS.Count > 0)
+                                            {
+                                                OFFER FirstOFFER = new OFFER();
+                                                FirstOFFER = item.includedDataTypes.OFFERS.FirstOrDefault();
+                                                if (FirstOFFER.listPrice != null && FirstOFFER.listPrice.value != null)
+                                                {
+                                                    ListPrice = FirstOFFER.listPrice.value.amount;
+                                                }
+                                                if (FirstOFFER.price != null && FirstOFFER.price.value != null)
+                                                {
+                                                    OfferPrice = FirstOFFER.price.value.amount;
+                                                }
+                                                if (ListPrice > OfferPrice)
+                                                {
+                                                    DiscountPrice = Convert.ToDouble(String.Format("{0:0.00}", (ListPrice - OfferPrice)));
+                                                }
+                                                if (FirstOFFER.merchant.meanFeedbackRating != null
+                                                    && Convert.ToDecimal(FirstOFFER.merchant.meanFeedbackRating) > 0)
+                                                {
+                                                    RatePercentage = ((Convert.ToDecimal(FirstOFFER.merchant.meanFeedbackRating) / 5) * 100);
+                                                    meanFeedbackRating = Convert.ToString(String.Format("{0:0.0}", FirstOFFER.merchant.meanFeedbackRating));
+                                                }
+                                                if (FirstOFFER.merchant.totalFeedbackCount != null
+                                                   && Convert.ToInt64(FirstOFFER.merchant.totalFeedbackCount) > 0)
+                                                {
+                                                    starRating = Convert.ToString(FirstOFFER.merchant.totalFeedbackCount);
+                                                }
+                                            }
+
+                                        }
+
+                                        <div class="product-main">
+                                            <div class="product-item">
+                                                <div class="product-wishlist">
+                                                    <div class="best-selling" style="display:none"><span>Best Seller</span></div>
+                                                    <a class="product-item-photo" href="@Url.Action("ProductEdit", "Product", rQuery)" title="@ImgAlt"><img class="" src="@Imagesrc" alt="@ImgAlt"></a>
+                                                </div>
+                                                <div class="product-item-details">
+                                                    <div class="sponsored-product d-flex align-items-center" style="display:none">
+                                                        <a href="#" title="" style="display:none">
+                                                            <span>Sponsored</span><img src="/Content/images/sponsor-icon.png">
+                                                        </a>
+                                                    </div>
+                                                    <div class="product-name">
+                                                        <a href="@Url.Action("ProductEdit", "Product", rQuery)" title="">@item.title</a>
+                                                    </div>
+                                                    @if (RatePercentage > 0)
+                                                    {
+                                                        <div class="rating-result d-flex flex-row">
+                                                            <div class="rating-box">
+                                                                <div class="rating ratingShow" style="width:@(RatePercentage)%"></div>
+                                                            </div>
+                                                            <span class="ratingLink">@starRating</span>
+                                                            <div class="ratingShowBlock">
+                                                                <div class="rating-box">
+                                                                    <div class="rating" style="width:@(RatePercentage)%"></div>
+                                                                </div>
+                                                                <div class="ratingView">@meanFeedbackRating @ResABProducts.ratingsoutFive</div>
+                                                                <div class="ratingStatus">@starRating @ResABProducts.globalratings</div>
+                                                            </div>
+                                                            @*<a href="#" title=""><img src="../Content/images/rating.png" alt="rating"></a> <a href="#" class="ratingLink">1,953 ratings | 2 answered questions</a>*@
+                                                        </div>
+                                                    }
+                                                    <div class="sg-row">
+                                                        <div class="short-description">
+                                                            <div class="price-box inner-price">
+                                                                @if (DiscountPrice > 0)
+                                                                {
+                                                                    @*<div class="discount-price">
+                                                                        <sup class="price-symbol">@Model.RegionCurrencySymbol</sup><span>@DiscountPrice</span>
+                                                                    </div>*@
+                                                                }
+                                                                @if (OfferPrice > 0)
+                                                                {
+                                                                    double OfferPriceMain = Math.Truncate(OfferPrice);
+                                                                    Int64 OfferPriceDecimal = (Int64)(((decimal)OfferPrice % 1) * 100);
+                                                                    <div class="original-price">
+                                                                        <sup class="price-symbol">@Model.RegionCurrencySymbol</sup><span class="main-price">@OfferPriceMain</span><sup class="price-fraction">@(String.Format("{0:00}",OfferPriceDecimal))</sup>
+                                                                    </div>
+                                                                }
+                                                                @if (ListPrice <= 0 && OfferPrice <= 0)
+                                                                {
+                                                                    <span>@ResABProducts.CurrentlyUnavailable</span>
+                                                                }
+
+                                                                @if (ListPrice > 0)
+                                                                {
+                                                                    <div class="price-list">
+                                                                        @*<p>@ResABProducts.ListPrice</p>*@<div class="price-symbol">@Model.RegionCurrencySymbol</div><sup class="price-fraction">@(String.Format("{0:0.00}",ListPrice))</sup>
+                                                                    </div>
+                                                                }
+
+                                                                <div class="product-smalldesc">
+                                                                    <div class="col-inner">
+                                                                        <span>Display Size</span>
+                                                                        <br class="row-separator">
+                                                                        <strong>15.60 inches</strong>
+                                                                    </div>
+                                                                    <div class="col-inner">
+                                                                        <span>Disk Size</span>
+                                                                        <br class="row-separator">
+                                                                        <strong>1 TB</strong>
+                                                                    </div>
+                                                                    <div class="col-inner">
+                                                                        <span>RAM</span>
+                                                                        <br class="row-separator">
+                                                                        <strong>20 GB</strong>
+                                                                    </div>
+                                                                    <div class="col-inner">
+                                                                        <span>Operating System</span>
+                                                                        <br class="row-separator">
+                                                                        <strong>Windows 11 Home</strong>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                             @if (item.includedDataTypes.OFFERS != null && item.includedDataTypes.OFFERS.Count > 0)
+                                                             {
+                                                                 if (!string.IsNullOrWhiteSpace(item.includedDataTypes.OFFERS[0].deliveryInformation))
+                                                                 {
+                                                                    <div class="prime-details">
+                                                                        <span class="s-prime" style="display:none"><img src="/Content/images/prime.png"></span>
+                                                                        @*<span>Get it as soon as</span>*@
+                                                                    <strong>@item.includedDataTypes.OFFERS[0].deliveryInformation</strong>
+                                                                    </div>
+                                                                 }
+                                                             }
+                                                            <div class="coupon-code" style="display:none">
+                                                                <span class="highlight-code">Save $130.00</span>
+                                                                <span class="color-base"> with coupon</span>
+                                                                <div class="limited-deal"><span class="highlight-code">Limited time deal</span></div>
+                                                            </div>
+
+                                                            <div class="shipping-country d-flex">
+                                                                <span class="a-size-small a-color-base" style="display:none">FREE Shipping by Amazon</span>
+                                                                <span class="size-base color-price" style="display:none">Only 1 left in stock - order soon.</span>
+                                                                <a class="moreChoice" onclick="ShowProductOffer('@item.asin')">@ResABProducts.MoreBuyingChoices</a>
+                                                                <span class="size-base color-base" style="display:none">$385.99 <a href="#" title="" class="link-text">(18 used &amp; new offers)</a></span>
+                                                            </div>
+
+                                                            <div class="mini-device" style="display:none">
+                                                                <p class="different-price">Price may vary by color</p>
+                                                                <div class="device-color">
+                                                                    <img src="/Content/images/image1.jpg" alt="">
+                                                                    <img src="/Content/images/image2.jpg" alt="">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                    
+                                                <div class="add-cart">
+                                                    @if (Model.RoomItemsASIN != null && Model.RoomItemsASIN.Any() && Model.RoomItemsASIN.Count > 0)
+                                                    {
+                                                        if (!string.IsNullOrEmpty(item.asin) && !string.IsNullOrWhiteSpace(item.asin) && !Model.RoomItemsASIN.Contains(item.asin.Trim()))
+                                                        {
+                                                            if (IsAllowToInsertItem)
+                                                            {
+                                                                <a href="#" title="@ResABProducts.addtoroom" id="aItemAddToRoomFromList" data-asin="@item.asin" onclick="AddtoRoom('@item.asin','@ProductToItemCallFor.AddToItem',false)">@ResABProducts.addtoroom</a>
+                                                            }
+
+                                                            if (IsAllowToInsertItem && IsAllowToInsertCart)
+                                                            {
+                                                                <a href="#" title="@ResABProducts.addtocart" onclick="AddtoRoom('@item.asin', '@ProductToItemCallFor.AddToCart',false)" class="addCart">@ResABProducts.addtocart</a>
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            if (!string.IsNullOrEmpty(item.asin) && !string.IsNullOrWhiteSpace(item.asin) && IsAllowToInsertCart)
+                                                            {
+                                                                <a href="#" title="@ResABProducts.addtocart" onclick="AddtoRoom('@item.asin', '@ProductToItemCallFor.AddToCart', true)" class="addCart">@ResABProducts.addtocart</a>
+                                                            }
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        if (!string.IsNullOrEmpty(item.asin) && !string.IsNullOrWhiteSpace(item.asin))
+                                                        {
+                                                            if (IsAllowToInsertItem)
+                                                            {
+                                                                <a href="#" title="@ResABProducts.addtoroom" id="aItemAddToRoomFromList" data-asin="@item.asin" onclick="AddtoRoom('@item.asin','@ProductToItemCallFor.AddToItem',false)">@ResABProducts.addtoroom</a>
+                                                            }
+
+                                                            if (IsAllowToInsertItem && IsAllowToInsertCart)
+                                                            {
+                                                                <a href="#" title="@ResABProducts.addtocart" onclick="AddtoRoom('@item.asin', '@ProductToItemCallFor.AddToCart',false)" class="addCart">@ResABProducts.addtocart</a>
+                                                            }
+                                                        }
+                                                    }
+                                                
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+
+                                </div>
+
+                            </div>
+                        }
+
+
+                    </div>
+
+                    @if (SearchResultAvailable)
+                    {
+                        <div class="pagination" id="dvpager"></div>
+                    }
+
+                </main>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="AddToItemOrCartQtyPopUp"></div>
+<div id="divProductOffer">
+</div>
+<script type="text/javascript">
+
+    var totalPages = parseInt('@TotalPages');
+    var currentPage = parseInt('@CurrentPage');
+    var LblProductQuantityPopUpTitle = "@ResABProducts.ProductQuantityPopUpTitle";
+    function FilterList(IsAnyCategoryClick, CategoryId, CategoryName, SubCategoryId, SubCategoryName) {
+        var url = new URI(window.location.href);
+
+        if ((!($("#PrimeEligible").prop('checked') == true)) && url.hasQuery("PrimeEligible") === true) {
+            url.removeSearch("PrimeEligible");
+        }
+
+        if ((!($("#EligibleForFreeShipping").prop('checked') == true)) && url.hasQuery("EligibleForFreeShipping") === true) {
+            url.removeSearch("EligibleForFreeShipping");
+        }
+
+        if ((!($("input[name='DeliveryDay']:checked").length > 0)) && url.hasQuery("DeliveryDay") === true) {
+            url.removeSearch("DeliveryDay");
+        }
+
+        if ((!($("input[name='Availability']:checked").length > 0)) && url.hasQuery("Availability") === true) {
+            url.removeSearch("Availability");
+
+            //if (url.hasQuery("AvailabilityName"))
+            //{
+            //    url.removeSearch("AvailabilityName");
+            //}
+        }
+
+        if (typeof (IsAnyCategoryClick) != "undefined" && IsAnyCategoryClick != null && IsAnyCategoryClick == true && url.hasQuery("page") === true) {
+            url.removeSearch("page");
+        }
+
+        if (typeof (IsAnyCategoryClick) != "undefined" && IsAnyCategoryClick != null && IsAnyCategoryClick == true && url.hasQuery("Category") === true) {
+            url.removeSearch("Category");
+            if (url.hasQuery("CategoryName")) {
+                url.removeSearch("CategoryName");
+            }
+        }
+
+        if (((typeof (IsAnyCategoryClick) != "undefined" && IsAnyCategoryClick != null && IsAnyCategoryClick == true) || ((typeof (SubCategoryId) == "undefined" || SubCategoryId == null
+            || SubCategoryId.length < 1) && (typeof (CategoryId) != "undefined" && CategoryId != null && CategoryId.length > 0))) && url.hasQuery("SubCategory") === true) {
+            url.removeSearch("SubCategory");
+
+            if (url.hasQuery("SubCategoryName")) {
+                url.removeSearch("SubCategoryName");
+            }
+        }
+
+        if ($("#PrimeEligible").prop('checked') == true) {
+            url.setSearch("PrimeEligible", document.getElementById("PrimeEligible").value);
+
+            if (url.hasQuery("page") === true) {
+                url.removeSearch("page");
+            }
+        }
+
+        if ($("#EligibleForFreeShipping").prop('checked') == true) {
+            url.setSearch("EligibleForFreeShipping", document.getElementById("EligibleForFreeShipping").value);
+
+            if (url.hasQuery("page") === true) {
+                url.removeSearch("page");
+            }
+        }
+
+        if ($("input[name='DeliveryDay']:checked").length > 0) {
+            var deliveryDayId = $("input[name='DeliveryDay']:checked").val();
+            if (typeof (deliveryDayId) != "undefined" && deliveryDayId != null && deliveryDayId != '' && deliveryDayId.length > 0) {
+                url.setSearch("DeliveryDay", deliveryDayId);
+
+                if (url.hasQuery("page") === true) {
+                    url.removeSearch("page");
+                }
+            }
+        }
+
+        if ($("input[name='Availability']:checked").length > 0) {
+            var availabilityId = $("input[name='Availability']:checked").val();
+            if (typeof (availabilityId) != "undefined" && availabilityId != null && availabilityId != '' && availabilityId.length > 0) {
+                url.setSearch("Availability", availabilityId);
+                //url.setSearch("AvailabilityName", $("#lbl_" + availabilityId).text());
+
+                if (url.hasQuery("page") === true) {
+                    url.removeSearch("page");
+                }
+            }
+        }
+
+        if (typeof (IsAnyCategoryClick) != "undefined" && IsAnyCategoryClick != null && IsAnyCategoryClick == false
+            && typeof (CategoryId) != "undefined" && CategoryId != null && CategoryId.length > 0) {
+            url.setSearch("Category", CategoryId);
+            url.setSearch("CategoryName", CategoryName);
+
+            if (url.hasQuery("page") === true) {
+                url.removeSearch("page");
+            }
+
+        }
+
+        if (typeof (IsAnyCategoryClick) != "undefined" && IsAnyCategoryClick != null && IsAnyCategoryClick == false
+            && typeof (SubCategoryId) != "undefined" && SubCategoryId != null && SubCategoryId.length > 0) {
+
+            url.setSearch("SubCategory", SubCategoryId);
+            url.setSearch("SubCategoryName", SubCategoryName);
+
+            if (url.hasQuery("page") === true) {
+                url.removeSearch("page");
+            }
+
+            $.ajax({
+                url: 'SetProductListGridSubCategories',
+                'type': 'Post',
+                'data': { 'IsForClearSession': false, 'SubCategoryId': SubCategoryId, 'SubCategoryName': SubCategoryName },
+                'dataType': 'json',
+                async: false,
+                'success': function (result) {
+                },
+                'error': function (xhr) {
+                }
+
+            });
+
+        }
+
+        window.location.href = url;
+    }
+
+    $("#frmSearchAmazonProductsGrid").submit(function (e) {
+        var searchText = $("#k").val();
+
+        if (typeof (searchText) == "undefined" || searchText == null || searchText == "" || searchText.trim().length < 1) {
+            return false;
+        }
+    });
+
+    function PageChanged() {
+        /*$("#frmSearchAmazonProducts").submit();*/
+        var url = new URI(window.location.href);
+        var pgSize = $("#pageSize").val();
+
+        var searchText = $("#k").val();
+
+        if (typeof (searchText) == "undefined" || searchText == null || searchText == "" || searchText.trim().length < 1) {
+            return false;
+        }
+
+        if (typeof (pgSize) == "undefined" || pgSize == null || pgSize == "" || pgSize.trim().length < 1) {
+            if (url.hasQuery("pageSize") === true) {
+                url.removeSearch("pageSize");
+            }
+        }
+        else {
+            url.setSearch("pageSize", pgSize);
+        }
+
+        if (url.hasQuery("page") === true) {
+            url.removeSearch("page");
+        }
+
+        //url.setSearch("pageSize", page);
+        window.location.href = url;
+    }
+
+    $(document).ready(function () {
+        $("#pageSize").val("@selectedPageSize");
+        if (totalPages > 0) {
+        $('#dvpager').twbsPagination({
+            totalPages: totalPages,
+            visiblePages: 5,
+            startPage: currentPage,
+            initiateStartPageClick: false,
+            onPageClick: function (event, page) {
+                var url = new URI(window.location.href);
+                url.setSearch("page", page);
+                window.location.href = url;
+            }
+        });
+        }
+
+        $("input:checkbox[name='DeliveryDay']").off('click');
+        $("input:checkbox[name='DeliveryDay']").on('click', function () {
+            // in the handler, 'this' refers to the box clicked on
+            var $box = $(this);
+            if ($box.is(":checked")) {
+                // the name of the box is retrieved using the .attr() method
+                // as it is assumed and expected to be immutable
+                var group = "input:checkbox[name='" + $box.attr("name") + "']";
+                // the checked state of the group/box on the other hand will change
+                // and the current value is retrieved using .prop() method
+                $(group).prop("checked", false);
+                $box.prop("checked", true);
+            } else {
+                $box.prop("checked", false);
+            }
+
+            FilterList();
+
+        });
+
+        $("input:checkbox[name='Availability']").off('click');
+        $("input:checkbox[name='Availability']").on('click', function () {
+            // in the handler, 'this' refers to the box clicked on
+            var $box = $(this);
+            if ($box.is(":checked")) {
+                // the name of the box is retrieved using the .attr() method
+                // as it is assumed and expected to be immutable
+                var group = "input:checkbox[name='" + $box.attr("name") + "']";
+                // the checked state of the group/box on the other hand will change
+                // and the current value is retrieved using .prop() method
+                $(group).prop("checked", false);
+                $box.prop("checked", true);
+            } else {
+                $box.prop("checked", false);
+            }
+
+            FilterList();
+
+        });
+
+        $("div#products .rating-result").each(function (index, obj) {
+            $(obj).find(".ratingShow").mouseenter(function (e) {
+                $(obj).find(".ratingShowBlock").show();
+            }).mouseleave(function (e) {
+                setTimeout(function () {
+                    $(obj).find(".ratingShowBlock").hide();
+                }, 5000);
+                $(obj).find(".ratingShowBlock").mouseenter(function (e) {
+                    $(obj).find(".ratingShowBlock").show();
+                    return false;
+                });
+            });
+
+            $(obj).find(".ratingShowBlock").mouseleave(function (e) {
+                $(obj).find(".ratingShowBlock").hide();
+            });
+        });
+    });
+
+</script>

@@ -1,0 +1,468 @@
+﻿@{
+    ViewBag.Title = eTurns.DTO.ResCartItem.PageTitle;
+
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.ListAndGrouped, DataTableName = "myDataTable", ListViewhref = "CartItemList", GroupedViewhref = "#", DisplayUDFButton = true, UDFSetupFor = "CartItem&UDFHeader=" + @eTurns.DTO.ResCartItem.CartItemHeader, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "CartItem", DisplayDeleteButton = false };
+    //var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplayUDFButton = true, UDFSetupFor = "CartItem", DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "CartItem", ShowDelete = false };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "CartItem" };
+
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Cart, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Cart, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+
+    string CartCoockiename = "DefaultCartListview_" + eTurnsWeb.Helper.SessionHelper.UserID;
+    List<BinMasterDTO> lstAllBins = (List<BinMasterDTO>)ViewBag.AllBinsOfRoom;
+    string strBinLocations = "<option value=''></option>";
+    foreach (var item in lstAllBins)
+    {
+        strBinLocations += "<option value='" + item.ID + "'>" + item.BinNumber + "</option>";
+    }
+    string CartPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Cart.pdf", DateTime.Now.Ticks);
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+}
+@*@if (false)
+{
+    <script src="../../Scripts/jquery-1.9.1-vsdoc.js" type="text/javascript"></script>
+}*@
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Content/OpenAccess/jquery.cookie.js")"></script>
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script type="text/javascript" src="@Url.Content("~/Scripts/SiteScripts.js?v=" + version)"></script>
+    <script type="text/javascript">
+
+        var oTable;
+        var IsRefreshGrid = true;
+        var deleteURL = "/Replenish/DeleteCartItemRecords";
+        var anOpenCart = [];
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+        var SelectedCartItemID = 0;
+        var HistorySelected;
+        var objColumns = {};
+        $(document).ready(function () {
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            var bindropdownoption = '@strBinLocations';
+            var decoded = $('<div/>').html(bindropdownoption).text();
+            $.cookie('@CartCoockiename', '@Url.Action("CartItems", "Replenish")', { expires: 365, SameSite: 'Strict'  });
+            LoadTabs();
+            var gaiSelected = [];
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "150%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[1, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    if (aData.IsDeleted == true && aData.IsArchived == true)
+                        nRow.className = "GridDeleatedArchivedRow";
+                    else if (aData.IsDeleted == true)
+                        nRow.className = "GridDeletedRow";
+                    else if (aData.IsArchived == true)
+                        nRow.className = "GridArchivedRow";
+
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    //if (PostCount > 1) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'CartItem' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                    //}
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        data: { ListName: 'CartItem' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Action("CartItemListGroupedAjax", "Replenish")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    //PostCount = PostCount + 1;
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    if (oSettings.aaSorting.length != 0)
+                        aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        cache: false,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable').highlight($("#global_filter").val());
+                            }
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [
+                            {
+                                "mDataProp": null,
+                                "bSortable": false,
+                                "sDefaultContent": '',
+                                "sClass": "read_only control center",
+                                "fnRender": function (obj, val) { return '<img src="' + sImageUrl + 'drildown_open.jpg' + '" + /> <input type="hidden" id="ItemGUID" value=' + obj.aData.GUID.toString() + ' />' }
+                            },
+                //{ "mDataProp": "ItemID", "sClass": "read_only" },
+                            {"mDataProp": "ItemNumber", "sClass": "read_only" },
+			                { "mDataProp": "Quantity", "sClass": "read_only", "fnRender": function (obj, val) { return "<span id='spnQty_" + obj.aData.ItemGUID + "'>" + val + "</span> "; } }
+                            ]
+            }).makeEditable({
+                sUpdateURL: '@Url.Content("~/Master/UpdateData")'
+            });
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+            $("#myDataTable").on("click", "td.control", function (event) {
+                var nTr = this.parentNode;
+                var i = $.inArray(nTr, anOpenCart);
+                if (i === -1) {
+                    $('img', this).attr('src', sImageUrl + "drildown_close.jpg");
+                    oTable.fnOpen(nTr, fnFormatDetails(oTable, nTr), '');
+                    anOpenCart.push(nTr);
+                }
+                else {
+                    $('img', this).attr('src', sImageUrl + "drildown_open.jpg");
+                    oTable.fnClose(nTr);
+                    anOpenCart.splice(i, 1);
+                }
+            });
+
+            function fnFormatDetails(oTable, nTr) {
+                var oData = oTable.fnGetData(nTr);
+                ItemName = oData.ItemNumber;
+                ItemUniqueID = $(nTr).find('#ItemGUID')[0].value;
+                var sOut = '';
+                $('#DivLoading').show();
+                $.ajax({
+                    "url": '@Url.Content("~/Replenish/CartItemDetailsSub")',
+                    data: { ItemGUID: ItemUniqueID, IsDeleted: $('#IsDeletedRecords').is(':checked'), IsArchived: $('#IsArchivedRecords').is(':checked') },
+                    "async": false,
+                    cache: false,
+                    "dataType": "text",
+                    "success": function (json) {
+                        sOut = json;
+                        $('#DivLoading').hide();
+                    },
+                    error: function (response) {
+                    }
+                });
+
+                return sOut;
+            }
+
+            /* HISTORY related data deleated and archived START */
+            $('#IsDeletedRecords').live('click', function () {
+                NarrowSearchInGrid('');
+            });
+            $('#IsArchivedRecords').live('click', function () {
+                NarrowSearchInGrid('');
+            });
+            $("div.userHead").find("div.viewBlock").find("a").click(function () {
+                $.cookie('@CartCoockiename', $(this).attr("href"), { expires: 365, SameSite: 'Strict' });
+            });
+
+            $('#ViewHistory').live('click', function () {
+                HistorySelected = fnGetSelected(oTable);
+                if (HistorySelected != undefined && HistorySelected.length == 1) {
+                    $("#atab5").click();
+                }
+                else {
+                    $('#tab5').html('');
+                    $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    return false;
+                }
+            });
+            /* HISTORY related data deleated and archived END */
+        });
+        /* HISTORY related data deleated and archived START */
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+        function HistoryTabClick() {
+            GetHistoryData();
+        }
+        function TabItemClickedCart(action, formName) {
+            if (IsEditMode) {
+                IsEditMode = false;
+                return;
+            }
+            AllowDeletePopup = false;
+            $('#DivLoading').show();
+            $(formName).append($('#CtabNew').load(action, function () {
+                $("#dvSupCatalogbutton").show();
+                $('#DivLoading').hide();
+
+
+            }));
+            $.validator.unobtrusive.parseDynamicContent('#' + formName + ' input:last');
+        }
+
+        function GetHistoryData() {
+            HistorySelected = fnGetSelected(oTable);
+            if (HistorySelected != undefined && HistorySelected.length == 1) {
+                //if (SelectedCartItemID != HistorySelected[0].id) {
+                var CartGUID = $(HistorySelected).find('#hdnUniqueID')[0].value;
+                SelectedCartItemID = CartGUID;
+                $('#DivLoading').show();
+                $("#CTab").hide();
+                $("#CtabCL").show();
+                $('#CtabCL').load('/Master/CartItemHistory?GUID=' + SelectedCartItemID, function () { $('#DivLoading').hide(); });
+                //}
+            }
+            else {
+                $('#CtabCL').html('');
+                $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                return false;
+            }
+        }
+        /* HISTORY related data deleated and archived END */
+    </script>
+}
+<script type="text/javascript">
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true)
+         ];
+    function callbacknew() { TabItemClickedCart('NewCartItem', 'frmCartItem'); }
+    function callbackhistory() { $('#dvSupCatalogbutton').hide(); } //HistoryTabClick(); }
+</script>
+<div class="userListingWrapper">
+    <div id="dvSupCatalogbutton" style="display: none; width: 10%; float: right;">
+        @(Html.Partial("SupplierCatalog", new SupplierCatalogItemDTO() { SourcePageName = "CartItemMaster", OpenPopup = true, ButtonText = "Add from Catalog" }))
+    </div>
+    <h2>
+        @eTurns.DTO.ResCartItem.CartItemHeader
+    </h2>
+    <div class="Infoclass">
+        <a href="@CartPDFURL" target="_blank">
+            <img src="~/Content/images/Info.png" alt="Help" /></a></div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        <ul class='tabs'>
+        </ul>
+        <div id="CtabNew" class="tabContener">
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" /></a>
+                    </div>
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Cart)
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            <div class="userContent ">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                            </th>
+                            @*<th>
+                                @eTurns.DTO.ResCartItem.ItemID
+                            </th>*@
+                            <th>
+                                @eTurns.DTO.ResCartItem.ItemNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResCartItem.Quantity
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+                <button id="btnAddNewCompany" value="Ok" style="display: none">
+                    @ResCommon.AddNew</button>
+                <button id="btnDeleteCompany" value="cancel" style="display: none">
+                    Delete Selected</button>
+                <div id="processing_message" style="display: none;" title="Processing">
+                    @eTurns.DTO.Resources.ResMessage.RequestProcessMessage</div>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    @*var objColumns = {
+        '@MvcHtmlString.Create(ResCartItem.ItemGUID)': 0,
+        '@MvcHtmlString.Create(ResCartItem.ItemID)': 1,
+        '@MvcHtmlString.Create(ResCartItem.ItemNumber)': 2,
+        '@MvcHtmlString.Create(ResCartItem.Quantity)': 3
+    };*@
+    function UpdateSingleItemToCart(obj) {
+        var arrId = obj.id.split("~");
+        //var vItemID = arrId[1];
+        var vItemGUID = arrId[1];
+        var vCartItemId = arrId[2];
+        var txtQty = $(obj).parent().parent().find("#txtQty");
+        var slctRt = $(obj).parent().parent().find("#slctRt");
+        var vItemNumber = $(obj).parent().parent().find("#spnItemNumber").text();
+        var ReplenishType = "";
+
+        if (slctRt != undefined) {
+            ReplenishType = $(slctRt).val();
+        }
+
+        if (txtQty != undefined && vItemGUID != "") {
+            var trimtxtValQ = $(txtQty).val().replace(/ /g, '');
+
+            if (!isNaN(trimtxtValQ) && trimtxtValQ.length > 0 && parseFloat(trimtxtValQ) > 0) {
+                $('#DivLoading').show();
+                var vUDF1 = '';
+                var vUDF2 = '';
+                var vUDF3 = '';
+                var vUDF4 = '';
+                var vUDF5 = '';
+
+
+                if ($(obj).parent().parent().find('#UDF1') != null) {
+                    if ($(obj).parent().parent().find('#UDF1').attr("class") == 'selectBox') {
+                        vUDF1 = $(obj).parent().parent().find('#UDF1 option:selected').text();
+                    }
+                    else {
+                        vUDF1 = $(obj).parent().parent().find('#UDF1').val();
+                    }
+                }
+
+                if ($(obj).parent().parent().find('#UDF2') != null) {
+                    if ($(obj).parent().parent().find('#UDF2').attr("class") == 'selectBox') {
+                        vUDF2 = $(obj).parent().parent().find('#UDF2 option:selected').text();
+                    }
+                    else {
+                        vUDF2 = $(obj).parent().parent().find('#UDF2').val();
+                    }
+                }
+
+                if ($(obj).parent().parent().find('#UDF3') != null) {
+                    if ($(obj).parent().parent().find('#UDF3').attr("class") == 'selectBox') {
+                        vUDF3 = $(obj).parent().parent().find('#UDF3 option:selected').text();
+                    }
+                    else {
+                        vUDF3 = $(obj).parent().parent().find('#UDF3').val();
+                    }
+                }
+
+                if ($(obj).parent().parent().find('#UDF4') != null) {
+                    if ($(obj).parent().parent().find('#UDF4').attr("class") == 'selectBox') {
+                        vUDF4 = $(obj).parent().parent().find('#UDF4 option:selected').text();
+                    }
+                    else {
+                        vUDF4 = $(obj).parent().parent().find('#UDF4').val();
+                    }
+                }
+
+                if ($(obj).parent().parent().find('#UDF5') != null) {
+                    if ($(obj).parent().parent().find('#UDF5').attr("class") == 'selectBox') {
+                        vUDF5 = $(obj).parent().parent().find('#UDF5 option:selected').text();
+                    }
+                    else {
+                        vUDF5 = $(obj).parent().parent().find('#UDF5').val();
+                    }
+                }
+
+                $.ajax({
+                    "url": '@Url.Action("UpdateCartItemData", "Replenish")',
+                    "data": { ID: vCartItemId, ItemGUID: vItemGUID, ItemNumber: vItemNumber, CartQty: trimtxtValQ, ReplenishType: ReplenishType, UDF1: vUDF1, UDF2: vUDF2, UDF3: vUDF3, UDF4: vUDF4, UDF5: vUDF5 },
+                    "async": false,
+                    "cache": false,
+                    "dataType": "json",
+                    success: function (response) {
+
+                        if (response.Status == "ok") {
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            $("#spanGlobalMessage").html(response.Message);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                            if (oTable != undefined) {
+                                oTable.$("tr[id='" + vItemGUID + "']").find("span[id='spnQty_" + vItemGUID + "']").text(response.TotalQty);
+                            }
+                        }
+                        else {
+                            $("#spanGlobalMessage").html(response.Message);
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        }
+                        $('#DivLoading').hide();
+                    },
+                    error: function (response) {
+                        $('#DivLoading').hide();
+                        $("#spanGlobalMessage").html(response.message);
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    }
+                });
+
+            }
+            else {
+                alert('@eTurns.DTO.ResCartItem.msgAddSingle');
+            }
+        }
+
+    }
+</script>
+<script type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>

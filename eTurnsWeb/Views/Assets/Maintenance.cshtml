@@ -1,0 +1,874 @@
+﻿@{
+    ViewBag.Title = eTurns.DTO.ResToolsMaintenance.PageTitle;
+    //GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = false, DisplayColumnSetupButton = true, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, DataTableName = "ToolsMaintenanceDetails" };
+    //var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DisplayUDFButton = true, UDFSetupFor = "ToolsMaintenanceDetails", DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "ToolsMaintenanceDetails" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ToolsMaintenanceDetails" };
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AssetMaintenance, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AssetMaintenance, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    string MaintenancePDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Maintenance.pdf", DateTime.Now.Ticks);
+    //HelpDocumentMasterDTO objHelpDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentMaster("Maintenance");
+    //string MaintenanceBasicVideo = "";
+    //if (objHelpDTO != null)
+    //{
+    //    MaintenanceBasicVideo = objHelpDTO.ModuleVideoPath.Replace("../Uploads/HelpVideo/", "");
+    //}
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Maintenance", (int)HelpDocType.Module);
+}
+<script type="text/javascript" src="@Url.Content("~/Scripts/DynemicDataTable.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+<script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+<script type="text/javascript">
+    var ReqGUID, mntsGUID, woGUID;
+    var isTabClick = false;
+    var IsRefreshGrid;
+    var objColumns = {};
+    var MsgLostChangesConfirmation = '@ResCommon.MsgLostChangesConfirmation';
+    var msgProjectSpendLimitConfirmation = '@ResPullMaster.msgProjectSpendLimitConfirmation';
+
+    var TabsArry = [
+                    new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+                    new TabClass('tab28', '@eTurns.DTO.Resources.ResCommon.RecordPastMaintenance', 'callbackPastnew();', true, true),
+                    new TabClass('tab27', '@eTurns.DTO.Resources.ResCommon.MaintenanceDue', 'callbackMaintenancePastDue(this);', true, true),
+                    new TabClass('tab29', '@eTurns.DTO.Resources.ResCommon.ScheduleMappingHistory', 'ScheduleMappingHistory();', false, true),
+                    new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.History', 'callbackhistory(this);', true, true),
+                    @*new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true),*@
+                    new TabClass('tab30', '@eTurns.DTO.Resources.ResCommon.WorkOrder', 'callbackWo(this);', false, true),
+                    new TabClass('tab31', '@eTurns.DTO.Resources.ResCommon.Requisition', 'callbackReq(this);', false, true)
+    ];
+    function callbackWo(tabacv) {
+
+        EditMaintenance(mntsGUID, woGUID, ReqGUID, "wo");
+    }
+    function callbackReq(tabacv) {
+        EditMaintenance(mntsGUID, woGUID, ReqGUID, "req");
+    }//$("#tab30").show(); $("#tab30").attr("IsEnable", true);
+    function callbacknew() {
+        if (MaintenanceView) {
+            MaintenanceEdit = false;
+        }
+        else {
+            MaintenanceEdit = true;
+        }
+
+        window.location.hash = '#newus'
+        $("#tab30").hide();
+        $("#tab30").attr("IsEnable", false);
+        $("#tab31").hide();
+        $("#tab31").attr("IsEnable", false);
+        ShowNewTab('CreateMaintenance?mt=unscheduled', 'frmMaintenance');
+    }
+    function callbackPastnew() {
+        window.location.hash = '#recpastmnts';
+        MaintenanceEdit = true;
+        TempNarrow = '';
+        IsRetainNarrow = false;
+        $("#tab30").hide();
+        $("#tab30").attr("IsEnable", false);
+        $("#tab31").hide();
+        $("#tab31").attr("IsEnable", false);
+        ShowNewTab('CreateMaintenance?mt=past', 'frmMaintenance');
+
+    }
+    function callbackCL() {
+        window.location.hash = '#cnglog';
+        HistoryTabClick();
+    }
+    function ScheduleMappingHistory() { LoadPartialView("Ctab", '@Url.Action("ScheduleMappingpart", "Assets")') }
+    function callbackMaintenancePastDue(curtab) {
+
+        window.location.hash = '#mntsdue';
+        $("#tab30").hide();
+        $("#tab30").attr("IsEnable", false);
+        $("#tab31").hide();
+        $("#tab31").attr("IsEnable", false);
+        TempNarrow = '';
+        IsRetainNarrow = false;
+        RefillGrid(curtab);
+    }
+    function callbackhistory(curtab) {
+        window.location.hash = '#hist';
+        $("#tab30").hide();
+        $("#tab30").attr("IsEnable", false);
+        $("#tab31").hide();
+        $("#tab31").attr("IsEnable", false);
+        if (TempNarrow != '') {
+            $("#tab5").show();
+            $("#tab5").attr("IsEnable", true);
+        }
+        else {
+            RefillGrid(curtab);
+        }
+
+    }
+
+    var TempNarrow = '';
+    var EmptyNarrow = '';
+    var IsRetainNarrow = false;
+    function RefillGrid(curtab) {
+        if (curtab.id == "tab5") {
+            LoadPartialView("Ctab", '@Url.Action("Maintenancepart", "Assets",new { TabName = "history"})');
+        }
+        else if (curtab.id == "tab27") {
+            LoadPartialView("Ctab", '@Url.Action("Maintenancepart", "Assets",new { TabName = "due"})');
+        }
+    }
+
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#hist":
+                $("#tab5").click();
+                break
+            case "#newus":
+                $("#tab1").click();
+                break
+            case "#recpastmnts":
+                $("#tab28").click();
+                break
+            case "#mntsdue":
+                $("#tab27").click();
+                break
+            default:
+                $("#tab5").click();
+                break;
+
+        }
+
+    }
+    function ConfirmYesNo(yesno) {
+        if (yesno) {
+            StartMaintenance(passingParams.p_MntnsGUID, passingParams.p_currentA, passingParams.p_TrackngMeasurement, yesno);
+        }
+    }
+    $(document).ready(function () {
+
+
+        //$(document).on("tap click", "#btnModelYesStartMaint", function (e) {
+        //    StartMaintenance(passingParams.p_MntnsGUID, passingParams.p_currentA, passingParams.p_TrackngMeasurement, true);
+
+        //});
+
+        $(document).on("tap click", "#myDataTable tbody tr", function (e) {
+            if (e.target.type == "checkbox" || e.target.type == "select" || e.target.type == "radio" || e.target.type == "button") {
+                e.stopPropagation();
+            } else {
+                if (typeof (oTable) != "undefined") {
+
+                    if ($("#myDataTable").find("tbody tr.row_selected").length == 1) {
+                        var seltr = $("#myDataTable").find("tbody tr.row_selected");
+                        var aPos = oTable.fnGetPosition($(seltr)[0]);
+                        var aData = oTable.fnGetData(aPos);
+                        ReqGUID = aData.RequisitionGUID;
+                        woGUID = aData.WorkorderGUID;
+                        mntsGUID = aData.GUID;
+                        if (woGUID != null && woGUID != "") {
+                            $("#tab30").show();
+                            TabEnableDisable("#tab30", true);
+                        }
+                        else {
+                            $("#tab30").hide();
+                            TabEnableDisable("#tab30", false);
+                        }
+                        if (ReqGUID != null && ReqGUID != "") {
+                            $("#tab31").show();
+                            TabEnableDisable("#tab31", true);
+                        }
+                        else {
+                            $("#tab31").hide();
+                            TabEnableDisable("#tab31", false);
+                        }
+                    }
+                    else {
+                        ReqGUID = null;
+                        woGUID = null;
+                        mntsGUID = null;
+                        $("#tab30").hide();
+                        $("#tab31").hide();
+                        TabEnableDisable("#tab30", false);
+                        TabEnableDisable("#tab31", false);
+                    }
+
+                }
+            }
+        });
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        LoadTabs();
+        $(document).on("click", "div#tab5,div#tab27", function () {
+            isTabClick = true;
+        });
+        $("#txtOdometerEntry").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 2
+        });
+
+        $(document).on("click", "#amnuMaintenancerecpastmnts", function () {
+            $("#tab28").click();
+        });
+        $(document).on("click", "#amnuMaintenancemntsdue", function () {
+            $("#tab27").click();
+        });
+        $(document).on("click", "#amnuMaintenancehistory", function () {
+            $("#tab5").click();
+        });
+        
+        SetTabView();
+        //LoadPartialView("Ctab", '@Url.Action("Maintenancepart", "Assets",new { TabName = "history"})')
+
+        $("#ColumnSortableModalIM").dialog({
+            autoOpen: false,
+            modal: true,
+            width: 500,
+            title: '@eTurns.DTO.Resources.ResCommon.ReorderColumnPopupHeader',
+            draggable: false,
+            resizable: false,
+            open: function () {
+                GenerateColumnSortableIM();
+                $("#ColumnSortableIM").sortable({ axis: "y", containment: "parent" });
+            }
+        });
+        $("#dvReading").dialog({
+            autoOpen: false,
+            modal: true,
+            width: 300,
+            title: '@eTurns.DTO.ResCartItem.PageTitle',
+            draggable: false,
+            resizable: false,
+            open: function () {
+                $("#txtReadingValue").val("");
+
+            }
+        });
+        $("#divWOLineItemHistory").dialog({
+            autoOpen: false,
+            modal: true,
+            draggable: true,
+            resizable: true,
+            width: '95%',
+            height: 720,
+            title: 'Work Order List History',
+            open: function () {
+                $('#DivLoading').show();
+                $("#divWOLineItemHistory").empty();
+                $.get('/WorkOrder/WorkOrderLineItemsDetailsForReq', { GUID: $(this).data("cid") }, function (data) {
+                    $("#divWOLineItemHistory").html(data);
+                });
+            },
+            close: function () {
+                $("#divWOLineItemHistory").empty();
+            }
+        });
+        $("#divRequisitionLineItemHistory").dialog({
+            autoOpen: false,
+            modal: true,
+            draggable: true,
+            resizable: true,
+            width: '95%',
+            height: 720,
+            title: 'Requisition History',
+            open: function () {
+                $('#DivLoading').show();
+                $("#divRequisitionLineItemHistory").empty();
+                $.get('/Consume/RequisitionEditMainatenance', { ID: $(this).data("cid") }, function (data) {
+                    $("#divRequisitionLineItemHistory").html(data);
+                });
+            },
+            close: function () {
+                $("#divRequisitionLineItemHistory").empty();
+            }
+        });
+
+        $('body').on('focus', "input.dtpck", function () {
+            if ($(this).hasClass('hasDatepicker') === false) {
+                $(this).datepicker();
+            }
+        });
+        //$("input.dtpck").datepicker({ dateFormat: RoomDateJSFormat });
+
+        $('#deleteRows1').click(function () {
+            /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+            if ($("body").hasClass('DTTT_Print')) {
+                return false;
+            }
+            /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+
+
+            var anSelected = fnGetSelected(oTable);
+            var stringIDs = "";
+            for (var i = 0; i <= anSelected.length - 1; i++) {
+                //anSelected[0].cells[0].innerHTML
+                stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+            }
+            if (anSelected.length !== 0) {
+                $('#Inner-Grid-basic-modal-content').modal();
+                IsDeletePopupOpen = false;
+            }
+
+
+        });
+
+        $("#btnModelYesInnerGrid").live("click", function () {
+
+            var anSelected = fnGetSelected(oTable);
+            var stringIDs = "";
+            for (var i = 0; i <= anSelected.length - 1; i++) {
+                stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+            }
+
+            if (anSelected.length !== 0) {
+                $.ajax({
+                    'url': deleteURL1,
+                    data: { ids: stringIDs },
+                    success: function (response) {
+                        if (response == "ok") {
+                            for (var i = 0; i <= anSelected.length - 1; i++) {
+                                oTable.fnDeleteRow(anSelected[i]);
+                            }
+
+                            if (anSelected.length > 0) {
+                                $("#spanGlobalMessage").html('@ResCommon.RecordDeletedSuccessfully'.replace("{0}", "(" + anSelected.length + ")"));
+                            }
+                            //$('div#target').fadeToggle();
+                            //$("div#target").delay(2000).fadeOut(200);
+                            showNotificationDialog();
+                            //CallThisFunctionFromModel('success');
+                            //oTable.fnDraw();
+                        }
+                    },
+                    error: function (response) {
+                        // through errror message
+                    }
+                });
+                $.modal.impl.close();
+            }
+        });
+
+        $('#PageNumber1').keydown(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                $("#Gobtn1").click();
+                return false;
+            }
+        });
+
+        $("#Gobtn1").click(function () {
+            var pval = $('#PageNumber1').val();
+            if (pval == "" || pval.match(/[^0-9]/)) {
+                return;
+            }
+            if (pval == 0)
+                return;
+            $('#' + DTName).dataTable().fnPageChange(Number(pval - 1));
+            $('#PageNumber1').val('');
+        });
+
+        /* global search function */
+        function fnFilterGlobalPS() {
+            //set filter only if more than 2 characters are pressed
+            //if (typeof $("#InnerItem_filter") != 'undefined' && ($("#InnerItem_filter").val().length > 2 || $("#InnerItem_filter").val().length == 0)) {
+            if (typeof $("#InnerItem_filter") != 'undefined') {
+                bIsFilter = true;
+                var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+
+                $('#' + DTName + ' td').removeHighlight();
+
+                $('#' + DTName).dataTable().fnFilter(
+                                searchtext,
+                                null,
+                                null,
+                                null
+                            );
+
+
+                if (searchtext.length > 0)
+                    $('#' + DTName + ' td').highlight($("#InnerItem_filter").val());
+            }
+        }
+
+
+        //Apply filter
+        $("#InnerItem_filter").keyup(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            var index = $.inArray(code, NotAllowedCharCodes);
+            if (code == 13) {
+            }
+            else {
+                fnFilterGlobalPS();
+            }
+        });
+
+        //Keydown event is required to handle ENTER KEY to work in IE
+        $("#InnerItem_filter").keydown(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                fnFilterGlobalPS();
+            }
+        });
+
+        //Clear Filter
+        $("#clear_QLItem_filter").click(function () {
+            $("#InnerItem_filter").val('');
+            fnFilterGlobalPS();
+            $("#InnerItem_filter").focus();
+            return false;
+        });
+
+
+        $('#pullDrillDown').live('click', function (event) {
+            var nTr = this.parentNode.parentNode;
+            var i = $.inArray(nTr, anOpen);
+            if (i === -1) {
+                $(this).attr('src', sImageUrl1 + "drildown_close.jpg");
+                $('#' + DTName).dataTable().fnOpen(nTr, fnFormatDetails($('#' + DTName).dataTable(), nTr), '');
+                anOpen.push(nTr);
+                $('#' + DTName).dataTable().fnDraw();
+            }
+            else {
+                $(this).attr('src', sImageUrl1 + "drildown_open.jpg");
+                $('#' + DTName).dataTable().fnClose(nTr);
+                anOpen.splice(i, 1);
+            }
+        });
+       
+    });
+    function openModel(id) {
+        $('#divWOLineItemHistory').data("cid", id).dialog('open')
+        return false;
+    }
+    function StartAssetToolRequisition() {
+
+        CreateAssetToolRequisition($("#hdnmntsGUID").val(), $("#txtReadingValue").val(), '');
+    }
+    function CompleteMaintenance(MntnsGUID, currentA) {
+        return false;
+    }
+    function EditMnts(guid, woguid, reqguid, tabname) {
+        mntsGUID = guid;
+        woGUID = woguid;
+        ReqGUID = reqguid;
+
+        if (woGUID != undefined && woGUID != "" && woGUID != null) {
+            $("#tab30").show();
+            $("#tab30").attr("IsEnable", true);
+            $("#tab30").click();
+        }
+        else if (ReqGUID != undefined && ReqGUID != "" && ReqGUID != null) {
+            $("#tab31").show();
+            $("#tab31").attr("IsEnable", true);
+            $("#tab31").click();
+        }
+    }
+    function EditMaintenance(guid, woguid, reqguid, tabname) {
+        if (tabname == "wo") {
+            $("#CtabReqWo").load("@Url.Action("MntsWOEdit", "Assets")", { 'WorkOrderGUID': woguid, 'IsArchived': false, 'IsDeleted': false, 'IsHistory': false, 'mntsGUID': guid }, function (response, status, xhr) {
+
+                if (tabname == "wo") {
+                    $("#tab30").show();
+                    $("#tab30").attr("IsEnable", false);
+                    //$("#tab30").click();
+                }
+                else if (tabname == "req") {
+                    $("#tab31").show();
+                    $("#tab31").attr("IsEnable", false);
+                    //$("#tab31").click();
+                }
+                else {
+
+                }
+
+            });
+        }
+        else if (tabname == "req") {
+            $("#CtabReqWo").load("@Url.Action("MntsReqEdit", "Assets")", { 'RequisitionGUID': reqguid, 'IsArchived': false, 'IsDeleted': false, 'IsHistory': false, 'mntsGUID': guid }, function (response, status, xhr) {
+
+                if (tabname == "wo") {
+                    $("#tab30").show();
+                    $("#tab30").attr("IsEnable", false);
+                    //$("#tab30").click();
+                }
+                else if (tabname == "req") {
+                    $("#tab31").show();
+                    $("#tab31").attr("IsEnable", false);
+                    //$("#tab31").click();
+                }
+                else {
+
+                }
+
+            });
+        }
+        else {
+            tabname = "wo"
+            $("#CtabReqWo").load("@Url.Action("MntsWOEdit", "Assets")", { 'WorkOrderGUID': woguid, 'IsArchived': false, 'IsDeleted': false, 'IsHistory': false, 'mntsGUID': guid }, function (response, status, xhr) {
+
+                if (tabname == "wo") {
+                    $("#tab30").show();
+                    $("#tab30").attr("IsEnable", false);
+                    //$("#tab30").click();
+                }
+                else if (tabname == "req") {
+                    $("#tab31").show();
+                    $("#tab31").attr("IsEnable", false);
+                    //$("#tab31").click();
+                }
+                else {
+
+                }
+
+            });
+        }
+
+
+    }
+    var passingParams = null;
+    function StartMaintenance(MntnsGUID, currentA, TrackngMeasurement, frompopupyesno) {
+        var currentTR = $(currentA).parent().parent()[0];
+        var aPos = oTable.fnGetPosition($(currentA).parent()[0]);
+        var aData = oTable.fnGetData(aPos[0]);
+        passingParams = { p_MntnsGUID: MntnsGUID, p_currentA: currentA, p_TrackngMeasurement: TrackngMeasurement };
+        var TrackingMeasurementTimeBase = aData.TrackingMeasurementMapping;
+        var Reading = $(currentA).parent().parent().find("input[type='text'][name='txtReadingValue']").val();
+        var Userinput = true;
+        if (TrackngMeasurement == 1 && frompopupyesno !== true && frompopupyesno !== false) {
+            //TrackingMeasurementTimeBase = $(currentA).parent().parent().find("select[id='slctTrackingMeasurementTimeBase']").val();
+            if ($.trim(Reading) == '') {
+                //Userinput = confirm("No mileage or odometer reading was entered.  Do you want to enter one now?");
+                Userinput = false;
+                $('#basic-modal-content-StartMainAction').modal();
+            }
+        }
+        if (frompopupyesno === true || frompopupyesno === false) {
+            closeModal();
+        }
+        if (frompopupyesno) {
+            Userinput = true;
+        }
+        if (Userinput) {
+            if (TrackngMeasurement == 1) {
+                CreateAssetToolRequisition(MntnsGUID, Reading, TrackingMeasurementTimeBase);
+            }
+            else {
+                if (Reading != '') {
+                    CreateAssetToolRequisition(MntnsGUID, Reading, '');
+                }
+                else {
+                    alert("Please enter the proper reading value");
+                }
+            }
+        }
+        else {
+
+        }
+        //$('#dvReading').data("guid", MntnsGUID).dialog('open');
+        //$('#dvReading').find("#hdnmntsGUID").val(MntnsGUID);
+    }
+
+    function CreateAssetToolRequisition(MntnsGUID, Reading, ReadingType) {
+
+        $.ajax({
+            url: '@Url.Action("CreateAssetToolRequisition", "Assets")',
+            data: { MntnsGUID: MntnsGUID, Reading: Reading, ReadingType: ReadingType },
+            async: false,
+            cache: false,
+            dataType: "json",
+            type: 'POST',
+            success: function (response) {
+
+                if (response.Status == "wo") {
+                    NeedToOpenItemPopupNow = true;
+                    mntsGUID = response.objDTO.GUID;
+                    woGUID = response.objDTO.WorkorderGUID;
+                    ReqGUID = response.objDTO.RequisitionGUID;
+                    //$("#tab30").attr("IsEnable", true);
+                    TabEnableDisable("#tab30", true);
+                    $("#tab30").show();
+                    $("#tab30").click();
+                    @*$("#CtabReqWo").load("@Url.Action("MntsWOEdit", "Assets")", { 'WorkOrburGUID': response.objDTO.WorkorderGUID, 'IsArchived': false, 'IsDeleted': false, 'IsHistory': false, 'mntsGUID': response.objDTO.GUID }, function (response, status, xhr) {
+                        $("#tab30").show();
+                        $("#tab30").attr("IsEnable", true);
+                        $("#CtabReqWo").show();
+                    });*@
+                }
+                else if (true) {
+
+                }
+                else {
+                    if (response.Status == "ok") {
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        $("#spanGlobalMessage").html(response.Message);
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                    }
+                    else {
+                        $("#spanGlobalMessage").html(response.Message);
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    }
+                }
+
+                $('#DivLoading').hide();
+                //oTable.fnStandingRedraw();
+                //return false;
+            },
+            error: function (response) {
+
+                $('#DivLoading').hide();
+                $("#spanGlobalMessage").html(response.message);
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                return false;
+            }
+        });
+        return false;
+    }
+    function openModelReq(id) {
+
+        //$('#divRequisitionLineItemHistory').data("cid", id).dialog('open')
+        var url = '@Url.Action("RequisitionList", "Consume")';
+        url = url + '?fromMTN=' + 'yes' + '&ReqID=' + id;
+        window.location.href = url;
+        return false;
+    }
+    function fnFormatDetails(oTable, nTr) {
+        var sOut = '';
+        var hdnID = $(nTr).find('#hdnID').val();
+        $('#DivLoading').show();
+        $.ajax({
+            "url": '@Url.Content("~/Assets/MaintenanceItems")',
+            data: { MaintenanceGUID: hdnID },
+            "async": false,
+            cache: false,
+            "dataType": "text",
+            "success": function (json) {
+                sOut = json;
+                $('#DivLoading').hide();
+            },
+            error: function (response) {
+                //;
+            }
+        });
+        return sOut;
+    }
+    var vmaintenanceGUID = '';
+    function fnCreateReqWOFrmMaintainance(maintenanceGUID) {
+        vmaintenanceGUID = maintenanceGUID;
+        $('#OdometerEntry').modal();
+    }
+
+    function fnCloseMaintenance(maintenanceGUID) {
+        var result = confirm('Are you sure want to close this maintenance?');
+
+        //
+        if (result == true) {
+
+            $.ajax({
+                url: '@Url.Content("~/Assets/CloseMaintenance")',
+                data: { 'MaintenanceGUID': maintenanceGUID },
+                dataType: 'json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (response) {
+                    if (response.Status == "Ok") {
+                        oTable.fnDraw();
+                        //alert('');
+                    }
+                },
+                error: function (response) {
+                    //
+                    alert(response);
+                }
+            });
+
+        }
+        else {
+            return false;
+        }
+    }
+
+
+    function StartMaintenactClick() {
+
+        if (!(parseFloat($("#txtOdometerEntry").val()) > 0)) {
+            alert("Valid Odometer Entry is Mandatory.")
+        }
+        else {
+            isDirtyForm = false;
+            $.ajax({
+                url: '@Url.Content("~/Master/CreateReqWOFrmMaintainance")',
+                data: { 'MaintenanceGUID': vmaintenanceGUID, 'OdometerEntry': parseFloat($("#txtOdometerEntry").val()) },
+                dataType: 'json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (response) {
+                    var url = '@Url.Action("RequisitionList", "Consume")';
+                    url = url + '?fromMTN=' + 'yes' + '&ReqID=' + response.requisitionID;
+                    window.location.href = url;
+                }
+            });
+        }
+    }
+</script>
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResToolsMaintenance.PageTitle
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener" style="min-height:800px;">
+        </div>
+        <div id="Ctab" class="tabContener" style="min-height:800px;">
+        </div>
+        <div id='CtabCL' class="tabContener" style="min-height:800px;">
+        </div>
+        <div id='CtabReqWo' class="tabContener" style="min-height:800px;">
+        </div>
+    </div>
+</div>
+<div class="dialog" id="mdlQLYesNo" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+        </p>
+        <a href="JavaScript:void{}" id="btnQLModelYesSP" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no"
+               onclick="QLcloseModal()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<div class="dialog" id="OdometerEntry" style="display: none;">
+    <div class="inner">
+        <div class="">
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        <b>Odometer Entry</b><em>*</em>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-field">
+                        @Html.TextBox("txtOdometerEntry", "", "{0:0.00}", new { @class = "text-boxinner", id = "txtOdometerEntry", style = "padding-left:10px;", maxlength = 128 })
+                    </div>
+                </li>
+                <li>&nbsp;</li>
+                <li>
+                    <p class="text" style="text-align: center; padding-left: 10px;">
+                        <a href="#" class="no" onclick="StartMaintenactClick()">
+                            <img src="~/Content/images/yes.png" alt="ok" />Start Maintenance
+                        </a>
+                    </p>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+<div id="divWOLineItemHistory">
+</div>
+<div id="dvReading">
+    <table id="tblReading">
+        <tr>
+            <td><input type="text" id="txtReadingValue" class="importtext-box" /></td>
+        </tr>
+        <tr>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>
+                <input type="hidden" id="hdnmntsGUID" value="" />
+                <input type="button" class="btnGeneral" id="btnSaveReading" onclick="return StartAssetToolRequisition();" value="Save and Go to Requisition" />
+            </td>
+        </tr>
+    </table>
+</div>
+<div id="divRequisitionLineItemHistory">
+</div>
+
+<script src="~/Scripts/PageScripts/WorkOrder/CreateWOItem.js"></script>

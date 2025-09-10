@@ -1,0 +1,560 @@
+﻿@model IEnumerable<eTurns.DTO.ToolsSchedulerDTO>
+@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    ViewBag.Title = eTurns.DTO.ResToolsScheduler.PageTitle;
+    var settings = new GridHeaderSettings() { DisplaySaveButton = false, ShowSelectAll = true, DisplayUDFButton = false, UDFSetupFor = "AssetToolSchedulerMaster&UDFHeader=" + @ResToolsScheduler.PageHeader, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "AssetToolSchedulerList", DisplayDeleteButton = true };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "AssetToolSchedulerList" };
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AssetToolScheduler, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AssetToolScheduler, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    string SchedulerPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Schedular.pdf", DateTime.Now.Ticks);
+    //HelpDocumentMasterDTO objHelpDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentMaster("Schedular");
+    //string SchedularBasicVideo = "";
+    //if (objHelpDTO != null)
+    //{
+    //    SchedularBasicVideo = objHelpDTO.ModuleVideoPath.Replace("../Uploads/HelpVideo/", "");
+    //}
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Schedular", (int)HelpDocType.Module);
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+    <script type="text/javascript">
+        var oTable;
+        var IsRefreshGrid = false;
+        var deleteURL = "/Assets/DeleteAssetToolScheduleRecords";
+        //var PostCount = 0;
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+        var SelectedHistoryRecordID = 0;
+        HasScheduleTab = true;
+        var objColumns = {};
+        $(document).ready(function () {
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            LoadTabs();
+            var gaiSelected = [];
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                //"bAutoWidth": false,
+                //"sScrollX": "150%",
+                "sScrollX": "150%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[2, "asc"]],
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    //if (aData.IsDeleted == true && aData.IsArchived == true)
+                    //    nRow.className = "GridDeleatedArchivedRow";
+                    //else if (aData.IsDeleted == true)
+                    //    nRow.className = "GridDeletedRow";
+                    //else if (aData.IsArchived == true)
+                    //    nRow.className = "GridArchivedRow";
+                    //$("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    //return nRow;
+                    if (aData.IsDeleted == true && aData.IsArchived == true)
+                        //   nRow.className = "GridDeleatedArchivedRow";
+                        $(nRow).css('background-color', '#B9BCBF');
+                    else if (aData.IsDeleted == true)
+                        // nRow.className = "GridDeletedRow";
+                        $(nRow).css('background-color', '#FFCCCC');
+                    else if (aData.IsArchived == true)
+                        //   nRow.className = "GridArchivedRow";
+                        $(nRow).css('background-color', '#CCFFCC');
+
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    //if (PostCount > 1) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'AssetToolSchedulerList' },
+                        "async": false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                    //}
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'AssetToolSchedulerList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Assets/AssetToolSchedulerListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    //PostCount = PostCount + 1;
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    if (oSettings.aaSorting.length != 0)
+                        aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        cache: false,
+                        "url": sSource,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable').highlight($("#global_filter").val());
+                            }
+                            if ($("#global_filter").val().length > 0) {
+                                if ($('#myDataTable').dataTable().fnGetData().length <= 0) {
+                                    //$('#cnfBarcodeAddmdl').modal();
+                                }
+                            }
+                            if ($('#IsDeletedRecords').is(':checked')) {
+                                $('#undeleteRows').attr("style", "display:visible");
+                                $('#deleteRows,#aArchiveRows,#aUnArchiveRows').attr("style", "display:none");
+                            }
+                            else {
+                                $('#undeleteRows,#aUnArchiveRows').attr("style", "display:none");
+                                $('#deleteRows,#aArchiveRows').attr("style", "display:visible");
+                            }
+                        },
+                        error: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            $('#myDataTable').removeHighlight();
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [
+                            { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' },
+			                { "mDataProp": "ID", "sClass": "read_only" },
+			                {
+			                    "mDataProp": "SchedulerName",
+			                    "sClass": "read_only",
+			                    "sDefaultContent": '',
+			                    "bSortable": true,
+			                    "bSearchable": false,
+			                    "fnRender": function (obj, val) {
+			                        return "<a id='aEditLink' onclick='BlankSessionAsset(); return ShowEditTabGUID(&quot;AssetToolScheduleEdit?GUID=" + obj.aData.GUID.toString() + "&quot;,&quot;frmScheduler&quot;)' href='JavaScript:void(0);'>" + obj.aData.SchedulerName + "</a>" + " <input type='hidden' id='hdnGUID' value='" + obj.aData.GUID.toString() + "' />";
+			                    }
+			                },
+                            { "mDataProp": "Description", "sClass": "read_only" },
+                            { "mDataProp": "ScheduleForName", "sClass": "read_only" },
+			                {
+			                    "mDataProp": "SchedulerType", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        //return GetDateInFullFormat(val);
+			                        return obj.aData.ScheduleTypeName;
+			                    }
+			                },
+			                { "mDataProp": "OperationalHours", "sClass": "read_only" },
+			                { "mDataProp": "Mileage", "sClass": "read_only numericalign" },
+			                //{ "mDataProp": "RoomName", "sClass": "read_only" },
+			                {
+			                    "mDataProp": "Created", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        //return GetDateInFullFormat(val);
+			                        return obj.aData.CreatedDate;
+			                    }
+			                },
+			                {
+			                    "mDataProp": "Updated", "sClass": "read_only isCost",
+			                    "fnRender": function (obj, val) {
+			                        //return GetDateInFullFormat(val);
+			                        return obj.aData.UpdatedDate;
+			                    }
+			                },
+                            { "mDataProp": "UpdatedByName", "sClass": "read_only isCost" },
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                            { "mDataProp": "TimeBaseUnitName", "sClass": "read_only" },
+                            { "mDataProp": "CheckOuts", "sClass": "read_only" }
+                            @Html.RenderColumnsArray("SchedulerMaster")
+                ]
+
+            }).makeEditable();
+
+            $('.DTTT_container').css('z-index', '-1');
+            if ('@isCost' == '@Boolean.FalseString') {
+                HideColumnUsingClassName("myDataTable");
+                //ColumnsToHideinPopUp.push(12);
+                //ColumnsToHideinPopUp.push(8);
+                // ColumnsToHideinPopUp.push(9);
+
+                // oTable.fnSetColumnVis(12, false);
+                //  oTable.fnSetColumnVis(8, false);
+                //  oTable.fnSetColumnVis(9, false);
+            }
+        });
+
+
+        /* HISTORY related data deleated and archived START */
+        //        function fnGetSelected(oTableLocal) {
+        //        alert('hi333');
+        //            return oTableLocal.$('tr.row_selected');
+        //        }
+
+        function HistoryTabClick() {
+            //alert('hi');
+            GetHistoryData();
+        }
+
+        function GetHistoryData() {
+            //alert('hi455');
+            // alert('bye');
+            HistorySelected = fnGetSelected(oTable);
+            if (HistorySelected != undefined && HistorySelected.length == 1) {
+                //                if(SelectedHistoryRecordID != HistorySelected[0].id)
+                //                {
+                SelectedHistoryRecordID = HistorySelected[0].id;
+                $('#DivLoading').show();
+                $("#CTab").hide();
+                $("#CtabCL").show();
+                $('#CtabCL').load('/Master/AssetHistory', function () { $('#DivLoading').hide(); });
+                //}
+            }
+            else {
+                $('#CtabCL').html('');
+                $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                //$('div#target').fadeToggle();
+                //$("div#target").delay(2000).fadeOut(200);
+                showNotificationDialog();
+                return false;
+            }
+        }
+
+        function ShowScheduleEditTab(action, formName) {
+            // alert(formName);
+            var IsArchived = false;// $('#IsArchivedRecords').is(':checked');
+            var IsDeleted = false;// $('#IsDeletedRecords').is(':checked');
+            action += '&IsArchived=' + IsArchived + '&IsDeleted=' + IsDeleted;
+            IsEditMode = true;
+            IsShowHistory = true;
+            AllowDeletePopup = false;
+            // alert('hi1');
+            $('#DivLoading').show();
+            $("#CTab").hide();
+            $("#CtabCL").hide();
+            $("#CtabSchedulerList").hide();
+            $("#CtabNew").empty();
+            $("#CtabNew").show();
+            $('#CtabNew').load(action, function () { $('#DivLoading').hide(); });
+            // alert('hi2');
+        }
+        /* HISTORY related data deleated and archived END */
+
+
+
+        function SchedulerItemNarroSearch(CostDDLObject) {
+            //oTable.fnFilter($(CostDDLObject).val(),null,null,null);
+            if ($(CostDDLObject).val() != "0") {
+                SchedulerItemSearchValue = $(CostDDLObject).val();
+                DoNarrowSearch();
+            }
+            else {
+                SchedulerItemSearchValue = '';
+                DoNarrowSearch();
+            }
+        }
+
+        function SchedulerTypeNarroSearch(SSDDLObject) {
+            //oTable.fnFilter($(CostDDLObject).val(),null,null,null);
+            if ($(SSDDLObject).val() != "0") {
+                SchedulerTypeSearchValue = $(SSDDLObject).val();
+                DoNarrowSearch();
+            }
+            else {
+                SchedulerTypeSearchValue = '';
+                DoNarrowSearch();
+            }
+        }
+    </script>
+}
+<script type="text/javascript">
+    var isTabClick = false;
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+    // new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true)
+    ];
+    function callbacknew() { window.location.hash = '#new'; ShowNewTab('AssetToolSchedulerCreate', 'frmAsset'); }
+    function callbackhistory() { window.location.hash = '#list'; } //HistoryTabClick(); }
+    function callbackCL() { HistoryTabClick(); }
+    function callbackScheduler() { GetSchedulerData(); }
+    function callbackSchedulerList() { GetSchedulerListData(); }
+    function callbackOdometer() { GetOdometerData(); }
+    function callbackOdometerList() { GetOdometerListData(); }
+    function callbackMaintenance() { GetMainenanceData(); }
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+        }
+
+    }
+    $(document).ready(function () {
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+    });
+</script>
+<div class="userListingWrapper">
+    <h2>
+        @ResToolsScheduler.PageHeader
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener" style="min-height: 700px;">
+        </div>
+        <div id="Ctab" class="tabContener" style="min-height: 700px;">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.AssetToolScheduler)
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            <div class="userContent">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @ResToolsScheduler.ID
+                            </th>
+                            <th>
+                                @ResToolsScheduler.SchedulerName
+                            </th>
+                            <th>
+                                @ResToolsScheduler.Description
+                            </th>
+                            <th>
+                                @ResToolsScheduler.ScheduleFor
+                            </th>
+                            <th>
+                                @ResToolsScheduler.ScheduleType
+                            </th>
+                            <th>
+                                @ResToolsScheduler.OperationalHours
+                            </th>
+                            <th>
+                                @ResToolsScheduler.Mileage
+                            </th>
+                            @*<th>
+                                    @ResCommon.RoomName
+                                </th>*@
+                            <th>
+                                @ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @ResToolsScheduler.TimeBaseUnit
+                            </th>
+                            <th>
+                                @ResToolsScheduler.CheckOuts
+                            </th>
+                            @Html.RenderColumnsHeader("SchedulerMaster", typeof(eTurns.DTO.ResAssetMaster))
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div id="processing_message" style="display: none" title="Processing">
+                    @ResMessage.RequestProcessMessage
+                </div>
+            </div>
+        </div>
+        <div id='CtabCL' class="tabContener" style="min-height: 970px;">
+        </div>
+        @*<div id='CtabSCH' class="tabContener" style="min-height: 970px;">
+            </div>
+            <div id='CtabSchedulerList' class="tabContener" style="min-height: 970px;">
+            </div>
+            <div id='CtabOdometer' class="tabContener" style="min-height: 970px;">
+            </div>
+            <div id='CtabOdometerList' class="tabContener" style="min-height: 970px;">
+            </div>
+            <div id='CtabMaintenance' class="tabContener" style="min-height: 970px;">
+            </div>*@
+    </div>
+</div>
+
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+<script language="javascript" type="text/javascript">
+    $(document).ready(function () {
+        var QueryStringParam1 = getParameterByName('fromdashboard');
+        var QueryStringParam2 = getParameterByName('AssetGUID');
+        if (QueryStringParam1 == 'yes' && QueryStringParam2 != '') {
+
+            $('#tab5').removeClass('selected');
+            $('#tabMaintenance').addClass('selected');
+            CurrentListTabID = 'tabMaintenance';
+            $("#" + CurrentListTabID).click();
+        }
+    });
+    function getParameterByName(name) {
+        name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+        var regexS = "[\\?&]" + name + "=([^&#]*)";
+        var regex = new RegExp(regexS);
+        var results = regex.exec(window.location.search);
+        if (results == null)
+            return "";
+        else
+            return decodeURIComponent(results[1].replace(/\+/g, " "));
+    }
+
+    function BlankSessionAsset() {
+        $.ajax({
+            url: '@Url.Content("~/Assets/BlankSession")'
+                                    , type: 'POST'
+            //, contentType: "application/json"
+                                    , success: function (result) {
+                                    },
+            error: function (msg) {
+            }
+        });
+    }
+
+</script>

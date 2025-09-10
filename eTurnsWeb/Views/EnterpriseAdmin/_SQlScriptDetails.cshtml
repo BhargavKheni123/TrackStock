@@ -1,0 +1,153 @@
+﻿@model eTurns.DTO.EnterPriseSQLScriptsDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+}
+<div class="userHead">
+    @{
+        bool isUpdate = true;
+        bool isInsert = true;
+    }
+    @using (Ajax.BeginForm("SaveSQLScript", "EnterpriceAdmin", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmSQlScriptDetails" }))
+    {
+        @Html.ValidationSummary(true)
+        @Html.AntiForgeryToken()
+        if (Model.SQLScriptID != 0)
+        {
+            <div class="infoBlock">
+                <ul>
+                    <li>
+                        <label>
+                            Created date
+                        </label>
+                        : <span>@(Model.CreatedDate)</span>
+                    </li>
+                    <li>
+                        <label>
+                            Created by
+                        </label>
+                        : <span>@(Model.CreatedByName)</span>
+                    </li>
+                    <li>
+                        <label>
+                            Last updated date
+                        </label>
+                        : <span>@(Model.UpdatedByName)</span>
+                    </li>
+                    <li style="border: none">
+                        <label for="RoomName">
+                            Last updated by
+                        </label>
+                        : <span>@(Model.UpdatedByName)</span>
+                    </li>
+                </ul>
+            </div>
+        }
+
+
+        <div class="editorForm">
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        Script Name <em>*</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.ScriptName, new { @class = "text-box" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ScriptName)</span>
+                        @Html.HiddenFor(model => model.SQLScriptID, new { id = "hiddenID" })
+                    </div>
+                    <div class="editor-label">
+                        Script text
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextAreaFor(model => model.ScriptText, new { @class = "text-box", @cols = "77", rows = "30" })
+                        @Html.ValidationMessageFor(model => model.ScriptText)
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="BtnBlockform">
+                        <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+                        @if (isInsert == true && Model.SQLScriptID == 0)
+                        {
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                        }
+                        else if (isUpdate == true)
+                        {
+
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                        }
+                    </div>
+                </li>
+            </ul>
+        </div>
+    }
+</div>
+
+<script type="text/javascript">
+    $("form").submit(function (e) {
+        $.validator.unobtrusive.parse("#frmSQlScriptDetails");
+        if ($(this).valid()) {
+
+        }
+        e.preventDefault();
+    });
+</script>
+<script type="text/javascript">
+    function onSuccess(response) {
+        IsRefreshGrid = true;
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            clearControls('frmSQlScriptDetails');
+            $("#Name").focus();
+            if (response.Message.trim().toLowerCase() == 'you do not have permission to execute script.')
+            {
+                window.location.href = '../../Master/roomlist';
+            }
+        }
+        else if (idValue == 0) {
+
+            $("#Name").focus();
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+                clearControls('frmSQlScriptDetails');
+                setDefaultUDFValues($("#hdnPageName").val(), '@Model.SQLScriptID');
+            }
+
+        }
+        else if (idValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                clearControls('frmSQlScriptDetails');
+            }
+            else {
+                SwitchTextTab(0, 'CompanyCreate', 'frmSQlScriptDetails');
+            }
+        }
+        return false;
+    }
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        clearControls('frmSQlScriptDetails');
+    }
+    $(document).ready(function () {
+        $('#btnCancel').click(function (e) {
+            if (IsRefreshGrid)
+                $('#NarroSearchClear').click();
+            SwitchTextTab(0, 'CompanyCreate', 'frmSQlScriptDetails');
+            if (oTable !== undefined && oTable != null) {
+                oTable.fnDraw();
+            }
+        });
+    });
+</script>

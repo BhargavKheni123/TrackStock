@@ -1,0 +1,378 @@
+﻿@model eTurns.DTO.TransferMasterDTO
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = false, DisplayContextMenu = false, DisplayPrintBlock = true, DisplayDeleteButton = false, DataTableName = "TransferLineItem" + Model.ID };
+}
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="InnerItem_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_QLItem_filter" /></a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Orders)
+            <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="TransferLineItem@(Model.ID)" class="display">
+                    <thead>
+                        <tr>
+                          <th>
+                                @eTurns.DTO.Resources.ResCommon.HistoryID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Action
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.RequireDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.RequestedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.ReceivedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.InTransitQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.ShippedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Cost
+                            </th>
+                            <th>
+                    @eTurns.DTO.Resources.ResCommon.AddedFrom
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.EditedFrom
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.TransferDetailList != null && Model.TransferDetailList.Count > 0)
+                        {
+                            foreach (var item in Model.TransferDetailList)
+                            { 
+                            <tr>
+                             <td>@item.HistoryID
+                                </td>
+                                <td>@item.Action
+                                </td>
+                                <td>@item.ID
+                                </td>
+                                <td>@item.ItemNumber
+                                    <input id="hdnID" type="hidden" value="@item.ID" />
+                                    <input id="hdnGUID" type="hidden" value="@item.GUID" />
+                                    <input id="hdnItemGUID" type="hidden" value="@item.ItemGUID" />
+                                    <input id="hdnOrderGUID" type="hidden" value="@item.TransferGUID" />
+                                </td>
+                                <td>
+                                    <input type='text' style="width:80px;background:white;" readonly="readonly" class='myDatePicker text-box' value='@item.RequiredDateString' id='hiddenDatePicker@(item.ID)' />
+                                </td>
+                                <td>
+                                    <input type="text" onkeydown="return OnlyNumeric(event,this);"  id="txtQty" value='@(item.RequestedQuantity)' class="text-box" style="width:90px;background:white;" />
+                                </td>
+                                <td>
+                                    @item.ReceivedQuantity
+                                </td>
+                                <td>
+                                    @item.IntransitQuantity
+                                </td>
+                                <td>
+                                    @item.ShippedQuantity
+                                </td>
+                                <td>
+                                    @item.Description
+                                </td>
+                                <td>
+                                    @item.Cost
+                                </td>
+                                <td>
+                                    @item.AddedFrom
+                                </td>
+                                <td>
+                                    @item.EditedFrom
+                                </td>
+                                <td>
+                                    @item.ReceivedOnDate
+                                </td>
+                                <td>
+                                    @item.ReceivedOnWebDate
+                                </td>
+                            </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var TrfID = '@Model.ID';
+    var TrfStatus = '@Model.TransferStatus';
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var oTableTransferLineItems;
+    var bIsFilter = false;
+    var objTrfLineItemHistoryCols = {};
+    var DTName = 'TransferLineItem' + TrfID
+
+    $(document).ready(function () {
+        objTrfLineItemHistoryCols = GetGridChildGridColumnsObject('TransferLineItem' + TrfID);
+        var gaiSelected = [];
+        oTableTransferLineItems = $('#TransferLineItem' + TrfID).dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "110%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[0, "desc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+               // if (!bIsFilter) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'TransferLineItemList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = json;
+                        }
+                    });
+               // }
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'TransferLineItemList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+
+            }
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+        $('#btnblock').css({ 'margin-right': '45px' });
+
+        $.fn.dataTableExt.afnSortData['dom-text'] = function (oSettings, iColumn) {
+            var aData = [];
+            $('td:eq(' + iColumn + ') input', oSettings.oApi._fnGetTrNodes(oSettings)).each(function () {
+                aData.push(this.value);
+            });
+            return aData;
+        }
+
+        
+    });
+
+    function fnFilterTrfLineItemsHistory() {
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#InnerItem_filter") != 'undefined' && ($("#InnerItem_filter").val().length > 2 || $("#InnerItem_filter").val().length == 0)) {
+            //if (typeof $("#InnerItem_filter") != 'undefined') {
+            bIsFilter = true;
+            var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+            $('#' + DTName).dataTable().fnFilter(
+                searchtext,
+                null,
+                null,
+                null
+            );
+            $('#' + DTName + ' td').removeHighlight();
+
+            if (searchtext.length > 0)
+                $('#' + DTName + ' td').highlight($("#InnerItem_filter").val());
+        }
+    }
+
+    if ('@Model.IsRecordNotEditable' === 'True') {
+        $('select', '#TransferLineItem' + TrfID)
+            .attr('disabled', 'disabled');
+
+        $(':input[type=text], textarea', '#TransferLineItem' + TrfID)
+            .attr('readonly', 'readonly');
+
+        $('#saveRows').attr('style', 'display:none');
+        $('#deleteRows1').attr('style', 'display:none');
+
+
+    }
+    else {
+
+        $('#TransferLineItem' + TrfID).delegate(".myDatePicker", "focusin", function () {
+            $(this).datepicker({ dateFormat: RoomDateJSFormat });
+        });
+    }
+
+    $('#TransferLineItem' + TrfID + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    $('#TransferLineItem' + TrfID + ' tbody tr').live('tap click', function () {
+        $(this).toggleClass('row_selected');
+        return false;
+    });
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+
+        $('#TransferLineItem' + TrfID).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+    //Apply filter
+    $("#InnerItem_filter").keyup(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        //var index = $.inArray(code, NotAllowedCharCodes);
+        if (code == 13) {
+        }
+        else {
+            fnFilterTrfLineItemsHistory();
+        }
+    });
+
+    //Keydown event is required to handle ENTER KEY to work in IE
+    $("#InnerItem_filter").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            fnFilterTrfLineItemsHistory();
+        }
+    });
+
+    //Clear Filter
+    $("#clear_QLItem_filter").click(function () {
+        $("#InnerItem_filter").val('');
+        fnFilterTrfLineItemsHistory();
+        $("#InnerItem_filter").focus();
+        return false;
+    });
+    var timeoutscheduler;
+    $(document).on('propertychange input', "#InnerItem_filter", function () {
+        clearTimeout(timeoutscheduler);
+        var self = this;
+        timeoutscheduler = setTimeout(function () {
+            if (SearchPattern == 2 || SearchPattern == "2") {
+                fnFilterTrfLineItemsHistory();
+            }
+            else {
+                $('#InnerItem_filter').unbind("keypress");
+                $('#InnerItem_filter').keypress(function (event) {
+                    var keycode = (event.keyCode ? event.keyCode : event.which);
+                    if (keycode == 13) {
+                        fnFilterTrfLineItemsHistory();
+                    }
+                });
+                if ($("#InnerItem_filter").val().length == 0) {
+                    setTimeout(function () { fnFilterTrfLineItemsHistory(); }, 200);
+                }
+            }
+        }, 500);
+    });
+
+    $('#saveRows').live("click", function () {
+        var msg = UpdateLineItemGrid('@Model.StagingID');
+        if (msg.Status == "ok") {
+            showNotificationDialog();
+            $("#spanGlobalMessage").html(msg.Message);
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+        }
+        else if (msg.Status == 'No') {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html('@ResCommon.NoChanges');
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+        }
+        else {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html(msg.Message);
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        }
+
+    });
+
+    $("#ColumnOrderSetup1").off('click')
+    $("#ColumnOrderSetup1").on('click', function () {
+        //alert("line item reorder popup");
+        var DTName = 'TransferLineItem' + TrfID;
+        $("#divDetailGridReorderPopup").data({ 'DataTableName': DTName, 'ListName': 'TransferLineItemList', 'ColumnObjectName': 'objTrfLineItemHistoryCols' }).dialog("open");
+        return false;
+    });
+
+    function FillDetailGridDiv() {
+        $('#divLineItems').empty();
+        $('#divLineItems').load('@Url.Action("LoadTransferLineItems", new { TransferID = @Model.ID })', function () {
+            $('#DivLoading').hide();
+            $("#divDetailGridReorderPopup").dialog("close");
+        });
+    }
+
+
+</script>

@@ -1,0 +1,140 @@
+﻿@model eTurns.DTO.EnterpriseQLDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    //bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.DataArchival, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    //bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.DataArchival, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+}
+
+@using (Ajax.BeginForm("SaveEnterpriseQL", "EnterpriseQL", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", OnBegin = "onBegin", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmEnterpriseQL" }))
+{
+    @Html.AntiForgeryToken()
+    @Html.ValidationSummary(true)
+    @Html.HiddenFor(model => model.ID)
+<div class="userHead">
+    @if (Model.ID != 0)
+    {
+        <div class="infoBlock">
+            <ul>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.Created)
+                    </label>
+                    : <span>@(Model.CreatedDate)</span>
+                </li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.CreatedByName)
+                    </label>
+                    : <span>@(Model.CreatedByName)</span>
+                </li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.Updated)
+                    </label>
+                    : <span>@(Model.UpdatedDate)</span>
+                </li>
+                <li style="border: none">
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.UpdatedByName)
+                    </label>
+                    : <span>@(Model.UpdatedByName)</span>
+                </li>
+                
+            </ul>
+        </div>
+    }
+    <div class="editorForm">
+        <ul>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.Name)<em> *</em>
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.Name, new { @class = "text-box", @style = "background:white", maxlength = 256 })
+                    @Html.ValidationMessageFor(model => model.Name)
+                    @Html.HiddenFor(model => model.GUID)
+                    @Html.HiddenFor(model => model.ID)
+                </div>
+            </li>
+            <li id="liRoomIds">
+                <div class="editor-label">
+                    @Html.Label(ResCommon.RoomColon)
+                </div>
+                <div class="editor-field" style="width: 250px; float: left">
+                    <select id="ddlRRoom" multiple="multiple" width="150px" name="example-basic" size="5"
+                            class="text-box"></select>
+
+                </div>
+                @Html.HiddenFor(model => model.RoomIds, new { id = "RoomIds" })
+            </li>
+            <li id="liRoomIdsList">
+                <div class="editor-label">
+                    @Html.Label(ResCommon.SelectedRoom)
+                </div>
+                <div class="editor-label neweditorlabelrm">
+                    <label id="lblselectedRoom">
+                    </label>
+                </div>
+            </li>
+            <li id="liEnterpriseQLDetail">
+                <br />
+                <div style="text-align: center; bottom: auto; float: right; width: 48%; padding-bottom: 35px;">
+                    <table>
+                        <tr>
+                            <td>
+                                <div class="editor-field" style="width: 250px;">
+                                    <select id="ddlSupplierPartNo" multiple="multiple" width="150px" name="example-basic" size="5"
+                                            class="text-box"></select>
+                                </div>
+                            </td>
+                            <td>
+                                <input type="button" value="@eTurns.DTO.Resources.ResCommon.AddDetail" class="CreateBtn" onclick="return AddNewBinReplanish()" />
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <br style="clear:both;" />
+                <div id="divEnterpriseQLDetail">
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    &nbsp;
+                </div>
+                <div class="BtnBlockform" style="padding-left:50px;padding-top:20px;float:none;">
+                    <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+                    @if (eTurnsWeb.Helper.SessionHelper.RoleID == -1 || eTurnsWeb.Helper.SessionHelper.RoleID == -2)
+                    {
+                        <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                    }
+
+                </div>
+            </li>
+        </ul>
+    </div>
+
+</div>
+}
+
+<script>
+    var EntQLID = '@Model.ID';
+    var ItemGUID = '@Model.GUID';
+    var selectedRooms = '@Model.RoomIds'
+    var newGuid = '';
+    var LoadEnterpriseQuickListDetailURL = '@Url.Action("LoadEnterpriseQuickListDetail", "EnterpriseQL")';
+    var SaveToSeesionQLDetailSingleURL = '@Url.Action("SaveToSeesionQLDetailSingle", "EnterpriseQL")';
+    var Inventory_CheckifanyCartEntryExist = '@Url.Action("CheckifanyCartEntryExist", "EnterpriseQL")';
+    var DeleteToSeesionQLDetailSingleURL = '@Url.Action("DeleteToSeesionQLDetailSingle", "EnterpriseQL")';
+    var msgQuickListDetailNoRequired = '@ResMessage.QuickListDetailNoRequired';
+    var msgQuickListDetailNoAlreadyAdded = '@ResMessage.QuickListDetailNoAlreadyAdded';
+    var GetAllSupplierPartNoURL = '@Url.Action("GetAllSupplierPartNoDDLData", "EnterpriseQL")';
+    var LoadEnterpriseQLDetailBySupplierPartNoURL = '@Url.Action("LoadEnterpriseQLDetailBySupplierPartNo", "EnterpriseQL")';
+    var MsgQuickListDeleted = '@ResMessage.MsgQuickListDeleted';
+    var lblRoom = '@ResCommon.Room';
+    var lblSupplierPartNo = '@ResCommon.SupplierPartNo';
+    
+</script>
+
+<script src="@Url.Content("~/Scripts/PageScripts/EnterpriseQL.js?v=" + version)" ></script>
+<script type='text/javascript' src="@Url.Content("~/Scripts/underscore-min.js")"></script>

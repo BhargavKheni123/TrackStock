@@ -1,0 +1,179 @@
+@using eTurnsWeb.Helper
+@{
+    ViewBag.Title = "eTurns: Dashboard";
+    var leftwidget = (List<string>)ViewBag.LeftWidget;
+    var rightwidget = (List<string>)ViewBag.RightWidget;
+}
+<script src="@Url.Content("~/Scripts/Dashboard/jquery.js")" type="text/javascript"></script>
+<script src="@Url.Content("~/Scripts/Dashboard/interface.js")" type="text/javascript"></script>
+<script src="@Url.Content("~/Scripts/Dashboard/jquery.sparkline.js")" type="text/javascript"></script>
+<link href="@Url.Content("~/Content/Dashboard/blue.css")" rel="stylesheet" type="text/css" />
+<link href="@Url.Content("~/Content/Dashboard/jquery.ui.theme.css")" rel="stylesheet" type="text/css" />
+<style>
+    .divsourcelist, .divdestinationlist
+    {
+        width: 605px;
+        float: left;
+        padding: 5px 5px 5px 5px;
+    }
+    
+    .divsourcelist ul
+    {
+        margin: 0; /*width: 605px;*/
+    }
+    .divsourcelist ul li
+    {
+        margin: 0 0;
+        list-style: none;
+        color: #000;
+        cursor: pointer;
+    }
+    
+    .divdestinationlist ul
+    {
+        margin: 0; /*width: 605px;*/
+    }
+    .divdestinationlist ul li
+    {
+        margin: 0 0;
+        list-style: none;
+        color: #000;
+        cursor: pointer;
+    }
+</style>
+<script type="text/javascript">
+    $(function () {
+        $('a.closeEl').bind('click', toggleContent);
+        $("#divsource, #divdestination").sortable({
+            connectWith: ".connectedSortable",
+            scroll: true,
+            handle: 'div.portlet-header',
+            start: function (event, ui) {
+
+            },
+            change: function (event, ui) {
+                //var arraftersort = $(this).sortable("toArray");
+                //alert(arraftersort);
+            },
+            stop: function (event, ui) {
+                var leftwidget = $("#divsource").sortable("toArray");
+                var rightwidget = $("#divdestination").sortable("toArray");
+                $.ajax({
+                    type: "POST",
+                    url: "/Master/SaveDashboardWidget",
+                    data: "{ 'leftwidget': '" + leftwidget + "','rightwidget': '" + rightwidget + "'}",
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "html",
+                    success: function (data) {
+                    },
+                    error: function () {
+                    }
+                });
+
+
+            },
+            update: function (event, ui) {
+                //var arraftersort = $(this).sortable("toArray");
+                //alert(arraftersort);
+            }
+        });
+    });
+    var toggleContent = function (e) {
+        var targetContent = $('div.portlet-content', this.parentNode.parentNode);
+        if (targetContent.css('display') == 'none') {
+            targetContent.slideDown(300);
+            $(this).removeClass('ui-icon-triangle-1-s').addClass('ui-icon-triangle-1-n');
+        } else {
+            targetContent.slideUp(300);
+            $(this).removeClass('ui-icon-triangle-1-n').addClass('ui-icon-triangle-1-s');
+
+        }
+        return false;
+    };
+
+
+   
+</script>
+<div class="dashboardWrapperNew">
+    <h2>
+        @ResDashboard.PageHeader</h2>
+    <div class="viewBlock" style="float: none; width: 100%;">
+        <a class="view" href="javascript:void(0);">
+            <img alt="" id="imgMainGrid" src="/content/images/chart-view-active.png"></a>
+        <a class="view" href="javascript:void(0);" onclick="ShowSecondDashboard();">
+            <img alt="" id="imgMainChart" src="/content/images/list-view-inactive.png"></a>
+    </div>
+    <div class="divsourcelist">
+        <ul id="divsource" class="connectedSortable">
+            @if (leftwidget != null)
+            {
+                if (leftwidget.Any())
+                {
+                    foreach (var item in leftwidget)
+                    {
+                        var obj = new eTurns.DAL.ModuleMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+                        List<UserRoleModuleDetailsDTO> returval = null;
+                        var lstmasterModule = obj.GetParentModulePlain();
+                        var list = lstmasterModule.FirstOrDefault(c => c.ParentModuleName.Equals(item));
+                        if (list != null)
+                        {
+                            Int64 itemid = list.ID;
+                            var lstPermission = SessionHelper.RoomPermissions.Find(element => element.EnterpriseId == SessionHelper.EnterPriceID && element.CompanyId == SessionHelper.CompanyID && element.RoomID == SessionHelper.RoomID);
+
+                            if (itemid != Convert.ToInt64(SessionHelper.ParentModuleList.Master))
+                            {
+                                returval = (from m in lstPermission.PermissionList
+                                            where m.ParentID == itemid
+                                            select m).OrderBy(c => c.ModuleName).ToList();
+                            }
+
+
+                        }
+                        if (returval != null && returval.Any())
+                        {
+                <li id="@item">
+                    @{Html.RenderAction(item + "" + "Db");}
+                </li>
+                        }
+
+                    }
+                }
+            }
+        </ul>
+    </div>
+    <div class="divdestinationlist">
+        <ul id="divdestination" class="connectedSortable">
+            @if (rightwidget != null)
+            {
+                if (rightwidget.Any())
+                {
+                    foreach (var item in rightwidget)
+                    {
+                        var obj = new eTurns.DAL.ModuleMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+                        List<UserRoleModuleDetailsDTO> returval = null;
+                        var lstmasterModule = obj.GetParentModulePlain();
+                        var list = lstmasterModule.FirstOrDefault(c => c.ParentModuleName.Equals(item));
+                        if (list != null)
+                        {
+                            Int64 itemid = list.ID;
+                            var lstPermission = SessionHelper.RoomPermissions.Find(element => element.EnterpriseId == SessionHelper.EnterPriceID && element.CompanyId == SessionHelper.CompanyID && element.RoomID == SessionHelper.RoomID);
+                            if (itemid != Convert.ToInt64(SessionHelper.ParentModuleList.Master))
+                            {
+                                returval = (from m in lstPermission.PermissionList
+                                            where m.ParentID == itemid
+                                            select m).OrderBy(c => c.ModuleName).ToList();
+                            }
+                        }
+                        if (returval != null && returval.Any())
+                        {
+                <li id="@item">
+                    @{Html.RenderAction(item + "" + "Db");}
+                </li>
+                        }
+                    }
+
+                }
+            }
+        </ul>
+    </div>
+</div>

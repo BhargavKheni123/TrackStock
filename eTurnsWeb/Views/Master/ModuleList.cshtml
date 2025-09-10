@@ -1,0 +1,231 @@
+﻿@model IEnumerable<eTurns.DTO.ModuleMasterDTO>
+@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    ViewBag.Title = ResModuleMaster.PageTitle;
+    var settings = new GridHeaderSettings() { DisplaySaveButton = false, ShowSelectAll = true, DisplayUDFButton = false, DisplayColumnSetupButton = true, ColumnSetupFor = "ModuleList" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ModuleMaster" };
+}
+@section head{
+    <script language="javascript" type="text/javascript">
+        var oTable;
+        var deleteURL = "/Master/DeleteModuleRecords";
+        var IsRefreshGrid = false;
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+        $(document).ready(function () {
+            var gaiSelected = [];
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "150%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {
+                }, // oColVis : required for col show/hide
+                "aaSorting": [[1, "asc"]],
+                "oColReorder": {
+                    // "aiOrder": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                }, // oColReorder : required for col re-ordering, need to set this as per requirement
+                "sPaginationType": "full_numbers", // sPaginationType : required for paging (full paging)
+                "bProcessing": true, // bProcessing : required for process bar
+                "bStateSave": true, // bStateSave : required for state save for filter and other
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries',
+                    "sLoadingRecords": '@eTurns.DTO.Resources.ResMessage.MsgLoading'
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    //var myJSONText = JSON.stringify(oData);
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'ModuleList' },
+                        "async": false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                }, // fnStateSaveParams : used to save the state information User wise
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    // Send an Ajax request to the server to get the data. Note that
+                    // this is a synchronous request.
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'ProjectList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            //o = JSON.parse(json); //json;
+                            if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;
+                }, // fnStateLoad : used to load the state information User wise
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Master/ModuleListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    //endFor
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    if (oSettings.aaSorting.length != 0)
+                        aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback
+                    })
+                }, // fnServerData : required to pass the custom parameter before fetching data from DB
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [
+			                    { "mDataProp": "ID", "sClass": "read_only" },
+                                {
+                                    "sClass": "read_only",
+                                    "sDefaultContent": '<a href="javascript:void(0);" class="editor_edit">Edit</a>',
+                                    "bSortable": true,
+                                    "bSearchable": false,
+                                    "fnRender": function (obj, val) {
+                                        return "<a onclick='return ShowEditTab(&quot;ModuleEdit/" + obj.aData.ID + "&quot;,&quot;frmModule&quot;)' href='JavaScript:void(0);'>" + obj.aData.ModuleName + "</a>";
+                                    }
+                                },
+                                { "mDataProp": "DisplayName", "sClass": "read_only" },
+			                    { "mDataProp": "Value", "sClass": "read_only" },
+                                   { "mDataProp": "IsModule", "sClass": "read_only" },
+                                      { "mDataProp": "RoomName", "sClass": "read_only" },
+			                    { "mDataProp": "Created", "sClass": "read_only",
+			                        "fnRender": function (obj, val) {
+			                            //return GetDateInFullFormat(val);
+			                            return obj.aData.CreatedDate;
+			                        }
+			                    },
+			                    { "mDataProp": "Updated", "sClass": "read_only",
+			                        "fnRender": function (obj, val) {
+			                            //return GetDateInFullFormat(val);
+			                            return obj.aData.UpdatedDate;
+			                        }
+			                    },
+                                { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                                { "mDataProp": "CreatedByName", "sClass": "read_only" }
+		    ]
+            }).makeEditable({
+                sUpdateURL: '@Url.Content("~/Master/UpdateModuleData")' //"/Company/UpdateData",
+            });
+            $('.DTTT_container').css('z-index', '-1');
+        });
+
+    </script>
+}
+<div class="userListingWrapper">
+    <h2>
+        @ResModuleMaster.PageHeader</h2>
+    <div class="userListBlock">
+        <ul class='tabs'>
+            <li class="tab1"><a id="atab1" href='#tab1' onclick="TabItemClicked('ModuleCreate')">
+            </a></li>
+            <li class="tab10"><a id="atab7" class="active" href='#tab7' onclick="javascript:ChangeEditToNew('ModuleCreate','frmModule');">
+            </a></li>
+        </ul>
+        <div id="tab7" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" /></a>
+                    </div>
+                    @*<input type="button" value="Search" class="searchBtn" />*@
+                </div>
+            </div>
+            @Html.GridTopHeader(settings)
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            <div class="userContent">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @ResCommon.ID
+                            </th>
+                            <th>
+                                @ResModuleMaster.ModuleName
+                            </th>
+                            <th>
+                                @ResModuleMaster.ModuleDisplayText
+                            </th>
+                            <th>
+                                @ResModuleMaster.ModuleValue
+                            </th>
+                            <th>
+                                @ResModuleMaster.ModuleType
+                            </th>
+                            <th>
+                                @ResCommon.RoomName
+                            </th>
+                            <th>
+                                @ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @ResCommon.CreatedBy
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+                <button id="btnAddNewCompany" value="Ok" style="display: none">
+                    @ResCommon.AddNew</button>
+                <button id="btnDeleteCompany" value="cancel" style="display: none">
+                    Delete Selected</button>
+                <div id="processing_message" style="display: none" title="Processing">
+                    @ResMessage.RequestProcessMessage
+                </div>
+            </div>
+        </div>
+        <div id='tab1' class="tabContener">
+        </div>
+    </div>
+</div>
+<script>
+    var objColumns = {
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.ID)': 0,
+        '@MvcHtmlString.Create(eTurns.DTO.ResModuleMaster.ModuleName)': 1,
+        '@MvcHtmlString.Create(eTurns.DTO.ResModuleMaster.ModuleDisplayText)': 2,
+        '@MvcHtmlString.Create(eTurns.DTO.ResModuleMaster.ModuleValue)': 3,
+        '@MvcHtmlString.Create(eTurns.DTO.ResModuleMaster.ModuleType)': 4,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.RoomName)': 5,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.CreatedOn)': 6,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.UpdatedOn)': 7,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.UpdatedBy)': 8,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.CreatedBy)': 9,
+ 
+    };
+</script>

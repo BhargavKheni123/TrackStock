@@ -1,0 +1,454 @@
+﻿@model IEnumerable<eTurns.DTO.ItemLocationPollRequestDTO>
+@{
+    ViewBag.Title = eTurns.DTO.ResItemLocationPollRequest.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = false, DisplaySaveButton = false, DisplayUDFButton = false, DisplaySettings = true, DisplayColumnSetupButton = true,DisplayDeleteButton=false,DisplayPrintBlock=false, ColumnSetupFor = "ItemLocationPollList" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ItemLocationPollListMaster" };
+    Session["IsInsert"] = "";
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script type="text/javascript">
+        var oTable;
+        var IsRefreshGrid = false;
+        var IsDeletePopupOpen = false;
+        var SelectedHistoryRecordID = '';
+        var AllowDeletePopup = true;
+         var objColumns = {};
+        $(document).ready(function () {
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            LoadTabs();
+            var gaiSelected = [];
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "200%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[1, "desc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+
+                    if ($(aData.IsDeleted).text() == 'Yes' && $(aData.IsArchived).text() == 'Yes')
+                     $(nRow).css('background-color','#B9BCBF');
+                    else if ($(aData.IsDeleted).text() == 'Yes')
+                    $(nRow).css('background-color','#FFCCCC');
+                    else if ($(aData.IsArchived).text() == 'Yes')
+                     $(nRow).css('background-color','#CCFFCC');
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'ItemLocationPollList' },
+                         "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = json;
+                        }
+                    });
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'ItemLocationPollList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/PollRequest/GetItemLocationPollList")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+
+                    if (oSettings.aaSorting.length != 0) {
+                          var sortValue = "";
+                          for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                              if (sortValue.length > 0)
+                                  sortValue += ", "
+                              sortValue += arrCols[oSettings.aaSorting[i][0]] + ' ' + oSettings.aaSorting[i][1];
+
+                          }
+                        aoData.push({ "name": "SortingField", "value": sortValue });
+                    }
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        cache: false,
+                        "url": sSource,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable').highlight($("#global_filter").val());
+                            }
+                            if ($("#global_filter").val().length > 0) {
+                                if ($('#myDataTable').dataTable().fnGetData().length <= 0) {
+                                }
+                            }
+
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [
+                    { "mDataProp": null, "sClass": "read_only center NotHide RowNo", "sWidth": '100px', "bSortable": false, "sDefaultContent": '' },
+                    { "mDataProp": "ID", "sClass": "read_only" },
+                    { "mDataProp": "ItemNumber", "sClass": "read_only" },
+                    { "mDataProp": "BinNumber", "sClass": "read_only" },
+                    { "mDataProp": "ScaleID", "sClass": "read_only" },
+                    { "mDataProp": "ChannelID", "sClass": "read_only" },
+                    { "mDataProp": "ComPortName", "sClass": "read_only" },
+                    { "mDataProp": "RequestTypes", "sClass": "read_only" },
+                    {
+                        "mDataProp": "IsPollStarted", "sClass": "read_only",
+                         "fnRender": function (obj, val) {
+                            return obj.aData.IsPollStarted ? 'Yes' : 'No';
+                        }
+                    },
+                    { "mDataProp": "PollStartTime", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.PollStartTime; } },
+                    {
+                        "mDataProp": "IsPollCompleted", "sClass": "read_only"
+                        , "fnRender": function (obj, val) {
+                            return obj.aData.IsPollCompleted ? 'Yes' : 'No';
+                        }
+                    },
+                    { "mDataProp": "PollCompletionTime", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.PollCompletionTime; } },
+                    {
+                        "mDataProp": "WeightReading", "sClass": "read_only"
+                         ,"fnRender": function (obj, val) {
+                             if (obj.aData.WeightReading != null && obj.aData.WeightReading != NaN)
+                                 return "<span>" + FormatedCostQtyValues(obj.aData.WeightReading, 5) + "</span>";
+                            else
+                                return "<span>" + FormatedCostQtyValues(0, 5) + "</span>";
+                        }
+                    },
+                    {
+                        "mDataProp": "IsPostProcessDone", "sClass": "read_only"
+                        , "fnRender": function (obj, val) {
+                            return obj.aData.IsPostProcessDone ? 'Yes' : 'No';
+                        }
+                    },
+                    { "mDataProp": "ErrorDescription", "sClass": "read_only" },
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                            { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                            { "mDataProp": "Created", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.CreatedDate; } },
+			                { "mDataProp": "Updated", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.UpdatedDate; } },
+                    { "mDataProp": "CommandText", "sClass": "read_only" }
+		    ]
+            }).makeEditable({
+                sUpdateURL: '@Url.Content("~/PollRequest/UpdatePollListMasterData")'
+            });
+
+
+            //This is Most important
+            jQuery("#btnDiv").click(function (e) {
+                var offset = $(this).offset();
+                var leftpx = (parseInt(e.clientX) + parseInt($(this).css("width").toString().replace("px", "")) + parseInt(15)) + 'px';
+                var toppx = (parseInt(e.clientY) + parseInt(5)) + 'px';
+                jQuery('#myDataTable_wrapper div.ColVis .ColVis_Button').click();
+                jQuery('.ColVis_collection').css("left", leftpx);
+                jQuery('.ColVis_collection').css("top", toppx);
+                e.preventDefault();
+
+            });
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+            $('#myDataTable').on('tap click', 'a[id^="aEditLink"]', function () {
+                var tr = $(this).parent().parent();
+                $("#myDataTable").find("tbody tr").removeClass("row_selected");
+                $(tr).addClass('row_selected');
+
+            });
+
+        });
+
+
+
+        /* HISTORY related data deleated and archived START */
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+        function HistoryTabClick() {
+            GetHistoryData();
+        }
+        function GetHistoryData() {
+
+            HistorySelected = fnGetSelected(oTable);
+            if (HistorySelected !== undefined && HistorySelected.length === 1) {
+                var QLGUID = $(HistorySelected).find('#QuickListGUID')[0].value;
+                //if (SelectedHistoryRecordID != QLGUID) {
+                SelectedHistoryRecordID = QLGUID;
+                $('#DivLoading').show();
+                $("#CTab").hide();
+                $("#CtabCL").show();
+                $('#CtabCL').load('/Master/QuickListHistory', function () { $('#DivLoading').hide(); });
+                //}
+            }
+            else {
+                $('#CtabCL').html('');
+                $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                showNotificationDialog();
+                return false;
+            }
+        }
+        /* HISTORY related data deleated and archived END */
+    </script>
+}
+<script type="text/javascript">
+    var isTabClick = false;
+    var TabsArry = [new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+    ];
+
+    function callbacknew() { window.location.hash = '#new'; ShowNewTab('QuickListCreate', 'frmQuickList'); HideDisplayIcon(); }
+    function callbackhistory() { window.location.hash = '#list'; fillQLNarrowSearchDiv(); AllowDeletePopup = true; HideDisplayIcon(); } //HistoryTabClick(); }
+    function callbackCL() { HistoryTabClick(); HideDisplayIcon(); }
+    function HideDisplayIcon() {
+        if ($('#IsDeletedRecords').is(':checked')) {
+            $('#undeleteRows').css('display', '');
+            $('#deleteRows').css('display', 'none');
+        }
+        else {
+            $('#undeleteRows').css('display', 'none');
+            $('#deleteRows').css('display', '');
+        }
+    }
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+        }
+
+    }
+    $(document).ready(function () {
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+    });
+</script>
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResItemLocationPollRequest.PageHeader
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+    </div>
+    <div class="userListBlock">
+        @*@Html.Hidden("hdnInsertRights", isInsert)*@
+        @*@Html.Hidden("hdnUpdateRights", isUpdate)*@
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'>
+        </ul>
+        <div id="CtabNew" class="tabContener">
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.GridTopHeader(settings)
+            <div id="divNarrowSearch" style="float: left; padding: 0 5px 0 0; width: 18%;">
+                &nbsp;
+            </div>
+            <div class="userContent">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResBin.BinNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemLocationPollRequest.ScaleID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemLocationPollRequest.ChannelID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemLocationPollRequest.ComPort
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemLocationPollRequest.RequestType
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemLocationPollRequest.IsPollStarted
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemLocationPollRequest.PollStartTime
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemLocationPollRequest.IsPollCompleted
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemLocationPollRequest.PollCompletionTime
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemLocationPollRequest.WeightReading
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemLocationPollRequest.IsPostProcessDone
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemLocationPollRequest.ErrorDescription
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemLocationPollRequest.CommandText
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div id='CtabCL' class="tabContener">
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var _IsArchived = false;
+    var _IsDeleted = false;
+
+    function BlankSession(ID) {
+        $("form").off(".areYouSure");
+        $(window).off('beforeunload');
+
+        bIsFilter = false;
+        $.ajax({ url: '@Url.Content("~/QuickList/BlankSession")'
+                                    , type: 'GET'
+                                    , contentType: "application/json"
+                                    , success: function (result) {
+                                    },
+            error: function (msg) {
+            }
+        });
+    }
+
+    $(document).ready(function () {
+        if (typeof ($('#IsArchivedRecords')) != undefined)
+            _IsArchived = $('#IsArchivedRecords').is(':checked');
+
+        if (typeof ($('#IsDeletedRecords')) != undefined)
+            _IsDeleted = $('#IsDeletedRecords').is(':checked');
+
+
+        fillQLNarrowSearchDiv();
+    });
+
+    function fillQLNarrowSearchDiv() {
+        $('#divNarrowSearch').html('&nbsp');
+        $.get('@Url.Action("GetItemLocationPollNarrwSearchHTML")', function (data) {
+            $('#divNarrowSearch').html(data);
+        });
+    }
+    isDirtyForm = false;
+
+    $('#IsDeletedRecords, #IsArchivedRecords').live('click', function () {
+        fillQLNarrowSearchDiv();
+    });
+
+    $('#IsDeletedRecords').live('click', function () {
+        $('#myDataTable').dataTable().fnFilter($("#global_filter").val(), null, null, null)
+        callbackhistory();
+        HideDisplayIcon();
+
+    });
+    $('#IsArchivedRecords').live('click', function () {
+        $('#myDataTable').dataTable().fnFilter($("#global_filter").val(), null, null, null)
+        callbackhistory();
+
+    });
+
+
+</script>
+<script type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>

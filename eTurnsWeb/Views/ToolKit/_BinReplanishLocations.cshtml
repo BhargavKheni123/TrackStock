@@ -1,0 +1,648 @@
+﻿@model IList<eTurns.DTO.LocationMasterDTO>
+@{
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+
+
+}
+<div id="divitemlocationbinreplanish" style="width: 99.5%; min-height: 140px">
+    <div>
+        <div>
+            <div style="text-align: center; float: left; width: 80%;">
+                <span id="spanErrorMsg" style="color: Green;"></span>
+            </div>
+            <div>
+                <div style="text-align: right; float: left; width: 85%;">
+                    <span style="color: Red;">*</span>
+                </div>
+                <div style="text-align: center; bottom: auto; float: right; width: 10%; padding-bottom: 5px;">
+                    <input type="button" value="Add Location" class="CreateBtn" onclick="return AddNewBinReplanish()" />
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+        float: left;">
+        <table id="ItemLocationLevelQuanity" class="display">
+            <thead>
+                <tr>
+                    <th>
+                        @eTurns.DTO.ResLocation.IsDefault
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResLocation.Location
+                    </th>
+                   
+                    <th>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null)
+                {
+                    foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                @if (item.IsDefault == true)
+                                {
+                                    @Html.CheckBox("IsDefault", true, new { @data_id = "txtLoc", onclick = "return updateDefaultLocation(this);" })
+                                }
+                                else
+                                {
+                                    @Html.CheckBox("IsDefault", false, new { @data_id = "txtLoc", onclick = "return updateDefaultLocation(this);" })
+                                }
+                            </td>
+                            @if (HasOnTheFlyEntryRight)
+                            {
+                                if (item.ID > 0)
+                                {
+
+                                    <td>
+                                        @* @Html.DropDownList("dlLocation", new SelectList(ViewBag.DefaultLocationBag, "ID", "BinNumber", item.BinID), "", new { @class = "selectBox" }) *@
+                                        @Html.TextBox("txtLocation", item.Location, new { @style = "width:93%;", @maxlength = "200", @readonly = "readonly", @disabled = "disabled", @class = "text-box disableBack " })
+                                        @Html.Hidden("BinID", item.ID, new { @id = "SubBinID" })
+                                        @Html.HiddenFor(model => item.Location)
+                                    </td>
+                                }
+                                else
+                                {
+                                    <td>
+                                        <span style='position:relative'>
+                                            @* @Html.DropDownList("dlLocation", new SelectList(ViewBag.DefaultLocationBag, "ID", "BinNumber", item.BinID), "", new { @class = "selectBox" }) *@
+                                            @Html.TextBox("txtLocation", item.Location, new { @style = "width:93%;", @maxlength = "200", @class = "text-box " })
+                                            @Html.Hidden("BinID", item.ID, new { @id = "SubBinID" })
+                                            <a id='lnkShowAllOptionsBin' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsBin">
+                                                <img src='/Content/images/arrow_down_black.png' alt='select' />
+                                            </a>
+                                        </span>
+                                    </td>
+                                }
+                            }
+                            else
+                            {
+                                List<LocationMasterDTO> lstBins = new List<LocationMasterDTO>();
+                                lstBins.Add(new LocationMasterDTO() { Location = item.Location ?? string.Empty });
+                                if (item.ID > 0)
+                                {
+                                    <td>
+                                        @Html.DropDownList("dlLocation", new SelectList(lstBins, "Location", "Location", item.Location), new { @class = "selectBox" })
+                                        @Html.Hidden("BinID", item.ID, new { @id = "SubBinID" })
+                                        @Html.HiddenFor(model => item.Location)
+                                        @Html.HiddenFor(model => item.IsOnlyFromItemUI)
+                                        <input type="hidden" id="txtLocation" value="@item.Location" />
+                                    </td>
+                                }
+                                else
+                                {
+                                    <td>
+                                        @Html.DropDownList("dlLocation", new SelectList(lstBins, "Location", "Location", item.Location), new { @class = "selectBox" })
+                                        @Html.Hidden("BinID", item.ID, new { @id = "SubBinID" })
+                                        <input type="hidden" id="txtLocation" value="@item.Location" />
+                                    </td>
+                                }
+                            }
+                           
+                            <td>
+                                @*<a href="JavaScript:void{0}" onclick="return SavetoSeesionBinReplanish(this)">
+                                    <img alt="Save" src="/Content/images/save.png"></a> *@
+                                @if (item.GUID != Guid.Empty)
+                                {
+                                    <a href="JavaScript:void{0}" onclick="return DeletetoSeesionBinReplanishSingle(this)">
+                                        <img alt="@ResCommon.Save" src="/Content/images/delete.png">
+                                    </a>
+                                }
+                                <input id="hdnID" type="hidden" value="@item.ID" />
+                                <input id="hdnGUID" type="hidden" value="@item.GUID" />
+                                <input id="hdnItemGUID" type="hidden" value="@item.ToolGUID" />
+                                <input id="hdnSessionSr" type="hidden" value="@item.SessionSr" />
+                                <input id="hdnBinID" type="hidden" value="@item.ID" />
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="dialog" id="mdlQLYesNo" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+        </p>
+        <a href="JavaScript:void{}" id="btnQLModelYesSP" class="yes">
+            <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResCommon.Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no" onclick="QLcloseModal()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<script type="text/javascript">
+    var oTableProjectItems;
+    var deleteURL1 = "/Inventory/ItemLocationLvelQuantityDelete";
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var DTName = 'ItemLocationLevelQuanity';
+    var bIsFilter = false;
+     
+    $(document).ready(function () {
+        $('form').areYouSure();
+        //        $(".autocompleteSup").focus(function () {
+        //            $(this).autocomplete("search", $(this).val());
+        //        });
+
+        $('.ShowAllOptionsBin').click(function () {
+            //$(this).siblings(".autocompleteSup").autocomplete("search", "");
+            $(this).siblings('#txtLocation').trigger("focus");
+        });
+
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+        $(".text-boxPriceFixedFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 1
+        });
+
+        //        $("#saveRows").click(function () {
+        //            SaveAllClick();
+        //        });
+   
+        var gaiSelected = [];
+        oTableProjectItems = $('#' + DTName).dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "100%",
+            "sDom": 'R<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            "oColVis": {},
+            "aaSorting": [[1, "desc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "ordering": true,
+            "bStateSave": true,
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'ItemDetailBinList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = json;
+                    }
+                });
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'ItemDetailBinList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "aoColumns": [
+                   {
+                       "mDataProp": "IsDefault", "bSortable": false
+
+                   },
+                 {
+                     "mDataProp": "Location", "bSortable": false
+                 },
+               
+                 
+                 {
+                     "mDataProp": null,
+                     "bSortable": false
+                 }]
+
+
+
+        });
+        $('.DTTT_container').css('z-index', '-1');
+    });
+
+
+    $('#' + DTName + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    // To adjust the print block next to colvis button
+    $('#btnblock').css({ 'margin-right': '45px' });
+
+    //    $('#' + DTName + ' tbody tr').live('tap click', function () {
+    //        $(this).toggleClass('row_selected');
+    //        return false;
+    //    });
+
+    /* Add a click handler for the delete rows multiple rows */
+
+
+    $('#deleteRows1').click(function () {
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+        if ($("body").hasClass('DTTT_Print')) {
+            return false;
+        }
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+
+        var anSelected = fnGetSelected(oTableProjectItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            //anSelected[0].cells[0].innerHTML
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+            IsDeletePopupOpen = false;
+        }
+
+    });
+
+    $("#divitemlocationbinreplanish").on("change", "input[type='checkbox'][name='IsDefault']", function () {
+        if ($(this).prop("checked")) {
+            $("#divitemlocationbinreplanish").find("input[type='checkbox'][name='IsDefault']").prop("checked", false);
+            $(this).prop("checked", true);
+        }
+    });
+    $("#divitemlocationbinreplanish").on({
+        mouseover: function () {
+            FillLocationsForTool($(this), "");
+        },
+        focus: function () {
+            FillLocationsForTool($(this), "");
+        },
+        change: function () {
+            $(this).parent().find("input[id='txtLocation']").val($(this).val());
+
+        }
+    }, "#dlLocation");
+    $('.ShowAllOptionsBin').click(function () {
+        //$(this).siblings(".autocompleteSup").autocomplete("search", "");
+        $(this).siblings('#txtLocation').trigger("focus");
+    });
+    $("#divitemlocationbinreplanish").on({
+        focus: function () {
+            SetAutoCompleteOpenOnFocusLocation($(this), '@Url.Action("GetAllLocationOfRoomForTool", "Master")', null, $(this).val());
+        }
+
+    }, "input[type='text'][id='txtLocation']");
+    $("#divitemlocationbinreplanish").on("mouseover", "#dlLocation", function () {
+        FillLocationsForTool($(this), "");
+    });
+    $("#divitemlocationbinreplanish").on("change", "#dlLocation", function () {
+        $(this).parent().find("input[id='txtLocation']").val($(this).val());
+    });
+    $("#btnModelYesInnerGrid").live("click", function () {
+
+        var anSelected = fnGetSelected(oTableProjectItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+
+        if (anSelected.length !== 0) {
+            $.ajax({
+                'url': deleteURL1,
+                data: { ids: stringIDs },
+                success: function (response) {
+
+                    if (response == "ok") {
+
+
+                        for (var i = 0; i <= anSelected.length - 1; i++) {
+                            oTableProjectItems.fnDeleteRow(anSelected[i]);
+                        }
+
+                        if (anSelected.length > 0) {
+                            $("#spanGlobalMessage").html("@ResCommon.RecordDeletedSuccessfully".replace("{0}","(" + anSelected.length + ")"));
+                        }
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        //CallThisFunctionFromModel('success');
+                        //oTableProjectItems.fnDraw();
+                    }
+                },
+                error: function (response) {
+                    // through errror message
+                }
+            });
+            $.modal.impl.close();
+        }
+    });
+
+    function AddNewBinReplanish() {
+
+        RemoveLeadingTrailingSpace("divitemlocationbinreplanish");
+         
+        //
+        
+        if (SavetoSeesionItemLocationAll()) {
+            $('#divBinReplanish').empty();
+            $('#DivLoading').show();
+            $.get(Inventory_LoadLocationsofTool + '?ToolGUID=' + ToolGUID + '&AddCount=1', function (data) {
+                $('#divBinReplanish').html(data);
+                
+                $('#DivLoading').hide();
+            });
+        }
+        return false;
+    }
+
+    function SavetoSeesionItemLocationAll() {
+        //
+        if ($("#ItemLocationLevelQuanity").length > 0) {
+            var TempSuprows3 = $("#ItemLocationLevelQuanity").dataTable().fnGetNodes();
+            var iCountSup = 0;
+            var iCountSupDefault = 0;
+
+            if (TempSuprows3 != null && TempSuprows3.length > 0) {
+                //
+                // alert(TempSuprows3.length);
+                for (var i = 0; i < TempSuprows3.length; i++) {
+                    var currentRow = TempSuprows3[i];
+                    if (!($(currentRow).find('#txtLocation').val() == '' )) {
+
+                        if ($(currentRow).find('#txtLocation').val() == '') {
+                            $(TempSuprows3[i]).css("background-color", "red");
+                            $(TempSuprows3[i]).find('#txtLocation').css("background-color", "yellow");
+                            $(TempSuprows3[i]).find('#txtLocation').focus();
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            $("#spanGlobalMessage").html('@ResLocation.ReqInventoryLocation');
+                            $('div#target').fadeToggle();
+                            //$("div#target").delay(2000).fadeOut(200);
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            return false;
+                        }
+                        //  alert(TempSuprows3[i]);
+                        //
+                        if (SavetoSeesionBinReplanish(TempSuprows3[i]) == false) {
+                            // alert('herr');
+                            // alert('Hi');
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    function SavetoSeesionBinReplanish(obj1) {
+        //
+        // var vBinID = $(obj).parent().parent().find('#dlLocation')[0].value == '' ? 0 : $(obj).parent().parent().find('#dlLocation')[0].value;
+        var vBinID = $(obj1).find('#SubBinID').val();
+        var vtxtBinLocation = $(obj1).find('#txtLocation').val();
+        var vToolguid = $(obj1).find('#hdnItemGUID').val();
+        if (vToolguid == "") {
+            vToolguid = ToolGUID;
+        }
+        var vhdnID = $(obj1).find('#hdnID').val();
+        var vhdnGUID = $(obj1).find('#hdnGUID').val();
+        var vhdnSessionSr = $(obj1).find('#hdnSessionSr').val();
+     
+        var vlocIsDefault = $(obj1).find('#IsDefault').is(':checked');
+
+
+
+        if (vBinID == 0 && vtxtBinLocation == '') {
+
+            return true;
+        }
+
+        if (vtxtBinLocation == '') {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#spanGlobalMessage").html('@ResLocation.ReqToolLocation');
+            $('div#target').fadeToggle();
+            //$("div#target").delay(2000).fadeOut(200);
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            $(obj1).find('#txtLocation').focus();
+            return false;
+        }
+        var TempSuprows = $("#ItemLocationLevelQuanity").dataTable().fnGetNodes();
+        var iCountSup = 0;
+        if (TempSuprows != null && TempSuprows.length > 0) {
+            for (var i = 0; i < TempSuprows.length; i++) {
+                if ($(TempSuprows[i]).find('#txtLocation').val() == vtxtBinLocation) {
+                    iCountSup += 1;
+                    if (iCountSup > 1) {
+                        $(TempSuprows[i]).css("background-color", "red");
+                        $(TempSuprows[i].cells[1].getElementsByTagName('input')).css("background-color", "yellow");
+                        $(TempSuprows[i].cells[1].getElementsByTagName('input').txtLocation).focus();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#spanGlobalMessage").html('@ResLocation.DuplicateLocation');
+                        $('div#target').fadeToggle();
+                        //$("div#target").delay(2000).fadeOut(200);
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        return false;
+                    }
+                }
+            }
+        }
+
+        if (vtxtBinLocation == '') {
+            //alert("Please select Inventory location.");
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#spanGlobalMessage").html('@ResLocation.SelectLocation');
+            $('div#target').fadeToggle();
+            //$("div#target").delay(5000).fadeOut(200);
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+
+            $(obj1).find('#txtLocation').focus();
+            return false;
+        }
+        
+
+        //
+
+        $.ajax({
+            url: Tool_SavetoSeesionBinReplanishSingle,
+            data: { 'ID': vhdnID, 'SessionSr': vhdnSessionSr, 'GUID': vhdnGUID, 'ToolGUID': vToolguid, 'BinID': vBinID, 'BinLocation': vtxtBinLocation, 'IsDefault': vlocIsDefault },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                //  alert(response);
+                if (response.status == 'ok') {
+                     
+                }
+                else {
+                    alert("Error");
+                }
+            }
+        });
+        return true;
+    }
+
+    function DeletetoSeesionBinReplanishSingle(obj) {
+
+        var vardelete = true;
+
+       
+
+        var vBinID = $(obj).parent().parent().find('#hdnBinID').val();
+        // var vBinID = $(obj).parent().parent().find('#dlLocation')[0].value == '' ? 0 : $(obj).parent().parent().find('#dlLocation')[0].value;
+       
+        var vToolguid = $(obj).parent().parent().find('#hdnItemGUID').val();
+        var vhdnID = $(obj).parent().parent().find('#hdnID').val();
+        var vhdnGUID = $(obj).parent().parent().find('#hdnGUID').val();
+        var vlocIsDefault = $(obj).parent().parent().find('#IsDefault').is(':checked');
+        if (SavetoSeesionItemLocationAllNew(vhdnGUID)) {
+            if (newGuid != '00000000-0000-0000-0000-000000000000') {
+                vhdnGUID = newGuid
+            }
+            if (vhdnGUID == '00000000-0000-0000-0000-000000000000') {
+                //client side remove
+                $(obj).parent().parent().remove();
+                BindBinReplanish(vardelete);
+            }
+            else {
+                if (vToolguid == '') {
+                    vToolguid = '00000000-0000-0000-0000-000000000000'
+                }
+               
+                       
+                      
+                ////Delete///
+                if (vhdnGUID != '') {
+                    $.ajax({
+                        url: Inventory_DeletetoSeesionBinReplanishSingle,
+                        data: { 'ID': vhdnID, 'GUID': vhdnGUID, 'ToolGUID': vToolguid, 'BinID': vBinID },
+                        dataType: 'json',
+                        type: 'POST',
+                        async: false,
+                        cache: false,
+                        success: function (response) {
+                            if (response.status = 'deleted') {
+                                //client side remove
+                                $(obj).parent().parent().remove();
+                                //bind grid
+                                BindBinReplanish(vardelete);
+
+                                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                                $("#spanGlobalMessage").html('@ResLocation.ToolLocationDeleted');
+                                $('div#target').fadeToggle();
+                                //$("div#target").delay(2000).fadeOut(200);
+                                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+
+                            }
+                            else if (response.status = 'error') {
+                                alert('@ResCommon.ErrorInProcess');
+                            }
+                        }
+                    });
+                }
+                else {
+                    $(obj).parent().parent().remove();
+                    BindBinReplanish(obj);
+
+                }
+                ///Delete///
+                        
+                     
+
+            }
+        }
+        return false;
+    }
+
+    function SavetoSeesionItemLocationAllNew(Guid) {
+        //
+        if ($("#ItemLocationLevelQuanity").length > 0) {
+            var TempSuprows3 = $("#ItemLocationLevelQuanity").dataTable().fnGetNodes();
+            var iCountSup = 0;
+            var iCountSupDefault = 0;
+
+            if (TempSuprows3 != null && TempSuprows3.length > 0) {
+                //
+
+                for (var i = 0; i < TempSuprows3.length; i++) {
+
+                    if (!($(TempSuprows3[i]).find('#txtLocation').val() == ''  )) {
+
+                       
+                        if (SavetoSeesionBinReplanishNew(TempSuprows3[i], Guid) == false) {
+                           
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    function SavetoSeesionBinReplanishNew(obj1, guid) {
+        // var vBinID = $(obj).parent().parent().find('#dlLocation')[0].value == '' ? 0 : $(obj).parent().parent().find('#dlLocation')[0].value;
+        var vBinID = $(obj1).find('#SubBinID').val();
+        var vtxtBinLocation = $(obj1).find('#txtLocation').val();
+         var vToolguid = $(obj1).find('#hdnItemGUID').val();
+        if (vToolguid == "") {
+            vToolguid = ToolGUID;
+        }
+        var vhdnID = $(obj1).find('#hdnID').val();
+        var vhdnGUID = $(obj1).find('#hdnGUID').val();
+        var vhdnSessionSr = $(obj1).find('#hdnSessionSr').val();
+ 
+       
+         
+
+        var vlocIsDefault = $(obj1).find('#IsDefault').is(':checked');
+        if (vBinID == 0 && vtxtBinLocation == '') {
+
+            return true;
+        }
+
+        
+        var TempSuprows = $("#ItemLocationLevelQuanity").dataTable().fnGetNodes();
+        var iCountSup = 0;
+         
+
+        $.ajax({
+            url: Inventory_SavetoSeesionBinReplanishSingleNew,
+            data: { 'ID': vhdnID, 'SessionSr': vhdnSessionSr, 'GUID': vhdnGUID, 'ToolGUID': vToolguid, 'BinID': vBinID, 'BinLocation': vtxtBinLocation, 'IsDefault': vlocIsDefault },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                //  alert(response);
+                if (response.status == 'ok') {
+
+                    if (guid == vhdnGUID) {
+                        newGuid = response.newGUID;
+                    }
+                   
+                }
+                else {
+                    alert("Error");
+                }
+            }
+        });
+        return true;
+    }
+</script>

@@ -1,0 +1,341 @@
+﻿@model IEnumerable<eTurns.DTO.CartItemDTO>
+@{
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Cart, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Cart, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    bool isDelete = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Cart, eTurnsWeb.Helper.SessionHelper.PermissionType.Delete);
+    List<BinMasterDTO> lstAllBins = (List<BinMasterDTO>)ViewBag.AllBinsOfRoom;
+    string strBinLocations = "<option value=''></option>";
+    foreach (var item in lstAllBins)
+    {
+        strBinLocations += "<option value='" + item.ID + "'>" + item.BinNumber + "</option>";
+    }
+}
+@*@if (false)
+{
+    <script src="../../Scripts/jquery-1.9.0-vsdoc.js" type="text/javascript"></script>
+}*@
+<script type="text/javascript" src="@Url.Content("~/Scripts/DynemicDataTable.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())" ></script>
+<div class="innerGrid" style="background: none repeat scroll 0 0 #F8F8F8; padding: 10px 0 0 28px">
+    <table style="width: 100%;">
+        <tr>
+            <td class="BtnBlock" style="float: none; border: 1px solid #F8F8F8; height: 2px;">
+                <div class="innerHeadSec">
+                    <div style="position: absolute; left: 470px; top: -11px; width: 350px; z-index: 10;">
+                        @if (isDelete)
+                        {
+                            if (ViewBag.IsDeletedchked || ViewBag.IsArchivedchked)
+                            {
+
+                            }
+                            else
+                            {
+                            <a href="javascript:void(null);" onclick="return DeleteCartItem('@ViewBag.ItemGUID');" id="btnDeleteRecords">
+                                <img src="~/Content/images/delete.png" alt="" />
+                            </a>    
+                            }
+
+                        }
+                        <input type="button" id="InnerGridGobtn" class="go" value=@eTurns.DTO.Resources.ResGridHeader.Go />
+                        <input type="text" id="InnerGridPageNumber" class="inputNum" />
+                        <span class="label">@eTurns.DTO.Resources.ResGridHeader.GoToPage</span>
+                    </div>
+                </div>
+            </td>
+            @*<td style="text-align: right;">
+            </td>*@
+        </tr>
+        <tr>
+            <td colspan="2" style="padding-top: 14px; padding-bottom: 35px; border: 1px solid #F8F8F8;">
+                <div class="userContentInnerGrid">
+                    <table id="CartItemDetails_@(ViewBag.ItemGUID)" class="display">
+                        <thead>
+                            <tr>
+                                <th>
+                                    &nbsp;
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.ID
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResCartItem.ItemNumber
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResCartItem.BinName
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResCartItem.Quantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResCartItem.ReplenishType
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResCartItem.IsAutoMatedEntry
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.CreatedOn
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.CreatedBy
+                                </th>
+                                @Html.RenderColumnsHeader("CartItem", typeof(eTurns.DTO.ResCartItem))
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<div id="dvCartHistory">
+</div>
+<div class="dialog" id="Inner-Grid-basic-modal-content_@(ViewBag.ItemGUID)" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm</p>
+        <a href="JavaScript:void(0)" id="btnModelYesInnerGrid_@(ViewBag.ItemGUID)" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes</a><a href="javascript:void(0)" class="no"
+                onclick="closeModal()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo</a>
+    </div>
+</div>
+<script type="text/javascript">
+    var bindropdownoption = '@strBinLocations';
+    var decoded = $('<div/>').html(bindropdownoption).text();
+    $(function (event) {
+
+        var ColumnObject = new Array();
+        ColumnObject.push({
+            mDataProp: "null",
+            bSortable: false,
+            sClass: "read_only",
+            sDefaultContent: '<img id="imgQty" src="' + sImageUrl + 'drildown_open.jpg' + '">',
+            fnRender: function (obj, val) {
+                if ('@isUpdate' == 'True') {
+                    if (obj.aData.IsDeleted || obj.aData.IsArchived) {
+                        return "<a href='javascript:void(0);' onclick=GetHistoryData('" + obj.aData.GUID.toString() + "');><img  src='/Content/images/history.png'/></a><span style='display:none;' id='spnUDF1'>" + obj.aData.UDF1 + "</span><span style='display:none;' id='spnUDF2'>" + obj.aData.UDF2 + "</span><span style='display:none;' id='spnUDF3'>" + obj.aData.UDF3 + "</span><span style='display:none;' id='spnUDF4'>" + obj.aData.UDF4 + "</span><span style='display:none;' id='spnUDF5'>" + obj.aData.UDF5 + "</span>";
+                    }
+                    else {
+                        if (obj.aData.IsAutoMatedEntry) {
+                            return "<input type='button' value='Update' onclick='return UpdateSingleItemToCart(this);' id='btnUpdateCartItem~" + obj.aData.ItemGUID + "~" + obj.aData.ID + "' class='CreateBtndisabled' style='float: none;padding: 2px 6px;margin-left: 5px;' />&nbsp;&nbsp;<a href='javascript:void(0);' onclick=GetHistoryData('" + obj.aData.GUID.toString() + "');><img  src='/Content/images/history.png'/></a><span style='display:none;' id='spnUDF1'>" + obj.aData.UDF1 + "</span><span style='display:none;' id='spnUDF2'>" + obj.aData.UDF2 + "</span><span style='display:none;' id='spnUDF3'>" + obj.aData.UDF3 + "</span><span style='display:none;' id='spnUDF4'>" + obj.aData.UDF4 + "</span><span style='display:none;' id='spnUDF5'>" + obj.aData.UDF5 + "</span>";
+                        }
+                        else {
+                            return "<input type='button' value='Update' onclick='return UpdateSingleItemToCart(this);' id='btnUpdateCartItem~" + obj.aData.ItemGUID + "~" + obj.aData.ID + "' class='CreateBtn' style='float: none;padding: 2px 6px;margin-left: 5px;' />&nbsp;&nbsp;<a href='javascript:void(0);' onclick=GetHistoryData('" + obj.aData.GUID.toString() + "');><img  src='/Content/images/history.png'/></a><span style='display:none;' id='spnUDF1'>" + obj.aData.UDF1 + "</span><span style='display:none;' id='spnUDF2'>" + obj.aData.UDF2 + "</span><span style='display:none;' id='spnUDF3'>" + obj.aData.UDF3 + "</span><span style='display:none;' id='spnUDF4'>" + obj.aData.UDF4 + "</span><span style='display:none;' id='spnUDF5'>" + obj.aData.UDF5 + "</span>";
+                        }
+                        //                        return "<input type='button' value='Update' onclick='return UpdateSingleItemToCart(this);' id='btnUpdateCartItem~" + obj.aData.ItemGUID + "~" + obj.aData.ID + "' class='CreateBtn' style='float: none;padding: 2px 6px;margin-left: 5px;' />&nbsp;&nbsp;<a href='javascript:void(0);' onclick=GetHistoryData('" + obj.aData.GUID.toString() + "');><img  src='/Content/images/history.png'/></a><span style='display:none;' id='spnUDF1'>" + obj.aData.UDF1 + "</span><span style='display:none;' id='spnUDF2'>" + obj.aData.UDF2 + "</span><span style='display:none;' id='spnUDF3'>" + obj.aData.UDF3 + "</span><span style='display:none;' id='spnUDF4'>" + obj.aData.UDF4 + "</span><span style='display:none;' id='spnUDF5'>" + obj.aData.UDF5 + "</span>";
+                    }
+
+                }
+                else {
+                    return "<a href='javascript:void(0);' onclick=GetHistoryData('" + obj.aData.GUID.toString() + "');><img  src='/Content/images/history.png'/></a><span style='display:none;' id='spnUDF1'>" + obj.aData.UDF1 + "</span><span style='display:none;' id='spnUDF2'>" + obj.aData.UDF2 + "</span><span style='display:none;' id='spnUDF3'>" + obj.aData.UDF3 + "</span><span style='display:none;' id='spnUDF4'>" + obj.aData.UDF4 + "</span><span style='display:none;' id='spnUDF5'>" + obj.aData.UDF5 + "</span>";
+                }
+            }
+        });
+
+        ColumnObject.push({ mDataProp: "ID", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "ItemNumber", sClass: "read_only", sDefaultContent: '<img id="imgQty" src="' + sImageUrl + 'drildown_open.jpg' + '">', fnRender: function (obj, val) { return "<span id='spnItemNumber'>" + obj.aData.ItemNumber + "</span>" + "<input type='hidden' id='hdnUniqueID' value='" + obj.aData.GUID.toString() + "' />"; } });
+        ColumnObject.push({ mDataProp: "BinName", sClass: "read_only", sDefaultContent: '', bSearchable: false, fnRender: function (obj, val) {
+            if (obj.aData.IsAutoMatedEntry) {
+                return "<span>" + obj.aData.BinName + "</span>";
+
+            }
+            else {
+                return "<select id='slctBinName' name='slctBinName' class='selectBox'>" + decoded + "</select><input type='hidden' name='hdnBinID' value='" + obj.aData.BinId + "' /> ";
+            }
+        }
+        });
+        ColumnObject.push({ mDataProp: "Quantity", sClass: "read_only", sDefaultContent: '<img id="imgQty" src="' + sImageUrl + 'drildown_open.jpg' + '">', fnRender: function (obj, val) {
+            if (obj.aData.IsAutoMatedEntry) {
+                return "<span>" + obj.aData.Quantity + "</span>";
+            }
+            else {
+                return "<input type='text' value='" + parseFloat(obj.aData.Quantity).toFixed(2)  + "' class='text-boxinner text-boxQuantityFormat' id='txtQty' style='width:60px;' />";
+            }
+        }
+        });
+
+        ColumnObject.push({ mDataProp: "ReplenishType", sClass: "read_only", sDefaultContent: '<img id="imgQty" src="' + sImageUrl + 'drildown_open.jpg' + '">', fnRender: function (obj, val) {
+            if (obj.aData.IsAutoMatedEntry) {
+                return "<span>" + obj.aData.ReplenishType + "</span>";
+            }
+            else {
+                if (obj.aData.IsTransfer || obj.aData.IsPurchase) {
+                    var rTypedrpbld = "<select id='slctRt' class='selectBox'>";
+                    if (obj.aData.IsTransfer || obj.aData.ReplenishType == 'Transfer') {
+                        if (obj.aData.ReplenishType == 'Transfer') {
+                            rTypedrpbld += "<option selected='selected' value='Transfer'>Transfer</option>";
+                        }
+                        else {
+                            rTypedrpbld += "<option value='Transfer'>Transfer</option>";
+                        }
+                    }
+                    if (obj.aData.IsPurchase || obj.aData.ReplenishType == 'Purchase') {
+                        if (obj.aData.ReplenishType == 'Purchase') {
+                            rTypedrpbld += "<option selected='selected' value='Purchase'>Purchase</option>";
+                        }
+                        else {
+                            rTypedrpbld += "<option value='Purchase'>Purchase</option>";
+                        }
+                    }
+                    rTypedrpbld += "</select>";
+                    return rTypedrpbld;
+                }
+                else {
+                    if (obj.aData.ReplenishType != "" && obj.aData.ReplenishType != null) {
+                        var rTypedrpbld = "<select id='slctRt' class='selectBox'><option value='" + obj.aData.ReplenishType + "'>" + obj.aData.ReplenishType + "</option></select>";
+                        return rTypedrpbld;
+                    }
+                    else {
+                        return "";
+                    }
+                }
+            }
+        }
+        });
+        ColumnObject.push({ mDataProp: "IsAutoMatedEntry", sClass: "read_only", "fnRender": function (obj, val) { return GetBoolInFormat(obj, val); } });
+        ColumnObject.push({ mDataProp: "Created", sClass: "read_only", fnRender: function (obj, val) { return  obj.aData.CreatedDate;} });
+        ColumnObject.push({ mDataProp: "Updated", sClass: "read_only", fnRender: function (obj, val) {  return obj.aData.UpdatedDate; } });
+        ColumnObject.push({ mDataProp: "UpdatedByName", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "CreatedByName", sClass: "read_only" });
+        ColumnObject.push(@Html.RenderColumnsArrayEditableObject("CartItem",false,isUDFOrderRequire: true));
+
+        var paramsCD = [];
+        paramsCD.push({ "name": "ItemGUID", "value": '@ViewBag.ItemGUID' });
+        PrepareMyDynatable("CartItemDetails_@(ViewBag.ItemGUID)", '@Url.Content("~/Replenish/CartItemDetails")', 'CartItemDetails', ColumnObject, paramsCD, "100%");
+        if (typeof (FilterStringGlobalUse) != "undefined") {
+            //            $('#' + 'CartItemDetails' + ItemUniqueID).dataTable().fnFilter(narrowSearch, null, null, null);
+            //            paramsCD.push({ "name": "sSearch", "value": FilterStringGlobalUse });
+            //            paramtopasss.push({ "sSearch": narrowSearch });
+            $("#CartItemDetails_@(ViewBag.ItemGUID)").dataTable().fnFilter(FilterStringGlobalUse, null, null, null);
+        }
+        else {
+            $("#CartItemDetails_@(ViewBag.ItemGUID)").dataTable().fnFilter('', null, null, null);
+        }
+
+        if ($('#IsDeletedRecords').is(':checked') || $('#IsArchivedRecords').is(':checked') || $("body").hasClass('DTTT_Print')) {
+            $('#btnDeleteRecords').css({ 'display': 'none' });
+        }
+    });
+
+    var objColumnCartItems = {
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.ID)': 0,
+        '@MvcHtmlString.Create(eTurns.DTO.ResCartItem.ItemID)': 1,
+        '@MvcHtmlString.Create(eTurns.DTO.ResCartItem.ItemGUID)': 2,
+        '@MvcHtmlString.Create(eTurns.DTO.ResCartItem.Quantity)': 3,
+        '@MvcHtmlString.Create(eTurns.DTO.ResCartItem.Status)': 4,
+        '@MvcHtmlString.Create(eTurns.DTO.ResCartItem.ReplenishType)': 5
+
+    };
+    function onlyNumeric(event) {
+        var charCode = (event.which) ? event.which : event.keyCode
+
+        if (charCode > 31 && (charCode < 48 || charCode > 57 || code == 86))
+            return false;
+
+        return true;
+
+    }
+    function DeleteCartItem(itmID) {
+        var datatbl = $("#CartItemDetails_" + itmID).DataTable();
+        var GetSelected = datatbl.$('tr.row_selected');
+        var stringIDs = "";
+        for (var i = 0; i <= GetSelected.length - 1; i++) {
+            stringIDs = stringIDs + GetSelected[i].id + ",";
+        }
+        if (GetSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content_' + itmID).modal();
+        }
+
+    }
+    $("a[id^='btnModelYesInnerGrid']").click(function () {
+        var ItmId = $(this).attr("id").split('_')[1];
+        var datatbl = $("#CartItemDetails_" + ItmId).DataTable();
+        var GetSelected = datatbl.$('tr.row_selected');
+        var oTableDynemicDeleteURL = '@Url.Action("DeleteCartItemRecords", "Replenish")';
+        var stringIDs = "";
+        for (var i = 0; i <= GetSelected.length - 1; i++) {
+            //stringIDs = stringIDs + GetSelected[i].id + ",";
+            stringIDs = stringIDs + $(GetSelected[i]).find('#hdnUniqueID').val() + ",";
+        }
+        if (GetSelected.length !== 0) {
+
+            $.ajax({ 'url': oTableDynemicDeleteURL,
+                data: { ids: stringIDs },
+                success: function (response) {
+                    if (response == "ok") {
+                        for (var i = 0; i <= GetSelected.length - 1; i++) {
+                            datatbl.fnDeleteRow(GetSelected[i]);
+                        }
+
+                        if (datatbl.fnGetData().length < 1) {
+                            var dararowsprnt = oTable.$("tr[id='" + ItmId + "']");
+                            oTable.fnDeleteRow(dararowsprnt);
+                        }
+                        if (GetSelected.length > 0) {
+                            $("#spanGlobalMessage").html("@ResCommon.RecordDeletedSuccessfully".replace("{0}", "(" + GetSelected.length + ")"));
+                        }
+
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        $.modal.impl.close();
+                    }
+                },
+                error: function (response) {
+
+                    // through errror message
+                }
+            });
+
+        }
+    });
+
+    function GetHistoryData(citmid) {
+        if (citmid != "" && citmid != undefined) {
+            $('#dvCartHistory').data("data", citmid).dialog('open')
+            //            $('#tab5').load('/Master/CartItemHistory', function () { $('#DivLoading').hide(); });
+            return false;
+        }
+        else {
+
+            return false;
+        }
+    }
+
+    $("#dvCartHistory").dialog({
+        autoOpen: false,
+        modal: true,
+        draggable: true,
+        resizable: true,
+        width: '80%',
+        height: 600,
+        title: 'Change log',
+        open: function () {
+            var data = $(this).data("data");
+
+            $("#dvCartHistory").load('@Url.Action("CartItemHistory", "Replenish")' + '?GUID=' + data, function () {
+                $('#DivLoading').hide();
+            });
+        },
+        close: function () {
+            // CallThisFunctionFromModel('success');
+        }
+    });
+    //    function MoveInLocation(itemId, itemDefaultLocation) {
+
+    //        if (itemDefaultLocation != null) {
+    //            $('#QtyMoveInMoveOutModel').data("data", itemId + '_' + itemDefaultLocation + '_' + true).dialog('open')
+    //        }
+    //        else {
+    //            $('#QtyMoveInMoveOutModel').data("data", itemId + '_0' + '_' + true).dialog('open')
+    //        }
+    //        return false;
+    //    }
+</script>

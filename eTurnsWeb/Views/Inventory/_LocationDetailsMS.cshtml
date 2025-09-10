@@ -1,0 +1,1106 @@
+﻿@model IList<eTurns.DTO.MaterialStagingPullDetailDTO>
+@*@{
+    string URLData = "ItemLocationDetailsSave" + ViewBag.ForCreditPull;
+}*@
+
+@{
+    string strPullCreditType = ViewBag.PullCreditType;
+}
+@using (Ajax.BeginForm("ItemLocationDetailsSaveForMSCredit", "Inventory", new { PullCreditType = strPullCreditType }, new AjaxOptions { HttpMethod = "Post", OnSuccess = "onItemLocationSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure", OnBegin = "CheckValidationForFields" }, new { @id = "frmlocationdetails" }))
+{
+    @Html.AntiForgeryToken()
+    string strDecimalFormat = eTurnsWeb.Helper.SessionHelper.QuantityFormat;
+    bool isAllowConsigned = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowedToChangeConsignedQuantityItems, eTurnsWeb.Helper.SessionHelper.PermissionType.Approval);
+    String strLableforDisabledRow = "";
+@*<div style="float: right;">
+        <input value="Add New Location" style="text-align: center;" onclick="OpenNewPopup();"
+            id="btnAddLocation" class="CreateBtn" />
+    </div>*@
+    
+    <table style="margin-bottom: 10px;">
+        <tr>
+            <td>@eTurns.DTO.ResItemMaster.ItemNumber :
+            </td>
+            <td>
+                @(ViewBag.ItemNumber)
+            </td>
+            @if (ViewBag.IsSerialNumberTracking && ViewBag.ApprovedQty != null)
+            {
+                <td style="width: 20px;">
+                </td>
+                <td>
+                    @eTurns.DTO.ResOrder.PackSlipNumber
+                </td>
+                <td style="width: 10px;">
+                </td>
+                <td>
+                    @Html.TextBox("txtPackSlip", "", new { @id = "txtPackSlip", @class = "text-boxinner", @style = "width:100px;" })
+                </td>
+            }
+        </tr>
+    </table>
+@*    <div class="searchWrapper popupBlock">
+        <div class="searchBlock">
+            <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+            <div class="searchinputB">
+                <input type="text" id="global_filterLocationDetails" class="searchinput" />
+                <a href="javascript:void(0);" class="xclose">
+                    <img src="~/Content/images/x.png" alt="X" id="clear_global_filter_popup" /></a>
+            </div>
+        </div>
+    </div>*@
+    <input type="submit" value="@ResCommon.Save" id="btnSaveItemLocationDetails" class="CreateBtn"
+        style="float: right; margin: 0.5% 5.5% 0.2% 0;" />
+    <table id="MyDataTable@(ViewBag.ItemGUID)" class="display">
+        <thead>
+            <tr>
+                @*<th>@eTurns.DTO.ResItemLocationDetails.ID
+                </th>*@
+                @if (ViewBag.IsSerialNumberTracking)
+                {
+                    <th>
+                        @eTurns.DTO.ResItemLocationDetails.SerialNumber
+                    </th>
+                }
+                @if (ViewBag.IsLotNumberTracking)
+                {
+                    <th>
+                        @eTurns.DTO.ResItemLocationDetails.LotNumber
+                    </th>
+                }
+                @if (ViewBag.IsDateCodeTracking)
+                {
+                    <th>
+                        @eTurns.DTO.ResItemLocationDetails.ExpirationDate
+                    </th>
+                }
+                @if (!ViewBag.IsSerialNumberTracking)
+                {
+                    if (Request.UrlReferrer.ToString().Contains("/Pull/PullMasterList"))
+                    {
+                    <th>
+                        Quantity
+                    </th>
+                    }
+                    else if (ViewBag.Consignment)
+                    {
+                    <th>
+                        @eTurns.DTO.ResItemLocationDetails.ConsignedQuantity
+                    </th>
+                    }
+                    else
+                    {
+                    <th>
+                        @eTurns.DTO.ResItemLocationDetails.CustomerOwnedQuantity
+                    </th>
+                            
+                    }
+                }
+                <th>
+                    @eTurns.DTO.ResBin.BinNumber
+                </th>
+                @if (strPullCreditType != "MS Credit")
+                {
+                <th>
+                    @eTurns.DTO.ResItemLocationDetails.Cost
+                </th>
+                }
+                <th>
+                    @eTurns.DTO.ResItemLocationDetails.ReceivedDate
+                </th>
+                @*                @if (ViewBag.IsItemLevelMinMaxQtyRequired != true)
+                {
+                    <th>@eTurns.DTO.ResItemMaster.MinimumQuantity</th>
+                    <th>@eTurns.DTO.ResItemMaster.MaximumQuantity</th>
+                    <th>@eTurns.DTO.ResItemMaster.CriticalQuantity</th>
+                }*@
+            </tr>
+        </thead>
+        <tbody>
+            @for (int i = 0; i < Model.Count; i++)
+            {
+                <tr>
+                    @Html.HiddenFor(modelItem => Model[i].ID, new { @id = "hdnID" })
+                    @Html.HiddenFor(modelItem => Model[i].Created)
+                    @Html.HiddenFor(modelItem => Model[i].Updated)
+                    @Html.HiddenFor(modelItem => Model[i].CreatedBy)
+                    @Html.HiddenFor(modelItem => Model[i].LastUpdatedBy)
+                    @Html.HiddenFor(modelItem => Model[i].UpdatedByName)
+                    @Html.HiddenFor(modelItem => Model[i].CreatedByName)
+                    @Html.HiddenFor(modelItem => Model[i].SerialNumberTracking)
+                    @Html.HiddenFor(modelItem => Model[i].LotNumberTracking)
+                    @Html.HiddenFor(modelItem => Model[i].DateCodeTracking)
+                    @Html.HiddenFor(modelItem => Model[i].ItemGUID)
+                    @Html.HiddenFor(modelItem => Model[i].GUID)
+                    @Html.HiddenFor(modelItem => Model[i].OrderDetailGUID)
+                    @Html.HiddenFor(modelItem => Model[i].WorkOrderGuid)
+                    @Html.HiddenFor(modelItem => Model[i].PackSlipNumber, new { @id = "hdnPackSlip" })
+                    @*<td>
+                        @Html.DisplayFor(modelItem => Model[i].ID)
+                    </td>*@
+                    @if (ViewBag.IsSerialNumberTracking)
+                    {
+                        <td>
+                            @Html.TextBoxFor(modelItem => Model[i].SerialNumber, new { @class = "text-boxinner", @onblur = "fillReceivedDate(this); return isDuplicateSerial(this, " + Model[i].ID + ")", @style = "width:80px;", @id = "txtsrnumber" })
+                        </td>
+                    }
+                    @if (ViewBag.IsLotNumberTracking)
+                    {
+                        <td>
+                            @Html.TextBoxFor(modelItem => Model[i].LotNumber, new { @class = "text-boxinner", @onblur = "fillReceivedDate(this);", @style = "width:80px;", @id = "txtlotnumber" })
+                        </td>
+                    }
+                    @if (ViewBag.IsDateCodeTracking)
+                    {
+                        <td>
+                            @Html.TextBoxFor(modelItem => Model[i].Expiration, new { name = "Expiration", @class = "text-boxinner", @style = "width:80px;", @onblur = "fillReceivedDate(this);" })
+                        </td>
+                    }
+                    @if (!ViewBag.IsSerialNumberTracking)
+                    {
+                        if (ViewBag.Consignment)
+                        {
+                            if (Model[i].CustomerOwnedQuantity > 0)
+                            {
+                        <td>
+                            @Html.TextBoxFor(modelItem => Model[i].CustomerOwnedQuantity, strDecimalFormat, new { @class = "text-boxinner text-boxQuantityFormat", @style = "background-color:grey;", @readonly = "readonly", @onblur = "fillReceivedDateQuantity(this);" })
+                        </td>
+                        <td>@Html.Label((((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations).Where(t => t.ID == Model[i].BinID).SingleOrDefault()).BinNumber, new { @class = "read_only" })
+                            @{
+                                strLableforDisabledRow = "Customer Owned Quantity can't be Edited.";
+                            }
+                            @Html.HiddenFor(modelItem => Model[i].ConsignedQuantity)
+                            @Html.HiddenFor(modelItem => Model[i].BinID)
+                        </td>
+                            }
+                            else
+                            {
+                                if (isAllowConsigned)
+                                {
+                        <td>@Html.TextBoxFor(modelItem => Model[i].ConsignedQuantity, strDecimalFormat, new { @class = "text-boxinner text-boxQuantityFormat", @onblur = "fillReceivedDateQuantity(this);" })
+                        </td>
+                        <td>
+                            @if (Model[i].BinID > 0)
+                            {
+                                <span style='position:relative'>
+                                @Html.TextBoxFor(modelItem => Model[i].BinNumber, new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @style = "width:100px;", @maxlength = "200", @class = "text-boxinner txtBinLocation" })
+                                @Html.HiddenFor(modelItem => Model[i].BinID)
+                                <a id='lnkShowAllOptionsLoc' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsLoc" >
+                                    <img src='/Content/images/arrow_down_black.png' alt='select' /></a>
+                                    </span>
+                            }
+                            else
+                            {
+                                <span style='position:relative'>
+                                @Html.TextBoxFor(modelItem => Model[i].BinNumber, new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @style = "width:100px;", @maxlength = "200", @class = "text-boxinner txtBinLocation" })
+                                @Html.HiddenFor(modelItem => Model[i].BinID)
+                                <a id='lnkShowAllOptionsLoc' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsLoc" >
+                                    <img src='/Content/images/arrow_down_black.png' alt='select' /></a>
+                                    </span>
+                            }
+                            @*@if (Model[i].BinID > 0)
+                            {
+                                @Html.DropDownListFor(modelItem => Model[i].BinID, new SelectList((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations, "ID", "BinNumber", Model[i].BinID), new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @class = "selectBox" })
+                            }
+                            else
+                            {
+                                @Html.DropDownListFor(modelItem => Model[i].BinID, new SelectList((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations, "ID", "BinNumber", ViewBag.DefaultLocationBag), new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @class = "selectBox" })
+                            }*@
+                            @Html.HiddenFor(modelItem => Model[i].CustomerOwnedQuantity)
+                        </td>
+                                }
+                                else
+                                {
+                        <td>@Html.TextBoxFor(modelItem => Model[i].ConsignedQuantity, strDecimalFormat, new { @class = "text-boxinner text-boxQuantityFormat", @style = "background-color:grey;", @readonly = "readonly", @onblur = "fillReceivedDateQuantity(this);" })
+                        </td>
+                        <td>
+                            @*@if (Model[i].BinID > 0)
+                            {
+                                Html.DropDownListFor(modelItem => Model[i].BinID, new SelectList((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations, "ID", "BinNumber", Model[i].BinID), new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @class = "selectBox" });
+                            }
+                            else
+                            {
+                                Html.DropDownListFor(modelItem => Model[i].BinID, new SelectList((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations, "ID", "BinNumber", ViewBag.DefaultLocationBag), new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @class = "selectBox" });
+                            }*@
+                            @if (Model[i].BinID > 0)
+                            {
+                                <span style='position:relative'>
+                                @Html.TextBoxFor(modelItem => Model[i].BinNumber, new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @style = "width:100px;", @maxlength = "200", @class = "text-boxinner txtBinLocation" })
+                                @Html.HiddenFor(modelItem => Model[i].BinID)
+                                <a id='lnkShowAllOptionsLoc' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsLoc" >
+                                    <img src='/Content/images/arrow_down_black.png' alt='select' /></a>
+                                    </span>
+                            }
+                            else
+                            {
+                                <span style='position:relative'>
+                                @Html.TextBoxFor(modelItem => Model[i].BinNumber, new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @style = "width:100px;", @maxlength = "200", @class = "text-boxinner txtBinLocation" })
+                                @Html.HiddenFor(modelItem => Model[i].BinID)
+                                <a id='lnkShowAllOptionsLoc' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsLoc" >
+                                    <img src='/Content/images/arrow_down_black.png' alt='select' /></a>
+                                    </span>
+                          
+                            }
+                        </td>
+                            strLableforDisabledRow = "Consignment Quantity can't be Edited.";
+                        @Html.HiddenFor(modelItem => Model[i].CustomerOwnedQuantity)
+                        @Html.HiddenFor(modelItem => Model[i].BinID)
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (Model[i].ConsignedQuantity > 0)
+                            {
+                        <td>@Html.TextBoxFor(modelItem => Model[i].ConsignedQuantity, strDecimalFormat, new { @class = "text-boxinner text-boxQuantityFormat", @style = "background-color:grey;", @readonly = "readonly", @onblur = "fillReceivedDateQuantity(this);" })
+                        </td>
+                        <td>@Html.Label((((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations).Where(t => t.ID == Model[i].BinID).SingleOrDefault()).BinNumber)
+                            @{
+                                strLableforDisabledRow = "Consignment Quantity can't be Edited.";
+                            }
+                            @Html.HiddenFor(modelItem => Model[i].CustomerOwnedQuantity)
+                            @Html.HiddenFor(modelItem => Model[i].BinID)
+                        </td>
+                            }
+                            else
+                            {
+                        <td>@Html.TextBoxFor(modelItem => Model[i].CustomerOwnedQuantity, strDecimalFormat, new { @class = "text-boxinner text-boxQuantityFormat", @onblur = "fillReceivedDateQuantity(this);" })
+                        </td>
+                        
+                                if (Model[i].BinID > 0)
+                                {
+                        <td>
+                            @*@Html.DropDownListFor(modelItem => Model[i].BinID, new SelectList((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations, "ID", "BinNumber", Model[i].BinID), new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @class = "selectBox" })*@
+                            <span style='position:relative'>
+                            @Html.TextBoxFor(modelItem => Model[i].BinNumber, new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @style = "width:100px;", @maxlength = "200", @class = "text-boxinner txtBinLocation" })
+                            @Html.HiddenFor(modelItem => Model[i].BinID)
+                            @Html.HiddenFor(modelItem => Model[i].ConsignedQuantity)
+                            <a id='lnkShowAllOptionsLoc' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsLoc" >
+                                    <img src='/Content/images/arrow_down_black.png' alt='select' /></a>
+                                    </span>
+                        </td>
+                                }
+                                else
+                                {
+                        <td>
+                            @*@Html.DropDownListFor(modelItem => Model[i].BinID, new SelectList((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations, "ID", "BinNumber", ViewBag.DefaultLocationBag), new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @class = "selectBox" })*@
+                            <span style='position:relative'>
+                            @Html.TextBoxFor(modelItem => Model[i].BinNumber, new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @style = "width:100px;", @maxlength = "200", @class = "text-boxinner txtBinLocation" })
+                            @Html.HiddenFor(modelItem => Model[i].BinID)
+                            @Html.HiddenFor(modelItem => Model[i].ConsignedQuantity)
+                            <a id='lnkShowAllOptionsLoc' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsLoc" >
+                                    <img src='/Content/images/arrow_down_black.png' alt='select' /></a>
+                                    </span>
+                        </td>
+                                }
+
+
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (ViewBag.Consignment)
+                        {
+                            if (Model[i].CustomerOwnedQuantity > 0)
+                            {
+                        
+                        <td>@Html.Label((((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations).Where(t => t.ID == Model[i].BinID).SingleOrDefault()).BinNumber, new { @class = "read_only" })
+                            @{
+                                strLableforDisabledRow = "Customer Owned Quantity can't be Edited.";
+                            }
+                            @Html.HiddenFor(modelItem => Model[i].CustomerOwnedQuantity)
+                            @Html.HiddenFor(modelItem => Model[i].BinID)
+                        </td>
+                            }
+                            else
+                            {
+                                if (Model[i].BinID > 0)
+                                {
+                        <td>
+                            @*@Html.DropDownListFor(modelItem => Model[i].BinID, new SelectList((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations, "ID", "BinNumber", Model[i].BinID), new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @class = "selectBox" })*@
+                            <span style='position:relative'>
+                            @Html.TextBoxFor(modelItem => Model[i].BinNumber, new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @style = "width:100px;", @maxlength = "200", @class = "text-boxinner txtBinLocation" })
+                            @Html.HiddenFor(modelItem => Model[i].BinID)
+                            @Html.HiddenFor(modelItem => Model[i].ConsignedQuantity)
+                            <a id='lnkShowAllOptionsLoc' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsLoc" >
+                                    <img src='/Content/images/arrow_down_black.png' alt='select' /></a>
+                                    </span>
+                        </td>
+                                }
+                                else
+                                {
+                        <td>
+                            @*@Html.DropDownListFor(modelItem => Model[i].BinID, new SelectList((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations, "ID", "BinNumber", ViewBag.DefaultLocationBag), new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @class = "selectBox" })*@
+                            <span style='position:relative'>
+                            @Html.TextBoxFor(modelItem => Model[i].BinNumber, new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @style = "width:100px;", @maxlength = "200", @class = "text-boxinner txtBinLocation" })
+                            @Html.HiddenFor(modelItem => Model[i].BinID)
+                            @Html.HiddenFor(modelItem => Model[i].ConsignedQuantity)
+                            <a id='lnkShowAllOptionsLoc' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsLoc" >
+                                    <img src='/Content/images/arrow_down_black.png' alt='select' /></a>
+                                    </span>
+                        </td>
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (Model[i].ConsignedQuantity > 0)
+                            {
+                        <td>@Html.Label((((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations).Where(t => t.ID == Model[i].BinID).SingleOrDefault()).BinNumber, new { @class = "read_only" })
+                            @{
+                                strLableforDisabledRow = "Consigned Quantity can't be Edited.";
+                            }
+                            @Html.HiddenFor(modelItem => Model[i].ConsignedQuantity)
+                            @Html.HiddenFor(modelItem => Model[i].BinID)
+                        </td>
+                            }
+                            else
+                            {
+                                if (Model[i].BinID > 0)
+                                {
+                        <td>
+                            @*@Html.DropDownListFor(modelItem => Model[i].BinID, new SelectList((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations, "ID", "BinNumber", Model[i].BinID), new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @class = "selectBox" })*@
+                            <span style='position:relative'>
+                            @Html.TextBoxFor(modelItem => Model[i].BinNumber, new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @style = "width:100px;", @maxlength = "200", @class = "text-boxinner txtBinLocation" })
+                            @Html.HiddenFor(modelItem => Model[i].BinID)
+                            @Html.HiddenFor(modelItem => Model[i].CustomerOwnedQuantity)
+                            <a id='lnkShowAllOptionsLoc' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsLoc" >
+                                    <img src='/Content/images/arrow_down_black.png' alt='select' /></a>
+                                    </span>
+                        </td>
+                                }
+                                else
+                                {
+                        <td>
+                            @*@Html.DropDownListFor(modelItem => Model[i].BinID, new SelectList((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations, "ID", "BinNumber", ViewBag.DefaultLocationBag), new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @class = "selectBox" })*@
+                            <span style='position:relative'>
+                            @Html.TextBoxFor(modelItem => Model[i].BinNumber, new { @id = "ddlBin_" + Model[i].ID.ToString() + i.ToString(), @style = "width:100px;", @maxlength = "200", @class = "text-boxinner txtBinLocation" })
+                            @Html.HiddenFor(modelItem => Model[i].BinID)
+                            @Html.HiddenFor(modelItem => Model[i].CustomerOwnedQuantity)
+                            <a id='lnkShowAllOptionsLoc' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsLoc" >
+                                    <img src='/Content/images/arrow_down_black.png' alt='select' /></a>
+                                    </span>
+                        </td>
+                                }
+                            }
+                        }
+                    }
+                     @if (strPullCreditType != "MS Credit")
+                     {
+                    <td>
+                        @Html.TextBoxFor(modelItem => Model[i].ItemCost, eTurnsWeb.Helper.SessionHelper.PriceFormat, new { @class = "text-boxinner text-boxPriceFormat", @id = "txtCostBox" })
+                    </td>
+                     }
+                    <td>
+                        @Html.TextBoxFor(modelItem => Model[i].Received, new { name = "Received", @class = "text-boxinner", @style = "width:85px" })
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <div style="padding-top: 10px; float: left;">
+        @if (strLableforDisabledRow != "")
+        {
+            @Html.TextBox("txtLable", strLableforDisabledRow, new { @class = "text-box", @disabled = "disabled", @style = "background-color:grey; width:350px;" })
+        }
+    </div>
+}
+<script type="text/javascript">
+
+    var IsLoadMoreLocations = false;
+
+    $("#MyDataTable@(ViewBag.ItemGUID)").on('focus', "input.txtBinLocation[type='text']", function (e) {
+
+        var objCurtxt = $(this);
+        var stageName = 'GetAllStagLocationsOfItems';
+
+        if ('@ViewBag.MSName' != null && '@ViewBag.MSName' != '' && '@ViewBag.MSName' != undefined) {
+            stageName = '@ViewBag.MSName';
+        }
+
+
+        $(this).autocomplete({
+            source: function (request, response) {
+                $.ajax({
+
+                    url: '/Master/GetBinsOfItem',
+                    data: { 'StagingName': stageName, 'NameStartWith': request.term, 'ItemGUID': '@(ViewBag.ItemGUID)', 'IsLoadMoreLocations': IsLoadMoreLocations },
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    success: function (data) {
+                        response($.map(data, function (items) {
+                            return {
+                                label: items.Key,
+                                value: items.Value,
+                                selval: items.Value
+                            }
+                        }));
+                    },
+                    error: function (err) {
+
+                    }
+                });
+            },
+            autoFocus: false,
+            minLength: 1,
+            select: function (event, ui) {
+                if (ui.item.selval == MoreLocation) {
+                    $(this).next().val("");
+                    IsLoadMoreLocations = true;
+                    $(this).trigger("focus");
+                    $(this).autocomplete("search", " ");
+                    return false;
+                }
+                else {
+                    $(this).next().val(ui.item.selval);
+                }
+            },
+            open: function () {
+                $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                $(this).autocomplete('widget').css('z-index', 9000);
+                $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                $('ul.ui-autocomplete').css('max-height', '300px');
+            },
+            close: function () {
+                $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                $(objCurtxt).trigger("change");
+            },
+            change: function (event, ui) {
+                //                    $(objCurtxt).parent().parent().find("input[type='hidden'][name='hdnStagingBinName']").val($(objCurtxt).val());
+            },
+            response: function (event, ui) {
+            }
+        });
+    });
+
+
+    $(document).ready(function () {
+
+        $('.ShowAllOptionsLoc').click(function () {
+            $(this).siblings('input.txtBinLocation').trigger("focus");
+            $(this).siblings("input.txtBinLocation").autocomplete("search", " ");
+        });
+
+        $('#btnSaveItemLocationDetails').click(function (e) {
+
+            if ('@ViewBag.IsSerialNumberTracking' == 'True' && '@ViewBag.ApprovedQty' != '' && '@ViewBag.ApprovedQty' != null && '@ViewBag.ApprovedQty' !== undefined) {
+                var aprQty = parseFloat('@ViewBag.ApprovedQty');
+                var recQty = parseFloat('@ViewBag.ReceivedQty');
+                var currRcvQty = 0;
+
+                $("#MyDataTable@(ViewBag.ItemGUID) tbody tr").each(function (i) {
+                    var txtSRNumberValue = $(this).find('#txtsrnumber').val();
+                    var hdnID = $(this).find('#hdnID').val();
+
+                    if (isNaN(parseInt(hdnID)) || parseInt(hdnID) <= 0) {
+                        hdnID = 0;
+                    }
+                    if (parseInt(hdnID) <= 0 && $.trim(txtSRNumberValue).length > 0) {
+                        currRcvQty += parseFloat(1);
+                        $(this).find('#hdnPackSlip').val($('#txtPackSlip').val());
+                    }
+                });
+
+                if (parseFloat(currRcvQty) > 0) {
+                    var TotalRecv = parseFloat(currRcvQty) + parseFloat(recQty);
+                    if (parseFloat(TotalRecv) > parseFloat(aprQty)) {
+                        var msg = 'This receive will exceed the approved quantity.';
+                        var ordType = '@ViewBag.OrdType';
+                        if (ordType == '2') {
+                            msg = 'This return will exceed the approved quantity.';
+                        }
+                        if (confirm(msg)) {
+                            return true;
+                        }
+                        else {
+                            e.preventDefault();
+                            return false;
+                        }
+                    }
+                }
+
+            }
+            return true;
+        });
+
+    });
+
+    function onItemLocationSuccess(response) {
+
+        var kitDetailID = '@ViewBag.KitDetailID';
+        var kitDetailGUID = '@ViewBag.KitDetailGUID';
+        if (response.Status == 'OK') {
+            //window.location = window.location;
+            if (window.location.href.toLowerCase().indexOf("inventorycountlist") >= 0) {
+                if (typeof (objInventoryCountDetailDTO) != "undefined")
+                    PostApplyAction(objInventoryCountDetailDTO);
+            }
+            if ('@Model[0].OrderDetailGUID' != '') {
+                $("#spanGlobalMessage").html(response.Message);
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                $('#LocationDetails').dialog('close');
+            }
+
+            UpdateQtyDetailOfParentGrid();
+
+            if (kitDetailGUID != null && kitDetailGUID.toString().length > 0) {
+                CallThisFunctionFromModel('success');
+                $("#MoveOutQtyModel").dialog('close');
+            }
+            if ($('#LocationDetails').length == 1) {
+                $('#DivLoading').hide();
+                $('#LocationDetails').dialog('close');
+                if (gblActionName.toLowerCase() == "pullmasterlist") {
+                    $('#DivLoading').hide();
+                    IsRefreshGrid = true;
+                    oTableItemModel.fnStandingRedraw();
+                }
+            }
+            else if ($('#MoveOutQtyModel') != undefined && $('#MoveOutQtyModel').length == 1) {
+                $('#DivLoading').hide();
+                $('#MoveOutQtyModel').dialog('close');
+            }
+            else if ($('#LocationDetailsForItemReceive') != undefined && $('#LocationDetailsForItemReceive').length == 1) {
+                $('#DivLoading').hide();
+                $('#LocationDetailsForItemReceive').dialog('close');
+            }
+            else if ($('#LocationDetailsForStagingItemReceive') != undefined && $('#LocationDetailsForStagingItemReceive').length == 1) {
+                $('#DivLoading').hide();
+                $('#LocationDetailsForStagingItemReceive').dialog('close');
+            }
+            else if ($('#StagingForItemReceive') != undefined && $('#StagingForItemReceive').length == 1) {
+
+                $('#DivLoading').hide();
+
+                $('#StagingForItemReceive').dialog('close');
+            }
+            else if ($('#LocationDetailsReceiveItems') != undefined && $('#LocationDetailsReceiveItems').length == 1) {
+                $('#DivLoading').hide();
+                $('#LocationDetailsReceiveItems').dialog('close');
+            }
+            else {
+                $('#DivLoading').hide();
+                $('#LocationDetails@(ViewBag.ItemGUID)').dialog('close');
+            }
+
+
+        }
+        else {
+            if (kitDetailGUID != null && kitDetailGUID.toString().length > 0) {
+                alert(response.Message);
+            }
+            else if (response.Message != null && response.Message.length > 0) {
+                alert(response.Message);
+            }
+            else {
+                alert("Not saved, error occured");
+            }
+            $('#DivLoading').hide();
+        }
+    }
+    function onFailure(message) {
+        alert("ooops... error occured...");
+    }
+
+
+    function UpdateQtyDetailOfParentGrid() {
+        $.ajax({
+            "url": '@Url.Content("~/Inventory/GetLatestQTYfromItem")',
+            data: { ItemGUID: '@(ViewBag.ItemGUID)' },
+            "async": false,
+            cache: false,
+            "dataType": "json",
+            "success": function (response) {
+                if ($('#spnOnHand@(ViewBag.ItemGUID)') != undefined)
+                    $('#spnOnHand@(ViewBag.ItemGUID)').text(response.OnHand);
+
+                if ($('#spnSuggested@(ViewBag.ItemGUID)') != undefined)
+                    $('#spnSuggested@(ViewBag.ItemGUID)').text(response.SuggestedQTY);
+            },
+            error: function (response) {
+                $("#spanGlobalMessage").html(response);
+            }
+        });
+    }
+
+
+    function fillReceivedDate(txt) {
+        if ($(txt).val() != '') {
+            var myDate = new Date();
+            var prettyDate = (myDate.getMonth() + 1) + '/' + myDate.getDate() + '/' + myDate.getFullYear();
+            var seq = $(txt).parent().parent()[0].rowIndex - 1;
+            if ($(txt).parent().parent().find('[name*="[' + seq.toString() + '].Received"]').val() == '') {
+                $(txt).parent().parent().find('[name*="[' + seq.toString() + '].Received"]').val(prettyDate);
+            }
+        }
+    }
+
+    function fillReceivedDateQuantity(txt) {
+        if ($(txt).val() != '' && parseFloat($(txt).val()) > 0) {
+            var myDate = new Date();
+            var prettyDate = (myDate.getMonth() + 1) + '/' + myDate.getDate() + '/' + myDate.getFullYear();
+            var seq = $(txt).parent().parent()[0].rowIndex - 1;
+            if ($(txt).parent().parent().find('[name*="[' + seq.toString() + '].Received"]').val() == '') {
+                $(txt).parent().parent().find('[name*="[' + seq.toString() + '].Received"]').val(prettyDate);
+            }
+        }
+    }
+
+
+
+    function isDuplicateSerial(txtsr, id) {
+        if ($(txtsr).val() != '') {
+
+            if ('@ViewBag.IsPullCredit' == 'True') {
+                $.ajax({
+                    "url": '@Url.Content("~/Inventory/DuplicateCheckSrNumberforCreditPull")',
+                    data: { SrNumber: $(txtsr).val(), ID: id, IsConsignment: '@ViewBag.Consignment' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "text",
+                    "success": function (response) {
+                        if (response == "duplicate") {
+                            alert('@ResMessage.MsgDuplicateSerialFoundForCredit');
+                            $(txtsr).val('');
+                            $(txtsr).focus();
+                            return false;
+                        }
+                        else {
+                            return false;
+                        }
+                    },
+                    error: function (response) {
+                        $("#spanGlobalMessage").html(response);
+                    }
+                });
+
+            }
+            else {
+
+                $.ajax({
+                    "url": '@Url.Content("~/Inventory/DuplicateCheckSrNumber")',
+                    data: { SrNumber: $(txtsr).val(), ID: id },
+
+                    "async": false,
+                    cache: false,
+                    "dataType": "text",
+                    "success": function (response) {
+                        if (response == "duplicate") {
+                            alert('@ResMessage.DuplicateSerialFound');
+                            $(txtsr).val('');
+                            $(txtsr).focus();
+                            return false;
+                        }
+                        else {
+                            return false;
+                        }
+                    },
+                    error: function (response) {
+                        $("#spanGlobalMessage").html(response);
+                    }
+                });
+
+            }
+        }
+        else {
+            return true;
+        }
+    }
+
+    function isDuplicateLot(txtLot, id) {
+
+        if ($(txtLot).val() != '') {
+            $.ajax({
+                "url": '@Url.Content("~/Inventory/DuplicateCheckLotNumber")',
+                data: { LotNumber: $(txtLot).val(), ID: id },
+                "async": false,
+                cache: false,
+                "dataType": "text",
+                "success": function (response) {
+                    if (response == "duplicate") {
+                        alert('@ResMessage.DuplicateLotFound');
+                        $(txtLot).val('');
+                        $(txtLot).focus();
+                        return false;
+                    }
+                    else {
+                        return false;
+                    }
+                },
+                error: function (response) {
+                    $("#spanGlobalMessage").html(response);
+                }
+            });
+        }
+        else {
+            return true;
+        }
+    }
+
+</script>
+<script type="text/javascript">
+
+    function fnFilterGlobalLocationDetails() {
+        var searchtext = $("#global_filterLocationDetails").val().replace(/'/g, "''");
+        $('#MyDataTable@(ViewBag.ItemGUID)').dataTable().fnFilter(
+                        searchtext,
+                        null,
+                        null,
+                        null
+                    );
+    }
+
+
+    $(function () {
+
+        setTimeout('setTextBoxFocus()', 1000);
+
+        var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+
+        $("#MyDataTable@(ViewBag.ItemGUID)").dataTable(
+        {
+            "bPaginate": false,
+            "bLengthChange": true,
+            "bInfo": true,
+            "bAutoWidth": true,
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            //"sPaginationType": "full_numbers",
+            "sDom": 'C<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            "aaSorting": [[1, "desc"]],
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            }
+        }
+        );
+
+        $("#global_filterLocationDetails").keyup(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            var index = $.inArray(code, NotAllowedCharCodes);
+            if (index >= 0) return false;
+            if (code == 13) {
+            }
+            else {
+                fnFilterGlobalLocationDetails();
+            }
+        });
+
+        //Keydown event is required to handle ENTER KEY to work in IE
+        $("#global_filterLocationDetails").keydown(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                var searchtext = $("#global_filterLocationDetails").val().replace(/'/g, "''");
+                $('#MyDataTable@(ViewBag.ItemGUID)').dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+                return false;
+            }
+        });
+
+
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+
+        //        $("[name*=" + "ReceivedDate" + "]").datepicker({ dateFormat: 'dd/mm/yy' });
+        //        $("[name*=" + "ExpirationDate" + "]").datepicker({ dateFormat: 'dd/mm/yy' });
+
+        $("[name*=" + "Received" + "]").datepicker(
+            {
+                dateFormat: 'mm/dd/yy',
+                showButtonPanel: true,
+                clearText: 'Clear',
+                onClose: function () {
+                    this.focus();
+                }
+            });
+        $("[name*=" + "Expiration" + "]").datepicker(
+                {
+                    dateFormat: 'mm/dd/yy',
+                    showButtonPanel: true,
+                    clearText: 'Clear',
+                    onClose: function () {
+                        this.focus();
+                    }
+                });
+
+
+        $(".hasDatepicker").live('keypress', function (e) {
+            if (e.keyCode === 9)
+                return true;
+            else
+                return false;
+            // do work
+        });
+
+
+        //        $("#btnSave").click(function () {
+        //            var objectData = '@Model';
+        //            $.ajax({
+        //                "url": '@Url.Content("~/Inventory/SaveLocationsDetails")',
+        //                data: { ids: objectData },
+        //                "success": function (response) {
+        //                    if (response == "ok") {
+        //                        $('#tr' + ID).remove();
+        //                    }
+        //                }
+        //            });
+        //        });
+        //CREATE DATE PICKER
+        //        $("[id*='itemCreated']").blur(function () {        
+        //        }).datepicker({ dateFormat: 'm/d/yy' });
+
+        //        $(".ReceivedDate").blur(function () {
+        //        }).datepicker({ dateFormat: 'm/d/yy' });
+
+        // HandleDropdownList($('#ddlBinLocations'));
+
+    });
+    function setTextBoxFocus() {
+        $('#frmLocationDetails').find('table tbody :input:visible:enabled:first').focus();
+    }
+
+    function onlyNumeric(event) {
+        var charCode = (event.which) ? event.which : event.keyCode
+
+        if (charCode > 31 && (charCode < 48 || charCode > 57 || code == 86))
+            return false;
+
+        return true;
+
+    }
+    //    function HandleDropdownList(obj) {
+    //        var drpval = $(obj).val();
+    //        if (drpval != '') {
+    //            $("[id*=" + "ddlBin_" + "]").val(drpval);
+    //        }
+    //    }
+
+
+    function CheckValidationForFields() {
+        if (!findDuplicatesSerialAndLot()) {
+            return false;
+        }
+
+        var i = 0;
+        var iCountRow = $('#MyDataTable@(ViewBag.ItemGUID) tbody tr').length;
+        var bResult = true;
+        $('#MyDataTable@(ViewBag.ItemGUID) tbody tr').each(function () {
+            var lotnumber = $(this).find("#txtlotnumber").val();
+            var srnumber = $(this).find("#txtsrnumber").val();
+            var vCustomerOwnedQuantity = $(this).find('[name*="[' + i.toString() + '].CustomerOwnedQuantity"]').val();
+            var vConsignedQuantity = $(this).find('[name*="[' + i.toString() + '].ConsignedQuantity"]').val();
+            var received = $(this).find('[name*="[' + i.toString() + '].Received"]').val();
+            var vExpiration = $(this).find('[name*="[' + i.toString() + '].Expiration"]').val();
+            var vCost = $(this).find('[name*="[' + i.toString() + '].ItemCost"]').val();
+            //            var vMinimumQuantity = $(this).find('#txtMinimumQuantity').val();
+            //            var vMaximumQuantity = $(this).find('#txtMaximumQuantity').val();
+            //            var vCriticalQuantity = $(this).find('#txtCriticalQuantity').val();
+            if (received != '') {
+                if (lotnumber != undefined) {
+                    if (lotnumber.trim() == '') {
+                        $(this).css("background-color", "#F7BBC4");
+                        alert("Lot # is required");
+                        bResult = false;
+                        return false;
+                    }
+                }
+                if (srnumber != undefined) {
+                    if (srnumber.trim() == '') {
+                        $(this).css("background-color", "#F7BBC4");
+                        alert("Serial # is required");
+                        bResult = false;
+                        return false;
+                    }
+                }
+                if (vCustomerOwnedQuantity != undefined && $(this).find('[name*="[' + i.toString() + '].CustomerOwnedQuantity"]').attr("type") != 'hidden') {
+                    if (vCustomerOwnedQuantity.trim() == '') {
+                        $(this).css("background-color", "#F7BBC4");
+                        alert("Positive Quantity is required");
+                        bResult = false;
+                        return false;
+                    }
+                }
+                if (vConsignedQuantity != undefined && $(this).find('[name*="[' + i.toString() + '].ConsignedQuantity"]').attr("type") != 'hidden') {
+                    if (vConsignedQuantity == '') {
+                        $(this).css("background-color", "#F7BBC4");
+                        alert("Positive Quantity is required");
+                        bResult = false;
+                        return false;
+                    }
+                }
+
+                if (vExpiration != undefined) {
+                    if (vExpiration == '') {
+                        $(this).css("background-color", "#F7BBC4");
+                        alert("Expiration is required");
+                        bResult = false;
+                        return false;
+                    }
+                }
+
+                if (received == '') {
+                    $(this).css("background-color", "#F7BBC4");
+                    alert("received date is required");
+                    bResult = false;
+                    return false;
+                }
+
+                //   if (vCost == '' || vCost == '0.00') {
+                //       $(this).css("background-color", "#F7BBC4");
+                //       alert("Cost is required");
+                //       bResult = false;
+                //       return false;
+                //   }
+
+                //                if (vMinimumQuantity != undefined) {
+                //                    if (vMinimumQuantity.trim() == '') {
+                //                        $(this).css("background-color", "#F7BBC4");
+                //                        alert("Minimum Quantity is required");
+                //                        bResult = false;
+                //                        return false;
+                //                    }
+                //                }
+                //                if (vMaximumQuantity != undefined) {
+                //                    if (vMaximumQuantity.trim() == '') {
+                //                        $(this).css("background-color", "#F7BBC4");
+                //                        alert("Maximum Quantity is required");
+                //                        bResult = false;
+                //                        return false;
+                //                    }
+                //                }
+                //                if (vCriticalQuantity != undefined) {
+                //                    if (vCriticalQuantity.trim() == '') {
+                //                        $(this).css("background-color", "#F7BBC4");
+                //                        alert("Critical Quantity is required");
+                //                        bResult = false;
+                //                        return false;
+                //                    }
+                //                }
+                //                if ((vMaximumQuantity != undefined) && (vMaximumQuantity != undefined) && (vCriticalQuantity != undefined)) {
+                //                    alert(vCriticalQuantity >= vMinimumQuantity);
+                //                    if (vCriticalQuantity >= vMinimumQuantity) {
+                //                        $(this).css("background-color", "#F7BBC4");
+                //                        alert("Critical quantity must be less then Minimum quantity");
+                //                        bResult = false;
+                //                        return false;
+                //                    }
+
+                //                    if (vMinimumQuantity >= vMaximumQuantity) {
+                //                        $(this).css("background-color", "#F7BBC4");
+                //                        alert("Minimum quantity must be less then Maximum quantity");
+                //                        bResult = false;
+                //                        return false;
+                //                    }
+                //                }
+
+            }
+            else {
+                bResult = true;
+            }
+            i = i + 1;
+        });
+        if (bResult)
+            $('#DivLoading').show();
+        return bResult;
+    }
+
+    function findDuplicatesSerialAndLot() {
+
+        //$('#MyDataTable@(ViewBag.ItemGUID) tbody tr').each(function () {
+
+        var isDuplicate = false;
+        //$("[id*=" + "ddlBin_" + "]")
+        $("#MyDataTable@(ViewBag.ItemGUID) tbody tr [id*=txtsrnumber]").each(function (i, el1) {
+            var current_val = $(el1).val();
+            if (current_val != "") {
+                $("#MyDataTable@(ViewBag.ItemGUID) tbody tr [id*=txtsrnumber]").each(function (j, el2) {
+                    if ($(el2).val() == current_val && $(el1).attr("name") != $(el2).attr("name")) {
+                        isDuplicate = true;
+                        $(el2).css("background-color", "#F7BBC4");
+                        $(el1).css("background-color", "#F7BBC4");
+                        return false;
+                    }
+                });
+            }
+        });
+        if (isDuplicate) {
+            alert("Duplicate values found for Serial#.");
+            return false;
+        }
+
+        //        isDuplicate = false;
+        //        $("#MyDataTable@(ViewBag.ItemGUID) tbody tr [id*=txtlotnumber]").each(function (i, el1) {
+        //            var current_val = $(el1).val();
+        //            if (current_val != "") {
+        //                $("#MyDataTable@(ViewBag.ItemGUID) tbody tr [id*=txtlotnumber]").each(function (j, el2) {
+        //                    if ($(el2).val() == current_val && $(el1).attr("name") != $(el2).attr("name")) {
+        //                        isDuplicate = true;
+        //                        $(el2).css("background-color", "#F7BBC4");
+        //                        $(el1).css("background-color", "#F7BBC4");
+        //                        return false;
+        //                    }
+        //                });
+        //            }
+        //        });
+
+        //        if (isDuplicate) {
+        //            alert("Duplicate values found for Lot#.");
+        //            return false;
+        //        }
+
+        return true;
+    }
+
+
+</script>
+<div id="NewMasterPopUP">
+</div>
+<script type="text/javascript">
+    $("#NewMasterPopUP").dialog({
+        autoOpen: false,
+        show: "blind",
+        hide: "explode",
+        height: 600,
+        title: "Add New Location",
+        width: 800,
+        modal: true,
+        close: function () {
+            $('#DivLoading').show();
+            RefreshDropdownList('Location', $(this).data("IDVal"));
+        }
+    });
+    function OpenNewPopup() {
+        $('#DivLoading').show();
+        $('#NewMasterPopUP').load('@Url.Action("../Master/BinCreate")', function () {
+            $('#NewMasterPopUP').data("data", 'Location').dialog('open');
+            $('#DivLoading').hide();
+        });
+    }
+    function RefreshDropdownList(PopupFor, IDVal) {
+        if (IDVal != undefined) {
+            var arrdata = IDVal.split("~");
+            var BinlistData = $('select[id*="ddlBin_"]');
+            $(BinlistData).each(function () {
+                $(this).append($("<option />").val(arrdata[0]).text(arrdata[1]));
+            });
+        }
+        $('#DivLoading').hide();
+    }
+</script>

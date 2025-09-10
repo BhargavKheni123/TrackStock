@@ -1,0 +1,374 @@
+﻿@model IEnumerable<eTurns.DTO.MeasurementTermMasterDTO>
+@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    ViewBag.Title = ResMeasurementTerm.PageTitle;
+    var settings = new GridHeaderSettings() { DisplaySaveButton = false, ShowSelectAll = true, DisplayUDFButton = false, UDFSetupFor = "MeasurementTerms&UDFHeader=" + @ResMeasurementTerm.PageHeader, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "MeasurementTermList" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "MeasurementTerm" };
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.MeasurementTermMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.MeasurementTermMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    string MeasurementTermsPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/MeasurementTerms.pdf", DateTime.Now.Ticks);
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("MeasurementTerms", (int)HelpDocType.Module);
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script language="javascript" type="text/javascript">
+        var oTable;
+        var deleteURL = "/Master/DeleteMeasurementTermRecords";
+        var IsRefreshGrid = false;
+        var PostCount = 0;
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+        var SelectedHistoryRecordID = 0;
+        var objColumns = {};
+        $(document).ready(function () {
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+        LoadTabs();
+            var gaiSelected = [];
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "150%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[1, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                 "oLanguage": {
+                      "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                      "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                      "sInfo":  '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                     "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries',
+                    "sLoadingRecords": '@eTurns.DTO.Resources.ResMessage.MsgLoading'
+                 },
+                  "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    if (aData.IsDeleted == true && aData.IsArchived == true)
+                        // nRow.className = "GridDeleatedArchivedRow";
+                        $(nRow).css('background-color', '#B9BCBF');
+                    else if (aData.IsDeleted == true)
+                        //nRow.className = "GridDeletedRow";
+                        $(nRow).css('background-color', '#FFCCCC');
+                    else if (aData.IsArchived == true)
+                        //nRow.className = "GridArchivedRow";
+                        $(nRow).css('background-color', '#CCFFCC');
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'MeasurementTermList' },
+                        "async": false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                         "type": "POST",
+                        data: {  ListName: 'MeasurementTermList' },
+                          "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                        if(json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Master/GetMeasurementTermList")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    //endFor
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    if (oSettings.aaSorting.length != 0)
+                        aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+
+                        aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                        aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable').highlight($("#global_filter").val());
+                            }
+                        }
+                    })
+                }, // fnServerData : required to pass the custom parameter before fetching data from DB
+                "fnInitComplete": function () {
+                     $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [
+			                { "mDataProp": "ID", "sClass": "read_only" },
+			                {
+			                    "mDataProp": "MeasurementTerm",
+			                    "sClass": "read_only",
+			                    "sDefaultContent": '',
+			                    "bSortable": true,
+			                    "bSearchable": false,
+			                    "fnRender": function (obj, val) {
+			                        //return "<a onclick='return TabItemClickedEdit(&quot;MeasurementTermEdit/" + obj.aData.ID + "&quot;)' href='JavaScript:void(0);'>" + obj.aData.MeasurementTerm + "</a>";
+			                        return "<a onclick='return ShowEditTab(&quot;MeasurementTermEdit/" + obj.aData.ID + "&quot;,&quot;frmMeasurementTerm&quot;)' href='JavaScript:void(0);'>" + obj.aData.MeasurementTerm + "</a>";
+			                    }
+			                },
+			                { "mDataProp": "RoomName", "sClass": "read_only" },
+			                { "mDataProp": "Created", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        //return GetDateInFullFormat(val);
+                                    return obj.aData.CreatedDate;
+			                    }
+			                },
+			                { "mDataProp": "Updated", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        //return GetDateInFullFormat(val);
+                                    return obj.aData.UpdatedDate;
+			                    }
+			                },
+                            { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" }
+                            @Html.RenderColumnsArray("MeasurementTerm")
+		    ]
+            }).makeEditable({
+                sUpdateURL: '@Url.Content("~/Master/UpdateMeasurementTermData")' //"/Company/UpdateData",
+            });
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+        });
+
+         /* HISTORY related data deleated and archived START */
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+        function HistoryTabClick() {
+            GetHistoryData();
+        }
+        function GetHistoryData() {
+
+            HistorySelected = fnGetSelected(oTable);
+            if (HistorySelected != undefined && HistorySelected.length == 1) {
+//                if(SelectedHistoryRecordID != HistorySelected[0].id)
+//                {
+                    SelectedHistoryRecordID = HistorySelected[0].id;
+                    $('#DivLoading').show();
+                    $("#CTab").hide();
+                    $("#CtabCL").show();
+                    $('#CtabCL').load('MeasurementTermHistory', function () { $('#DivLoading').hide(); });
+                //}
+            }
+            else {
+                $('#CtabCL').html('');
+                $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                //$('div#target').fadeToggle();
+                //$("div#target").delay(2000).fadeOut(200);
+                showNotificationDialog();
+                return false;
+            }
+        }
+        /* HISTORY related data deleated and archived END */
+
+
+    </script>
+}
+<script type="text/javascript">
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+         new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true)
+         ];
+    function callbacknew() { ShowNewTab('MeasurementTermCreate', 'frmMeasurementTerm'); }
+    function callbackhistory() { } //HistoryTabClick(); }
+    function callbackCL() { HistoryTabClick(); }
+</script>
+<div class="userListingWrapper">
+    <h2>
+      @ResMeasurementTerm.PageHeader</h2>      
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div> 
+    <div class="userListBlock">
+    @Html.Hidden("hdnInsertRights", isInsert)
+@Html.Hidden("hdnUpdateRights", isUpdate)
+@Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'>
+        </ul>
+        <div id="CtabNew" class="tabContener" >
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" /></a>
+                    </div>
+                    @*<input type="button" value="Search" class="searchBtn" />*@
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.MeasurementTermMaster)
+            @*NARROW SEARCH STARTS HERE*@
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            @*NARROW SEARCH STARTS HERE*@
+            <div class="userContent">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                               @ResCommon.ID
+                            </th>
+                            <th>
+                                @ResMeasurementTerm.MeasurementTerm
+                            </th>
+                            <th>
+                                @ResCommon.RoomName
+                            </th>
+                            <th>
+                                @ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @ResCommon.CreatedBy
+                            </th>
+                            @Html.RenderColumnsHeader("MeasurementTerm", typeof(eTurns.DTO.ResMeasurementTerm))
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+                <button id="btnAddNewCompany" value="Ok" style="display: none">
+                    @ResCommon.AddNew</button>
+                <button id="btnDeleteCompany" value="cancel" style="display: none">
+                    Delete Selected</button>
+                <div id="processing_message" style="display: none" title="Processing">
+                  @ResMessage.RequestProcessMessage</div>
+            </div>
+        </div>
+        <div id='CtabCL' class="tabContener">
+        </div>
+    </div>
+</div>
+<script>
+    @*var objColumns = {
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.ID)': 0,
+        '@MvcHtmlString.Create(eTurns.DTO.ResMeasurementTerm.MeasurementTerm)': 1,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.RoomName)': 2,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.CreatedOn)': 3,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.UpdatedOn)': 4,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.UpdatedBy)': 5,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.CreatedBy)': 6,
+        '@MvcHtmlString.Create(eTurns.DTO.ResMeasurementTerm.UDF1)': 7,
+        '@MvcHtmlString.Create(eTurns.DTO.ResMeasurementTerm.UDF2)': 8,
+        '@MvcHtmlString.Create(eTurns.DTO.ResMeasurementTerm.UDF3)': 9,
+        '@MvcHtmlString.Create(eTurns.DTO.ResMeasurementTerm.UDF4)': 10,
+        '@MvcHtmlString.Create(eTurns.DTO.ResMeasurementTerm.UDF5)': 11
+    };*@
+</script>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>

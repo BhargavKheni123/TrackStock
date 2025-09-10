@@ -1,0 +1,417 @@
+﻿@model eTurns.DTO.ToolMasterDTO
+<script type="text/javascript" src="@Url.Content("~/Scripts/DynemicDataTable.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+@{
+
+    bool isUpdate;
+    bool isInsert;
+    bool isDelete;
+    bool onlyView = false;
+    var settings = new GridHeaderSettings() { DisplaySaveButton = false, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "ToolBinWiseSummaryList" };
+    bool IsMoveAccess = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.MoveMaterial);
+    isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    isDelete = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Delete);
+
+    if ((isUpdate == false) && (isInsert == false))
+    {
+        onlyView = true;
+    }
+
+    bool ShowExpandPlus = false;
+    if (Model.SerialNumberTracking)
+    {
+        ShowExpandPlus = true;
+    }
+}
+<div class="innerGrid" style="background: none repeat scroll 0 0 #F8F8F8; padding: 10px 0 0 28px">
+    <input type="hidden" id="hdnListName" value="ToolBinWiseSummaryList" />
+    <input type="hidden" id="hdnGuid" value="@ViewBag.ToolGUID" />
+    <input type="hidden" id="hdnToolID" value="@ViewBag.ToolID" />
+    <input type="hidden" id="hdnid" value="@Model.ID" />
+    <table style="width: 880px;">
+        <tr>
+            <td class="BtnBlock" style="float: none; border: 1px solid #F8F8F8; height: 2px;">
+                <div class="innerHeadSec">
+                    <div style="position: absolute; left: 470px; top: -9px; width: 350px; z-index: 10;">
+                        @if (onlyView == false)
+                        {
+                            <input type="button" value="@ResItemMaster.lblAddQuantityOnLocation" id="btnNewLocations@(ViewBag.ToolGUID)" class="CreateBtn"
+                                   style="margin: 0 5px 0 0; float: right; display:none;" />
+                            <input type="button" value="@ResItemMaster.lblAddLocation" id="btnNewLocationToItem_@(ViewBag.ToolGUID)" class="CreateBtn" style="margin: 0 5px 0 0; float: right; display:none;" />
+
+                        }
+                        @*<input type="button" id="SummaryInnerGridGobtn" class="go" value=@eTurns.DTO.Resources.ResGridHeader.Go />
+                        <input type="text" id="SummaryInnerGridPageNumber" class="inputNum" />
+                        <span class="label">@eTurns.DTO.Resources.ResGridHeader.GoToPage</span>*@
+                        @Html.GridInnerGridTopHeader(settings)
+                    </div>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding-top: 14px; padding-bottom: 35px; border: 1px solid #F8F8F8;">
+                <div class="userContentInnerGrid">
+                    <table id="ToolBinWiseSummaryTable@(ViewBag.ToolGUID)" class="display">
+                        <thead>
+                            <tr>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.RowNo
+                                </th>
+                                @if (ShowExpandPlus)
+                                {
+                                    <th>
+                                        @ResItemMaster.Expand
+                                    </th>
+                                }
+                                @if (IsMoveAccess)
+                                {
+                                    <th>
+                                        @ResToolMaster.Move
+                                    </th>
+                                }
+                                <th>
+                                    @eTurns.DTO.ResToolMaster.ToolName
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResLocation.Location
+                                </th>
+                                
+                                <th>
+                                    @eTurns.DTO.ResItemLocationQTY.Quantity
+                                </th>
+                                 
+                              
+                                <th>
+                                    @eTurns.DTO.ResToolMaster.Cost
+                                </th>
+                               
+                                <th>
+                                    @eTurns.DTO.ResItemLocationQTY.Created
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationQTY.LastUpdated
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationQTY.CreatedBy
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationQTY.LastUpdatedBy
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.AddedFrom
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.EditedFrom
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                                </th>
+                               
+                                
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<div id="BinWiseSummaryDetail@(ViewBag.ToolGUID)">
+</div>
+<script type="text/javascript">
+    var PopupOpenDynmicID = "";
+    var anOpen1 = [];
+    var IsPopUpOpenOrNot = false;
+    var ToolBinWiseSummaryTableColumns;
+    $(document).ready(function () {
+        objColumns = GetGridHeaderColumnsObject('ToolBinWiseSummaryTable' + '@(ViewBag.ToolGUID)');
+        BindReorderInnerGridPopUpAndEvents(true);
+        ToolBinWiseSummaryTableColumns = objColumns;
+    });
+    $(function (event) {
+        //var anOpen1 = [];
+        AllowDeletePopup = false;
+
+        function OpenLocationDetailPopUP() {
+            $("#btnNewLocations@(ViewBag.ToolGUID)").click();
+            return false;
+        }
+
+        var SummaryColumnObject = new Array();
+        SummaryColumnObject.push({ mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' });
+        if ('@ShowExpandPlus' == '@Boolean.TrueString') {
+            SummaryColumnObject.push({
+                mDataProp: null, "bSortable": false, sClass: "read_only control center", sDefaultContent: "",
+                fnRender: function (obj, val) {
+                    if (obj.aData.DispQuantity != null && obj.aData.DispQuantity != NaN && obj.aData.DispQuantity > 0) {
+                        return "<img class='searchExpand' id='" + obj.aData.LocationID.toString() + "'  src='/Content/images/drildown_open.jpg' alt='no' style='cursor:pointer;'/><input type='hidden' id='hdnIsLocSerialAvail' value='" + obj.aData.IsLocSerialAvailable + "' />"
+                    }
+                    else {
+                        return "";
+                    }
+                }
+            });
+        }
+
+        if ('@IsMoveAccess' == 'True') {
+            SummaryColumnObject.push({
+                mDataProp: null, "bSortable": false, sClass: "read_only controlHistory", sDefaultContent: "",
+                fnRender: function (obj, val) {
+                    if (obj.aData.DispQuantity != null && obj.aData.DispQuantity != NaN && obj.aData.DispQuantity > 0) {
+                        return "<input type='button' class='CreateBtn' id='btnMove_" + obj.aData.LocationID + "' onclick='javascript:return ToolAssetMoveMaterial(this," + obj.aData.ToolBinID + ");' value='@ResToolAssetMoveMaterial.GridButtonMove' />"
+                    }
+                    else {
+                        return "";
+                    }
+                }
+            });
+        }
+
+        SummaryColumnObject.push({ mDataProp: "ToolName", sClass: "read_only" });
+
+        SummaryColumnObject.push({
+            mDataProp: "Location", sClass: "read_only",
+            fnRender: function (obj, val) {
+                return obj.aData.Location + " <input type='hidden' id='ToolGUID' value='" + obj.aData.ToolGUID.toString() + "' /><input type='hidden' id='SerialNumberTracking' value='" + obj.aData.SerialNumberTracking.toString() + "' /><input type='hidden' id='LotNumberTracking' value='" + obj.aData.LotNumberTracking.toString() + "' />"
+            }
+        });
+
+
+
+        //        SummaryColumnObject.push({mDataProp : "MinimumQuantity",sClass : "read_only"});
+        //        SummaryColumnObject.push({mDataProp : "MaximumQuantity",sClass : "read_only"});
+
+        SummaryColumnObject.push({
+            mDataProp: "Quantity", sClass: "read_only", "fnRender": function (obj, val) {
+                if (obj.aData.DispQuantity != null && obj.aData.DispQuantity != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.DispQuantity, 2) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 2) + " </span>";
+            }
+        });
+
+
+
+        SummaryColumnObject.push({
+            mDataProp: "Cost", sClass: "read_only", "fnRender": function (obj, val) {
+
+                if (obj.aData.Cost != null && obj.aData.Cost != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.Cost, 1) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 1) + " </span>";
+
+            }
+        });
+
+
+        SummaryColumnObject.push({ mDataProp: "Created", sClass: "read_only", "fnRender": function (obj, val) { return obj.aData.CreatedDt; } });
+        SummaryColumnObject.push({ mDataProp: "Updated", sClass: "read_only", "fnRender": function (obj, val) { return obj.aData.UpdatedDt; } });
+        SummaryColumnObject.push({ mDataProp: "CreatedByName", sClass: "read_only" });
+        SummaryColumnObject.push({ mDataProp: "UpdatedByName", sClass: "read_only" });
+        SummaryColumnObject.push({ mDataProp: "AddedFrom", sClass: "read_only" });
+        SummaryColumnObject.push({ mDataProp: "EditedFrom", sClass: "read_only" });
+        SummaryColumnObject.push({ mDataProp: "ReceivedOn", sClass: "read_only", "fnRender": function (obj, val) { return obj.aData.ReceivedOnDate; } });
+        SummaryColumnObject.push({ mDataProp: "ReceivedOnWeb", sClass: "read_only", "fnRender": function (obj, val) { return obj.aData.ReceivedOnDateWeb; } });
+
+        ToolGUID = '@ViewBag.ToolGUID';
+        PrepareItemLocationDataTable("ToolBinWiseSummaryTable", '@ViewBag.ToolGUID', '@Url.Content("~/Tool/ToolBinWiseSummaryListAjax")', 'ToolBinWiseSummaryList', SummaryColumnObject, '@ViewBag.IsSerialAvail', '@ViewBag.SearchTerm');
+        $("#BinWiseSummaryDetail@(ViewBag.ToolGUID)").dialog({
+            autoOpen: false,
+            show: "blind",
+            hide: "explode",
+            height: 700,
+            title: "Tool Locations",
+            width: 900,
+            modal: true,
+            beforeClose: function () {
+                if (isDirtyForm) {
+                    if (confirm(SaveConfirmationMSG)) {
+                        //isDirtyForm = false;
+                        return false;
+                    }
+                    isDirtyForm = false;
+                }
+            },
+            close: function () {
+                $("#BinWiseSummaryDetail@(ViewBag.ToolGUID)").empty();
+                AllowDeletePopup = true;
+                if ($('#myDataTable') != undefined) {
+                    DrillDownItemGuid = '@ViewBag.ToolGUID';
+                    $("#myDataTable").DataTable().fnDraw();
+                }
+                else if ($('#ToolBinWiseSummaryTable@(ViewBag.ToolGUID)') != undefined) {
+                    $("#ToolBinWiseSummaryTable@(ViewBag.ToolGUID)").DataTable().fnDraw();
+                }
+                $('#DivLoading').hide();
+                if (IsPopUpOpenOrNot) {
+                    setTimeout('CallInnerGridTable()', 2000);
+                }
+                if (IsPopUpOpenOrNot) {
+                    GetCheckedRows();
+                }
+            }
+        });
+
+        $("#btnNewLocations@(ViewBag.ToolGUID)").click(function () {
+            //
+
+            UpperTR = $(this).parents("div.innerGrid").parents("tr").prev();
+
+
+            $('#DivLoading').show();
+            $('#BinWiseSummaryDetail@(ViewBag.ToolGUID)').load("@Url.Action("LocationDetailsNew", new { ItemID_ItemType = ViewBag.ToolGUID_ItemType })", function () {
+                $('#BinWiseSummaryDetail@(ViewBag.ToolGUID)').dialog('open');
+                $('#DivLoading').hide();
+            });
+            return false;
+        });
+
+        $("#btnNewLocationToItem_@(ViewBag.ToolGUID)").click(function () {
+            //
+
+            UpperTR = $(this).parents("div.innerGrid").parents("tr").prev();
+
+
+            $('#DivLoading').show();
+            $('#BinWiseSummaryDetail@(ViewBag.ToolGUID)').load("@Url.Action("AddLocationsFromGrid", "Inventory", new { ItemID_ItemType = ViewBag.ToolGUID_ItemType })", function () {
+
+                $('#BinWiseSummaryDetail@(ViewBag.ToolGUID)').dialog('open');
+                $('#DivLoading').hide();
+            });
+            return false;
+        });
+        /*Functions used for nasted data binding START*/
+        $("#ToolBinWiseSummaryTable@(ViewBag.ToolGUID)").on("click", "td.control img", function (event) {
+
+            var nTr = this.parentNode.parentNode;
+            var i = $.inArray(nTr, anOpen1);
+
+            if (IsPopUpOpenOrNot) {
+                i = 0;
+                IsPopUpOpenOrNot = false;
+            }
+            PopupOpenDynmicID = this.id;
+
+            if (i === -1) {
+
+                $('img', this.parentNode).attr('src', sImageUrl + "drildown_close.jpg");
+                $("#ToolBinWiseSummaryTable@(ViewBag.ToolGUID)").DataTable().fnOpen(nTr, fnLOCFormatDetails($("#ToolBinWiseSummaryTable@(ViewBag.ToolGUID)").DataTable(), nTr), '');
+                anOpen1.push(nTr);
+            }
+            else {
+                $('img', this.parentNode).attr('src', sImageUrl + "drildown_open.jpg");
+                $("#ToolBinWiseSummaryTable@(ViewBag.ToolGUID)").DataTable().fnClose(nTr);
+                anOpen1.splice(i, 1);
+                //$("#ToolBinWiseSummaryTable@(ViewBag.ToolGUID)").DataTable().fnDraw();
+            }
+            $(".ColVis_MasterButton").hide();
+        });
+
+        /*Functions used for nasted data binding END*/
+    });
+
+
+    function CallInnerGridTable() {
+        ParentCallInnerGridTable(PopupOpenDynmicID);
+    }
+
+
+
+    function ParentCallInnerGridTable(objImageID) {
+
+        IsPopUpOpenOrNot = true;
+        var ObjThis = $("#ToolBinWiseSummaryTable@(ViewBag.ToolGUID)").find('#' + objImageID)[0];
+        var nTrParent = ObjThis.parentNode.parentNode;
+        var iObjeTemp = $.inArray(nTrParent, anOpen1);
+
+        if (iObjeTemp === -1) {
+
+            $('img', ObjThis.parentNode).attr('src', sImageUrl + "drildown_close.jpg");
+            $("#ToolBinWiseSummaryTable@(ViewBag.ToolGUID)").DataTable().fnOpen(nTrParent, fnLOCFormatDetails($("#ToolBinWiseSummaryTable@(ViewBag.ToolGUID)").DataTable(), nTrParent), '');
+            anOpen1.push(nTrParent);
+        }
+        else {
+            $('img', ObjThis.parentNode).attr('src', sImageUrl + "drildown_open.jpg");
+            $("#ToolBinWiseSummaryTable@(ViewBag.ToolGUID)").DataTable().fnClose(nTrParent);
+            anOpen1.splice(iObjeTemp, 1);
+        }
+
+        $(".ColVis_MasterButton").hide();
+    }
+
+    function fnLOCFormatDetails(oTableLOC, nTr) {
+        // var oData = $("#ToolBinWiseSummaryTable@(ViewBag.ToolGUID)").DataTable().fnGetData(nTr);
+        var oData = oTableLOC.fnGetData(nTr);
+        ToolName = oData.ToolName;
+        ToolUniqueID = oData.ID;
+        var sOut = '';
+
+        var vlsearch = "";
+        if (oData.IsLocSerialAvailable == "Yes") {
+            vlsearch = $("#global_filter").val();
+        }
+
+        $('#DivLoading').show();
+
+        $.ajax({
+            "url": '@Url.Content("~/Tool/ToolLocations2")',
+            data: { LocationID: oData.LocationID, ToolGUID: oData.ToolGUID, _isSerialAvail: oData.IsLocSerialAvailable, _searchTerm: vlsearch },
+            "async": false,
+            cache: false,
+            "dataType": "text",
+            "success": function (json) {
+                sOut = json;
+                //   alert(sOut);
+                $('#DivLoading').hide();
+            },
+            error: function (response) {
+            }
+        });
+
+        return sOut;
+    }
+    $(document).ready(function () {
+
+        $("div[id^='BinWiseSummaryDetail']").on({
+            mouseover: function () {
+                FillLocations($(this), "");
+            },
+            focus: function () {
+                FillLocations($(this), "");
+            },
+            change: function () {
+                $(this).parent().find("input[id='txtLocation']").val($(this).val());
+            }
+        }, "select[id^='ddlBin']");
+
+        $("div[id^='BinWiseSummaryDetail']").on({
+            focus: function () {
+                SetAutoCompleteOpenOnFocus($(this), '@Url.Action("GetAllLocationOfRoom", "Master")', null, " ");
+            }
+        }, "input[type='text'][id^='ddlBin']");
+    });
+
+    function InnerGridReloadAfterReorder() {
+        //var anOpenToolCheckOuts = [];
+        //anOpenToolCheckOuts = anOpen1;
+
+        $('#myDataTable').find("tbody tr").each(function (index, tr) {
+            if ($(tr).find('#hdnGUID').val() == '@(ViewBag.ToolGUID)') {
+                $(tr).find('img.ExpandLocationSerials').click(); //$(tr).find('img.ExpandLocationSerials').click();
+                $(tr).find('img.ExpandLocationSerials').click();
+                //ToolIDToOpen = '';
+                return;
+            }
+        });
+
+    }
+    function InnerGridColumnAndTableRebinding() {        
+        oTableGlobalTABLE = $("#" + "ToolBinWiseSummaryTable" + '@ViewBag.ToolGUID').dataTable();
+        objColumns = ToolBinWiseSummaryTableColumns;
+    }
+</script>

@@ -1,0 +1,2141 @@
+﻿@model List<ReportBuilderDTO>
+@using eTurnsWeb.Helper
+@{
+    ViewBag.Title = "ViewReports";
+    bool IsReportDelete = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Reports, eTurnsWeb.Helper.SessionHelper.PermissionType.Delete);
+}
+<style>
+    .neweditorlabel, .neweditorlabelrm {
+        padding-left: 0px !important;
+        width: 55% !important;
+        min-height: 50px !important;
+    }
+</style>
+@*<script type='text/javascript' src="@Url.Content("~/Scripts/date.js")"></script>*@
+<div class="userListingWrapper" style="min-height: 600px;">
+    <h2 style="padding: 5px;">
+        @eTurns.DTO.ResReportMaster.ViewReport
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        <div id="divReportVideoURL" class="refresh" style="z-index: 200 !important; margin-right: 5px; display:none;">
+            <a href="#" style="z-index:205 !important">
+                <img id="imgInfoVideo" src="~/Content/images/InfoVideo.png" alt="Help" />
+            </a>
+            <div id="divSubReportVideoURL" class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                @*<ul class="sub_subMenu">
+                        <li><a id="aReportVideoURL" href="#" target="_blank" onclick="return OpenReportVideo()">Basic Video</a></li>
+                    </ul>*@
+            </div>
+        </div>
+        <div id="divReportPDFURL" class="refresh" style="z-index: 200 !important; margin-right: 5px; display:none;">
+            <a href="#" style="z-index:205 !important">
+                <img id="imgInfoDoc" src="~/Content/images/Info.png" alt="Help" />
+            </a>
+            <div id="divSubReportPDFURL" class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                @*<ul class="sub_subMenu">
+                         <li><a id="aReportPDFURL" href="#" target="_blank"><img src="~/Content/images/Info.png" alt="Help" /></a></li>
+                    </ul>*@
+            </div>
+        </div>
+    </div>
+    <div class="userListBlock">
+        <div style="width: 97%; float: left; padding: 5px;">
+            <div style="width: 20%; float: left;">
+                <b>@eTurns.DTO.ResReportMaster.LabelListofReports:</b>
+                <br />
+                <br />
+                @Html.DropDownList("lstReports", new SelectList(Model, "ID", "ReportResourceName"), new { @id = "lstReports", @style = "width:99%;min-height:480px;", @size = "3" })
+                <br />
+                <br />
+                @if (IsReportDelete)
+                {
+                    <div style="float: left;">
+                        <input type="button" value="@eTurns.DTO.ResReportMaster.DeleteSelectedReport" id="btnCDelete" style="display: none;
+                            float: left;" class="CreateBtn DeleteReport" />
+                    </div>
+                }
+            </div>
+            <div style="width: 3%; float: left; height: 20px;">
+                &nbsp;
+            </div>
+            <div id="divReportPara" style="width: 72%; float: left;">
+            </div>
+        </div>
+    </div>
+</div>
+<div id="sendEmailForm">
+</div>
+<script language="javascript" type="text/javascript">
+    var objkeyVal = new Array();
+    $('#btnCDelete').on('click', function (e) {
+        if (parseInt($('#lstReports').val()) > 0) {
+            $.ajax({
+                url: '@Url.Content("~/ReportBuilder/GetChildReportsFromParentID")',
+                data: JSON.stringify({ 'ParentReportID': $('#lstReports').val() }),
+                dataType: 'json',
+                contentType: 'application/json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (result) {
+                    if (result.hasChildReport) {
+                        $('#ListofChildReport').find('#spChildReports').text(result.ReportsName);
+                        $('#ListofChildReport').modal();
+                    }
+                    else {
+                        $('#ConfirmReportDeleteModel').modal();
+                        $('#ConfirmReportDeleteModel').find('#hndReportID').val($('#lstReports').val());
+                    }
+                    //window.location = window.location;
+                }
+            });
+
+            //$('#ConfirmReportDeleteModel').modal();
+            //$('#ConfirmReportDeleteModel').find('#hndReportID').val($('#lstReports').val());
+        }
+    });
+
+    $('#btnCDelete').on('click', function (e) {
+        if ($('#ddlChildReport').length > 0 && parseInt($('#ddlChildReport').val()) > 0) {
+            $('#ConfirmReportDeleteModel').modal();
+            $('#ConfirmReportDeleteModel').find('#hndReportID').val($('#ddlChildReport').val());
+        }
+    });
+
+    $('#lstReports').on('change', function () {
+        $('#DivLoading').show();
+        $('#divReportPara').html('');
+        $('#btnCDelete').css('display', 'none');
+        $.ajax({
+            url: '@Url.Action("ViewReportPerameters", "ReportBuilder")',
+            type: 'GET',
+            data: { 'ReportID': $(this).val().toString() },
+            dataType: 'text',
+            contentType: 'application/json',
+            traditional: true,
+            success: function (data) {
+                $('#divReportPara').html(data);
+                $('#DivLoading').hide();
+            },
+            error: function (xhr) {
+                $('#DivLoading').hide();
+            }
+        });
+
+    });
+
+    function getDateByRoomFormatForReport(ReportDate,isCurrentDate) {
+
+        if (isCurrentDate) {
+
+            var RoomTimeZoneTime = "";
+            if ($('#RoomTimeZoneTime') != null && $('#RoomTimeZoneTime') != undefined && $('#RoomTimeZoneTime').length > 0) {
+                RoomTimeZoneTime = $("#RoomTimeZoneTime").text();
+            }
+
+            var d = new Date();
+            if (RoomTimeZoneTime != "")
+            {
+                d = new Date(RoomTimeZoneTime);
+            }
+
+            var n = d.getDate();
+            var m = d.getMonth() + 1;
+            var y = d.getFullYear();
+            if (n <= 9) {
+                n = "0" + n;
+            }
+            if (m <= 9) {
+                m = "0" + m;
+            }
+            var monthFullNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            var monthShortNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+            var currdat = $("#hdDateFormat").val();
+
+            //  alert(currdat + ' ---> ' + RoomDateJSFormat);
+            if (currdat.indexOf('yyyy') >= 0) {
+                currdat = currdat.replace('yyyy', y);
+            }
+            else if (currdat.indexOf('yy') >= 0) {
+                currdat = currdat.replace('yy', y);
+            }
+            else if (currdat.indexOf('y') >= 0) {
+                currdat = currdat.replace('y', y.toString().substr(-2));
+            }
+
+            if (currdat.indexOf('mm') >= 0) {
+                currdat = currdat.replace('mm', m);
+            }
+            else if (currdat.indexOf('m') >= 0) {
+                currdat = currdat.replace('m', m);
+            }
+            else if (currdat.indexOf('MM') >= 0) {
+                currdat = currdat.replace('M', monthFullNames[m - 1]);
+                //currdat = currdat.replace('MM', m);
+            }
+            else if (currdat.indexOf('M') >= 0) {
+                currdat = currdat.replace('M', monthShortNames[m - 1]);
+            }
+
+            if (currdat.indexOf('dd') >= 0) {
+                currdat = currdat.replace('dd', n);
+            }
+            else if (currdat.indexOf('d') >= 0) {
+                currdat = currdat.replace('d', n);
+            }
+            return currdat;
+        }
+        else
+        {
+            var d = new Date(ReportDate);
+            var n = d.getDate();
+            var m = d.getMonth() + 1;
+            var y = d.getFullYear();
+            if (n <= 9) {
+                n = "0" + n;
+            }
+            if (m <= 9) {
+                m = "0" + m;
+            }
+            var monthFullNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            var monthShortNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+            var currdat = $("#hdDateFormat").val();
+
+            //  alert(currdat + ' ---> ' + RoomDateJSFormat);
+            if (currdat.indexOf('yyyy') >= 0) {
+                currdat = currdat.replace('yyyy', y);
+            }
+            else if (currdat.indexOf('yy') >= 0) {
+                currdat = currdat.replace('yy', y);
+            }
+            else if (currdat.indexOf('y') >= 0) {
+                currdat = currdat.replace('y', y.toString().substr(-2));
+            }
+
+            if (currdat.indexOf('mm') >= 0) {
+                currdat = currdat.replace('mm', m);
+            }
+            else if (currdat.indexOf('m') >= 0) {
+                currdat = currdat.replace('m', m);
+            }
+            else if (currdat.indexOf('MM') >= 0) {
+                currdat = currdat.replace('M', monthFullNames[m - 1]);
+                //currdat = currdat.replace('MM', m);
+            }
+            else if (currdat.indexOf('M') >= 0) {
+                currdat = currdat.replace('M', monthShortNames[m - 1]);
+            }
+
+            if (currdat.indexOf('dd') >= 0) {
+                currdat = currdat.replace('dd', n);
+            }
+            else if (currdat.indexOf('d') >= 0) {
+                currdat = currdat.replace('d', n);
+            }
+            return currdat;
+        }
+
+    }
+    $('#btnViewReport').die("click");
+    //$("#" + notificationIsActiveElementId).on('click', function () {
+    $('#btnViewReport').live('click', function (e) {
+
+        if ($('#lstReports').val().length > 0) {
+            objkeyVal = new Array();
+            var roomIDs = new Array();
+            var compIDs = new Array();
+            var status = new Array();
+            var wostatus = new Array();
+            var reqType = new Array();
+
+            compIDs = getSelectedID('ddlRCompany');
+            roomIDs = getSelectedID('ddlRRoom');
+            status = getSelectedID('ddlModuleItem');
+
+            wostatus = getSelectedID('ddlWOStatus');
+
+            var ModuleName = "";
+            var ParentReportName = "";
+            if ($('#hdnModuleName') != null && $('#hdnModuleName') != undefined && $('#hdnModuleName').length > 0) {
+                ModuleName = $("#hdnModuleName").val();
+            }
+
+            if ($('#hdnParentReportName') != null
+                && typeof ($('#hdnParentReportName')) != "undefined"
+                && $('#hdnParentReportName').length > 0) {
+                ParentReportName = $("#hdnParentReportName").val();
+            }
+
+            var selectedValues = "";
+            if (IsEnterpriseQLRangeSelected() && ParentReportName.toLowerCase() != "instock"
+                && ParentReportName.toLowerCase() != "instock by activity")
+            {
+                selectedValues = $.map($('#lstModuleItem option:selected'), function (element) {
+                    if (element.value.indexOf(',#@@') >= 0) {
+                        return element.value.substring(0,element.value.indexOf(',#@@'));
+                    }
+                    else {
+                        return element.value;
+                    }
+                });
+            }
+            else {
+                selectedValues = $.map($('#lstModuleItem option:selected'), function (element) {
+                    return element.value;
+                });
+            }
+
+            if (ModuleName.toLowerCase() == 'inventorydailyhistorywithdaterange') {
+                if ($('#lstModuleItem option:selected').length > 1) {
+                    alert('@ResReportMaster.MsgSelectOnyOneItemToViewReport')
+                    return false;
+                }
+            }
+
+            if (ModuleName.toLowerCase() == 'inventoryreconciliation') {
+                var reconciliationStartDate = "";
+                var reconciliationEndDate = "";
+
+                if ($('#txtStartDate') != null && $('#txtStartDate') != undefined && $('#txtStartDate').length > 0 && $('#txtStartDate').val().length > 0) {
+                    reconciliationStartDate = $('#txtStartDate').val();
+                }
+                if ($('#txtEndDate') != null && $('#txtEndDate') != undefined && $('#txtEndDate').length > 0 && $('#txtEndDate').val().length > 0) {
+                    reconciliationEndDate = $('#txtEndDate').val();
+                }
+                if (reconciliationStartDate == reconciliationEndDate) {
+                    alert('@ResReportMaster.MsgSelectDifferentStartandEndDate')
+                    return false;
+                }
+                var dcurrentDate = new Date();
+                var nCurrentUTCDate = dcurrentDate.getFullYear() + "-" + (dcurrentDate.getMonth() + 1) + "-" + dcurrentDate.getDate();
+                var currentDate = getDateByRoomFormatForReport(nCurrentUTCDate,true);
+
+                if(reconciliationStartDate != "")
+                {
+                    var startDate = getDateByRoomFormatForReport(reconciliationStartDate, false);
+                    if(startDate == currentDate)
+                    {
+                        alert('@ResReportMaster.MsgDoNotSelectTodayDateasStartDate')
+                        return false;
+                    }
+                }
+
+                if (reconciliationEndDate != "") {
+
+                    var EndDate = getDateByRoomFormatForReport(reconciliationEndDate, false);
+                    if (EndDate == currentDate) {
+                        alert('@ResReportMaster.MsgDoNotSelectTodayDateasEndDate')
+                        return false;
+                    }
+                }
+            }
+
+            if (selectedValues == null || selectedValues.length <= 0) {
+                alert('@ResReportMaster.ReqItemToViewReport')
+                return false;
+                //selectedValues = $.map($('#lstModuleItem option'), function (element) {
+                //    return element.value;
+                //});
+            }
+            // var objkeyVal = new Array();
+
+            if (ParentReportName.toLowerCase() == "pull summary by quarter")
+            {
+                var startDate = "";
+                var endDate = "";
+
+                if ($('#txtStartDate') != null && typeof($('#txtStartDate')) != "undefined" && $('#txtStartDate').length > 0 && $('#txtStartDate').val().length > 0) {
+                    startDate = $('#txtStartDate').val();
+                }
+                if ($('#txtEndDate') != null && typeof($('#txtEndDate')) != "undefined" && $('#txtEndDate').length > 0 && $('#txtEndDate').val().length > 0) {
+                    endDate = $('#txtEndDate').val();
+                }
+                if (startDate == "" || endDate == "") {
+                    alert('@ResReportMaster.ReqStartandEndDate')
+                    return false;
+                }
+                else
+                {
+                    var dtFormat = $("#hdDateFormat").val();
+                    //var startTime = "";
+                    //var endTime = "";
+
+                    //if ($('#StartTime').length > 0 && $('#StartTime').val().length > 0)
+                    //{
+                    //    startTime = $('#StartTime').val();
+                    //}
+
+                    //if ($('#EndTime').length > 0 && $('#EndTime').val().length > 0)
+                    //{
+                    //    endTime= $('#EndTime').val();
+                    //}
+
+                    //var isDateRangeValid = validateDateRangeForPullSummaryByQuarter(startDate, endDate, startTime, endTime);
+
+                    //if (!isDateRangeValid)
+                    //{
+                    //    alert('@ResReportMaster.MsgMax12MonthDurationCanSelect');
+                    //    return false;
+                    //}
+
+                    var tmpStartDate = $.datepicker.parseDate(dtFormat, startDate);//new Date(startDate);
+                    var tmpEndDate = $.datepicker.parseDate(dtFormat, endDate);//new Date(endDate);
+
+                    var startDateYear = tmpStartDate.getFullYear();
+                    var endDateYear = tmpEndDate.getFullYear();
+
+                    var startDateMonth = tmpStartDate.getMonth() + 1;
+                    var endDateMonth = tmpEndDate.getMonth() + 1;
+
+                    if (startDateYear != endDateYear) {
+                        if (startDateMonth <= endDateMonth) {
+                            alert('@ResReportMaster.MsgMax12MonthDurationCanSelect')
+                            return false;
+                        }
+                    }
+                    else {
+                        if (Math.abs(startDateMonth - endDateMonth) > 12) {
+                            alert('@ResReportMaster.MsgMax12MonthDurationCanSelect')
+                            return false;
+                        }
+                    }
+                }
+
+            }
+
+            if (compIDs.length > 0) {
+                objkeyVal.push({ 'key': 'CompanyIDs', 'value': compIDs });
+            }
+            
+            if (selectedValues.length > 0) {
+                if (ModuleName.toLowerCase() == "consume_requisition" || ModuleName.toLowerCase() == "range-consume_requisition") {
+                    objkeyVal.push({ 'key': 'RequisitionStatus', 'value': status });
+                    objkeyVal.push({ 'key': 'WOStatus', 'value': wostatus });
+                }
+                else if (ModuleName.toLowerCase() == "workorder") {
+                    objkeyVal.push({ 'key': 'WOStatus', 'value': status });
+                }
+                else if (ModuleName.toLowerCase() == "transfer") {
+                    objkeyVal.push({ 'key': 'TransferStatus', 'value': status });
+                }                
+                else {
+                    objkeyVal.push({ 'key': 'OrderStatus', 'value': status });
+                }
+            }
+
+            if (selectedValues.length > 0) {
+                objkeyVal.push({ 'key': 'DataGuids', 'value': selectedValues.join(',') });
+            }
+
+
+            if (roomIDs.length > 0) {
+                objkeyVal.push({ 'key': 'RoomIDs', 'value': roomIDs });
+            }
+
+            if ($('#txtStartDate').length > 0 && $('#txtStartDate').val().length > 0) {
+                objkeyVal.push({ 'key': 'StartDate', 'value': $('#txtStartDate').val() });
+            }
+            if ($('#StartTime').length > 0 && $('#StartTime').val().length > 0 )
+            {
+                //if (ParentReportName.toLowerCase() == "pull summary by quarter") {
+                //    objkeyVal.push({ 'key': 'Starttime', 'value': '00:00' });
+                //}
+                //if (ParentReportName.toLowerCase() != "pull summary by quarter") {
+                    objkeyVal.push({ 'key': 'Starttime', 'value': $('#StartTime').val() });
+                //}
+            }
+
+            if ($('#txtEndDate').length > 0 && $('#txtEndDate').val().length > 0) {
+                objkeyVal.push({ 'key': 'EndDate', 'value': $('#txtEndDate').val() });
+            }
+            if ($('#EndTime').length > 0 && $('#EndTime').val().length > 0)
+            {
+                //if (ParentReportName.toLowerCase() == "pull summary by quarter") {
+                //    objkeyVal.push({ 'key': 'EndTime', 'value': '00:00' });
+                //}
+                //else
+                //if (ParentReportName.toLowerCase() != "pull summary by quarter")
+                //{
+                    objkeyVal.push({ 'key': 'EndTime', 'value': $('#EndTime').val() });
+                //}
+
+            }
+            var sortField = '';
+            if ($('#ddlSortFieldFirst').length > 0 && $('#ddlSortFieldFirst').val().length > 0) {
+                sortField += $('#ddlSortFieldFirst').val() + ' ' + $('#ddlSortOrderFirst').val();
+            }
+            if ($('#ddlSortFieldSecond').length > 0 && $('#ddlSortFieldSecond').val().length > 0) {
+                if (sortField.length > 0)
+                    sortField += ', ';
+                sortField += $('#ddlSortFieldSecond').val() + ' ' + $('#ddlSortOrderSecond').val();
+            }
+            if ($('#ddlSortFieldThird').length > 0 && $('#ddlSortFieldThird').val().length > 0) {
+                if (sortField.length > 0)
+                    sortField += ', ';
+                sortField += $('#ddlSortFieldThird').val() + ' ' + $('#ddlSortOrderThird').val();
+            }
+            if ($('#ddlSortFieldFourth').length > 0 && $('#ddlSortFieldFourth').val().length > 0) {
+                if (sortField.length > 0)
+                    sortField += ', ';
+                sortField += $('#ddlSortFieldFourth').val() + ' ' + $('#ddlSortOrderFourth').val();
+            }
+            if ($('#ddlSortFieldFifth').length > 0 && $('#ddlSortFieldFifth').val().length > 0) {
+                if (sortField.length > 0)
+                    sortField += ', ';
+                sortField += $('#ddlSortFieldFifth').val() + ' ' + $('#ddlSortOrderFifth').val();
+            }
+            if (sortField.length > 0) {
+                objkeyVal.push({ 'key': 'SortFields', 'value': sortField });
+            }
+
+            var qohFilter = new Array();
+            if ($('#ddlFilterQOH').length > 0)
+                qohFilter = getSelectedID('ddlFilterQOH');
+
+            if (qohFilter.length > 0) {
+                objkeyVal.push({ 'key': 'QOHFilter', 'value': qohFilter });
+            }
+
+            if ($('#chkNoHeader').attr('checked') == "checked") {
+                objkeyVal.push({ 'key': 'IsNoHeader', 'value': '1' });
+            }
+
+            if ($('#chkShowSignature').attr('checked') == "checked") {
+                objkeyVal.push({ 'key': 'ShowSignature', 'value': '1' });
+            }
+
+            objkeyVal.push({ 'key': 'IsFromAlert', 'value': '0' });
+
+            if ($('#ddlQuantityType') != null && $('#ddlQuantityType') != undefined && $('#ddlQuantityType').length > 0) {
+                var QuantityType = getSelectedID('ddlQuantityType');
+                if (QuantityType != null && QuantityType != undefined && QuantityType != '')
+                    objkeyVal.push({ 'key': 'QuantityType', 'value': QuantityType });
+                else
+                    objkeyVal.push({ 'key': 'QuantityType', 'value': '' });
+            }
+
+            if ($('#chkIncludeNormalPull').length > 0 && $('#chkIncludeNormalPull').attr('checked') == "checked") {
+                var indexNew = -1;
+                var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                    if ($.trim(obj.key) == "QuantityType") {
+                        indexNew = index;
+                    }
+                    return $.trim(obj.key) == "QuantityType";
+                });
+                //objkeyVal.findIndex(x => x.key == "QuantityType")
+                if (arrinvalidrows.length == 0 && indexNew == -1) {
+                    objkeyVal.push({ 'key': 'QuantityType', 'value': 'ALLPULL' });
+                }
+                else {
+                    objkeyVal[indexNew].value += ',ALLPULL';
+                }
+            }
+
+            if ($('#ddlModuleItemTypes') != null && $('#ddlModuleItemTypes') != undefined && $('#ddlModuleItemTypes').length > 0) {
+                reqType = getSelectedID('ddlModuleItemTypes');
+                if (reqType != null && reqType != undefined && $.trim(reqType).length > 0)
+                    objkeyVal.push({ 'key': 'RequestType', 'value': reqType });
+            }
+
+
+            //if ($('#chkOnlyExpirationItems').length > 0) {
+            //    if ($('#chkOnlyExpirationItems').attr('checked') == "checked") {
+            //        objkeyVal.push({ 'key': 'OnlyExirationItems', 'value': 'Yes' });
+            //    }
+            //}
+
+
+            if (($("input#chkOnlyExpiredItems").length > 0 && $("input#chkOnlyExpiredItems").is(":checked")) || ($("input#chkOnlyExpirationItems").length > 0 && $("input#chkOnlyExpirationItems").is(":checked"))) {
+                objkeyVal.push({ 'key': 'OnlyExirationItems', 'value': 'yes' });
+            }
+            else {
+                objkeyVal.push({ 'key': 'OnlyExirationItems', 'value': '' });
+            }
+
+            if ($("input#txtProjectExpirationDate").val() == '') {
+                objkeyVal.push({ 'key': 'DaysToApproveOrder', 'value': $('#txtItemsExpired').val() });
+                objkeyVal.push({ 'key': 'DaysUntilItemExpires', 'value': $('#txtItemsApproved').val() });
+            }
+            else {
+                objkeyVal.push({ 'key': 'DaysToApproveOrder', 'value': '' });
+                objkeyVal.push({ 'key': 'DaysUntilItemExpires', 'value': '' });
+            }
+            objkeyVal.push({ 'key': 'ProjectedExpirationDate', 'value': $("input#txtProjectExpirationDate").val() });
+
+            if ($("input#chkOnlyAvailQty").length> 0 && $("input#chkOnlyAvailQty").is(":checked")) {
+                //objkeyVal.push({ 'key': 'OnlyAvailableTools', 'value': 'HasQty' });
+                objkeyVal.push({ 'key': 'OnlyAvailable', 'value': 'HasQty' });
+            }
+            else {
+                //objkeyVal.push({ 'key': 'OnlyAvailableTools', 'value': '' });
+                objkeyVal.push({ 'key': 'OnlyAvailable', 'value': '' });
+            }
+            if ($("input#txtMonthlyUsage").length > 0  ) {
+                objkeyVal.push({ 'key': 'MonthlyUsage', 'value': $("input#txtMonthlyUsage").val() });
+            }
+            else {
+                objkeyVal.push({ 'key': 'MonthlyUsage', 'value': '30' });
+            }
+
+            if ($("select#ddlAppliedFilter").length > 0) {
+                objkeyVal.push({ 'key': 'AppliedFilter', 'value': $("select#ddlAppliedFilter").val() });
+            }
+
+            if ($("select#ddlUsageType").length > 0) {
+                objkeyVal.push({ 'key': 'UsageType', 'value': $("select#ddlUsageType").val() });
+            }
+
+            if ($("input#chkAllowItemWithZeroPullUsage").length > 0 && $("input#chkAllowItemWithZeroPullUsage").is(":checked")) {
+                objkeyVal.push({ 'key': 'IsAllowedZeroPullUsage', 'value': '1' });
+            }
+            else {
+                objkeyVal.push({ 'key': 'IsAllowedZeroPullUsage', 'value': '0' });
+            }
+
+            if ($("select#ddlFilterDateOn").length > 0) {
+                objkeyVal.push({ 'key': 'FilterDateOn', 'value': $("select#ddlFilterDateOn").val() });
+            }
+
+            if ($("input#txtAUDayOfUsageToSample").length > 0) {
+                objkeyVal.push({ 'key': 'AUDayOfUsageToSample', 'value': $("input#txtAUDayOfUsageToSample").val() });
+            }
+
+            if ($("select#ddlAUMeasureMethod").length > 0) {
+                objkeyVal.push({ 'key': 'AUMeasureMethod', 'value': $("select#ddlAUMeasureMethod").val() });
+            }
+
+            if ($("input#txtMinMaxDayOfAverage").length > 0) {
+                objkeyVal.push({ 'key': 'MinMaxDayOfAverage', 'value': $("input#txtMinMaxDayOfAverage").val() });
+            }
+
+            if ($("input#txtMinMaxMinNumberOfTimesMax").length > 0) {
+                objkeyVal.push({ 'key': 'MinMaxMinNumberOfTimesMax', 'value': $("input#txtMinMaxMinNumberOfTimesMax").val() });
+            }
+
+            if (ModuleName.toLowerCase() == 'cart') {
+                var SelectedCartType = null;
+                if ($("select#ddlCartType").length > 0) {
+
+                    var CartType = getSelectedID('ddlCartType');
+                    if (CartType != null && CartType != undefined && CartType != '' && CartType != ',')
+                        SelectedCartType = CartType;
+                    else
+                        SelectedCartType = null;
+                }
+                objkeyVal.push({ 'key': 'CartType', 'value': SelectedCartType });
+            }
+
+            if (ModuleName.toLowerCase() == "ReqItemSummary".toLowerCase()
+                || ModuleName.toLowerCase() == "ToolInStock".toLowerCase() || ModuleName.toLowerCase() == "Order".toLowerCase()
+                || ModuleName.toLowerCase() == "Replenish_Order".toLowerCase() || ModuleName.toLowerCase() == "WrittenOffTools".toLowerCase()) {
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    if (ReportRange != null && typeof (ReportRange) != "undefined" && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'RangeFieldName', 'value': SelectedReportRange });
+                }
+            }
+            
+            if (ModuleName.toLowerCase() == "workorderlist" || ParentReportName.toLowerCase() == "work order with grouped pulls") {
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    if (ReportRange != null && typeof (ReportRange) != "undefined" && ReportRange != '' && ReportRange != ',')
+                        ReportRange = (ReportRange).trim();
+                        var lastChar = ReportRange.slice(-1);
+                        if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                        SelectedReportRange = ReportRange;
+                    }
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'RangeFieldName', 'value': SelectedReportRange });
+                }
+                if (ParentReportName.toLowerCase() == "work order with grouped pulls") {
+                    if ($('#ddlModuleItemTypes') != null && $('#ddlModuleItemTypes') != undefined && $('#ddlModuleItemTypes').length > 0) {
+                        var SelectedWOType = null;
+                        SelectedWOType = getSelectedID('ddlModuleItemTypes');
+                        if (SelectedWOType != null && typeof (SelectedWOType) != "undefined" && $.trim(SelectedWOType).length > 0)
+                            objkeyVal.push({ 'key': 'WOType', 'value': SelectedWOType });
+                    }
+                }
+            }
+
+            if (ModuleName.toLowerCase() == "unfulfilledorders") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+          
+            if (ParentReportName.toLowerCase() == "work order with attachment") {
+                if ($('#ddlModuleItemTypes') != null && $('#ddlModuleItemTypes') != undefined && $('#ddlModuleItemTypes').length > 0) {
+                    var SelectedWOType = null;
+                    SelectedWOType = getSelectedID('ddlModuleItemTypes');
+                    if (SelectedWOType != null && typeof (SelectedWOType) != "undefined" && $.trim(SelectedWOType).length > 0)
+                        objkeyVal.push({ 'key': 'WOType', 'value': SelectedWOType });
+                }
+
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+
+            if (ParentReportName.toLowerCase() == "requisition item summary") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+
+            if (ModuleName.toLowerCase() == "ToolInStock".toLowerCase()) {
+                if (($("input#chkincludestockedouttools").length > 0 && $("input#chkincludestockedouttools").is(":checked")) || ($("input#chkincludestockedouttools").length > 0 && $("input#chkincludestockedouttools").is(":checked"))) {
+                    objkeyVal.push({ 'key': 'Includestockedouttools', 'value': 'yes' });
+                }
+                else {
+                    objkeyVal.push({ 'key': 'Includestockedouttools', 'value': '' });
+                }
+            }
+            if ($("input#txtReturnItemCandidatesDays").length > 0) {
+                objkeyVal.push({ 'key': 'Days', 'value': $("input#txtReturnItemCandidatesDays").val() });
+            }
+            else {
+                objkeyVal.push({ 'key': 'Days', 'value': '' });
+            }
+
+            var itemtypefilter = new Array();
+            if ($('#ddlItemTypeFilter').length > 0)
+                itemtypefilter = getSelectedID('ddlItemTypeFilter');
+            if (itemtypefilter.length > 0) {
+                objkeyVal.push({ 'key': 'ItemTypeFilter', 'value': itemtypefilter });
+            }
+            else {
+                objkeyVal.push({ 'key': 'ItemTypeFilter', 'value': '' });
+            }
+
+            if (typeof (IsEnterpriseQLRangeSelected) != "undefined" && IsEnterpriseQLRangeSelected())
+            {
+                if ($('#ddlItemStatus') != null && $('#ddlItemStatus') != undefined && $('#ddlItemStatus').length > 0) {
+                    var ItemIsActive = getSelectedID('ddlItemStatus');
+                    if (ItemIsActive != null && ItemIsActive != undefined && ItemIsActive != '' && ItemIsActive != ',') {
+                        ItemIsActive = ItemIsActive.replace(/,\s*$/, "");
+                    }
+                    if (ItemIsActive != null && ItemIsActive != undefined && ItemIsActive != '' && ItemIsActive != ',')
+                        objkeyVal.push({ 'key': 'ItemIsActive', 'value': ItemIsActive });
+                    else
+                        objkeyVal.push({ 'key': 'ItemIsActive', 'value': '1,0' });
+                }
+            }
+            else if (ParentReportName.toLowerCase() == "pull summary" || ParentReportName.toLowerCase() == "pull summary by quarter"
+                || ParentReportName.toLowerCase() == "instock" || ModuleName.toLocaleLowerCase() == "inventory stock out"
+                || ModuleName.toLowerCase() == "stock out item"
+                || ModuleName.toLowerCase() == 'instockbybin' || ModuleName.toLowerCase() == 'instockbyactivity' || ModuleName.toLowerCase() == 'instockbybinmargin' || ModuleName.toLowerCase() == 'instockwithqoh'
+                || ModuleName.toLowerCase() == 'movematerial') {
+                if ($('#ddlItemStatus') != null && $('#ddlItemStatus') != undefined && $('#ddlItemStatus').length > 0) {
+                    var ItemIsActive = getSelectedID('ddlItemStatus');
+                    if (ItemIsActive != null && ItemIsActive != undefined && ItemIsActive != '' && ItemIsActive != ',') {
+                        ItemIsActive = ItemIsActive.replace(/,\s*$/, "");
+                    }
+                    if (ItemIsActive != null && ItemIsActive != undefined && ItemIsActive != '' && ItemIsActive != ',')
+                        objkeyVal.push({ 'key': 'ItemIsActive', 'value': ItemIsActive });
+                    else
+                        objkeyVal.push({ 'key': 'ItemIsActive', 'value': '1,0' });
+                }
+                if (ParentReportName.toLowerCase() == "pull summary") {
+                    objkeyVal.push({ 'key': 'IsSelectAllRangeDataPull', 'value': $("#chkCheckAllItem").is(":checked") });
+                    var SelectedReportRange = null;
+                    if ($("select#ddlReportRange").length > 0) {
+                        var ReportRange = getSelectedID('ddlReportRange');
+                        ReportRange = (ReportRange).trim();
+                        var lastChar = ReportRange.slice(-1);
+                        if (lastChar == ',') { // check last character is string
+                            ReportRange = ReportRange.slice(0, -1); // trim last character
+                        }
+                        if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                            SelectedReportRange = ReportRange;
+                        else
+                            SelectedReportRange = null;
+                        objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                    }
+                    if ($("#chkCheckAllItem").is(":checked") == true) {
+                        var indexNew = -1;
+                        var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                            if ($.trim(obj.key) == "DataGuids") {
+                                indexNew = index;
+                            }
+                            return $.trim(obj.key) == "DataGuids";
+                        });
+                        if (indexNew != -1) {
+                            objkeyVal[indexNew].value = "";
+                        }
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "pull" || ParentReportName.toLowerCase() == "pull item summary"
+                || ParentReportName.toLowerCase() == "pull incomplete" || ParentReportName.toLowerCase() == "pull completed"
+                || ParentReportName.toLowerCase() == "pull summary by wo"
+                || ParentReportName.toLowerCase() == "pull summary by consignedpo"
+                || ParentReportName.toLowerCase() == "pull summary by quarter"
+                || ParentReportName.toLowerCase() == "pull no header"
+                || ParentReportName.toLowerCase() == "credit pull"
+                || ParentReportName.toLowerCase() == "cumulative pull"
+                || ParentReportName.toLowerCase() == "total pulled") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeDataPull', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "instock" || ParentReportName.toLowerCase() == "instock by activity") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeDataInStock', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "requisition") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeDataReq', 'value': $("#chkCheckAllItem").is(":checked") });
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "requisition with lineitems" || ParentReportName.toLowerCase() == "work order with grouped pulls") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && typeof(ReportRange) != "undefined" && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "work order") {
+                if ($('#ddlModuleItemTypes') != null && $('#ddlModuleItemTypes') != undefined && $('#ddlModuleItemTypes').length > 0) {
+                    var SelectedWOType = null;
+                    SelectedWOType = getSelectedID('ddlModuleItemTypes');
+                    if (SelectedWOType != null && typeof(SelectedWOType) != "undefined" && $.trim(SelectedWOType).length > 0)
+                        objkeyVal.push({ 'key': 'WOType', 'value': SelectedWOType });
+                }
+
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && typeof (ReportRange) != "undefined" && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "work order last cost") {
+                if ($('#ddlModuleItemTypes') != null && $('#ddlModuleItemTypes') != undefined && $('#ddlModuleItemTypes').length > 0) {
+                    var SelectedWOType = null;
+                    SelectedWOType = getSelectedID('ddlModuleItemTypes');
+                    if (SelectedWOType != null && typeof (SelectedWOType) != "undefined" && $.trim(SelectedWOType).length > 0)
+                        objkeyVal.push({ 'key': 'WOType', 'value': SelectedWOType });
+                }
+
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "transfer") {
+                if ($('#ddlModuleItemTypes') != null && $('#ddlModuleItemTypes') != undefined && $('#ddlModuleItemTypes').length > 0) {
+                    var SelectedTransferType = null;
+                    SelectedTransferType = getSelectedID('ddlModuleItemTypes');
+                    if (SelectedTransferType != null && typeof (SelectedTransferType) != "undefined" && $.trim(SelectedTransferType).length > 0)
+                        objkeyVal.push({ 'key': 'TransferType', 'value': SelectedTransferType });
+                }
+
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "move bin transactions") {
+
+                if ($('#ddlModuleItemTypes') != null && $('#ddlModuleItemTypes') != undefined && $('#ddlModuleItemTypes').length > 0) {
+                    var SelectedMoveType = null;
+                    SelectedMoveType = getSelectedID('ddlModuleItemTypes');
+                    if (SelectedMoveType != null && SelectedMoveType != undefined && $.trim(SelectedMoveType).length > 0)
+                        objkeyVal.push({ 'key': 'MoveType', 'value': SelectedMoveType });
+                }
+
+                objkeyVal.push({ 'key': 'IsSelectAllRangeDataMove', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            
+            if (ParentReportName.toLowerCase() == "audittrail transaction summary" || ParentReportName.toLowerCase() == "workorders list") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "order" || ParentReportName.toLowerCase() == "order summary" || ParentReportName.toLowerCase() == "order summary lineitem"
+                || ParentReportName.toLowerCase() == "order item summary" || ParentReportName.toLowerCase() == "writtenofftools" || ParentReportName.toLowerCase() == "orders closed"
+                || ParentReportName.toLowerCase() == "orders with lineitems" || ParentReportName.toLowerCase() == "items" || ParentReportName.toLowerCase() == "items with suppliers"
+                || ParentReportName.toLowerCase() == "inventory reconciliation"
+                || ParentReportName.toLowerCase() == "received items"
+                || ParentReportName.toLowerCase() == "inventory daily history") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+
+                    if (ParentReportName.toLowerCase() == "orders closed") {
+                        var foundIndex = objkeyVal.findIndex(x => x.key == 'OrderStatus');
+                        objkeyVal[foundIndex].value = @Convert.ToInt32(OrderStatus.Closed);
+                    }
+                }
+            }
+            if (ModuleName.toLowerCase() == 'replenish_order'
+                && ParentReportName.toLowerCase() == "order item summary") {
+                if ($("input#chkExcludeZeroOrdQty").length > 0) {
+                    objkeyVal.push({ 'key': 'ExcludeZeroOrdQty', 'value': $("input#chkExcludeZeroOrdQty").is(":checked") });
+                }
+            }
+            if (ModuleName.toLowerCase() == 'checkouttool'
+                && ParentReportName.toLowerCase() == "tools checked out") {
+                if ($("input#chkAllCheckedOutTools").length > 0) {
+                    objkeyVal.push({ 'key': 'AllCheckedOutTools', 'value': $("input#chkAllCheckedOutTools").is(":checked") });
+                }
+            }
+
+            if (selectedValues.length > 0) {
+                ShowLocalReports(objkeyVal, $('#hdnRPTFileName').val());
+            }
+            else {
+                alert('@ResCommon.msgNoDataFound');
+            }
+
+            //SaveLocalReportPDF(objkeyVal, $('#hdnRPTFileName').val());
+
+        }
+
+    });
+
+    function validateDateRangeForPullSummaryByQuarter(startDate, endDate, startTime, endTime)
+    {
+        var obj = { StartDate: startDate, EndDate: endDate, StartTime: startTime, EndTime: endTime }
+        var returnValue = true;
+
+        $.ajax({
+            url: '/ReportBuilder/GetUTCStartAndEndDate',
+            type: 'Post',
+            data: JSON.stringify(obj),
+            dataType: 'json',
+            async: false,
+            contentType: 'application/json',
+            success: function (result) {
+                if (typeof (result.StartDateUTC) != "undefined" && result.StartDateUTC != null && result.StartDateUTC.length > 0
+                    && typeof (result.EndDateUTC) != "undefined" && result.EndDateUTC != null && result.EndDateUTC.length > 0) {
+                    var tmpStartDate = $.datepicker.parseDate("yy-mm-dd", result.StartDateUTC);//new Date(startDate);
+                    var tmpEndDate = $.datepicker.parseDate("yy-mm-dd", result.EndDateUTC);//new Date(endDate);
+                    var startDateYear = tmpStartDate.getFullYear();
+                    var endDateYear = tmpEndDate.getFullYear();
+                    var startDateMonth = tmpStartDate.getMonth() + 1;
+                    var endDateMonth = tmpEndDate.getMonth() + 1;
+
+                    if (startDateYear != endDateYear) {
+                        if (startDateMonth <= endDateMonth) {
+                            returnValue = false;
+                        }
+                    }
+                    else {
+                        if (Math.abs(startDateMonth - endDateMonth) > 12) {
+                            returnValue = false;
+                        }
+                    }
+                }
+            },
+            error: function (xhr) {
+                console.log(xhr);
+            }
+        });
+
+        return returnValue;
+    }
+
+    $('#chkOnlyExpirationItems').live('change', function () {
+        if (!(typeof (IsEnterpriseQLRangeSelected) != "undefined" && IsEnterpriseQLRangeSelected())) {
+            FillModuleItem();
+        }
+    });
+
+    $(document).on('change', 'input#chkOnlyAvailQty', function () {
+        FillModuleItem();
+    });
+
+    $(document).on('change', 'select#ddlAppliedFilter', function () {
+        FillModuleItem();
+    })
+
+    $(document).on('change', 'select#ddlUsageType', function () {
+        FillModuleItem();
+    })
+
+    $(document).on('change', 'input#chkAllowItemWithZeroPullUsage', function () {
+        FillModuleItem();
+    });
+    $(document).on('change', 'input#chkAllCheckedOutTools', function () {
+        if ($("input#chkAllCheckedOutTools").is(":checked")) {
+            $("#liStartDate").hide();
+            $("#liEndDate").hide();
+        }
+        else {
+            $("#liStartDate").show();
+            $("#liEndDate").show();
+        }
+        FillModuleItem();
+    });
+    $('#chkincludestockedouttools').live('change', function () {
+        FillModuleItem();
+    });
+    $(document).on('change', 'input#chkExcludeZeroOrdQty', function () {
+        FillModuleItem();
+    });
+
+
+    $(document).on('change', 'input#chkCheckAllItem', function () { });
+    $('#chkOnlyExpiredItems').live('change', function () {
+        if ($(this).is(":checked")) {
+
+            $("input#txtItemsExpired").val('');
+            $("input#txtItemsApproved").val('');
+            $("input#txtItemsExpired").attr("disabled", "diabled");
+            $("input#txtItemsApproved").attr("disabled", "diabled");
+            $("input#txtProjectExpirationDate").val('');
+            $("input#txtProjectExpirationDate").attr("disabled", "diabled");
+            $("input#txtProjectExpirationDate").addClass("disableBack");
+            $("input#txtItemsExpired").addClass("disableBack");
+            $("input#txtItemsApproved").addClass("disableBack");
+        }
+        else {
+            $("input#txtItemsApproved").val('');
+            $("input#txtItemsExpired").removeAttr("disabled");
+            $("input#txtItemsExpired").val('');
+            $("input#txtProjectExpirationDate").val('');
+            $("input#txtProjectExpirationDate").removeAttr("disabled");
+            $("input#txtItemsApproved").removeAttr("disabled");
+            $("input#txtProjectExpirationDate").removeClass("disableBack");
+            $("input#txtItemsExpired").removeClass("disableBack");
+            $("input#txtItemsApproved").removeClass("disableBack");
+        }
+        FillModuleItem();
+    });
+
+    $('#btnsend').live('click', function () {
+        if ($('#lstReports').val().length > 0) {
+            var roomIDs = new Array();
+            var compIDs = new Array();
+            var status = new Array();
+
+            objkeyVal = new Array();
+
+            compIDs = getSelectedID('ddlRCompany');
+            roomIDs = getSelectedID('ddlRRoom');
+            status = getSelectedID('ddlModuleItem');
+
+
+            //var selectedValues = $.map($('#lstModuleItem option:selected'), function (element) {
+            //    return element.value;
+            //});
+
+            var ModuleName = "";
+            var ParentReportName = "";
+            if ($('#hdnModuleName') != null && $('#hdnModuleName') != undefined && $('#hdnModuleName').length > 0) {
+                ModuleName = $("#hdnModuleName").val();
+            }
+            if ($('#hdnParentReportName') != null
+                && typeof ($('#hdnParentReportName')) != "undefined"
+                && $('#hdnParentReportName').length > 0) {
+                ParentReportName = $("#hdnParentReportName").val();
+            }
+            var selectedValues = "";
+            if (IsEnterpriseQLRangeSelected() && ParentReportName.toLowerCase() != "instock" && ParentReportName.toLowerCase() != "instock by activity") {
+                selectedValues = $.map($('#lstModuleItem option:selected'), function (element) {
+                    if (element.value.indexOf(',#@@') >= 0) {
+                        return element.value.substring(0, element.value.indexOf(',#@@'));
+                    }
+                    else {
+                        return element.value;
+                    }
+                });
+            }
+            else {
+                selectedValues = $.map($('#lstModuleItem option:selected'), function (element) {
+                    return element.value;
+                });
+            }
+
+            if (ModuleName.toLowerCase() == 'inventorydailyhistorywithdaterange') {
+                if ($('#lstModuleItem option:selected').length > 1) {
+                    alert('@ResReportMaster.MsgSelectOnyOneItemToSendReport')
+                    return false;
+                }
+            }
+
+            if (selectedValues == null || selectedValues.length <= 0) {
+                alert('@ResReportMaster.ReqItemToViewReport')
+                return false;
+                //selectedValues = $.map($('#lstModuleItem option'), function (element) {
+                //    return element.value;
+                //});
+            }
+
+            if (compIDs.length > 0) {
+                objkeyVal.push({ 'key': 'CompanyIDs', 'value': compIDs });
+            }
+
+            if (selectedValues.length > 0) {
+                objkeyVal.push({ 'key': 'OrderStatus', 'value': status });
+            }
+
+            if (selectedValues.length > 0) {
+                objkeyVal.push({ 'key': 'DataGuids', 'value': selectedValues.join(',') });
+            }
+
+            if (selectedValues.length > 0) {
+                objkeyVal.push({ 'key': 'WorkOrderGuid', 'value': selectedValues.join(',') });
+            }
+
+            if (roomIDs.length > 0) {
+                objkeyVal.push({ 'key': 'RoomIDs', 'value': roomIDs });
+            }
+
+            if ($('#txtStartDate').length > 0 && $('#txtStartDate').val().length > 0) {
+                objkeyVal.push({ 'key': 'StartDate', 'value': $('#txtStartDate').val() });
+            }
+
+            if ($('#txtEndDate').length > 0 && $('#txtEndDate').val().length > 0) {
+                objkeyVal.push({ 'key': 'EndDate', 'value': $('#txtEndDate').val() });
+            }
+
+            var sortField = '';
+            if ($('#ddlSortFieldFirst').length > 0 && $('#ddlSortFieldFirst').val().length > 0) {
+                sortField += $('#ddlSortFieldFirst').val() + ' ' + $('#ddlSortOrderFirst').val();
+            }
+            if ($('#ddlSortFieldSecond').length > 0 && $('#ddlSortFieldSecond').val().length > 0) {
+                if (sortField.length > 0)
+                    sortField += ', ';
+                sortField += $('#ddlSortFieldSecond').val() + ' ' + $('#ddlSortOrderSecond').val();
+            }
+            if ($('#ddlSortFieldThird').length > 0 && $('#ddlSortFieldThird').val().length > 0) {
+                if (sortField.length > 0)
+                    sortField += ', ';
+                sortField += $('#ddlSortFieldThird').val() + ' ' + $('#ddlSortOrderThird').val();
+            }
+            if ($('#ddlSortFieldFourth').length > 0 && $('#ddlSortFieldFourth').val().length > 0) {
+                if (sortField.length > 0)
+                    sortField += ', ';
+                sortField += $('#ddlSortFieldFourth').val() + ' ' + $('#ddlSortOrderFourth').val();
+            }
+            if ($('#ddlSortFieldFifth').length > 0 && $('#ddlSortFieldFifth').val().length > 0) {
+                if (sortField.length > 0)
+                    sortField += ', ';
+                sortField += $('#ddlSortFieldFifth').val() + ' ' + $('#ddlSortOrderFifth').val();
+            }
+            if (sortField.length > 0) {
+                objkeyVal.push({ 'key': 'SortFields', 'value': sortField });
+            }
+
+            var qohFilter = new Array();
+            if ($('#ddlFilterQOH').length > 0)
+                qohFilter = getSelectedID('ddlFilterQOH');
+
+            if (qohFilter.length > 0) {
+                objkeyVal.push({ 'key': 'QOHFilter', 'value': qohFilter });
+            }
+
+            if ($('#chkOnlyExpirationItems').length > 0) {
+                if ($('#chkOnlyExpirationItems').attr('checked') == "checked") {
+                    objkeyVal.push({ 'key': 'OnlyExirationItems', 'value': 'Yes' });
+                }
+            }
+
+            if ($("input#chkOnlyAvailQty").length > 0 && $("input#chkOnlyAvailQty").is(":checked")) {
+                objkeyVal.push({ 'key': 'OnlyAvailableTools', 'value': 'HasQty' });
+            }
+            else {
+                objkeyVal.push({ 'key': 'OnlyAvailableTools', 'value': '' });
+            }
+
+            if ($('#chkNoHeader').attr('checked') == "checked") {
+                objkeyVal.push({ 'key': 'IsNoHeader', 'value': '1' });
+            }
+
+            if ($('#chkShowSignature').attr('checked') == "checked") {
+                objkeyVal.push({ 'key': 'ShowSignature', 'value': '1' });
+            }
+
+            if ($("select#ddlAppliedFilter").length > 0) {
+                objkeyVal.push({ 'key': 'AppliedFilter', 'value': $("select#ddlAppliedFilter").val() });
+            }
+
+            if ($("select#ddlUsageType").length > 0) {
+                objkeyVal.push({ 'key': 'UsageType', 'value': $("select#ddlUsageType").val() });
+            }
+
+            if ($("input#chkAllowItemWithZeroPullUsage").length > 0 && $("input#chkAllowItemWithZeroPullUsage").is(":checked")) {
+                objkeyVal.push({ 'key': 'IsAllowedZeroPullUsage', 'value': '1' });
+            }
+            else {
+                objkeyVal.push({ 'key': 'IsAllowedZeroPullUsage', 'value': '0' });
+            }
+
+            if ($("input#txtAUDayOfUsageToSample").length > 0) {
+                objkeyVal.push({ 'key': 'AUDayOfUsageToSample', 'value': $("input#txtAUDayOfUsageToSample").val() });
+            }
+
+            if ($("select#ddlAUMeasureMethod").length > 0) {
+                objkeyVal.push({ 'key': 'AUMeasureMethod', 'value': $("select#ddlAUMeasureMethod").val() });
+            }
+
+            if ($("input#txtMinMaxDayOfAverage").length > 0) {
+                objkeyVal.push({ 'key': 'MinMaxDayOfAverage', 'value': $("input#txtMinMaxDayOfAverage").val() });
+            }
+
+            if ($("input#txtMinMaxMinNumberOfTimesMax").length > 0) {
+                objkeyVal.push({ 'key': 'MinMaxMinNumberOfTimesMax', 'value': $("input#txtMinMaxMinNumberOfTimesMax").val() });
+            }
+
+            if (ModuleName.toLowerCase() == 'cart') {
+                if ($("select#ddlCartType").length > 0) {
+                    objkeyVal.push({ 'key': 'CartType', 'value': $("select#ddlCartType").val() });
+                }
+            }
+
+            if ($('#chkincludestockedouttools').length > 0) {
+                if ($('#chkincludestockedouttools').attr('checked') == "checked") {
+                    objkeyVal.push({ 'key': 'Includestockedouttools', 'value': 'Yes' });
+                }
+            }
+            if (ParentReportName.toLowerCase() == "pull summary" || ParentReportName.toLowerCase() == "pull summary by quarter") {
+                if ($('#ddlItemStatus') != null && $('#ddlItemStatus') != undefined && $('#ddlItemStatus').length > 0) {
+                    var ItemIsActive = getSelectedID('ddlItemStatus');
+                    if (ItemIsActive != null && ItemIsActive != undefined && ItemIsActive != '' && ItemIsActive != ',')
+                        objkeyVal.push({ 'key': 'ItemIsActive', 'value': ItemIsActive });
+                    else
+                        objkeyVal.push({ 'key': 'ItemIsActive', 'value': '1,0' });
+                }
+                if (ParentReportName.toLowerCase() == "pull summary") {
+                    objkeyVal.push({ 'key': 'IsSelectAllRangeDataPull', 'value': $("#chkCheckAllItem").is(":checked") });
+                    var SelectedReportRange = null;
+                    if ($("select#ddlReportRange").length > 0) {
+                        var ReportRange = getSelectedID('ddlReportRange');
+                        ReportRange = (ReportRange).trim();
+                        var lastChar = ReportRange.slice(-1);
+                        if (lastChar == ',') { // check last character is string
+                            ReportRange = ReportRange.slice(0, -1); // trim last character
+                        }
+                        if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                            SelectedReportRange = ReportRange;
+                        else
+                            SelectedReportRange = null;
+                        objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                    }
+                    if ($("#chkCheckAllItem").is(":checked") == true) {
+                        var indexNew = -1;
+                        var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                            if ($.trim(obj.key) == "DataGuids") {
+                                indexNew = index;
+                            }
+                            return $.trim(obj.key) == "DataGuids";
+                        });
+                        if (indexNew != -1) {
+                            objkeyVal[indexNew].value = "";
+                        }
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "pull" || ParentReportName.toLowerCase() == "pull item summary"
+                || ParentReportName.toLowerCase() == "pull incomplete" || ParentReportName.toLowerCase() == "pull completed"
+                || ParentReportName.toLowerCase() == "pull summary by wo"
+                || ParentReportName.toLowerCase() == "pull summary by consignedpo"
+                || ParentReportName.toLowerCase() == "pull summary by quarter"
+                || ParentReportName.toLowerCase() == "pull no header"
+                || ParentReportName.toLowerCase() == "credit pull"
+                || ParentReportName.toLowerCase() == "cumulative pull"
+                || ParentReportName.toLowerCase() == "total pulled") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeDataPull', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "instock" || ParentReportName.toLowerCase() == "instock by activity") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeDataInStock', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+          
+            if (ModuleName.toLowerCase() == "workorderlist" || ParentReportName.toLowerCase() == "work order with grouped pulls") {
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    if (ReportRange != null && typeof (ReportRange) != "undefined" && ReportRange != '' && ReportRange != ',')
+                        ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                        SelectedReportRange = ReportRange;
+                    }
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'RangeFieldName', 'value': SelectedReportRange });
+                }
+                if (ParentReportName.toLowerCase() == "work order with grouped pulls") {
+                    if ($('#ddlModuleItemTypes') != null && $('#ddlModuleItemTypes') != undefined && $('#ddlModuleItemTypes').length > 0) {
+                        var SelectedWOType = null;
+                        SelectedWOType = getSelectedID('ddlModuleItemTypes');
+                        if (SelectedWOType != null && typeof (SelectedWOType) != "undefined" && $.trim(SelectedWOType).length > 0)
+                            objkeyVal.push({ 'key': 'WOType', 'value': SelectedWOType });
+                    }
+                }
+            }
+
+            if (ModuleName.toLowerCase() == "unfulfilledorders") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }	
+          
+            if (ParentReportName.toLowerCase() == "work order with attachment") {
+                if ($('#ddlModuleItemTypes') != null && $('#ddlModuleItemTypes') != undefined && $('#ddlModuleItemTypes').length > 0) {
+                    var SelectedWOType = null;
+                    SelectedWOType = getSelectedID('ddlModuleItemTypes');
+                    if (SelectedWOType != null && typeof (SelectedWOType) != "undefined" && $.trim(SelectedWOType).length > 0)
+                        objkeyVal.push({ 'key': 'WOType', 'value': SelectedWOType });
+                }
+
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+
+
+            if (ParentReportName.toLowerCase() == "requisition") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeDataReq', 'value': $("#chkCheckAllItem").is(":checked") });
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "requisition with lineitems" || ParentReportName.toLowerCase() == "work order with grouped pulls") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && typeof (ReportRange) != "undefined" && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "work order") {
+                if ($('#ddlModuleItemTypes') != null && $('#ddlModuleItemTypes') != undefined && $('#ddlModuleItemTypes').length > 0) {
+                    var SelectedWOType = null;
+                    SelectedWOType = getSelectedID('ddlModuleItemTypes');
+                    if (SelectedWOType != null && typeof (SelectedWOType) != "undefined" && $.trim(SelectedWOType).length > 0)
+                        objkeyVal.push({ 'key': 'WOType', 'value': SelectedWOType });
+                }
+                objkeyVal.push({ 'key': 'WOStatus', 'value': status });
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && typeof(ReportRange) != "undefined" && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "work order last cost") {
+                if ($('#ddlModuleItemTypes') != null && typeof($('#ddlModuleItemTypes')) != "undefined" && $('#ddlModuleItemTypes').length > 0) {
+                    var SelectedWOType = null;
+                    SelectedWOType = getSelectedID('ddlModuleItemTypes');
+                    if (SelectedWOType != null && typeof (SelectedWOType) != "undefined" && $.trim(SelectedWOType).length > 0)
+                        objkeyVal.push({ 'key': 'WOType', 'value': SelectedWOType });
+                }
+                objkeyVal.push({ 'key': 'WOStatus', 'value': status });
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "transfer") {
+                if ($('#ddlModuleItemTypes') != null && typeof ($('#ddlModuleItemTypes')) != "undefined" && $('#ddlModuleItemTypes').length > 0) {
+                    var SelectedTransferType = null;
+                    SelectedTransferType = getSelectedID('ddlModuleItemTypes');
+                    if (SelectedTransferType != null && typeof (SelectedTransferType) != "undefined" && $.trim(SelectedTransferType).length > 0)
+                        objkeyVal.push({ 'key': 'TransferType', 'value': SelectedTransferType });
+                }
+                
+                objkeyVal.push({ 'key': 'TransferStatus', 'value': status });
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+          
+            if (ParentReportName.toLowerCase() == "requisition item summary" || ModuleName.toLowerCase() == "WrittenOffTools".toLowerCase()) {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    if (ReportRange != null && typeof(ReportRange) != "undefined" && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'RangeFieldName', 'value': SelectedReportRange });
+                }
+
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "move bin transactions") {
+                if ($('#ddlItemStatus') != null && $('#ddlItemStatus') != undefined && $('#ddlItemStatus').length > 0) {
+                    var ItemIsActive = getSelectedID('ddlItemStatus');
+                    if (ItemIsActive != null && ItemIsActive != undefined && ItemIsActive != '' && ItemIsActive != ',')
+                        objkeyVal.push({ 'key': 'ItemIsActive', 'value': ItemIsActive });
+                    else
+                        objkeyVal.push({ 'key': 'ItemIsActive', 'value': '1,0' });
+                }
+
+                if ($('#ddlModuleItemTypes') != null && $('#ddlModuleItemTypes') != undefined && $('#ddlModuleItemTypes').length > 0) {
+                    var SelectedMoveType = null;
+                    SelectedMoveType = getSelectedID('ddlModuleItemTypes');
+                    if (SelectedMoveType != null && SelectedMoveType != undefined && $.trim(SelectedMoveType).length > 0)
+                        objkeyVal.push({ 'key': 'MoveType', 'value': SelectedMoveType });
+                }
+
+                objkeyVal.push({ 'key': 'IsSelectAllRangeDataMove', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            
+            if (ParentReportName.toLowerCase() == "audittrail transaction summary" || ParentReportName.toLowerCase() == "workorders list") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "order" || ParentReportName.toLowerCase() == "order summary" || ParentReportName.toLowerCase() == "order summary lineitem"
+                || ParentReportName.toLowerCase() == "order item summary" || ParentReportName.toLowerCase() == "orders closed"
+                || ParentReportName.toLowerCase() == "orders with lineitems" || ParentReportName.toLowerCase() == "items" || ParentReportName.toLowerCase() == "items with suppliers"
+                || ParentReportName.toLowerCase() == "inventory reconciliation"
+                || ParentReportName.toLowerCase() == "received items"
+                || ParentReportName.toLowerCase() == "inventory daily history") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+
+                    if (ParentReportName.toLowerCase() == "orders closed") {
+                        var foundIndex = objkeyVal.findIndex(x => x.key == 'OrderStatus');
+                        objkeyVal[foundIndex].value = @Convert.ToInt32(OrderStatus.Closed);
+                    }
+                }
+            }
+            if (ModuleName.toLowerCase() == 'replenish_order'
+                && ParentReportName.toLowerCase() == "order item summary") {
+                if ($("input#chkExcludeZeroOrdQty").length > 0) {
+                    objkeyVal.push({ 'key': 'ExcludeZeroOrdQty', 'value': $("input#chkExcludeZeroOrdQty").is(":checked") });
+                }
+            }
+            if (ModuleName.toLowerCase() == 'checkouttool'
+                && ParentReportName.toLowerCase() == "tools checked out") {
+                if ($("input#chkAllCheckedOutTools").length > 0) {
+                    objkeyVal.push({ 'key': 'AllCheckedOutTools', 'value': $("input#chkAllCheckedOutTools").is(":checked") });
+                }
+            }
+            if (selectedValues.length > 0) {
+                // var path = SaveLocalReportPDF(objkeyVal, $('#hdnRPTFileName').val());
+                emailPopup('');
+            }
+            else {
+                alert('@ResCommon.msgNoDataFound');
+            }
+
+            //SaveLocalReportPDF(objkeyVal, $('#hdnRPTFileName').val());
+
+        }
+
+    });
+    function emailPopup(path) {
+        //window.location = 'mailto:' + email + '?subject=' + subject + '&body=' + emailBody + '&attach="d:\test.txt"';
+        $("#sendEmailForm").dialog({
+            autoOpen: true,
+            position: { my: "center", at: "top+1050", of: window },
+            width: 1000,
+            height: 500,
+            resizable: false,
+            title: 'Send Email Form',
+            modal: true,
+            open: function () {
+                $(this).load('@Url.Action("CreateEmail", "ReportBuilder")');
+                $("input#attchfilepath").val(path);
+            },
+            buttons: {
+                "Send Email": function () {
+                    sendEmail();
+                },
+                Cancel: function () {
+                    $(this).dialog("close");
+                }
+            }
+        });
+        return false;
+    }
+    function isValidEmailAddress(emailAddress) {
+        var re = /^([\w-\.]+)@@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([\w-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\]?)$/;
+        return re.test(emailAddress);
+    };
+    function sendEmail() {
+
+
+        if ($("input#sendTo").val() == "") {
+            alert("Please enter Send To email address");
+            return false;
+        }
+        else {
+            var toManyAddress = $("input#sendTo").val().split(",");
+            var res = true;
+            for (var i = 0; i < toManyAddress.length; i++) {
+                if (toManyAddress[i] != '') {
+                    if (!isValidEmailAddress(toManyAddress[i])) {
+                        alert("Please enter valid Send To email address");
+                        return false;
+                    }
+                }
+            }
+        }
+        if ($("input#subject").val() == "") {
+            alert("Please enter Subject");
+            return false;
+        }
+        if ($("input#body").val() == "") {
+            alert("Please enter Body");
+            return false;
+        }
+
+        var obj = { paras: objkeyVal, ReportID: $('#hdnRPTFileName').val() }
+        var obj1 = { ReportID: $('#hdnRPTFileName').val() }
+
+        $.ajax({
+            url: '/Master/SetPDFReportParaDictionary',
+            type: 'Post',
+            data: JSON.stringify(obj),
+            dataType: 'json',
+            async: false,
+            contentType: 'application/json',
+            success: function (result) {
+
+                if (result.message == "ok") {
+                    $.ajax({
+                        url: '/ReportBuilder/GeneratePDF',
+                        type: 'Post',
+                        data: JSON.stringify(obj1),
+                        dataType: 'json',
+                        async: false,
+                        contentType: 'application/json',
+                        success: function (result) {
+                            $("input#attchfilepath").val(result.ReportPDFFilePath);
+                            $.ajax({
+                                url: '@Url.Action("sendEmail", "ReportBuilder")',
+                                type: 'POST',
+                                data: $("#myForm").serialize(),
+                                async: false,
+                                success: function (data) {
+                                    if (data) {
+                                        $(':input', '#myForm')
+                                          .not(':button, :submit, :reset, :hidden')
+                                          .val('')
+                                          .removeAttr('checked')
+                                          .removeAttr('selected');
+                                    }
+                                },
+                                complete: function () {
+                                    $("#sendEmailForm").dialog("close");
+                                }
+                            });
+                        },
+                        error: function (result) {
+                            return null;
+                        }
+                    });
+                }
+
+            },
+            error: function (result) {
+            }
+        });
+    }
+    function getSelectedID(objID) {
+
+        var IDs = new Array();
+        $('.ui-multiselect-menu [type="checkbox"][id^="ui-multiselect-' + objID + '-option"]').each(function () {
+
+            if ($(this).attr('checked') == 'checked') {
+                if (IDs.length > 0)
+                    IDs += ',';
+                IDs += $(this).val();
+            }
+        });
+        return IDs;
+    }
+
+    $(document).on('change', 'input#chkCheckAllItem', function () {
+        if ($(this).is(":checked")) {
+            $('#lstModuleItem option').each(function (i) {
+                $(this).attr('selected', 'selected');
+            });
+            $('#lstModuleItem').focus();
+        }
+        else {
+            $('#lstModuleItem option').each(function (i) {
+                $(this).removeAttr('selected');
+            });
+            $('#lstModuleItem').focus();
+        }
+    });
+
+    //$(document).on("change", "select#lstModuleItem, input#chkCheckAllItem", function () {
+    $(document).on("change", "select#lstModuleItem", function () {
+        if (IsEnterpriseQLRangeSelected()) {
+            var moduleSelectedValues = "";
+            if ($("#hdnParentReportName").val().toLowerCase() != "instock"
+                && $("#hdnParentReportName").val().toLowerCase() != "instock by activity") {
+                moduleSelectedValues = $.map($('#lstModuleItem option:selected'), function (element) {
+                    if (element.value.indexOf(',#@@') >= 0) {
+                        return element.value.substring(element.value.indexOf(',#@@')).replace(",#@@", "").replace("@@#", "");
+                    }
+                });
+            }
+            else {
+                moduleSelectedValues = $.map($('#lstModuleItem option:selected'), function (element) {
+                    return element.value
+                });
+            }
+
+            if (moduleSelectedValues != "" && moduleSelectedValues.length > 0) {
+                GetCompanyIdsAndRoomIdsByEnterpriseQL(moduleSelectedValues.join(","));
+            }
+        }
+        var OptionSelected = $('#lstModuleItem option:selected').length;
+        var TotalOptions = $('#lstModuleItem option').length;
+
+        if (OptionSelected == TotalOptions
+            && !IsEnterpriseQLRangeSelected()) {
+            $("#chkCheckAllItem").attr('checked', 'checked');
+        }
+        else {
+            $("#chkCheckAllItem").removeAttr('checked');
+        }
+    });
+
+    function GetCompanyIdsAndRoomIdsByEnterpriseQL(enterpriseQLGuids)
+    {
+        if (typeof (enterpriseQLGuids) != "undefined" && enterpriseQLGuids.length > 0)
+        {
+            $.ajax({
+                type: "POST",
+                url: "/EnterpriseQL/GetCompanyIdsAndRoomIdsByEnterpriseQL",
+                data: JSON.stringify({ 'EnterpriseQLGuids': enterpriseQLGuids}),
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                async: false,
+                success: function (result) {
+                    //var SelectedCompanyID = getSelectedID('ddlRCompany');
+                    //var SelectedRoomID = getSelectedID('ddlRRoom');
+
+                    if (typeof (result) != "undefined" && result != null && (result.enterpriseQLRoomCompany.CompanyIds != null && result.enterpriseQLRoomCompany.CompanyIds.length > 0
+                        || result.enterpriseQLRoomCompany.RoomIds != null && result.enterpriseQLRoomCompany.RoomIds.length > 0))
+                    {
+                        var SelectedCompanyID = '';
+                        var SelectedRoomID = '';
+
+                        if (result.enterpriseQLRoomCompany.CompanyIds != null && result.enterpriseQLRoomCompany.CompanyIds.length > 0)
+                        {
+                            SelectedCompanyID = result.enterpriseQLRoomCompany.CompanyIds;
+                            bindCompanyList(SelectedCompanyID);
+                        }
+                        if (result.enterpriseQLRoomCompany.RoomIds != null && result.enterpriseQLRoomCompany.RoomIds.length > 0) {
+                            SelectedRoomID = result.enterpriseQLRoomCompany.RoomIds;
+                            bindRoomList(SelectedCompanyID, SelectedRoomID);
+                        }
+                    }
+                },
+                error: function (response) {
+
+                }
+            });
+        }
+
+    }
+
+    function IsEnterpriseQLRangeSelected() {
+        var ModuleName = "";
+        if ($('#hdnModuleName') != null && typeof ($('#hdnModuleName')) != "undefined" && $('#hdnModuleName').length > 0) {
+            ModuleName = $("#hdnModuleName").val();
+        }
+
+        if (ModuleName != null && ModuleName != "" && (ModuleName.toLowerCase() == "instockbybin" ||
+            ModuleName.toLowerCase() == "instockbybinmargin" || ModuleName.toLowerCase() == "instockwithqoh" ||
+            ModuleName.toLowerCase() == "instockbyactivity")) {
+
+            var tmpSelectedReportRange = null;
+
+            if ($("select#ddlReportRange").length > 0) {
+                var ReportRange = getSelectedID('ddlReportRange');
+                if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                    tmpSelectedReportRange = ReportRange;
+                else
+                    tmpSelectedReportRange = null;
+            }
+
+            if (tmpSelectedReportRange != null && tmpSelectedReportRange.length > 0 && tmpSelectedReportRange.toLowerCase().replace(',', '') == "enterpriseql") {
+                return true;
+            }
+            return false;
+        }
+        return false;
+    }
+</script>

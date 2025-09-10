@@ -1,0 +1,503 @@
+﻿@model eTurns.DTO.RoleMasterDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";   
+    
+}
+<div class="userHead">
+    @{  
+        bool isUpdate = true;// eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.RoleMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+        bool isInsert = true;//eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.RoleMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);         
+    }
+    @using (Ajax.BeginForm("RoleSave", "EturnsMaster", new AjaxOptions { HttpMethod = "Post", LoadingElementId = "DivLoading", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmRole" }))
+    {
+        @Html.ValidationSummary(true)                     
+        @Html.AntiForgeryToken()
+        if (Model.ID != 0)
+        {
+        <div class="infoBlock">
+            <ul>                
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.Created)
+                    </label>
+                    : <span>@(Model.CreatedDate)</span></li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.CreatedByName)
+                    </label>
+                    : <span>@(Model.CreatedByName)</span></li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.Updated)
+                    </label>
+                    : <span>@(Model.UpdatedDate)</span></li>
+                <li style="border: none">
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.UpdatedByName)
+                    </label>
+                    : <span>@(Model.UpdatedByName)</span></li>
+            </ul>
+        </div>
+        } 
+        
+        <div class="mainForm">
+            <div class="editorForm">
+                <h4>
+                    Role Details</h4>
+                <ul>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.RoleName)<em> *</em>
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.RoleName, new { id = "txtRoleName", @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.RoleName)</span>
+                            @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                            @Html.HiddenFor(model => model.GUID)
+                            @Html.HiddenFor(model => model.Created)
+                            @Html.HiddenFor(model => model.Updated)
+                            @Html.HiddenFor(model => model.CreatedBy)
+                            @Html.HiddenFor(model => model.LastUpdatedBy)
+                            @Html.HiddenFor(model => model.CreatedByName)
+                            @Html.HiddenFor(model => model.UpdatedByName)
+                            @Html.HiddenFor(model => model.SelectedModuleIDs, new { id = "hdnSelectedModuleList" })
+                            @Html.HiddenFor(model => model.SelectedNonModuleIDs, new { id = "hdnSelectedNonModuleList" })
+                            @Html.HiddenFor(model => model.SelectedDefaultSettings, new { id = "hdnSelectedDefaultSettings" })
+                            @Html.HiddenFor(model => model.SelectedRoomAccessValue, new { id = "hdnSelectedRoomAccessValue" })
+                            @Html.HiddenFor(model => model.SelectedRoomReplanishmentValue, new { id = "hdnSelectedRoomReplanishmentValue" })
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.Description)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextAreaFor(model => model.Description, new { id = "txtDescription", @class = "text-box", maxlength = 1024 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Description)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                        <div class="BtnBlockform">
+                            <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+                            @if (isInsert == true && Model.ID == 0)
+                            {                            
+                                <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />                            
+                            }
+                            else if (isUpdate == true)
+                            {
+                            
+                                <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                            }
+                        </div>
+                    </li>
+                </ul>
+            </div>            
+        </div>
+        <div id="CreateRolePermissionDIV">
+            @Html.Partial("EturnsMaster/_CreateRolePermission", Model.RoleRoomsAccessDetail)
+        </div>
+     
+    }
+</div>
+
+@Html.Partial("_RequiredMessages")
+
+<script language="javascript" type="text/javascript">
+    //--------- Variables ----------
+    var hdnSelectedRoomReplanishmentValue = $("#hdnSelectedRoomReplanishmentValue");
+    var hdnSelectedRoomAccessValue = $("#hdnSelectedRoomAccessValue");
+    var hdnRoleID = $("#hiddenID")
+
+    var SelectedModuleList = new Array();
+    var SelectedNonModuleList = new Array();
+    var SelectedDefaultSettings = new Array();
+    var SelectedRooms = new Array();
+
+    var hdnSelectedModuleList = $("#hdnSelectedModuleList");
+    var hdnSelectedNonModuleList = $("#hdnSelectedNonModuleList");
+    var hdnSelectedDefaultSettings = $("#hdnSelectedDefaultSettings");
+
+    var ddlDefaultPermissionRooms = $("#ddlDefaultPermissionRooms");
+    var hdnCurrentSelectedRoom = 0;  //= $("#hdnCurrentSelectedRoom");
+
+
+    //--------- ----------
+    $("form").submit(function (e) {
+
+        if (RoomValidation() == false) {
+            $('div#target').fadeToggle();
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            $("#spanGlobalMessage").html('@ResRoleMaster.ReqRoomAccess');
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            return false;
+        }
+
+        //-----Set control when direct click without room selection ------\
+        var SelectedRoomReplanishment = '';
+//        $("#RoomReplanishment > option").each(function () {
+//            if (this.selected == true) {
+//                if (SelectedRoomReplanishment == '')
+//                    SelectedRoomReplanishment = this.value;
+//                else
+//                    SelectedRoomReplanishment += ',' + this.value;
+//            }
+//        });
+        $("#hdnSelectedRoomReplanishmentValue").val('');
+        $("#hdnSelectedRoomReplanishmentValue").val(SelectedRoomReplanishment);
+
+        SetSelectedModule_NonModulePermissions();
+
+        $.ajax({
+            type: "POST",
+            url: "/EturnsMaster/SaveToRolePermissionsToSession",
+            data: "{'RoleID':'" + hdnRoleID.val() + "','SelectedModuleList':'" + hdnSelectedModuleList.val() + "','SelectedNonModuleList':'" + hdnSelectedNonModuleList.val() + "','SelectedDefaultSettings':'" + hdnSelectedDefaultSettings.val() + "'}",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (message) {
+
+            },
+            error: function (response) {
+                // through errror message
+
+            }
+        });
+
+        //------------
+
+        $.validator.unobtrusive.parse("#frmRole");
+        if ($(this).valid()) {
+        }
+        e.preventDefault();
+    });
+
+
+    function onSuccess(response) {
+        IsRefreshGrid = true;
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            clearControls('frmRole');
+
+            $('input:checkbox').removeAttr('checked');
+            $("#txtDescription").val("");
+
+            $("#txtRoleName").val("");
+            $("#txtRoleName").focus();
+        }
+        else if (idValue == 0) {
+            clearControls('frmRole');
+            $("#txtRoleName").val("");
+            $("#txtRoleName").focus();
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else
+                clearControls('frmRole');
+        }
+        else if (idValue > 0) {
+
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                $("#txtRoleName").val("");
+                $("#txtRoleName").focus();
+            }
+            else {
+                clearControls('frmRole');
+                SwitchTextTab(0, 'RoleCreate', 'frmRole');
+            }
+        }
+    }
+
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#txtRoleName").focus();
+    }
+
+    $(document).ready(function () {
+       // $('form').areYouSure();
+        if ($("#hdnSelectedModuleList").val() != '') {
+            SelectedModuleList = $("#hdnSelectedModuleList").val().split(',');
+        }
+
+        if ($("#hdnSelectedNonModuleList").val() != '') {
+            SelectedNonModuleList = $("#hdnSelectedNonModuleList").val().split(',');
+        }
+        if ($("#hdnSelectedDefaultSettings").val() != '') {
+            SelectedDefaultSettings = $("#hdnSelectedDefaultSettings").val().split(',');
+        }
+
+
+        $('#btnCancel').click(function (e) {
+//            if (IsRefreshGrid)
+//                $('#NarroSearchClear').click();
+            SwitchTextTab(0, 'RoleCreate', 'frmRole');
+            if (oTable !== undefined && oTable != null) {
+                oTable.fnDraw();
+            }
+        });
+
+    });
+
+    $(function () {
+        $("#tabs").tabs();
+    });
+    //-----------------------------------------------   
+
+
+    function RoomChanged() {
+        var SelectedRoomID = 0; // $("#ddlSelectedRooms").val();
+        $("#ddlSelectedRooms > option").each(function () {
+            if (this.selected == true) {
+                SelectedRoomID = this.value;
+            }
+        });
+        SetDefaultPermissionRooms();
+
+        SetSelectedModule_NonModulePermissions();
+
+        $.ajax({
+            type: "POST",
+            url: "/EturnsMaster/SaveToRolePermissionsToSession",
+            data: "{'RoomID': '" + hdnCurrentSelectedRoom + "' ,'RoleID':'" + hdnRoleID.val() + "','SelectedModuleList':'" + hdnSelectedModuleList.val() + "','SelectedNonModuleList':'" + hdnSelectedNonModuleList.val() + "','SelectedDefaultSettings':'" + hdnSelectedDefaultSettings.val() + "'}",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (message) {
+            },
+            error: function (response) {
+                // through errror message
+            }
+        });
+        ClearRoomAccessHidden();
+
+        $("#CreateRolePermissionDIV").load("/EturnsMaster/RolePermissionCreate",
+    { RoomID: SelectedRoomID, RoleID: hdnRoleID.val() }, function () {
+        hdnCurrentSelectedRoom = SelectedRoomID;
+        SetSelectedModule_NonModulePermissions();
+    });
+        EnableDisableRoomsControls();
+    }
+
+    function SetSelectedModule_NonModulePermissions() {
+        hdnSelectedModuleList.val('');
+        hdnSelectedNonModuleList.val('');
+        hdnSelectedDefaultSettings.val('');
+
+        SelectedNonModuleList = [];
+        SelectedModuleList = [];
+        SelectedDefaultSettings = [];
+
+        $("#CreateRolePermissionDIV input:checkbox").each(function () {
+            var ControlID = this.id.toLowerCase();
+            if (ValidateCheckBox(ControlID) == true) {
+                if (this.checked == true) {
+                    if (ControlID.toLowerCase().indexOf("_ischecked") != -1) {
+                        SelectedNonModuleList.push(ControlID);
+                    }
+                    else {
+                        SelectedModuleList.push(ControlID);
+                    }
+                }
+            }
+        });
+
+        $("#CreateRolePermissionDIV input:text").each(function () {
+            if (this.value != '') {
+                var txtcnt = this.id + '#' + this.value;
+                SelectedDefaultSettings.push(txtcnt);
+            }
+        });
+
+        if (SelectedModuleList.toString() != '') {
+            hdnSelectedModuleList.val(SelectedModuleList.toString());
+        }
+        if (SelectedNonModuleList.toString() != '') {
+            $("#hdnSelectedNonModuleList").val(SelectedNonModuleList.toString());
+        }
+        if (SelectedDefaultSettings.toString() != '') {
+            $("#hdnSelectedDefaultSettings").val(SelectedDefaultSettings.toString());
+        }
+    }
+
+    function ClearRoomAccessHidden() {
+        hdnSelectedModuleList.val('');
+        hdnSelectedNonModuleList.val('');
+        SelectedModuleList = [];
+        SelectedNonModuleList = [];
+    }
+
+    function Checkclick(chkDropdown, event) {
+        var found = false;
+        var ElementID;
+
+        if (event.type == 'multiselectcheckall' || event.type == 'multiselectuncheckall') {
+            $("#ddlDefaultPermissionRooms > option").remove();
+            if (event.type == 'multiselectcheckall') {
+                $("#ddlSelectedRooms > option").remove();
+                $("#RoomData > option").each(function () {
+                    var ss = '<option value="' + this.value + '">' + this.text + '</option>';
+                    $("#ddlSelectedRooms").append(ss);
+                });
+            }
+            else if (event.type == 'multiselectuncheckall') {
+                $("#ddlSelectedRooms > option").remove();
+            }
+        } else {
+
+            $("#ddlSelectedRooms > option").each(function () {
+                if (this.value == chkDropdown.value) {
+                    found = true;
+                    ElementID = chkDropdown.value;
+                    return;
+                }
+            });
+
+            if (chkDropdown.checked == true) {
+                if (found == false) {
+                    var ss = '<option value="' + chkDropdown.value + '">' + chkDropdown.text + '</option>';
+                    $("#ddlSelectedRooms").append(ss);
+                }
+            }
+            else {
+                $('#ddlSelectedRooms option[value="' + ElementID + '"]').remove();
+            }
+        }
+
+        SelectedRooms = [];
+        $("#ddlSelectedRooms > option").each(function () {
+            SelectedRooms.push(this.value);
+        });
+
+        var SelectedRoomID = 0
+        $.ajax({
+            type: "POST",
+            url: "/EturnsMaster/AddRemoveRoomsToSession",
+            data: "{'RoomIDs': '" + SelectedRooms.toString() + "'}",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (message) {
+            },
+            error: function (response) {
+                // through errror message
+            }
+        });
+        if (SelectedRooms.toString() != '') {
+            SelectedRoomID = SelectedRooms[0];
+        }
+        $("#CreateRolePermissionDIV").load("/EturnsMaster/RolePermissionCreate",
+    { RoomID: SelectedRoomID, RoleID: hdnRoleID.val() }, function () {
+        hdnCurrentSelectedRoom = SelectedRoomID;
+        SetSelectedModule_NonModulePermissions();
+    });
+        SetDefaultPermissionRooms();
+        EnableDisableRoomsControls();
+    }
+
+    function EditModeSetRoomReplanishmentData() {
+        if ($("#hdnSelectedRoomReplanishmentValue").val() != '') {
+            var Rnreplenish = $("#hdnSelectedRoomReplanishmentValue").val().split(",");
+            for (var i = 0; i < Rnreplenish.length; i++) {
+                $("#RoomReplanishment").multiselect("widget").find(":checkbox[value='" + Rnreplenish[i] + "']").attr("checked", "checked");
+                $("#RoomReplanishment option[value='" + Rnreplenish[i] + "']").attr("selected", 1);
+                $("#RoomReplanishment").multiselect("refresh");
+            }
+        }
+    }
+
+    function EditModeSetData() {
+        if (hdnSelectedRoomAccessValue.val() != '') {
+            var FirstRoomID = 0;
+            var Rn = hdnSelectedRoomAccessValue.val().split(",");
+            for (var i = 0; i < Rn.length; i++) {
+                var Rnames = Rn[i].split("_");
+                if (i == 0) {
+                    FirstRoomID = Rnames[0];
+                }
+                var ss = '<option value="' + Rnames[0] + '">' + Rnames[1] + '</option>';
+                $("#ddlSelectedRooms").append(ss);
+
+                $("#RoomData").multiselect("widget").find(":checkbox[value='" + Rnames[0] + "']").attr("checked", "checked");
+                $("#RoomData option[value='" + Rnames[0] + "']").attr("selected", 1);
+                $("#RoomData").multiselect("refresh");
+            }
+
+            if (FirstRoomID > 0) {
+                $("#ddlSelectedRooms").multiselect("widget").find(":checkbox[value='" + FirstRoomID + "']").attr("checked", "checked");
+                $("#ddlSelectedRooms option[value='" + FirstRoomID + "']").attr("selected", 1);
+                $("#ddlSelectedRooms").multiselect("refresh");
+
+                SetDefaultPermissionRooms();
+
+                $("#CreateRolePermissionDIV").load("/EturnsMaster/RolePermissionCreate", { RoomID: FirstRoomID, RoleID: hdnRoleID.val() }, function () {
+                    hdnCurrentSelectedRoom = FirstRoomID;
+                    SetSelectedModule_NonModulePermissions();
+                });
+            }
+        }
+        EnableDisableRoomsControls();
+    }
+
+    function SetDefaultPermissionRooms() {
+//        $("#ddlDefaultPermissionRooms > option").remove();
+
+//        $("#ddlSelectedRooms > option").each(function () {
+//            if (this.selected == false) {
+//                var ss = '<option value="' + this.value + '">' + this.text + '</option>';
+//                ddlDefaultPermissionRooms.append(ss);
+//            }
+//        });
+//        ddlDefaultPermissionRooms.multiselect("refresh");
+    }
+
+    
+    function RoomValidation() {
+//        var RoomAvailable = false;
+//        $("#ddlSelectedRooms > option").each(function () {
+//            if (this.selected == true) {
+//                RoomAvailable = true;
+//            }
+//        });
+
+//        return RoomAvailable;
+    }
+
+    function EnableDisableRoomsControls() {
+       // var SelectedRoomscnt = $("#ddlSelectedRooms > option").length;
+
+        if (SelectedRoomscnt == 0) {
+            $('#CreateRolePermissionDIV :input').attr('disabled', true);
+        }
+        else {
+            $('#CreateRolePermissionDIV :input').removeAttr('disabled');
+        }
+    }
+
+    function ValidateCheckBox(Chked) {
+        var result = true;
+        if (Chked.toLowerCase().indexOf("rowall") != -1) {
+            result = false;
+        }
+        else if (Chked.toLowerCase().indexOf("allview") != -1) {
+            result = false;
+        }
+        else if (Chked.toLowerCase().indexOf("allinsert") != -1) {
+            result = false;
+        }
+        else if (Chked.toLowerCase().indexOf("alldelete") != -1) {
+            result = false;
+        }
+        else if (Chked.toLowerCase().indexOf("allupdate") != -1) {
+            result = false;
+        }
+        return result;
+
+    }
+</script>

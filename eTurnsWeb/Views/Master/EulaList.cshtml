@@ -1,0 +1,368 @@
+﻿@{
+    ViewBag.Title = ResEulaMaster.PageTitle;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    string EULAPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/EULA.pdf", DateTime.Now.Ticks);
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("EULA", (int)HelpDocType.Module);
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/site.css")" />
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script type='text/javascript' src="@Url.Content("~/Scripts/ajaxfileupload.js?v=" + version)"></script>
+    <script type="text/javascript">
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+
+        $(document).ready(function () {
+
+            LoadTabs();
+        });
+        var TabsArry = [new TabClass('tab5', '@ResLayout.Eula', 'CallBackTabs("tab5");', true, true)];
+        function CallBackTabs(tab) {
+            fillBarcodeGrid();
+        }
+    </script>
+}
+<style>
+    ul.ui-autocomplete {
+        overflow-y: auto;
+        max-height: 300px;
+    }
+    .round-button {
+        width: auto;
+        display: table-cell;
+    }
+
+    .round-button-circle {
+        width: 100%;
+        border-radius: 7%;
+        overflow: hidden;
+        background: #f8f8f8;
+        box-shadow: 0 0 3px grey;
+        border-color: black;
+        padding: 2px 10px 3px 10px;
+        border-style: solid;
+        border-width: thin;
+    }
+</style>
+<form id="frmBarcodeList" method="post" action="/Barcode/BarcodeList">
+    @Html.AntiForgeryToken()
+    <div class="userListingWrapper">
+        <h2>
+            @ResEulaMaster.PageHeader
+        </h2>
+        <div class="Infoclass" style="width:70px !important">
+            @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+            {
+                var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+                if (VideoCount > 1)
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <a href="#" style="z-index:205 !important">
+                            <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                        </a>
+                        <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                            <ul class="sub_subMenu">
+                                @foreach (var item in objHelpDocDtlDTO)
+                                {
+                                    if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                    {
+                                        <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                    }
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                    helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                    if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                    {
+                        <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                            <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                        </div>
+                    }
+                }
+            }
+            @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+            {
+                var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+                if (DocCount > 1)
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <a href="#" style="z-index:205 !important">
+                            <img src="~/Content/images/Info.png" alt="Help" />
+                        </a>
+                        <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                            <ul class="sub_subMenu">
+                                @foreach (var item in objHelpDocDtlDTO)
+                                {
+                                    if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                    {
+                                        <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                    }
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                    helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                    if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                    {
+                        <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                            <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                        </div>
+                    }
+                }
+            }
+        </div>
+        <div class="userListBlock">
+            <ul class='tabs'></ul>
+            <div id="CtabNew" class="tabContener" style="min-height: 620px;">
+            </div>
+            <div id="Ctab" class="tabContener" style="min-height: 620px;">
+                <div style="float: left; width: 99%; margin: 10px;">
+                </div>
+                <div class="searchWrapper">
+                    <div class="searchBlock">
+                        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                        <div class="searchinputB">
+                            <input type="text" class="searchinput" id="txtItemFilter" />
+                            <a href="javascript:void(0);" class="xclose">
+                                <img src="~/Content/images/x.png" alt="X" id="imgClearItemFilter" />
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="userHead" id="divSearchedItem" >
+                  
+
+                    <div style="width: 80%; float: left; margin: 10px;" class="editor-label">
+                        <ul>
+                            <li>
+                                <label for="RoomName">
+                                    @ResEulaMaster.EulaName:&nbsp;<em> *</em>
+                                </label>
+                                <input type="text" id="txtEulaName" style="width: 200px; background: white;" value=""
+                                       class="text-box" maxlength="512" />
+
+                                <label for="RoomName">
+                                    @ResEulaMaster.EulaDescription:&nbsp;
+                                </label>
+                                <input type="text" id="txtEulaDescription" style="width: 200px; background: white;" value=""
+                                       class="text-box" maxlength="512" />
+                                @ResEulaMaster.EulaFileName: <em> *</em>
+                                <input type="file" id="EulaFileUpload" name="EulaFileUpload" style="display:none;" title="@ResEulaMaster.ChooseFile" />
+                                <div class='round-button' id="CustomEulaFileUpload" style="display: inline;">
+                                    <label class="round-button-circle" for="EulaFileUpload">@ResCommon.ChooseFile</label><label id="lblnofilechoosen" style="padding-left:5px">@ResCommon.Nofilechosen</label>
+                                </div>
+                                <br />
+                                <input type="hidden" id="Eulaid" value="0" />
+                                &nbsp;&nbsp;&nbsp;<input type="button" id="btnAddNewEula" style="float: none;
+                                margin: 0px;" class="CreateBtn" value="@ResCommon.Save" />
+                            </li>
+                        </ul>
+                    </div>
+                  
+                    <div id="EulaList" style="float: left; width: 80%;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+<script type="text/javascript">
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var textNofilechosen ="@(eTurns.DTO.Resources.ResCommon.Nofilechosen)";
+    $('#btnAddNewEula').click(function () {
+
+
+        var EulaName = $("#txtEulaName").val(); //.replace(/'/g, "''");
+        var EulaDescription = $('#txtEulaDescription').val();
+        var EulaID = $("#Eulaid").val();
+        var EulaFile = $("#EulaFileUpload").val();
+
+        if (EulaName.length > 0 && EulaFile.length >0) {
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("InserNewEula")',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify({ 'EulaName': EulaName, 'EulaDescription': EulaDescription, "EulaID": EulaID }),
+                success: function (response) {
+                    if (response.IsSuccess) {
+
+                        if ($("#EulaFileUpload").val() != '') {
+                            ajaxFileUpload(response.RetrunDTO.ID);
+                        }
+                        else {
+                            fillEulaGrid();
+                        }
+                        $("#txtEulaName").val('');
+                        $('#txtEulaDescription').val('');
+                        $("input#Barcodeid").val('');
+                        $("#EulaFileUpload").val('');
+                    }
+                    else {
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        ShowNotificationMessage(response.Massage);
+                    }
+                },
+                error: function (err) {
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    ShowNotificationMessage('@ResCommon.ErrorInProcess');
+                }
+            });
+        }
+        else {
+            $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            ShowNotificationMessage('@ResEulaMaster.EnterEulaNameAndSelectFile');
+        }
+    });
+    function ajaxFileUpload(retid) {
+
+
+        $("#loading")
+		.ajaxStart(function () {
+
+		})
+		.ajaxComplete(function () {
+		    setTimeout(function () { window.location.reload(); }, 1000)
+
+		});
+
+        $.ajaxFileUpload
+		(
+			{
+			    url: '/api/fileupload/PostEulaFile/' + retid,
+			    type: "POST",
+			    secureuri: false,
+			    fileElementId: 'EulaFileUpload',
+			    success: function (data, status) {
+			        fillEulaGrid();
+			    },
+			    error: function (data, status, e) {
+			        fillEulaGrid();
+			    }
+			}
+		)
+
+        return false;
+
+    }
+    $(document).ready(function () {
+        $('form').areYouSure({ 'message': MsgLostChangesConfirmation });
+        fillEulaGrid();
+        fnFilter();
+      //  $('#EulaFileUpload').trigger('click');
+    });
+
+    function fillEulaGrid() {
+        FilterGridDataFromGlobalFilter();
+    }
+
+    function FilterGridDataFromGlobalFilter() {
+        $('#DivLoading').show();
+        var searchtext = $("#txtItemFilter").val().replace(/'/g, "''");
+
+        $.post("GetEulaList?searchtext=" + searchtext, {}, function (data) {
+            $("#EulaList").html(data);
+
+            if (searchtext != '') {
+                $('.dataTables_scroll').css({ "opacity": 1 });
+                $('#EulaListTable').highlight($("#txtItemFilter").val());
+            }
+            $('#DivLoading').hide();
+
+        });
+    }
+
+    var timeoutsc1;
+    $(document).on('propertychange input', "#txtItemFilter", function () {
+
+        clearTimeout(timeoutsc1);
+        var self = this;
+        timeoutsc1 = setTimeout(function () {
+            fillEulaGrid();
+
+        }, 500);
+
+
+    });
+
+    $("#txtItemFilter").keypress(function (e) {
+        if (e.which == 13 && $("#txtItemFilter").val().length >= 2) {
+            FilterGridDataFromGlobalFilter();
+        }
+    });
+
+    function fnFilter()
+    {
+        $('#divSearchedItem').css('display', '');
+
+
+    }
+    $("#imgClearItemFilter").click(function () {
+        $("#txtItemFilter").val('');
+       // $('#divSearchedItem').css('display', 'none');
+        $("#txtEulaName").val('');
+        $("input#Eulaid").val('0');
+        fillEulaGrid();
+
+        $("#txtItemFilter").focus();
+        return false;
+    });
+
+
+    function editEula(currentLink) {
+        var EulaID = $(currentLink).parents("tr").children("td:first").html();
+        $.ajax({
+            type: "POST",
+            url: '@Url.Action("GetEula")',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify({ 'EulaID': EulaID }),
+            success: function (response) {
+
+                $("#txtEulaName").val(response.EulaName);
+                $("#txtEulaDescription").val(response.EulaDescription);
+                $("#Eulaid").val(EulaID);
+
+            },
+            error: function (err) {
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                ShowNotificationMessage('@ResCommon.ErrorInProcess');
+            }
+        });
+    }
+    var myfile = "";
+    $(document).ready(function () {
+
+        $('#EulaFileUpload').on('change', function () {
+            myfile = $(this).val();
+            var ext = myfile.split('.').pop();
+            if (ext == "pdf") {
+
+            } else {
+                $('#EulaFileUpload').val('');
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                ShowNotificationMessage('@ResEulaMaster.SelectPDFFileOnly');
+                return false;
+            }
+        });
+        $('#txtItemFilter').keyup(function (e) {
+            if (e.keyCode === 27 || e.key === "Escape" || e.key === "Esc") {
+                $('#txtItemFilter').val('');
+                fillEulaGrid();
+            }
+        });
+    });
+</script>

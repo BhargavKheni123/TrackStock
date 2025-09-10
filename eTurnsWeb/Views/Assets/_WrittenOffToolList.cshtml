@@ -1,0 +1,828 @@
+﻿@{
+    ViewBag.Title = ResToolMaster.PageTitle;
+    var settings = new GridHeaderSettings()
+    {
+        DisplaySaveButton = false,
+        DisplayRefreshButton = false,
+        ShowDelete = true,
+        ShowSelectAll = true,
+        DisplayUDFButton = false,
+        DisplayDeleteButton = true,
+        DisplaySettings = true,
+        DisplayColumnSetupButton = true,
+        ColumnSetupFor = "WrittenOffToolList"
+    };
+
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "WrittenOffToolList", ListName = "WrittenOffToolList" };
+}
+<div class="dialog" id="UnWrittenOffModal" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+        </p>
+        <a href="JavaScript:void{}" id="btnUnwrittenOff" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0);" class="no" onclick="closeModal()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<div class="searchWrapper">
+    <div class="searchBlock">
+        <span class="label">@ResCommon.Search </span>
+        <div class="searchinputB">
+            <input type="text" class="searchinput" id="WOT_filter" />
+            <a href="javascript:void(0);" class="xclose">
+                <img src="~/Content/images/x.png" alt="X" id="clear_WOT_filter" />
+            </a>
+        </div>
+    </div>
+
+
+</div>
+@Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.AllowToolWrittenOff)
+@Html.Partial("_WrittenOffToolNarrowSearch", modelCommon)
+<div class="userContent">
+    @Html.Hidden("hdnTabName", modelCommon.PageName)
+    <table id="writtenOffToolTable" class="display">
+        <thead>
+            <tr>
+                <th>
+                    @ResCommon.RowNo
+                </th>
+                <th>
+                    @ResCommon.ID
+                </th>
+                <th>
+                    @ResItemMaster.Expand
+                </th>
+                <th>
+                    @ResToolMaster.ToolName
+                </th>
+                <th>
+                    @ResToolMaster.Serial
+                </th>
+                <th>
+                    @ResToolMaster.Quantity
+                </th>
+                <th>
+                    @ResToolMaster.WrittenOffCategory
+                </th>
+                <th>
+                    @ResToolMaster.WrittenOffDescription
+                </th>
+                <th>
+                    @ResCommon.CreatedOn
+                </th>
+                <th>
+                    @ResCommon.UpdatedOn
+                </th>
+                <th>
+                    @ResCommon.CreatedBy
+                </th>
+                <th>
+                    @ResCommon.UpdatedBy
+                </th>
+                <th>
+                    @ResCommon.AddedFrom
+                </th>
+                <th>
+                    @ResCommon.EditedFrom
+                </th>
+                <th>
+                    @ResCommon.ReceivedOnDate
+                </th>
+                <th>
+                    @ResCommon.ReceivedOnWebDate
+                </th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script language="javascript" type="text/javascript">
+    var writtenOffToolTable;
+    var sImageUrl = "/Content/images/";
+    var objWOTColumns = {}
+
+    var timeoutsc1;
+    $(document).on('propertychange input', "#WOT_filter", function () {
+        clearTimeout(timeoutsc1);
+        var self = this;
+        timeoutsc1 = setTimeout(function () {
+            fnFilterWOT();
+        }, 500);
+    });
+
+    function fnFilterWOT() {
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#WOT_filter") != 'undefined' && ($("#WOT_filter").val().length > 2 || $("#WOT_filter").val().length == 0)) {
+            //var searchtext = $("#WOT_filter").val().replace(/'/g, "''");
+            //$('#writtenOffToolTable').dataTable().fnFilter(searchtext, null, null, null);
+            DoNarrowSearchWOT();
+        }
+        else {
+            $('#writtenOffToolTable').removeHighlight();
+            $('#writtenOffToolTable').highlight($("#WOT_filter").val());
+        }
+    }
+
+    $("#WOT_filter").keypress(function (e) {
+        if (e.which == 13 && $("#WOT_filter").val().length >= 2) {
+            DoNarrowSearchWOT();
+            //var searchtext = $("#WOT_filter").val().replace(/'/g, "''");
+            //$('#writtenOffToolTable').dataTable().fnFilter(searchtext, null, null, null);
+        }
+    });
+
+    $(document).on("tap click touchstart", "#clear_WOT_filter", function () {
+        if ($("#WOT_filter").val().length > 0) {
+            $("#WOT_filter").val("");
+            $("#WOT_filter").trigger("input");
+            fnFilterWOT();
+        }
+        return false;
+    });
+
+    $(document).ready(function () {
+
+        $('#CtabWrittenOffTool').find("a#actionSelectAll").removeClass('clsactionSelectAll').addClass('WOTclsactionSelectAll');
+        $('#CtabWrittenOffTool').find("a#actionDeSelectAll").removeClass('clsactionDeSelectAll').addClass('WOTclsactionDeSelectAll');
+        objWOTColumns = GetGridHeaderColumnsObject('writtenOffToolTable');
+
+        var ArrToolColumns = new Array();
+        ArrToolColumns.push({ mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' });
+        ArrToolColumns.push({ mDataProp: "ID", sClass: "read_only" });
+        ArrToolColumns.push({
+            mDataProp: null,
+            bSortable: false,
+            sClass: "read_only control alignCenter Expand NotHide",
+            sDefaultContent: '',
+            fnRender: function (obj, val) {
+                if (!obj.aData.IsDeleted) {
+                    return '<img class="Expand" src="' + sImageUrl + 'drildown_open.jpg' + '">';
+                }
+                else {
+                    return '';
+                }
+            }
+        });
+
+        ArrToolColumns.push({
+            mDataProp: "ToolName",
+            sClass: "read_only",
+            sDefaultContent: '',
+            bSortable: true,
+            fnRender: function (obj, val) {
+                return " <input type='hidden' id='hdnWOTTooGUID' value='" + obj.aData.ToolGUID.toString() + "' />" + "<span>" + obj.aData.ToolName + "</span>";
+            }
+        });
+
+        ArrToolColumns.push({ mDataProp: "Serial", sClass: "read_only" });
+        ArrToolColumns.push({
+            mDataProp: "Quantity", sClass: "read_only numericalign",
+            sDefaultContent: '',
+            fnRender: function (obj, val) {
+                //return FormatedCostQtyValues((obj.aData.Quantity), 2);
+                return " <span id='spn" + obj.aData.ToolGUID.toString() + "' >" + FormatedCostQtyValues((obj.aData.Quantity), 2) + "</span>";
+            }
+        });
+        ArrToolColumns.push({ mDataProp: "WrittenOffCategory", sClass: "read_only" });
+        ArrToolColumns.push({ mDataProp: "Details", sClass: "read_only" });
+        ArrToolColumns.push({
+            mDataProp: "Created", sClass: "read_only",
+            fnRender: function (obj, val) {
+                return obj.aData.CreatedDate;
+            }
+        });
+        ArrToolColumns.push({
+            mDataProp: "LastUpdated", sClass: "read_only",
+            fnRender: function (obj, val) {
+                return obj.aData.UpdatedDate;
+            }
+        });
+        ArrToolColumns.push({ mDataProp: "CreatedByName", sClass: "read_only" });
+        ArrToolColumns.push({ mDataProp: "UpdatedByName", sClass: "read_only" });
+        ArrToolColumns.push({ mDataProp: "AddedFrom", sClass: "read_only" });
+        ArrToolColumns.push({ mDataProp: "EditedFrom", sClass: "read_only" });
+        ArrToolColumns.push({
+            mDataProp: "ReceivedOn", sClass: "read_only",
+            fnRender: function (obj, val) {
+                return obj.aData.ReceivedOnDate;
+            }
+        });
+        ArrToolColumns.push({
+            mDataProp: "ReceivedOnWeb", sClass: "read_only",
+            fnRender: function (obj, val) {
+                return obj.aData.ReceivedOnDateWeb;
+            }
+        });
+
+        writtenOffToolTable = $('#writtenOffToolTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "sScrollX": "100%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[2, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                if (aData.IsDeleted == true && aData.IsArchived == true)
+                    // nRow.className = "GridDeleatedArchivedRow";
+                    $(nRow).css('background-color', '#B9BCBF');
+                else if (aData.IsDeleted == true)
+                    //nRow.className = "GridDeletedRow";
+                    $(nRow).css('background-color', '#FFCCCC');
+                else if (aData.IsArchived == true)
+                    // nRow.className = "GridArchivedRow";
+                    $(nRow).css('background-color', '#CCFFCC');
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                return nRow;
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                //if (PostCount > 1) {
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'WrittenOffToolList' },
+                    "async": false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        o = json;
+                    }
+                });
+                //}
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'WrittenOffToolList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Content("~/Assets/GetWrittenOffToolList")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                
+                //PostCount = PostCount + 1;
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting.length != 0)
+                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "IsArchived", "value": $('#CtabWrittenOffTool #IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#CtabWrittenOffTool #IsDeletedRecords').is(':checked') });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    cache: false,
+                    "url": sSource,
+                    "data": aoData,
+                    "headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('#writtenOffToolTable').removeHighlight();
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                        if ($("#WOT_filter").val() != '') {
+                            $('#writtenOffToolTable').highlight($("#WOT_filter").val());
+                        }
+                        $("input[type='radio']").filter('[value=ci]').attr('checked', 'checked');
+
+                        if ($("#WOT_filter").val().length > 0) {
+                            if ($('#writtenOffToolTable').dataTable().fnGetData().length <= 0) {
+                            }
+                        }
+                    },
+                    error: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                        $('#writtenOffToolTable').removeHighlight();
+                    }
+                })
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+            },
+            "aoColumns": ArrToolColumns
+        }).makeEditable();
+        $('.DTTT_container').css('z-index', '-1');
+
+        /*Functions used for nasted data binding START*/
+        $("#writtenOffToolTable").on("click", "td.control", function (event) {
+            if (!$(this).find("img").hasClass("Expand"))
+                return;
+
+            var nTr = this.parentNode;
+            var i = $.inArray(nTr, anOpen);
+
+            if (i === -1) {
+
+                $('img', this).attr('src', sImageUrl + "drildown_close.jpg");
+                writtenOffToolTable.fnOpen(nTr, fnFormatDetails(writtenOffToolTable, nTr), '');
+                anOpen.push(nTr);
+            }
+            else {
+                $('img', this).attr('src', sImageUrl + "drildown_open.jpg");
+                writtenOffToolTable.fnClose(nTr);
+                anOpen.splice(i, 1);
+                //oTable.fnDraw(); // commented for WI-4229
+            }
+        });
+
+        function fnFormatDetails(writtenOffToolTable, nTr) {
+            var oData = writtenOffToolTable.fnGetData(nTr);
+            var sOut = '';
+            $('#DivLoading').show();
+            $.ajax({
+                "url": '@Url.Content("~/Assets/WrittenOffToolData")',
+                data: { ToolGUID: oData.ToolGUID },
+                "async": false,
+                cache: false,
+                "dataType": "text",
+                "success": function (json) {
+                    sOut = json;
+                    $('#DivLoading').hide();
+                },
+                error: function (response) {
+                }
+            });
+
+            return sOut;
+        }
+        /*Functions used for nasted data binding END*/
+
+        $('#deleteWrittenOffTool').click(function () {
+            /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+            if ($("body").hasClass('DTTT_Print')) {
+                return false;
+            }
+            deleteURL = "/Assets/DeleteWrittenOffToolRecordsByToolGuids";
+            /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+            var anSelectedWOT = fnGetSelected(writtenOffToolTable);
+            var toolGuids = "";
+            for (var i = 0; i <= anSelectedWOT.length - 1; i++) {
+                toolGuids = toolGuids + $(anSelectedWOT[i]).find('#hdnWOTTooGUID')[0].value + ","; //stringIDs = stringIDs + anSelectedReq[i].id + ",";
+            }
+            if (toolGuids.length > 0) {
+                $('#basic-modal-content').modal();
+                IsDeletePopupOpen = true;
+            }
+            else {
+                $("#spanGlobalMessage").html('@ResMessage.SelectRowToDelete');
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                return false;
+            }
+        });
+
+        $('#UnwrittenOffTools').click(function () {
+            /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+            if ($("body").hasClass('DTTT_Print')) {
+                return false;
+            }
+
+            //deleteURL = "/Assets/DeleteWrittenOffToolRecordsByToolGuids";
+
+            /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+            var anSelectedWOT = fnGetSelected(writtenOffToolTable);
+            var toolGuids = "";
+            for (var i = 0; i <= anSelectedWOT.length - 1; i++) {
+                toolGuids = toolGuids + $(anSelectedWOT[i]).find('#hdnWOTTooGUID')[0].value + ","; //stringIDs = stringIDs + anSelectedReq[i].id + ",";
+            }
+
+            if (toolGuids.length > 0) {
+                $('#UnWrittenOffModal').modal();
+                //IsDeletePopupOpen = true;
+            }
+            else {
+                $("#spanGlobalMessage").html('@ResMessage.SelectRowToUnWrittenOff');
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                return false;
+            }
+        });
+
+        $("input:checkbox[GridFilter]").off('click');
+        $("input:checkbox[GridFilter]").on('click', function () {
+            // in the handler, 'this' refers to the box clicked on
+            var $box = $(this);
+            if ($box.is(":checked")) {
+                // the name of the box is retrieved using the .attr() method
+                // as it is assumed and expected to be immutable
+                var group = "input:checkbox[name='" + $box.attr("name") + "']";
+                // the checked state of the group/box on the other hand will change
+                // and the current value is retrieved using .prop() method
+                $(group).prop("checked", false);
+                $box.prop("checked", true);
+            } else {
+                $box.prop("checked", false);
+            }
+        });
+
+    });
+
+    $("#UnWrittenOffModal").click(function () {
+
+        var anSelectedWOT = fnGetSelected(writtenOffToolTable);
+        var toolGuids = "";
+
+        for (var i = 0; i <= anSelectedWOT.length - 1; i++) {
+            toolGuids = toolGuids + $(anSelectedWOT[i]).find('#hdnWOTTooGUID')[0].value + ",";
+        }
+
+        if (toolGuids.length > 0) {
+
+            $('#DivLoading').show();
+            $.ajax({
+                url: '@Url.Content("~/Assets/UnWrittenOffToolByToolGuids")',
+                type: "POST",
+                data: { ids: toolGuids },
+                timeout: 0,
+                success: function (response) {
+
+                    if (typeof (writtenOffToolTable != 'undefined')) {
+                        writtenOffToolTable.fnStandingRedraw();
+                        // writtenOffToolDetailTable.fnDeleteRow(anSelected[i]);
+                    }
+                    if (response.Status == "ok") {
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                    }
+                    else {
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    }
+
+                    $("#spanGlobalMessage").html(response.Message);
+                    showNotificationDialog();
+                    $('#DivLoading').hide();
+                },
+                error: function (response) {
+                    $('#DivLoading').hide();
+                    // through errror message
+                },
+                complete: function () {
+                    if (writtenOffToolTable.fnGetData().length == 0) {
+                        writtenOffToolTable.fnDraw();
+                    }
+                }
+            });
+            $.modal.impl.close();
+        }
+    });
+
+    $('#CtabWrittenOffTool').off("click");
+    $('#CtabWrittenOffTool').on("click", "a#ColumnOrderSetupWOT", function () {
+
+        $("#ColumnSortableModalWOT").dialog("open");
+    });
+
+    $("#ColumnSortableModalWOT").dialog({
+        autoOpen: false,
+        modal: true,
+        width: 500,
+        title: strReorderColumnPopupHeader,
+        draggable: true,
+        resizable: true,
+        open: function () {
+
+            GenerateColumnSortableWOT();
+            $("#ColumnSortableWOT").sortable({ axis: "y", containment: "parent" });
+        },
+        close: function () {
+
+        }
+    });
+
+
+    function GetColumnIndexTHL(ColumnName) {
+        if (typeof (objWOTColumns) != "undefined") {
+            return objWOTColumns[ColumnName];
+        }
+    }
+
+    function GenerateColumnSortableWOT() {
+
+
+        //clear the old elements
+        var blankNUmber = 0;
+        $('#ColumnSortableWOT li').each(function (index) {
+            $(this).remove();
+        });
+        var div = document.createElement('div');
+        div.id = "CheckAll";
+
+        div.innerHTML = "<input type='hidden' value ='ColumnSortableWOT' id='hiddenDivName' /><a href='javascript:;' onclick='CheckAll(this);'  id='CheckAll' >CheckAll</a>&nbsp;<a href='javascript:;' onclick='UnCheckAll(this);' id='UnCheckAll' >UnCheckAll</a>" +
+                        "&nbsp;&nbsp;&nbsp;<input type='checkbox' onclick='ShowAllHidden(this);' id='ShowAllHidden' checked='checked' />Show All Hidden";
+        $('div.sortableContainer').find("div#CheckAll").remove();
+        $('div.sortableContainer').prepend(div);
+        //get current columns order and generate li sortable accordingly
+
+        var oTableReorder = $("#writtenOffToolTable").dataTable();
+
+        for (i = 0, iLen = oTableReorder.fnSettings().aoColumns.length; i < iLen; i++) {
+            var oColumn = oTableReorder.fnSettings().aoColumns[i];
+            var style = '';
+            var LiStyle = 'display:block';
+            var LiClassName = 'ui-state-default'
+            if (oColumn.sClass.indexOf('NotHide') >= 0) {
+                style = ' disabled="disabled" ';
+                LiClassName = LiClassName + ' HiddenLi';
+            }
+
+            var colindxbyname = '';
+            if (oColumn.sTitle.trim() != '') {
+                colindxbyname = GetColumnIndexTHL(oColumn.sTitle.trim());
+            }
+            else {
+                colindxbyname = GetColumnIndexTHL('blankFieldName' + blankNUmber);
+            }
+
+            var li = document.createElement('li');
+            li.id = colindxbyname;
+            li.className = LiClassName;
+            li.innerHTML = oColumn.sTitle.trim();
+            li.style = LiStyle;
+            if (oColumn.bVisible || oColumn.sClass.indexOf('NotHide') >= 0) {
+                if (oColumn.sTitle.trim() != '') {
+                    li.innerHTML = '<input type="checkbox" ' + style + ' class="checkBox" checked="checked" id="' + GetColumnIndexTHL(oColumn.sTitle.trim()) + '_" />' + oColumn.sTitle.trim();
+                }
+                else {
+                    li.innerHTML = '<input type="checkbox" ' + style + ' class="checkBox" checked="checked" id="' + GetColumnIndexTHL('blankFieldName' + blankNUmber) + '_" />' + oColumn.sTitle.trim();
+                    blankNUmber++;
+                }
+            }
+            else {
+
+                if (oColumn.sTitle.trim() != '') {
+                    li.innerHTML = '<input type="checkbox" class="checkBox" id="' + GetColumnIndexTHL(oColumn.sTitle.trim()) + '_" />' + oColumn.sTitle.trim();
+                }
+                else {
+
+                    li.innerHTML = '<input type="checkbox" class="checkBox" id="' + GetColumnIndexTHL('blankFieldName' + blankNUmber) + '_" />' + oColumn.sTitle.trim();
+                    blankNUmber++;
+                }
+            }
+            $('#ColumnSortableWOT').append(li);
+
+        }
+
+    }
+
+
+    function UpdateColumnOrderWrittenOffToolList(_ListName) {
+
+        var oTableReorder = $("#writtenOffToolTable").dataTable();
+        $.ajax({
+            "url": '/Master/LoadGridState',
+            data: { ListName: _ListName },
+            cache: false,
+            "dataType": "json",
+            "success": function (json) {
+
+                if (json.jsonData != '') {
+                    o = JSON.parse(json.jsonData);
+                    oTableReorder.fnSettings().oLoadedState = $.extend(true, {}, o);
+                    //update the order of columns
+                    var _Order = SortableArrayWOT($('#ColumnSortableWOT')); // $('#ColumnSortable').sortable("toArray");
+                    var __Order = _Order.toString().split(",");
+
+                    for (var i = 0; i < __Order.length; i++) {
+                        __Order[i] = parseInt(__Order[i], 10);
+                    }
+
+                    oTableReorder.fnSettings().oLoadedState.ColReorder = __Order;
+
+                    //update the visibility of columns
+                    var _abVisCols = [];
+
+                    for (i = 0, iLen = oTableReorder.fnSettings().aoColumns.length; i < iLen; i++) {
+                        //var checked = $("#" + i + "_").is(":checked");
+                        var checked = $('#ColumnSortableWOT').find('input.checkBox[id="' + i + '_"]').is(":checked");
+                        _abVisCols.push(checked);
+                    }
+
+                    oTableReorder.fnSettings().oLoadedState.abVisCols = _abVisCols;
+
+                    //update the state to the database
+                    $.ajax({
+                        "url": '/Master/SaveGridState',
+                        "type": "POST",
+                        //data: { Data: JSON.stringify(oTableReorder.fnSettings().oLoadedState), ListName: 'ToolList' },
+                        data: { Data: JSON.stringify(oTableReorder.fnSettings().oLoadedState), ListName: _ListName },
+                        "dataType": "json",
+                        cache: false,
+                        "success": function (json) {
+
+                            o = json;
+
+                            //refresh the page
+                            // window.location.reload(true);
+                            $("#ColumnSortableModalWOT").dialog("close");
+                            $('#CtabWrittenOffTool').empty();
+                            GetWrittenOffToolList();
+                            //$("#writtenOffToolTable").dataTable().fnDraw();
+                        }
+                    });
+
+
+                }
+            }
+        });
+
+
+    }
+
+    function SortableArrayWOT(ulColumnsOrder) {
+        var sortableArray = '';
+        $(ulColumnsOrder).children("li").each(function () {
+            if (sortableArray != '') {
+                sortableArray = sortableArray + "," + $(this).attr("id");
+            }
+            else {
+                sortableArray = $(this).attr("id");
+            }
+        });
+        return sortableArray;
+    }
+
+    var lastChecked;
+    $("#writtenOffToolTable").on("tap click", "tbody tr", function (e) {
+        if (e.target.type == "checkbox" || e.target.type == "select" || e.target.type == "radio" || e.target.type == "button") {
+            e.stopPropagation();
+        } else {
+            if (IsDeleteItemPictureViewRecord)
+                $(this).parent().parent().parent().parent().parent().toggleClass('row_selected');
+            else {
+
+                if (!lastChecked) {
+                    lastChecked = this;
+                }
+
+                if (e.shiftKey) {
+                    var start = $('#writtenOffToolTable tbody tr').index(this);
+                    var end = $('#writtenOffToolTable tbody tr').index(lastChecked);
+
+                    for (i = Math.min(start, end) ; i <= Math.max(start, end) ; i++) {
+                        if (!$('#writtenOffToolTable tbody tr').eq(i).hasClass('row_selected')) {
+                            $('#writtenOffToolTable tbody tr').eq(i).addClass("row_selected");
+                        }
+                    }
+                    if (window.getSelection) {
+                        if (window.getSelection().empty) {  // Chrome
+                            window.getSelection().empty();
+                        } else if (window.getSelection().removeAllRanges) {  // Firefox
+                            window.getSelection().removeAllRanges();
+                        }
+                    } else if (document.selection) {  // IE?
+                        document.selection.empty();
+                    }
+                } else if ((e.metaKey || e.ctrlKey)) {
+                    $(this).toggleClass('row_selected');
+                } else {
+                    $(this).toggleClass('row_selected');
+                }
+                lastChecked = this;
+            }
+            return false;
+        }
+    });
+
+    $("a.WOTclsactionSelectAll").click(function () {
+        $("#writtenOffToolTable").find("tbody tr").removeClass("row_selected").addClass("row_selected");
+        $(this).next("a.WOTclsactionDeSelectAll").css('display', '');
+        $(this).css('display', 'none');
+
+        $("#writtenOffToolTable tbody tr").each(function () {
+            if ($(this).find("input#notselectRow").length > 0) {
+                $(this).toggleClass('row_selected');
+            }
+        });
+
+    });
+
+    $("a.WOTclsactionDeSelectAll").click(function () {
+        $("#writtenOffToolTable").find("tbody tr").removeClass("row_selected");
+        $(this).prev("a.WOTclsactionSelectAll").css('display', '');
+        $(this).css('display', 'none');
+    });
+
+    function ExportWrittenOffToolData(ModuleName, Exporttype) {
+
+        //var anSelected = fnGetSelected($("#writtenOffToolTable").dataTable());
+        //var stringIDs = "";
+        //var ReqCount = 0;
+
+        ////Get Current Sorting info of table.
+        //var aa_SortingInfo = $("#writtenOffToolTable").dataTable().fnSettings().aaSorting;
+        //var objCols = $("#writtenOffToolTable").dataTable().fnSettings().aoColumns;
+
+        //var arrCols = new Array();
+        //for (var i = 0; i <= objCols.length - 1; i++) {
+        //    arrCols.push(objCols[i].mDataProp);
+        //}
+
+        //var sortValue = "";
+        //if (aa_SortingInfo.length != 0) {
+        //    for (var k = 0; k <= aa_SortingInfo.length - 1; k++) {
+        //        if (sortValue.length > 0)
+        //            sortValue += ", "
+        //        sortValue += arrCols[aa_SortingInfo[k][0]] + ' ' + aa_SortingInfo[k][1];
+        //    }
+        //}
+
+        ////Get Current Sorting info of table.
+
+        //var shiftselectedarray = readCookieforshift("finalselectedarray");
+        //if (shiftselectedarray != null) {
+        //    stringIDs = shiftselectedarray;
+        //}
+        //if (stringIDs == "") {
+        //    for (var i = 0; i <= anSelected.length - 1; i++) {
+        //        stringIDs = stringIDs + anSelected[i].id + ",";
+        //    }
+        //}
+
+        //if (stringIDs.length > 0) {
+        //    $.ajax({
+        //        "url": '/Export/ExportModuleInfo',
+        //        "data": { ExportModuleName: ModuleName, Ids: stringIDs, Type: Exporttype, SortNameString: sortValue, 'Isdeleted': null, 'TableName': '' },
+        //        "dataType": "json",
+        //        "type": "POST",
+        //        "success": function (response) {
+        //            if (response.rStatus == "Fail") {
+
+        //                alert(response.rMessage);
+        //            }
+        //            else
+        //                window.open("../../Downloads/" + response, "_self");
+
+        //        },
+        //        "error": function (response) {
+
+        //            window.open("../../Downloads/" + response, "_self");
+
+        //        }
+        //    });
+        //}
+        //else {
+        //    alert("Please select record to export.");
+        //}
+    }
+
+    $('#WOTGobtn').unbind("click");
+    $('#WOTPageNumber').unbind("keydown");
+
+    $('#WOTPageNumber').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#WOTGobtn").click();
+            return false;
+        }
+    });
+
+    $("#WOTGobtn").click(function () {
+        var pval = $('#WOTPageNumber').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+        $("#writtenOffToolTable").dataTable().fnPageChange(Number(pval - 1));
+        $('#WOTPageNumber').val('');
+    });
+    _Common.setGloblaSearch('WOT_filter', 'writtenOffToolTable');
+</script>

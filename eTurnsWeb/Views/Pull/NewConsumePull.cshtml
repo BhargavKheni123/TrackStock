@@ -1,0 +1,831 @@
+@model eTurnsWeb.Models.ItemModelPerameter
+@using System.Linq;
+@{
+    var settings = new GridHeaderSettings() { DisplayContextMenu = true, DisplayPrintBlock = false, DisplayDeleteButton = false, dataViewType = DataViewType.None, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = true, ShowSelectAll = true, ColumnSetupFor = "ItemMasterModelList", ModuleName = "NewPull" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ItemMaster", ItemModelCallFromPageName = "NewPULL", ListName= "NewPULL" };
+    if (Model.ModelHeader.ToLower().Contains("add items to order"))
+    {
+        modelCommon.Text = "Order";
+    }
+    else if (Model.ModelHeader.ToLower().Contains("add kit component to kit"))
+    {
+        modelCommon.Text = "Kit";
+    }
+    else
+    {
+        modelCommon.Text = "eTurns";
+    }
+    string ViewNewPullbuttons = Convert.ToString(System.Configuration.ConfigurationManager.AppSettings["ViewNewPullbuttons"]);
+    if (string.IsNullOrWhiteSpace(ViewNewPullbuttons))
+    {
+        ViewNewPullbuttons = "no";
+    }
+
+
+    bool ProjectSpendAvailable = false;
+    eTurns.DAL.ProjectMasterDAL objProjDAL = new eTurns.DAL.ProjectMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    ProjectSpendAvailable = objProjDAL.GetTotalProjectCountByRoom(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, false, false) > 0;
+    bool ProjectSpendVisible = false;
+    eTurns.DAL.RoomDAL objRoomDAL = new eTurns.DAL.RoomDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    ProjectSpendVisible = objRoomDAL.checkProjectSpendMandatorybyId(eTurnsWeb.Helper.SessionHelper.RoomID);
+
+    bool IsIgnoreCreditRule = false;
+    IsIgnoreCreditRule = objRoomDAL.checkCreditRuleApplybyId(eTurnsWeb.Helper.SessionHelper.RoomID);
+
+    string UDF1Text = eTurnsWeb.Helper.ResourceUtils.GetResource("ResPullMaster", "UDF1", true);
+    string UDF2Text = eTurnsWeb.Helper.ResourceUtils.GetResource("ResPullMaster", "UDF2", true);
+    string UDF3Text = eTurnsWeb.Helper.ResourceUtils.GetResource("ResPullMaster", "UDF3", true);
+    string UDF4Text = eTurnsWeb.Helper.ResourceUtils.GetResource("ResPullMaster", "UDF4", true);
+    string UDF5Text = eTurnsWeb.Helper.ResourceUtils.GetResource("ResPullMaster", "UDF5", true);
+
+    bool UDF1IsRequired = Html.GetUdfIsRequiredStatus("PullMaster", "UDF1");
+    bool UDF2IsRequired = Html.GetUdfIsRequiredStatus("PullMaster", "UDF2");
+    bool UDF3IsRequired = Html.GetUdfIsRequiredStatus("PullMaster", "UDF3");
+    bool UDF4IsRequired = Html.GetUdfIsRequiredStatus("PullMaster", "UDF4");
+    bool UDF5IsRequired = Html.GetUdfIsRequiredStatus("PullMaster", "UDF5");
+
+
+    Int64 UDFSetUpCount = Html.GetUFDSetupCountTableWise("PullMaster");
+
+    objProjDAL = null;
+
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+
+    bool isPullUDF = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetNonDeletedUDFCountByUDFTableName("PullMaster", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID) > 0;
+    string PullsPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Pulls.pdf", DateTime.Now.Ticks);
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+
+    eTurns.DAL.ProjectMasterDAL objDAL = null;
+    ProjectMasterDTO lstDTO = null;
+    Int64 EnterpriseId = eTurnsWeb.Helper.SessionHelper.EnterPriceID;
+    Int64 RoomID = eTurnsWeb.Helper.SessionHelper.RoomID;
+    Int64 CompanyID = eTurnsWeb.Helper.SessionHelper.CompanyID;
+    objDAL = new eTurns.DAL.ProjectMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    lstDTO = objDAL.GetDefaultProjectSpendRecord(RoomID, CompanyID, false, false);
+    string ProjectSpendName = string.Empty;
+    Guid? ProjectSpendGuid = null;
+    if (lstDTO != null)
+    {
+        ProjectSpendName = lstDTO.ProjectSpendName;
+        ProjectSpendGuid = lstDTO.GUID;
+    }
+    else
+    {
+        ProjectSpendName = string.Empty;
+        ProjectSpendGuid = null;
+    }
+
+    //string strPullOrderNumber = ViewBag.strPullOrderNumber ?? string.Empty;
+
+    string strSuppPOPair = ViewBag.SuppPOPair ?? string.Empty;
+
+    //System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    string UNCPathRootImage = eTurns.DTO.SiteSettingHelper.InventoryPhoto; // Settinfile.Element("InventoryPhoto").Value;
+    UNCPathRootImage = UNCPathRootImage.Replace("~", string.Empty);
+    string LogoPathItemImage = (UNCPathRootImage + EnterpriseId + "/" + CompanyID + "/" + RoomID);
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    string commonControlType = "Textbox";
+
+    var objPOMaster = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetSinglePullPOPlain(eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.RoomID);
+    if (objPOMaster != null)
+    {
+        commonControlType = objPOMaster.UDFControlType;
+    }
+    string NoProjectspendOntheFlyRight = eTurnsWeb.Helper.ResourceUtils.GetResource("ResPullMaster", "NoProjectspendOntheFlyRight", false);
+    bool IsProjectSpendInsertAllow = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ProjectMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    //HelpDocumentMasterDTO objHelpDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentMaster("Pulls");
+    //string PullBasicVideo = "";
+    //if (objHelpDTO != null)
+    //{
+    //    PullBasicVideo = objHelpDTO.ModuleVideoPath.Replace("../Uploads/HelpVideo/", "");
+    //}
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Pulls", (int)HelpDocType.Module);
+}
+
+<style type="text/css">
+
+    .pull-credit-popup .dataTables_length {
+        top: -110px !important;
+    }
+
+    .pull-credit-popup .dataTables_paginate {
+        top: -90px !important;
+    }
+
+    .pull-credit-popup .td-udfs {
+        padding: 3px;
+    }
+
+    #tblPullCommonUDF .selectBox {
+        width: 90% !important;
+    }
+
+    #tblPullCommonUDF .text-boxinner {
+        width: 90% !important;
+    }
+
+    .tblPullCommonUDFthead {
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+</style>
+@*@if (isPullUDF)
+    {*@
+@*<style type="text/css">
+        .dataTables_length {
+            top: -82px;
+        }
+
+        .dataTables_paginate {
+            top: -72px;
+        }
+
+        .td-udfs {
+            padding: 3px;
+        }
+    </style>*@
+@*}*@
+<div class="userListingWrapper">
+    <h2>
+        @ResPullMaster.NewConsumePull
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener">
+            @ResPullMaster.PageTitle
+        </div>
+        <div id="Ctab" class="tabContener">
+
+            <input type="hidden" id="hdnSuppPOPair" name="hdnSuppPOPair" value="@strSuppPOPair" />
+
+            <div class="searchWrapper">
+                <div class="searchBlock" style="margin: -1px auto; width: 500px;">
+                    <span class="label" style="color: #FFFFFF; float: left; font-size: 14px; font-weight: bold;
+                        line-height: 22px; padding: 2px 5px 0 0;">
+                        @eTurns.DTO.Resources.ResCommon.Search
+                    </span>
+                    <div class="searchinputB" style="float: left; position: relative; width: 415px;">
+                        <input type="text" class="searchinput" id="ItemModel_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_QLItemModel_filter" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @Html.ItemModelGridTopHeaderWithContextMenu(settings)
+            <script src="@Url.Content("~/Scripts/PageScripts/NarrowSearchForItemModel.js?v=" + version)" type="text/javascript"></script>
+            @Html.Partial("NarrowSearchForItemModel", modelCommon)
+            <div class="userContent pull-credit-popup">
+                @*@if (isPullUDF)
+            {*@
+                <table style="margin-bottom: 1px; margin-top: 20px;" id="tblPullCommonUDF">
+                    <thead>
+                        <tr>
+                            <th>
+                            </th>
+                            <th id="THPullOrderNumber">@eTurns.DTO.ResPullImport.PullOrderNumber</th>
+                            <th id="THProjectSpendName">@eTurns.DTO.ResProjectMaster.ProjectSpendName</th>
+                            @if (IsIgnoreCreditRule == true)
+                            {
+                                <th id="THStagingHeader">@eTurns.DTO.ResItemMaster.StagingHeader</th>
+                            }
+                            @Html.RenderColumnsHeaderByName("PullMaster", typeof(eTurns.DTO.ResPullMaster))
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="td-udfs">
+                                <b style="font-size: 13px;">&nbsp;&nbsp;&nbsp;Use this</b>
+                                <input type="checkbox" id="chkUsePullCommonUDF" />
+                            </td>
+                            <td id="TDPullOrderNumber" class="td-udfs">
+                                <span style="position:relative">
+                                    @if (commonControlType == "Textbox")
+                                    {
+                                        <input type="text" id="txtPullOrderNumberCommon" class="text-boxinner" maxlength="22" style="width:93%;" />
+                                    }
+                                    else if (commonControlType == "Dropdown")
+                                    {
+                                        @Html.RenderColumnsArrayForPullOrderMaster("PullPoMaster")
+                                    }
+                                    else
+                                    {
+                                        <input type="text" id="txtPullOrderNumberCommon" class="text-boxinner AutoPullOrderNumber" maxlength="22" style="width:93%;" autocomplete="off" />
+                                        <a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptionsOrderNumber">
+                                            <img src="/Content/images/arrow_down_black.png" alt="select" />
+                                        </a>
+                                    }
+
+                                </span>
+                            </td>
+                            <td id="TDProjectSpendName">
+                                <span style="position:relative">
+                                     
+                                        @if (string.IsNullOrWhiteSpace(ProjectSpendName)) 
+                                        {
+                                            <input type="text" id="txtProjectSpentCommon" class="text-boxinner AutoPullProjectSpents" style="width:120px;" value="" />
+                                            <input type="hidden" id="ProjectIDCommon" value="" />
+                                            <a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptions">
+                                                <img src="/Content/images/arrow_down_black.png" alt="select" />
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <input type="text" id="txtProjectSpentCommon" class="text-boxinner" disabled="disabled" readonly="readonly" style="width:120px;" value="@ProjectSpendName" />
+                                            <input type="hidden" id="ProjectIDCommon" value="@ProjectSpendGuid" />
+                                        }
+                                     
+                                    
+                                </span>
+                            </td>
+                            @if (IsIgnoreCreditRule == true)
+                            {
+                                <td id="TDStagingHeader" style="display:none">
+                                    <input type="hidden" id="MSPullStagingHeaderValue" />
+                                    <span style="position:relative">
+                                        <input type="text" id="txtMSPullStagingHeader" name="txtMSPullStagingHeader" class="text-boxinner AutoMSCreditStagingHeader" maxlength="128" style="width:93%;" autocomplete="off" />
+                                        <a id="ShowAllOptionsStagingHeader" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptionsStagingHeader">
+                                            <img src="/Content/images/arrow_down_black.png" alt="select" />
+                                        </a>
+                                    </span>
+                                </td>
+                            }
+                            @Html.RenderColumnsArrayEditableObjectForDOMByName("PullMaster", controlIDPostfix: "PullCommon")
+                        </tr>
+                    </tbody>
+                </table>
+                @*}*@
+                <table id="ItemModeDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th class="NotSortable NotHide NotMovable">
+                                @eTurns.DTO.ResPullMaster.Action
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th class="NotSortable NotHide" id="colQtyToPull">
+                                @ResPullMaster.QtyToPull
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.Image
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th class="NotHide">
+                                @ResPullMaster.Location
+                            </th>
+                            <th class="NotHide">
+                                @ResPullMaster.PullOrderNumber
+                            </th>
+                            <th class="NotSortable NotHide">
+                                @eTurns.DTO.ResProjectMaster.ProjectSpendName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ManufacturerNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ManufacturerName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SupplierPartNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Supplier
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.UPC
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.UNSPSC
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LongDescription
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.CostUOMName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DefaultReorderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DefaultPullQuantity
+                            </th>
+                            @if (isCost)
+                            {
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.Cost
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.Markup
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.SellPrice
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.ExtendedCost
+                                </th>
+                            }
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LeadTimeInDays
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Trend
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Taxable
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Consignment
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.StagedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.InTransitquantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnOrderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnTransferQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SuggestedOrderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.RequisitionedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.AverageUsage
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Turns
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnHandQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.CriticalQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MinimumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MaximumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.WeightPerPiece
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemUniqueNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsTransfer
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsPurchase
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.InventoryClassification
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SerialNumberTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LotNumberTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DateCodeTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemType
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsLotSerialExpiryCost
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RoomName
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResCategoryMaster.Category
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResUnitMaster.Unit
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResGLAccount.GLAccount
+                            </th>
+                            @if (IsIgnoreCreditRule == true)
+                            {
+                                <th class="NotSortable Hide">
+                                    @eTurns.DTO.ResItemMaster.StagingHeader
+                                </th>
+                            }
+                            <th class="NotSortable NotHide">
+                                @eTurns.DTO.ResPullMaster.SupplierAccountNumber
+                            </th>
+                            @Html.RenderColumnsHeader("PullMaster", typeof(eTurns.DTO.ResPullMaster))
+                            @Html.RenderColumnsHeader("ItemMaster", typeof(eTurns.DTO.ResItemMaster), "Item")
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div style="clear: both; width: 90%; margin-top: 10px;">
+                    @if (ViewNewPullbuttons == "no")
+                    {
+                        <input type="button"  id="btnPullAll" data-val='Pull ALL' value="@ResPullMaster.BtnPullAll" class="CreateBtn" style="float: left;" />
+                    }
+                    else
+                    {
+                        <input type="button" value="@eTurns.DTO.ResPullMaster.PullAllButton" data-val='Pull ALL'  id="btnPullAllNewFlow" class="CreateBtn"
+                               style="float: left;" />
+                    }
+                    <input type="button" value="@ResPullMaster.PullQL" data-val='Pull QL' id="btnPullAllQL" class="CreateBtn" style="float: left;
+                        display: none;" />
+                    <input type="button" value="@ResPullMaster.CreditAll" id="btnCreditAll" class="CreateBtn" style="float: left;
+                        display: none" />
+                    <input type="button" value="@ResPullMaster.MSCreditAll" id="btnMSCreditAll" class="CreateBtn" style="float: left;
+                        display: none" />
+                </div>
+                <div id="processing_message" style="display: none" title="Processing">@eTurns.DTO.Resources.ResMessage.RequestProcessMessage</div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="LocationDetails">
+</div>
+<div id="DivPullSelection">
+</div>
+<div id="divPreCreditInfo">
+</div>
+<div id="divPreMSCreditInfo">
+</div>
+<div id="divPreCreditInforSerialLot">
+</div>
+<div id="divPreMSCreditInforSerialLot">
+</div>
+<div class="dialog" id="dlgNoSelectErrorMsg" style="display: none; width: 500px;">
+    <div class="inner" style="width: 500px;">
+        <p class="text" id="NoSelectErrMessage" style="text-align: left; padding-left: 10px;">
+            <b>First select items</b><br />
+            <br />
+        </p>
+        <p id="NsOkbtn" class="text" style="text-align: center; padding-left: 10px;">
+            <a href="#" class="no" onclick="closeModalNoSelectModel()">
+                <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.InformOk" />@eTurns.DTO.Resources.ResMessage.InformOk
+            </a>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="dlgExpiredItemErrorMsg" style="display: none; width: 600px;">
+    <div class="inner" style="width: 600px; max-height: 300px; overflow: scroll;">
+        <p class="text" id="pErrMessage" style="text-align: left; padding-left: 10px;">
+        </p>
+        <input type="hidden" id="btnPullExItemGuid" />
+        <input type="hidden" id="btnPullExReqGuid" />
+        <p id="pYesForExpiredItem" class="text" style="text-align: center; padding-left: 10px; display: none;">
+            <a href="JavaScript:void{}" id="btnYesForExpiredItem" class="yes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="#" class="no" id="btnNoForExpiredItem" onclick="closeModalPSLimit()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="dlgCommonErrorMsg" style="display: none; width: 600px;">
+    <div class="inner" style="width: 600px; max-height: 300px; overflow: scroll;">
+        <p class="text" id="pErrMessage" style="text-align: left; padding-left: 10px;">
+        </p>
+        <p id="pOkbtn" class="text" style="text-align: center; padding-left: 10px; display: none;">
+            <a href="#" class="no" onclick="closeModalPSLimit()">
+                <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.InformOk" />@eTurns.DTO.Resources.ResMessage.InformOk
+            </a>
+        </p>
+        <p id="pYesNobtn" class="text" style="text-align: center; padding-left: 10px; display: none;">
+            <a href="JavaScript:void{}" id="btnYesForPS" class="yes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="#" id="btnNoForPS" class="no" onclick="closeModalPSLimit()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="project-spend-limit-basic-modal-content" style="display: none;
+    width: 600px;">
+    <div class="inner" style="width: 600px;">
+        <p class="text" id="PSPlimit" style="text-align: left; padding-left: 10px;">
+            <b>@ResPullMaster.SomeItemNotPulled</b><br />
+            <b style="color: Olive;">1) @ResPullMaster.reqQtyToPull</b>
+            <br />
+            <b style="color: Olive;">2) @ResPullMaster.InventoryLocationMandatory</b>
+            <br />
+            <b style="color: Olive;">3) @ResPullMaster.MsgLabourItemRequiredHours</b>
+            <br />
+            <b style="color: Olive;">4) @ResPullMaster.QtyNotAvailableforItemLocation</b>
+            <br />
+            <b style="color: Yellow;">
+                5) @ResPullMaster.msgProjectSpendLimitReached
+                <br />
+                @ResPullMaster.msgProjectSpendLimitConfirmation
+            </b>
+            <br />
+            <b style="color: Red;">6) @ResCommon.msgServerError</b><br />
+            <b style="color: Green;">7) @ResPullMaster.MsgPullDoneSuccess</b><br />
+            <b style="color: Olive;">8) @ResPullMaster.MsgProjectSpendMandatoryatRoom</b>
+        </p>
+        <a href="JavaScript:void{}" id="btnModelYesPSLimit" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="#" class="no" id="btnModelNoPSLimit" onclick="closeModalPSLimit()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<div class="dialog" id="GlobalModalProcessing" style="display: none;">
+    <div class="inner">
+        <p class="text" id="GloablMSGWait" style="text-align: left; padding-left: 10px;">
+            <b style="color: Red;">
+                @*Kindly wait, pull transaction is going on.....*@
+                @eTurns.DTO.Resources.ResMessage.PleaseWaitTransGoingOn
+            </b>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="divCreditProcessing" style="display: none;">
+    <div class="inner">
+        <p class="text" id="pCreditWait" style="text-align: left; padding-left: 10px;">
+            <b style="color: Red;">@ResPullMaster.CreditTransactionProgress</b>
+        </p>
+        <p class="text" id="pCreditWaitImg" style="text-align: center; padding-left: 10px;">
+            <img src="@Url.Content("~/Content/images/ajax.gif")" alt="loding" />
+        </p>
+    </div>
+</div>
+<div class="dialog" id="divNewPullProcessing" style="display: none;">
+    <div class="inner">
+        <p class="text" id="pNewPullWait" style="text-align: left; padding-left: 10px;">
+            <b style="color: Red;">@eTurns.DTO.Resources.ResMessage.PleaseWaitTransGoingOn</b>
+        </p>
+        <p class="text" id="pNewPullWaitImg" style="text-align: center; padding-left: 10px;">
+            <img src="@Url.Content("~/Content/images/ajax.gif")" alt="loding" />
+        </p>
+    </div>
+</div>
+<div class="dialog" id="divMSCreditProcessing" style="display: none;">
+    <div class="inner">
+        <p class="text" id="pCreditWait" style="text-align: left; padding-left: 10px;">
+            <b style="color: Red;">@ResPullMaster.MSCreditTransactionProgress</b>
+        </p>
+        <p class="text" id="pCreditWaitImg" style="text-align: center; padding-left: 10px;">
+            <img src="@Url.Content("~/Content/images/ajax.gif")" alt="loding" />
+        </p>
+    </div>
+</div>
+<div class="dialog" id="noramal-global-msg-no-Pull-Rights" style="display: none;">
+    <div class="inner">
+        <p class="text" id="GloablMSG" style="text-align: left; padding-left: 10px;">
+            <b>@ResPullMaster.NoPullRightsInPull</b>
+        </p>
+        <p class="text" style="text-align: center; padding-left: 10px;">
+            <a href="#" class="no" id="btnModelOKGloablMSG" onclick="GoToRequisition();">
+                <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.InformOk" />@eTurns.DTO.Resources.ResMessage.InformOk
+            </a>
+        </p>
+    </div>
+</div>
+@*<script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>*@
+@*<script type='text/javascript' src="@Url.Content("~/Scripts/PageScripts/PullCommon.js?v=" + version)"></script>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>
+<script src="@Url.Content("~/Scripts/CreditPull.js?v=" + version)" type="text/javascript"></script>
+<script src="@Url.Content("~/Scripts/PageScripts/MSCreditPull.js?v=" + version)" type="text/javascript"></script>
+<script src="@Url.Content("~/Scripts/PageScripts/Pull/NewConsumePull.js?v=" + version)" type="text/javascript"></script>*@
+
+<script src="@Url.Content("~/bundles/newConsumePull?v=" + version)" type="text/javascript"></script>
+
+
+
+<script language="javascript" type="text/javascript">
+
+
+    var NoofUDFCount = '@UDFSetUpCount';
+    var BoolTrueString = '@Boolean.TrueString';
+    var viewNewPullbuttons = '@ViewNewPullbuttons',
+        logoPathItemImage = '@LogoPathItemImage',
+        hasOnTheFlyEntryRight = '@HasOnTheFlyEntryRight',
+        isCost = '@isCost',
+        serIsIgnoreCreditRule = '@IsIgnoreCreditRule',
+        sProjectSpendVisible = '@(ProjectSpendVisible)',
+        sProjectSpendName = '@ProjectSpendName',
+        sProjectSpendGuid = '@ProjectSpendGuid',
+        isNullProjectSpendName = '@string.IsNullOrWhiteSpace(ProjectSpendName)',
+        resProjectSpendName = '@eTurns.DTO.ResProjectMaster.ProjectSpendName',
+        hasOnTheFlyEntryRight = '@HasOnTheFlyEntryRight',
+        tmpdWorkOrderGUID = '@TempData["WorkOrderGUID"]',
+        resPullAllButton = '@eTurns.DTO.ResPullMaster.PullAllButton',
+        isProjectSpendInsertAllow = '@IsProjectSpendInsertAllow',
+        noProjectspendOntheFlyRight = '@eTurns.DTO.ResPullMaster.NoProjectspendOntheFlyRight',
+        isProjectSpendMandatoryInRoom = '@Model.IsProjectSpendMandatoryInRoom',
+        PullType = '@Convert.ToInt64(PullInsertTypeEnum.WebNewPull)',
+        AllowPullBeyondAvailableQty = '@Model.AllowPullBeyondAvailableQty';
+    var MsgLocationNotFound = '@eTurns.DTO.ResLocation.MsgLocationNotFound';
+    var MsgSaveCreditAjaxError = '@eTurns.DTO.ResPullMaster.MsgSaveCreditAjaxError';
+    var MsgPreCreditInfoAjaxError = '@eTurns.DTO.ResPullMaster.MsgPreCreditInfoAjaxError';
+    var MsgQuantityToCreditValid = '@eTurns.DTO.ResPullMaster.MsgQuantityToCreditValid';
+    var MsgSelectAtleastOneRow = '@ResCommon.SelectRow';
+    var MsgProperQLQty = '@ResQuickListItems.msgProperQLQty';
+    var MsgProjectSpendMandatory = '@ResPullMaster.MsgProjectSpendMandatory';
+    var MsgQtyToPullMandatory = '@ResPullMaster.MsgQtyToPullMandatory';
+    var MsgLabourItemRequiredHours = '@ResPullMaster.MsgLabourItemRequiredHours';
+    var MsgCreditBackProjectSpendValidation = '@ResPullMaster.MsgCreditBackProjectSpendValidation';
+    var MsgDuplicateLotNumberExpirationDate = '@ResPullMaster.MsgDuplicateLotNumberExpirationDate';
+    var MsgDuplicateExpirationDate = '@ResPullMaster.MsgDuplicateExpirationDate';
+    var MsgCreditTransactionDone = '@ResPullMaster.MsgCreditTransactionDone';
+    var MsgCreditTransactionForSerialNumber = '@ResPullMaster.MsgCreditTransactionForSerialNumber';
+    var EnterLotNumber = '@ResKitMaster.EnterLotNumber';
+    var MsgSerialNumberValidation = '@ResReceiveOrderDetails.MsgSerialNumberValidation';
+    var MsgEnterExpirationDate = '@ResPullMaster.MsgEnterExpirationDate';
+    var MsgPullCreditQuantity = '@ResToolMaster.MsgPullCreditQuantity';
+    var MsgStagingHeaderAvailable = '@ResToolMaster.MsgStagingHeaderAvailable';
+    var MsgSelectStagingHeader = '@ResToolMaster.MsgSelectStagingHeader';
+    var MsgSelectRowToDelete = '@ResPullMaster.MsgSelectRowToDelete';
+    var MsgRowShouldExists = '@ResToolMaster.MsgRowShouldExists';
+    var MsgErrorInProcess = '@ResCommon.ErrorInProcess';
+    var MsgPullMoreQuantityValidation = '@ResToolMaster.MsgPullMoreQuantityValidation';
+    var MsgEnteredPullQuantityValidation = '@ResToolMaster.MsgEnteredPullQuantityValidation';
+    var MsgPullExpiredItemList = '@ResPullMaster.MsgPullExpiredItemList';
+    var MsgCommonConfirmation = '@ResCommon.MsgCommonConfirmation';
+    var SomeItemNotPulled = '@ResInventoryCountDetail.SomeItemNotPulled';
+    var MsgPullDoneSuccess = '@ResToolMaster.MsgPullDoneSuccess';
+    var MsgAllPulldone = '@ResPullMaster.AllPulldon';
+    var MsgDuplicateLotNumber = '@ResToolMaster.MsgDuplicateLotNumber';
+    var DuplicateSerialFound = '@ResMessage.DuplicateSerialFound';
+    var DuplicateNumber = '@ResMessage.DuplicateNumber';
+    var MsgEnterPullQuantity = '@ResPullMaster.MsgEnterPullQuantity';
+    var MsgAlertValidated = '@ResPullMaster.MsgAlertValidated';
+    var MsgInventoryLocationMandatory = '@ResPullMaster.InventoryLocationMandatory';
+    var msgProjectSpendLimitConfirmation = '@ResPullMaster.msgProjectSpendLimitConfirmation';
+    var MsgreqQtyToPull = '@ResPullMaster.reqQtyToPull';
+    var MsgMSCreditBackProjectSpendValidation = '@ResPullMaster.MsgMSCreditBackProjectSpendValidation';
+    var MsgQuickListPullReason = '@ResPullMaster.MsgQuickListPullReason';
+    var DuplicateLotFound = '@ResMessage.DuplicateLotFound';
+    var MsgNoLocationToAdd = '@ResPullMaster.MsgNoLocationToAdd';
+    var MsgEnterLotNumber = '@ResReceiveOrderDetails.MsgEnterLotNumber';
+    var MsgPullDetails = '@ResPullMaster.PullDetails';
+    var Pull = '@eTurns.DTO.ResPullMaster.Pull';
+    var Credit = '@eTurns.DTO.ResPullMaster.Credit';
+    var CreditMS = '@eTurns.DTO.ResPullMaster.CreditMS';
+    var QtytoMSCredit = '@ResPullMaster.QtytoMSCredit';
+    var QtyToCredit = '@ResPullMaster.QtyToCredit';
+    var QtyToPull = '@ResPullMaster.QtyToPull';
+    var MSCreditTitle = '@ResPullMaster.MSCredit';
+
+    var uDF1Text = '@UDF1Text',
+        uDF1IsRequired = '@UDF1IsRequired',
+        uDF2Text = '@UDF2Text',
+        uDF2IsRequired = '@UDF2IsRequired',
+        uDF3Text = '@UDF3Text',
+        uDF3IsRequired = '@UDF3IsRequired',
+        uDF4Text = '@UDF4Text',
+        uDF4IsRequired = '@UDF4IsRequired',
+        uDF5Text = '@UDF5Text',
+        uDF5IsRequired = '@UDF5IsRequired';
+
+    var IsRefreshGrid = false;
+
+    var oLanguage = {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            };
+
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callPullNew();', true, true),
+                    new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.History', 'callbackhistory();', true, true)];
+
+    var arrPullPoMaster = @(Html.RenderColumnsArrayForPullPO("PullPoMaster", FixedName: "txtPullOrderNumber", PrependComma: false)),
+        arrPullMasterEO = [@(Html.RenderColumnsArrayOnDemandEditableObject("PullMaster", PrependComma: false, isUDFOrderRequire: true))],
+        arrItemMaster = [@(Html.RenderColumnsArray("ItemMaster", false, "Item"))];
+
+    _NewConsumePull.initUrls('@Url.Content("~/Pull/PullLotSrSelection")', '@Url.Action("PullItemQuantity", "Pull")',
+        '@Url.Action("ValidateSerialLotNumber", "Pull")', '@Url.Action("PullSerialsAndLots", "Pull")',
+        '@Url.Action("PullSerialsAndLotsNew", "Pull")', '@Url.Action("ValidateSerialNumberForCredit", "Pull")',
+        '@Url.Action("ValidateLotDateCodeForCredit", "Pull")', '@Url.Action("PullLotSrSelectionForCreditPopup", "Pull")',
+        '@Url.Action("SaveMaterialStagingFromCredit", "Pull")', '@Url.Content("~/Master/SaveGridState")',
+        '@Url.Content("~/Master/LoadGridState")', '@Url.Content(Model.AjaxURLToFillItemGrid)',
+        '@Url.Content("~/Pull/PullMasterList")', '@Url.Content("~/Pull/NewPull")',
+        '@Url.Action("RequisitionList", "Consume")', '@Url.Content("~/Pull/CheckValidPullData")'
+        , '@Url.Content("~/Pull/UpdatePullData")', '@Url.Content("~/Pull/SavePullGuidsInSchedule")'
+        , '@Url.Content("~/Inventory/ItemLocationDetailsSaveForCreditPull")'
+        ,'@Url.Content("~/Pull/GetItemByQLGuid")'
+    );
+
+    _NewConsumePull.init();
+
+    var PullItemQuantityUrl = _NewConsumePull.urls.PullItemQuantityUrl,
+        PullLotSrSelectionUrl = _NewConsumePull.urls.PullLotSrSelectionUrl,
+        ValidateSerialLotNumberUrl = _NewConsumePull.urls.ValidateSerialLotNumberUrl,
+        PullSerialsAndLotsUrl = _NewConsumePull.urls.PullSerialsAndLotsUrl,
+        PullSerialsAndLotsNewUrl = _NewConsumePull.urls.PullSerialsAndLotsNewUrl,
+        ValidateSerialNumberForCreditUrl = _NewConsumePull.urls.ValidateSerialNumberForCreditUrl,
+        ValidateLotDateCodeForCreditUrl = _NewConsumePull.urls.ValidateLotDateCodeForCreditUrl,
+        PullLotSrSelectionForCreditPopupUrl = _NewConsumePull.urls.PullLotSrSelectionForCreditPopupUrl,
+        SaveMaterialStagingUrl = _NewConsumePull.urls.SaveMaterialStagingFromCreditUrl;
+
+    //callbacknew();
+
+</script>
+

@@ -1,0 +1,1303 @@
+﻿@model eTurns.DTO.ToolMasterDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    List<SelectListItem> lstItems = new List<SelectListItem>();
+    lstItems.Add(new SelectListItem() { Text = "", Value = "" });
+    lstItems.Add(new SelectListItem() { Text = "Mileage", Value = "1" });
+    lstItems.Add(new SelectListItem() { Text = "Operation Hours", Value = "2" });
+    List<ToolCategoryMasterDTO> lstToolcats = new List<ToolCategoryMasterDTO>();
+    List<LocationMasterDTO> lstToolLocs = new List<LocationMasterDTO>();
+    List<TechnicianMasterDTO> lstToolTechs = new List<TechnicianMasterDTO>();
+    if (ViewBag.ToolCategoryList != null)
+    {
+        lstToolcats = ViewBag.ToolCategoryList;
+        lstToolcats = lstToolcats.OrderBy(t => t.ToolCategory).ToList();
+    }
+    if (ViewBag.LocationList != null)
+    {
+        lstToolLocs = ViewBag.LocationList;
+        lstToolLocs = lstToolLocs.OrderBy(t => t.Location).ToList();
+    }
+    if (ViewBag.TechnicianList != null)
+    {
+        lstToolTechs = ViewBag.TechnicianList;
+        lstToolTechs = lstToolTechs.OrderBy(t => t.Technician).ToList();
+    }
+    //System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    string UNCPathRootToolPhoto = eTurns.DTO.SiteSettingHelper.ToolPhoto; // Settinfile.Element("ToolPhoto").Value;
+
+
+    Int64 EnterpriseId = eTurnsWeb.Helper.SessionHelper.EnterPriceID;
+    Int64 CompanyID = eTurnsWeb.Helper.SessionHelper.CompanyID;
+    Int64 RoomID = eTurnsWeb.Helper.SessionHelper.RoomID;
+    UNCPathRootToolPhoto = UNCPathRootToolPhoto.Replace("~", string.Empty);
+
+    string CharCodeList = eTurnsWeb.Helper.CommonUtility.GetNotAllowCharList();
+
+    string LogoPathImage = (UNCPathRootToolPhoto + EnterpriseId + "/" + CompanyID + "/" + RoomID);
+    if (Model.ToolTypeTracking == null || (string.IsNullOrWhiteSpace(Model.ToolTypeTracking)))
+    {
+        Model.ToolTypeTracking = "1";
+    }
+    string toolImagePath = (UNCPathRootToolPhoto + EnterpriseId + "/" + CompanyID + "/" + RoomID + "/" + Model.ID);
+}
+@{
+    bool isUpdate;
+    bool isInsert;
+    bool onlyView = false;
+    bool isCost = false;
+    bool haveToolWrittenOffRights = false;
+    if (ViewBag.ViewOnly == true)
+    {
+        isUpdate = false;
+        isInsert = false;
+        onlyView = true;
+    }
+    else
+    {
+        isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+        isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+        isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+        haveToolWrittenOffRights = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowToolWrittenOff);
+    }
+}
+<script src="@Url.Content("~/Scripts/ImagePreview.js")" type="text/javascript"></script>
+<script type='text/javascript' src="@Url.Content("~/Scripts/ajaxfileupload.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+@using (Ajax.BeginForm("ToolSave", "Tool", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", OnBegin = "onBegin", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmTool" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="userHead">
+        @Html.ValidationSummary(true)
+        @if (Model.ID != 0)
+        {
+            <div class="infoBlock">
+                <ul>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.RoomName)
+                        </label>
+                        : <span>@(Model.RoomName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Created)
+                        </label>
+                        : <span>@(eTurns.DTO.FnCommon.ConvertDateByTimeZone(Model.Created,true))</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.CreatedByName)
+                        </label>
+                        : <span>@(Model.CreatedByName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Updated)
+                        </label>
+                        : <span>@(eTurns.DTO.FnCommon.ConvertDateByTimeZone(Model.Updated,true))</span>
+                    </li>
+                    <li style="border: none">
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.UpdatedByName)
+                        </label>
+                        : <span>@(Model.UpdatedByName)</span>
+                    </li>
+                </ul>
+            </div>
+        }
+        <div class="mainForm">
+            <div class="editorForm">
+                <ul>
+                  
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ToolName)<em> *</em>
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.ToolName, new { id = "ToolName", @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ToolName)</span>
+                            @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                            @Html.HiddenFor(model => model.GUID)
+                            @Html.HiddenFor(model => model.Created)
+                            @Html.HiddenFor(model => model.Updated)
+                            @Html.HiddenFor(model => model.CreatedBy)
+                            @Html.HiddenFor(model => model.LastUpdatedBy)
+                            @Html.HiddenFor(model => model.Room)
+                            @Html.HiddenFor(model => model.RoomName)
+                            @Html.HiddenFor(model => model.CompanyID)
+                            @Html.HiddenFor(model => model.CreatedByName)
+                            @Html.HiddenFor(model => model.UpdatedByName)
+                            @Html.HiddenFor(model => model.IsDeleted)
+                            @Html.HiddenFor(model => model.IsArchived)
+                            @Html.HiddenFor(model => model.CheckedOutMQTY)
+                            @Html.HiddenFor(model => model.CheckedOutQTY)
+                            @Html.HiddenFor(model => model.IsOnlyFromItemUI)
+                            @Html.HiddenFor(model => model.Type)
+                            @Html.HiddenFor(model => model.IsBuildBreak)
+                            @Html.HiddenFor(model => model.AvailableToolQty)
+                            @Html.HiddenFor(model => model.ToolTypeTracking)
+
+
+                        </div>
+                    </li>
+                    <li>
+                        <ul id="ulTracking">
+                            <li>
+                                <div class="editor-label">
+                                    @Html.Label("General/Serial Tool")
+                                </div>
+                                <div class="editor-field">
+                                    @Html.Label("General Tool")
+                                    <span>&nbsp;</span> 
+                                    <span>:</span> 
+                                    @if (Model.ID > 0)
+                                    {
+                                        @(Model.SerialNumberTracking == false ? "Yes" : "No")
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" checked="checked" id="General_Tool" name="GeneralToolType" />
+                                    }
+                                 
+                                    @Html.LabelFor(model => model.SerialNumberTracking)
+                                    <span>&nbsp;</span>
+                                    <span>:</span> 
+                                    @if (Model.ID > 0)
+                                    {
+                                        @(Model.SerialNumberTracking == true ? "Yes" : "No")
+                                        @Html.HiddenFor(model => model.SerialNumberTracking)
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" id="SerialNumberTracking" name="GeneralToolType" />
+                                    }
+                                </div>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.Serial) <em> *</em>
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.Serial, new { id = "Serial", @class = "text-box", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Serial)</span>
+                        </div>
+                    </li>
+
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.Description)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextAreaFor(model => model.Description, 10, 100, new { id = "Description", @class = "text-box", maxlength = 1024 })
+                        </div>
+                    </li>
+                    @if (isCost)
+                    {
+                        <li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.Cost)
+                            </div>
+                            <div class="editor-field">
+                                @Html.TextBoxFor(model => model.Cost, new { id = "Cost", @class = "numericinput", maxlength = 128 })
+                                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Cost)</span>
+                            </div>
+                        </li>
+                    }
+                    else
+                    {
+                        <li>
+                            @Html.HiddenFor(t => t.Cost)
+                        </li>
+                    }
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.IsGroupOfItems)<em> *</em>
+                        </div>
+                        <div class="editor-field" style="padding: 5px">
+                            @if (Model.ID > 0)
+                            {
+                                @(Model.IsGroupOfItems == 1 ? "Yes" : "No")
+                                @Html.HiddenFor(model => model.IsGroupOfItems)
+                            }
+                            else
+                            {
+                                @Html.DropDownListFor(model => model.IsGroupOfItems, new SelectList(ViewBag.GropOfItemsBag, "ID", "Text", Model.IsGroupOfItems), new { @class = "selectBox", @onchange = "FnIsGroupOfItems();" })
+                                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.IsGroupOfItems)</span>
+                            }
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.Quantity)<em> *</em>
+                        </div>
+                        <div class="editor-field" style="padding: 5px">
+                            @if (Model.ID > 0)
+                            {
+                                if (Model.IsGroupOfItems == 0)
+                                {
+                                    <span id="Qty">@(Model.Quantity)</span>
+                                    @Html.HiddenFor(model => model.Quantity, new { @class = "text-box numericinput" })
+                                }
+                                else
+                                {
+                                    @Html.TextBoxFor(model => model.Quantity, new { @class = "text-box numericinput" })
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Quantity)</span>
+                                }
+                            }
+                            else
+                            {
+                                @Html.TextBoxFor(model => model.Quantity, new { @class = "text-box numericinput" })
+                                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Quantity)</span>
+                            }
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.NoOfPastMntsToConsider)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.NoOfPastMntsToConsider, new { @class = "text-box", maxlenght = 2 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.NoOfPastMntsToConsider)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.MaintenanceDueNoticeDays)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.MaintenanceDueNoticeDays, new { @class = "text-box", maxlenght = 2 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.MaintenanceDueNoticeDays)</span>
+                        </div>
+                    </li>
+                    @*<li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.MaintenanceType)
+                            </div>
+                            <div class="editor-field">
+                                @Html.DropDownListFor(model => model.MaintenanceType, new SelectList(lstItems, "Value", "Text"), new { @class = "selectBox" })
+                                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.MaintenanceType)</span>
+                            </div>
+                        </li>*@
+                    <li>
+                        <ul>
+                             <li>
+                                <h4>
+                                    @eTurns.DTO.ResItemMaster.ImagePath
+                                </h4>
+                            </li>
+                            <li>
+                                @Html.RadioButtonFor(e => e.ImageType, "ImagePath", new { id = "ImagePath", onchange = "ShowImage(this);" })
+                                @Html.Label("ImagePath", "Local Image")
+                                @Html.RadioButtonFor(e => e.ImageType, "ExternalImage", new { id = "ExternalImage", onchange = "ShowImage(this);" })
+                                @Html.Label("ExternalImage", "External Url")
+                            </li>
+                           
+                            <li id="ExternalURL">
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.ToolImageExternalURL)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.TextBoxFor(model => model.ToolImageExternalURL, new { @class = "text-box", maxlength = 500, @onblur = "return CheckValidURLForImage(this);" })
+                                </div>
+                                @Html.HiddenFor(model => Model.ToolImageExternalURL)
+                            </li>
+                            <li>
+                                <ul>
+                                    <li>
+                                        <div class="editor-label">
+                                            @Html.LabelFor(model => model.ImagePath)@*<em> *</em>*@
+                                        </div>
+                                        <div class="editor-field" style="width: 1000px;">
+                                            <a href="javascript:void(null);" onclick="DeleteToolImage('@Model.GUID');" title="Delete Image" id="btnDeleteImage" name="btnDeleteImage">
+                                                          <img src="~/Content/images/delete.png" />
+                                            </a> 
+                                            <input name="ToolImage" id="ToolImage" type="file" />
+                                            @if (!string.IsNullOrEmpty(Model.ImagePath))
+                                            {
+                                                <input type="hidden" value="@( LogoPathImage + "/" + Model.ID + "/" + Model.ImagePath)" id="currentpath" />
+                                            }
+                                            else
+                                            {
+                                                <input type="hidden" value="~/Content/images/no-image.jpg" id="currentpath" />
+                                            }
+                                            <div style="float: left;">
+                                                @if (!string.IsNullOrEmpty(Model.ImageType) && !string.IsNullOrEmpty(Model.ImagePath) && Model.ImageType.Trim().ToLower() == "imagepath")
+                                                {
+                                                    <img id="previewHolder" style="width:120px;height:120px;" src="@( LogoPathImage + "/" + Model.ID + "/" + Model.ImagePath)">
+                                                }
+                                                else if (!string.IsNullOrEmpty(Model.ImageType) && !string.IsNullOrEmpty(Model.ToolImageExternalURL) && Model.ImageType.Trim().ToLower() == "externalimage")
+                                                {
+                                                    <img id="previewHolder" style="width:120px;height:120px;" src="@( Model.ToolImageExternalURL)">
+                                                }
+                                                else
+                                                {
+                                                    <img id="previewHolder" style="width: 120px; height: 120px;" alt="No Image" src="~/Content/images/no-image.jpg" />
+                                                }
+                                            </div>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    </li>
+
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                        <div class="BtnBlockform">
+                            <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+                            @if (isInsert == true && Model.ID == 0)
+                            {
+                                <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" onclick="return CheckBeforeSave();" class="CreateBtn" />
+                            }
+                            else if (isUpdate == true)
+                            {
+                                <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" onclick="return CheckBeforeSave();" class="CreateBtn" />
+                            }
+                            else if (isUpdate == false && isInsert == false)
+                            {
+                                <script>
+                                    //This is the case when archived or deleted record is being viewed..
+                                    disableControls('frmTool');
+                                </script>
+                            }
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="editorForm padRightNone">
+                <ul>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ToolCategory)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.ToolCategoryID, new SelectList(lstToolcats, "ID", "ToolCategory", Model.ToolCategoryID), new { @class = "selectBox" })
+                            @if (@eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolCategory,
+eTurnsWeb.Helper.SessionHelper.PermissionType.Insert) && onlyView == false)
+                            {
+                                <a onclick="AddNewFromPopup('Tool Category');" id="btnAddToolCategory" class="addNewLink">
+                                    (Add New)
+                                </a>
+                            }
+                        </div>
+                    </li>
+                    <li style="display:none;">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.Location)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.LocationID, new SelectList(lstToolLocs, "ID", "Location", Model.LocationID), new { @class = "selectBox" })
+                            @if (@eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.LocationMaster,
+eTurnsWeb.Helper.SessionHelper.PermissionType.Insert) && onlyView == false)
+                            {
+                                <a onclick="AddNewFromPopup('Tool Location');" id="btnAddToolLocation" class="addNewLink">
+                                    (Add New)
+                                </a>
+                            }
+                        </div>
+                    </li>
+                    <li id="liLocationListInline">
+                        <div id="divBinReplanish">
+                        </div>
+                    </li>
+                    @*<li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.Technician)
+                            </div>
+                            <div class="editor-field">
+                                @Html.DropDownListFor(model => model.TechnicianGuID, new SelectList(lstToolTechs, "GUID", "Technician", Model.TechnicianGuID), new { @class = "selectBox" })
+                                @if (@eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.TechnicianMaster,
+                                eTurnsWeb.Helper.SessionHelper.PermissionType.Insert) && onlyView == false)
+                                {
+                                    <a onclick="AddNewFromPopup('Tool Technician');" id="btnAddToolTechnician" class="addNewLink">
+                                        (Add New)
+                                    </a>
+                                }
+                            </div>
+                        </li>*@
+                    @Html.Partial("UDFLayout", new eTurns.DTO.ResToolMaster())
+                    @Html.Partial("_DueMaintenance")
+                    @if (Model.ID > 0 && isInsert)
+                    {
+                        if (Model.ToolTypeTrackingStr == "General")
+                        {
+                            <li>
+                                <h4>
+                                    @ResToolMaster.ToolCertificationImages
+                                </h4>
+                            </li>
+                            <li>
+                                <div class="editor-field">
+                                    <input type="file" name="file" id="file" multiple>
+                                    <table class="FileUploadList" style="width:43%;margin-left: 30%;margin-top: 12px;">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:98%;">
+                                                    @ResToolMaster.FileName
+                                                </th>
+
+                                                <th style="width:2%;">
+                                                    @ResToolMaster.Delete
+                                                </th>
+                                            </tr>
+                                        </thead>
+
+                                    </table>
+                                </div>
+                            </li>
+                        }
+                        else
+                        {
+                            @Html.Partial("_ToolImages", new ViewDataDictionary { { "ToolGUID", Model.GUID }, { "ID", Model.ID } });
+                        }
+                    }
+                    @if (Model.ID > 0)
+                    {
+                        <li>
+                            <ul>
+                                <li>
+                                    <h4>
+                                        @ResToolMaster.WrittenOffTool
+                                    </h4>
+                                </li>
+                                <li>
+                                    <div class="editor-label">
+                                        @ResToolMaster.Quantity
+                                    </div>
+                                    <div class="editor-field">
+                                        <input type="text" id="txtWrittenOffQuantity" name="txtWrittenOffQuantity" class="text-box numericinput writtenOffInput" />
+                                    </div>
+                                </li>
+                                @if (Model.ToolTypeTrackingStr != "General")
+                                {
+                                    <li>
+                                        <div class="editor-label">
+                                            @ResToolMaster.Serial
+                                        </div>
+                                        <div class="editor-field">
+                                            @Html.DropDownList("ddlSerial", new SelectList(ViewBag.ToolSerialForWrittenOff, "Value", "Text"), new { @class = "selectBox writtenOffInput", @multiple = "multiple" })
+                                        </div>
+                                    </li>
+                                }
+                                
+                                <li>
+                                    <div class="editor-label">
+                                        @ResToolMaster.WrittenOffCategory
+                                    </div>
+                                    <div class="editor-field">
+                                        @Html.DropDownList("ddlCategory", new SelectList(ViewBag.ToolWrittenOffCategories, "ID", "Text"), new { @class = "selectBox writtenOffInput" })
+                                    </div>
+                                </li>
+                                <li>
+                                    <div class="editor-label">
+                                        @ResToolMaster.WrittenOffDescription
+                                    </div>
+                                    <div class="editor-field">
+                                        <textarea class="text-box writtenOffInput" cols="100" id="WrittenOffDescription" maxlength="1024" name="WrittenOffDescription" rows="10"></textarea>
+                                    </div>
+                                </li>
+                                <li>
+                                    <div class="editor-label">
+                                        &nbsp;
+                                    </div>
+                                    <div class="BtnBlockform">
+                                        @if (haveToolWrittenOffRights == true)
+                                        {
+                                            <input type="button" value="@ResToolMaster.WrittenOffTool" id="btnWrittenOffTool" onclick="return WrittenOffTool();" class="CreateBtn writtenOffInput" />
+                                            <script>
+                                                $('.writtenOffInput').prop("disabled", false);
+                                            </script>
+                                        }
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+}
+@Html.Partial("_RequiredMessages")
+<script type="text/javascript">
+    var WrittenOffToolURL = '@Url.Action("WrittenOffTool", "Tool")';
+    var Inventory_LoadLocationsofTool = '@Url.Action("LoadLocationsofTool", "Tool")';
+    var isSerialNumberTracking = '@Model.SerialNumberTracking';
+    var charCode = '@CharCodeList';
+    var ToolID = '@Model.ID';
+    var ToolGUID = '@Model.GUID';
+    var Tool_SavetoSeesionBinReplanishSingle = '@Url.Action("SavetoSeesionBinReplanishSingle", "Tool")';
+    var Inventory_SavetoSeesionBinReplanishSingleNew = '@Url.Action("SavetoSeesionBinReplanishSingleNew", "Tool")';
+    var Inventory_DeletetoSeesionBinReplanishSingle = '@Url.Action("DeletetoSeesionBinReplanishSingle", "Tool")';
+    var CommonFileExtension = '@SiteSettingHelper.CommonAllowedFileExtension';
+    var MsgInvalidFileSelected = '@ResWorkOrder.MsgInvalidFileSelected';
+    var MsgvalidFileList = '@ResWorkOrder.MsgvalidFileList';
+
+    $("form").submit(function (e) {
+        $.validator.unobtrusive.parse("#frmTool");
+        if ($(this).valid()) {
+            rememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        }
+        e.preventDefault();
+        //$('#NarroSearchClear').click();
+    });
+    $("span#Qty").text(FormatedCostQtyValues($("span#Qty").text(), 2));
+</script>
+<script language="javascript" type="text/javascript">
+    var ToolImageType = '@Model.ImageType';
+    var ToolImagePath = '@Model.ImagePath';
+    var DeleteToolImageId = '';
+    var formData = new FormData();
+
+    function onSuccess(response) {
+        IsRefreshGrid = true;
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+        GetToolsNarrowSearchDataNew(false, false, 'ToolMasterNew','ToolList');
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#ToolName").val("");
+            $("#ToolName").focus();
+        }
+        else if (idValue == 0) {
+            $("#ToolName").val("");
+            $("#ToolName").focus();
+
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+                if ($("#ToolImage").val() != "") {
+                    ajaxFileUpload(response.ToolID);
+                }
+                clearControls('frmTool');
+                ShowNewTab('ToolCreate', 'frmTool');
+            }
+        }
+        else if (idValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                $("#Serial").focus();
+            }
+            else {
+                if ($("#ToolImage").val() != "") {
+                    ajaxFileUpload(response.ToolID);
+                }
+
+                if (DeleteToolImageId != '') {
+                    DeleteExistingFiles(DeleteToolImageId, ToolGUID);
+                }
+                SaveToolImage(ToolID, ToolGUID);
+                clearControls('frmTool');
+                SwitchTextTab(0, 'ToolCreate', 'frmTool');
+                
+                if (TopGlobalSearch != '' && TopGlobalSearch != null && TopGlobalSearch != undefined) {
+                    
+                    $("#global_filter").val(TopGlobalSearch);
+                    $('#global_filter').unbind("keypress");
+                    //_Common.setGloblaSearch('global_filter', 'myDataTable', null, null);
+                    ////_Common.trimStartGlobalFilter('global_filter');
+                    IsClearGlobalFilter = false;
+                    if (TopGlobalSearch.length > 2) {
+                        $("#myDataTable").dataTable().fnFilter(
+                            TopGlobalSearch,
+                            null,
+                            null,
+                            null
+                        );
+                    }
+                }
+
+            }
+        }
+    }
+    function ajaxFileUpload(retid) {
+        //starting setting some animation when the ajax starts and completes
+        $("#loading")
+    .ajaxStart(function () {
+        $(this).show();
+    })
+    .ajaxComplete(function () {
+        $(this).hide();
+    });
+
+        $.ajaxFileUpload
+    (
+        {
+            url: '/api/fileupload/PostToolFile/' + retid,
+            secureuri: false,
+            type: "POST",
+            fileElementId: 'ToolImage',
+            dataType: 'json',
+            success: function (data, status) {
+            },
+            error: function (data, status, e) {
+            }
+        }
+    )
+        return false;
+    }
+
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        showNotificationDialog();
+        $("#ToolName").focus();
+    }
+
+    function FnIsGroupOfItems() {
+        if (!$("input#SerialNumberTracking").is(":checked")) {
+            if ($("#IsGroupOfItems option:selected")[0].value == 0) { // 0 means false
+                $("#Quantity").attr("readonly", true);
+                $("#Quantity").val('1');
+            }
+            else
+                $("#Quantity").attr("readonly", false);
+        }
+    }
+
+    function onlyNumeric(event) {
+        var charCode = (event.which) ? event.which : event.keyCode
+
+        if (charCode > 31 && (charCode < 48 || charCode > 57 || code == 86))
+            return false;
+
+        return true;
+    }
+
+    function CheckBeforeSave() {
+        var tmpCheckedOutMQTY = parseInt($('#CheckedOutMQTY').val() == '' ? 0 : $('#CheckedOutMQTY').val(), 10);
+        var tmpCheckedOutQTY = parseInt($('#CheckedOutQTY').val() == '' ? 0 : $('#CheckedOutQTY').val(), 10);
+        var tmpQuantity = parseInt($('#Quantity').val() == '' ? 0 : $('#Quantity').val(), 10);
+
+        //$('#myDataTable').dataTable().fnFilter('', null, null, null);
+        if (tmpQuantity == 0 && $("input#ToolTypeTracking").val().indexOf("2") < 0) {
+            showNotificationDialog();
+            $("#spanGlobalMessage").html('@ResCommon.MsgInvalidQty');
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+            return false;
+        }
+        else if (tmpQuantity < (tmpCheckedOutMQTY + tmpCheckedOutQTY)) {
+            showNotificationDialog();
+            $("#spanGlobalMessage").html('@ResToolMaster.MsgQtyGreaterThanCheckedOutQty'.replace("{0}", (tmpCheckedOutMQTY + tmpCheckedOutQTY)));
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+            return false;
+        }
+        else
+            return true;
+    }
+
+    function WrittenOffTool() {
+        var tmpCheckedOutMQTY = parseInt($('#CheckedOutMQTY').val() == '' ? 0 : $('#CheckedOutMQTY').val(), 10);
+        var tmpCheckedOutQTY = parseInt($('#CheckedOutQTY').val() == '' ? 0 : $('#CheckedOutQTY').val(), 10);
+        var tmpQuantity = parseInt($('#Quantity').val() == '' ? 0 : $('#Quantity').val(), 10);
+        var availableQuantity = tmpQuantity - (tmpCheckedOutQTY + tmpCheckedOutMQTY);
+        var writtenOffQuantity = parseInt($('#txtWrittenOffQuantity').val() == '' ? 0 : $('#txtWrittenOffQuantity').val(), 10);
+        var writtenOffCategoryId = parseInt($('#ddlCategory').val());
+        var writtenOffDetails = $('#WrittenOffDescription').val();
+        //var isGroupOfItems = '@Model.IsGroupOfItems';
+
+        if ('@Model.ToolTypeTrackingStr' != "General")
+        {
+            var writtenOffSerials = $('#ddlSerial').val();
+            if (writtenOffSerials == null || writtenOffSerials.length != writtenOffQuantity)
+            {
+                showNotificationDialog();
+                $("#spanGlobalMessage").html('@ResToolMaster.SerialSelectionCountMisMatch ' + (writtenOffQuantity));
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                return false;
+            }
+        }
+
+        if (writtenOffQuantity <= 0) {
+            showNotificationDialog();
+            $("#spanGlobalMessage").html('@ResToolMaster.InvalidQuantity');
+            $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            return false;
+        }
+        else if (writtenOffQuantity > availableQuantity) {
+            showNotificationDialog();
+            $("#spanGlobalMessage").html('@ResToolMaster.QuantityGreaterThanAvailableQty ' + (availableQuantity));
+            $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            return false;
+        }
+        @*else if ((parseInt(isGroupOfItems) == 1 || '@Model.ToolTypeTrackingStr' != "General") && (writtenOffQuantity > (availableQuantity - 1))) {
+            showNotificationDialog();
+            $("#spanGlobalMessage").html('@ResToolMaster.AvailableQtyCantBeLessThanOne');
+            $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            return false;
+        }*@
+        else {
+            var Serial = null;
+            if ('@Model.ToolTypeTrackingStr' != "General")
+            {
+                Serial = $('#ddlSerial').val().join();
+            }
+            var arrItemDetails = new Array();
+            var ToolWrittenOff = { ToolGUID: '@Model.GUID', Quantity: writtenOffQuantity, ToolWrittenOffCategoryID: writtenOffCategoryId, Details: writtenOffDetails, Serial: Serial };
+            arrItemDetails.push(ToolWrittenOff);
+
+            $.ajax({
+                type: "POST",
+                url: WrittenOffToolURL,
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify(arrItemDetails),
+                success: function (RetData) {
+                    var errorMessage = "";
+                    $.each(RetData, function (indx, RetDataItem) {
+                        if (RetDataItem.ErrorMessage != null && RetDataItem.ErrorMessage != undefined && RetDataItem.ErrorMessage.trim() > '') {
+                            errorMessage += RetDataItem.ErrorMessage + "\r\n";
+                        }
+                    });
+
+                    if (errorMessage == "") {
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html('@ResToolMaster.ToolWrittenOffSuccessfully');
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        $('#frmTool').areYouSure({ 'silent': true });
+                        ShowEditTab("ToolEdit/" + '@Model.ID', "frmTool");
+                    }
+                    else {
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html(errorMessage);
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    }
+                },
+                error: function (err) {
+                    showNotificationDialog();
+                    $("#spanGlobalMessage").html('@ResToolMaster.FailToWrittenOffTool');
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                }
+            });
+        }
+    }
+
+    $(document).ready(function () {
+        window.location.hash = '';
+        var intNotAllowededCode = charCode.split(',');
+        if (intNotAllowededCode != null && intNotAllowededCode.length > 0) {
+            specialKeys = new Array();
+            for (i = 0; i < intNotAllowededCode.length; i++) {
+                specialKeys.push(parseInt(intNotAllowededCode[i])); //Backspace
+            }
+        }
+
+        $('form').areYouSure();
+        if (ToolImageType == 'ImagePath' || ToolImageType == '') {
+            $("#ToolImage").show();
+            $("#ExternalURL").hide();
+            
+            if (ToolImagePath != undefined && ToolImagePath != null && ToolImagePath != '') {
+                $("#btnDeleteImage").show();
+            }
+            else {
+                $("#btnDeleteImage").hide();
+            }
+        }
+        else {
+            $("#ToolImage").hide();
+            $("#ExternalURL").show();
+            $("#btnDeleteImage").hide();
+        }
+        $("#ToolImage").change(function () {
+            readURL(this);
+        });
+
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+
+        $('#btnCancel').click(function (e) {
+            SwitchTextTab(0, 'ToolCreate', 'frmTool');
+            if (oTable !== undefined && oTable != null) {
+                ////oTable.fnDraw();
+                if (TopGlobalSearch != '' && TopGlobalSearch != null && TopGlobalSearch != undefined) {
+                    $("#global_filter").val(TopGlobalSearch);
+                    $('#global_filter').unbind("keypress");
+                    IsClearGlobalFilter = false;
+                    if (TopGlobalSearch.length > 2) {
+                        $("#myDataTable").dataTable().fnFilter(
+                            TopGlobalSearch,
+                            null,
+                            null,
+                            null
+                        );
+                    }
+                }
+                else {
+                    oTable.fnDraw();
+                }
+            }
+            $('#NarroSearchClear').click();
+        });
+
+        if ('@Model.ID' > 0 && '@Model.ToolTypeTrackingStr' == "General") {
+            $.ajax({
+                url: "GetToolCertificationImages",
+                type: 'POST',
+                data: { 'toolGuid': '@Model.GUID' },
+                dataType: 'json',
+                async: false,
+                success: function (data) {
+                    var Li = '';
+                    $.each(data.DDData, function (i, val) {
+                        Li += "<tr id='" + i + "' uploaded='true'>";
+                        Li += "<td style='width:98%;text-align:left;'><a class='preview' href='" + '@toolImagePath' + "/" + i + "/" + val + "' target='_blank'>" + val + "</a></td><td style='width:2%'><a href='javascript:;' onclick='DeleteExistingFile(\"" + i + "\");'><img src='/content/images/delete.png' /></a></td>";
+                        Li += "</tr>";
+                    });
+                    $("table.FileUploadList").append(Li);
+                    // starting the script on page load
+
+                    imagePreview();
+                    $("table.FileUploadList").dataTable({ "bPaginate": false, "bInfo": false });
+                },
+                error: function (request) {
+                    console.log(request.responseText);
+                }
+            });
+        }
+
+        checkRememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        setTimeout(function () { BindBinReplanish(); SetTrackingType(); }, 300);
+
+
+    });
+
+    $(function () {
+        // grab the file input and bind a change event onto it
+        $('#file').bind("change", function () {
+            // new html5 formdata object.
+            //$("ul.FileUploadList").empty();
+            $("table.FileUploadList tr td.dataTables_empty").remove();
+            var Li = '';
+            for (var i = 0, len = document.getElementById('file').files.length, avalbleimg = $("table.FileUploadList tr").length  ; i < len; i++, avalbleimg++) {
+                var localdate = moment.utc().format('YYYY_MM_DD_HH_mm_ss');
+                localdate += localdate + avalbleimg;
+                Li += "<tr id=" + localdate + "  uploaded='false'>";
+                Li += "<td style='width:98%;text-align:left;'>" + document.getElementById('file').files[i].name + "</td><td style='width:2%'><a href='javascript:;' onclick='DeleteCurrentFile(\"" + localdate + "\");'><img src='/content/images/delete.png' /></a></td>";
+                Li += "</tr>";
+                formData.append("file" + localdate, document.getElementById('file').files[i]);
+            }
+            $("table.FileUploadList").append(Li);
+            $("table.FileUploadList").dataTable();
+        });
+    });
+
+    function DeleteCurrentFile(currentPos) {
+        formData.delete("file" + currentPos);
+        $("table.FileUploadList tr#" + currentPos + "").remove();
+        $("table.FileUploadList").dataTable();
+    }
+
+    function SaveToolImage(Id, Guid) {
+        var IdGuid = Id + "$" + Guid;
+        formData.append("ID", Id);
+        formData.append("ToolGUID", Guid);
+
+        if ('@Model.ToolTypeTrackingStr' == "General") {
+            formData.append("Serial", "");
+            if ($("table.FileUploadList tr[uploaded='false']").length > 0) {
+
+                //send formdata to server-side
+                $.ajax({
+                    url: "/api/fileupload/ToolFileUpload/" + Id,
+                    type: 'post',
+                    data: formData,
+                    dataType: 'html', // we return html from our php file
+                    async: false,//async: true,
+                    processData: false,  // tell jQuery not to process the data
+                    contentType: false,   // tell jQuery not to set contentType
+                    success: function (data) {
+                    },
+                    error: function (request) {
+                        console.log(request.responseText);
+                    }
+                });
+            }
+        }
+        else {
+            formData.append("GuidForSeparator", $("#hdnGuidForSeparator").val());
+            var isFileSelected = $("#hdnUploadedImages");
+            var filesSelected = (isFileSelected !== undefined && isFileSelected.val() == "true") ? true : false;
+
+            if (filesSelected) {
+                $.ajax({
+                    url: "/api/fileupload/ToolFileUpload/" + Id,
+                    type: 'post',
+                    data: formData,
+                    dataType: 'html', // we return html from our php file
+                    async: false,//async: true,
+                    processData: false,  // tell jQuery not to process the data
+                    contentType: false,   // tell jQuery not to set contentType
+                    success: function (data) {
+                    },
+                    error: function (request) {
+                        console.log(request.responseText);
+                    }
+                });
+            }
+        }
+    }
+    function DeleteExistingFile(FileId) {
+        $("table.FileUploadList tr#" + FileId + "").remove();
+        if (DeleteToolImageId != '') {
+            DeleteToolImageId += ',' + FileId;
+        }
+        else {
+            DeleteToolImageId = FileId;
+        }
+    }
+    function DeleteExistingFiles(FileId, ToolGuid) {
+        $.ajax({
+            url: 'DeleteExistingFiles',
+            type: 'Post',
+            data: { 'FileId': FileId, 'ToolGuid': ToolGuid },
+            dataType: 'json',
+            async:false,
+            success: function (response) {
+            }
+        });
+    }
+    function BindBinReplanish() {
+        $('#divBinReplanish').empty();
+        $('#DivLoading').show();
+        $.get(Inventory_LoadLocationsofTool + '?ToolGUID=' + ToolGUID + '&AddCount=0', function (data) {
+            $('#divBinReplanish').html(data);
+            $('#DivLoading').hide();
+        });
+    }
+
+    function SetTrackingType() {
+        if ('@Model.ID' != '0' && '@Model.ToolTypeTracking.IndexOf("2")' >= 0) {
+            $("input#Serial").attr("disabled", "disabled");
+            $("input#Quantity").attr("disabled", "disabled");
+            $("input#Quantity").addClass("disableBack");
+            $("input#Serial").addClass("disableBack");
+            $("select#IsGroupOfItems").attr("disabled", "disabled");
+        }
+    }
+</script>
+<div id="NewMasterPopUP">
+</div>
+<script type="text/javascript">
+    var formData = new FormData();
+    $("#NewMasterPopUP").dialog({
+        autoOpen: false,
+        show: "blind",
+        hide: "explode",
+        height: 600,
+        width: 800,
+        modal: true,
+        open: function () {
+            $(this).parent().find("span.ui-dialog-title").html("Add New " + $(this).data("data"));
+        },
+        close: function () {
+            $('#DivLoading').show();
+            RefreshDropdownList($(this).data("data"), $(this).data("IDVal"));
+            $(this).data("data", null);
+            $(this).data("IDVal", null);
+            $(this).parent().find("span.ui-dialog-title").html('');
+        }
+    });
+    function AddNewFromPopup(PopupFor) {
+        $('#DivLoading').show();
+        var _URL = ''
+        if (PopupFor == 'Tool Category') {
+            _URL = '@Url.Action("../Master/ToolCategoryCreate")';
+        }
+        else if (PopupFor == 'Tool Location') {
+            _URL = '@Url.Action("../Master/ToolLocationCreate")';
+        }
+        else if (PopupFor == 'Tool Technician') {
+            _URL = '@Url.Action("../Master/TechnicianCreate")';
+        }
+        else {
+            return false;
+        }
+        $('#NewMasterPopUP').load(_URL, function () {
+            $('#NewMasterPopUP').data("data", PopupFor).dialog('open');
+            $('#DivLoading').hide();
+        });
+    }
+    function RefreshDropdownList(PopupFor, IDVal) {
+        if (IDVal != undefined) {
+            var _ControlID = '';
+            if (PopupFor == 'Tool Category') {
+                _ControlID = "ToolCategoryID";
+            }
+            else if (PopupFor == 'Tool Location') {
+                _ControlID = "LocationID";
+            }
+            var arrdata = IDVal.split("~");
+            var listData = $('select[id*="' + _ControlID + '"]');
+            $(listData).each(function () {
+                $(this).append($("<option />").val(arrdata[0]).text(arrdata[1]));
+            });
+        }
+        $('#DivLoading').hide();
+    }
+    function CheckValidURLForImage(curobj) {
+        var strURL = $(curobj).val();
+        if (strURL != '' && strURL != null) {
+
+            var validExtension = CommonFileExtension.split(',');
+            var strValidationMessage = "";
+            var fileExt = strURL.substring(strURL.lastIndexOf('.'));
+            if (fileExt.indexOf("/") <= 0) {
+                if (validExtension.indexOf(fileExt.toLowerCase()) <= -1) {
+                    strValidationMessage = strValidationMessage + strURL + " " + MsgInvalidFileSelected;
+                }
+                if (strValidationMessage != "") {
+                    alert(strValidationMessage + MsgvalidFileList.replace("{0}", validExtension.toString()));
+                    $('#previewHolder').attr('src', '/Content/images/no-image.jpg');
+                    $("input#ToolImageExternalURL").val('/Content/images/no-image.jpg');
+                    return;
+                }
+            }
+
+            $("<img>", {
+                src: strURL,
+                error: function () {
+                    $(curobj).val("");
+                    alert('@ResCommon.InvalidURL');
+                    curobj.focus();
+                    return false;
+                },
+                load: function () {
+                    $('#previewHolder').attr('src', strURL);
+                }
+            });
+        }
+        else {
+            $('#previewHolder').attr('src', '/Content/images/no-image.jpg');
+        }
+        return false;
+    }
+    function ShowImage(currentRadio) {
+        var currentId = $(currentRadio).attr("id");
+        var i = $("input#currentpath").val();
+
+        if (currentId == "ImagePath") {
+            $("#ToolImage").show();
+            $("#ExternalURL").hide();
+            setImagePath();
+
+            $("#btnDeleteImage").hide();
+            if ((ToolImagePath != undefined && ToolImagePath != null && ToolImagePath != '') || ($("input#currentpath").val() != '' && $("input#currentpath").val() != '/Content/images/no-image.jpg')) {
+                $("#btnDeleteImage").show();
+            }
+
+        }
+        else {
+            CheckValidURLForImage($("input#ToolImageExternalURL"));
+
+            $("#ToolImage").hide();
+            $("#ExternalURL").show();
+            $("#btnDeleteImage").hide();
+        }
+    }
+    function DeleteToolImage(ToolGUID) { 
+        
+        $.ajax({
+            url: "DeleteToolImage",
+            data: { 'ToolGUID': ToolGUID },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                if (response.status == 'ok') {
+                    
+                    $('#previewHolder').attr('src', '/Content/images/no-image.jpg');
+                    $("input#currentpath").val('/Content/images/no-image.jpg');
+                    $("input#ToolImage").val('');
+                    $("#btnDeleteImage").hide();
+                    ToolImagePath = '';
+                }
+                else {
+                    Status = 'Error';
+                    alert("Error");
+                }
+            }
+        });
+    }
+    function setImagePath() {
+        $('#previewHolder').attr('src', $("input#currentpath").val());
+    }
+    function readURL(input) {
+
+        if (input.files && input.files[0]) {
+
+            var validExtension = CommonFileExtension.split(',');
+            var strValidationMessage = "";
+            var fileExt = input.files[0].name;
+            fileExt = fileExt.substring(fileExt.lastIndexOf('.'));
+            if (validExtension.indexOf(fileExt.toLowerCase()) <= -1) {
+                strValidationMessage = strValidationMessage + input.files[0].name + " " + MsgInvalidFileSelected;
+            }
+            if (strValidationMessage != "") {
+                alert(strValidationMessage + MsgvalidFileList.replace("{0}", validExtension.toString()));
+                $('#previewHolder').attr('src', '/Content/images/no-image.jpg');
+                $("input#currentpath").val('');
+                $("input#ToolImage").val('');
+                $("#btnDeleteImage").hide();
+                EnterpriseImagePath = '';
+                return;
+            }
+
+            var isError = false;
+            var objFile = input.files[0];
+
+            for (var n = 0; n < specialKeys.length; n++) {
+                if (objFile.name.toString().lastIndexOf(String.fromCharCode(specialKeys[n])) >= 0) {
+                    isError = true;
+                    break;
+                }
+            }
+
+            if (isError == true) {
+                showNotificationDialog();
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                $("#spanGlobalMessage").html('@ResCommon.ValidFileName');
+
+                $("input#currentpath").val('');
+                $("input#ToolImage").val('');
+            }
+            else{
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var filePath = $("#currentpath").val().split('\\').pop();
+
+                    if (filePath.toString().indexOf("&") >= 0 || filePath.toString().indexOf("<") >= 0 || filePath.toString().indexOf(">") >= 0
+                        || filePath.toString().indexOf("*") >= 0 || filePath.toString().indexOf(":") >= 0
+                        || filePath.toString().indexOf("?") >= 0) {
+                        alert("Please select correct file name.");
+                        $("input#currentpath").val('');
+                    }
+                    else {
+                        $('#previewHolder').attr('src', e.target.result);
+                        $("input#currentpath").val(e.target.result);
+                        $("#btnDeleteImage").show();
+                    }
+                }
+
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    }
+    
+    function onBegin(xhr) {
+        
+        if (!SavetoSeesionItemLocationAll()) {
+            return false;
+        }
+    }
+    $("input#SerialNumberTracking").click(function (e) {
+        if ($(this).is(":checked")) {
+            $("input#Serial").val('');
+            $("input#Quantity").val('');
+            $("input#Serial").attr("disabled", "disabled");
+            $("input#Quantity").attr("disabled", "disabled");
+            $("input#Quantity").addClass("disableBack");
+            $("input#Serial").addClass("disableBack");
+            $("input#General_Tool").removeAttr("checked");
+        }
+        else {
+            $("input#Serial").removeAttr("disabled");
+            $("input#Quantity").removeAttr("disabled");
+            $("input#Quantity").removeClass("disableBack");
+            $("input#Serial").removeClass("disableBack");
+        }
+        SetToolTrackingType();
+    });
+    $("input#General_Tool").click(function (e) {
+        if ($(this).is(":checked")) {
+          
+            $("input#Serial").removeAttr("disabled");
+            $("input#Quantity").removeAttr("disabled");
+            $("input#SerialNumberTracking").removeAttr("checked");
+            $("input#Quantity").removeClass("disableBack");
+            $("input#Serial").removeClass("disableBack");
+        }
+        
+        SetToolTrackingType();
+    });
+    function SetToolTrackingType() {
+        
+        var SerialType = false;
+        var GeneralType = false;
+        var TrackType = '';
+        if ($("input#SerialNumberTracking").is(":checked")) {
+            SerialType = true;
+        }
+        if ($("input#General_Tool").is(":checked")) {
+            GeneralType = true;
+        }
+        if (GeneralType) {
+            $("select#IsGroupOfItems").removeAttr("disabled");
+            $("select#IsGroupOfItems").removeClass("disableBack");
+            if (TrackType != '') {
+                TrackType += ",1";
+            }
+            else {
+                TrackType = "1";
+            }
+        }
+        if (SerialType) {
+            $("select#IsGroupOfItems").val(1);
+            $("select#IsGroupOfItems").attr("disabled");
+            $("select#IsGroupOfItems").addClass("disableBack");
+            if (TrackType != '') {
+                TrackType += ",2";
+            }
+            else {
+                TrackType = "2";
+            }
+        }
+        $("input#ToolTypeTracking").val(TrackType);
+    }
+</script>
+<style>
+    p {
+        clear: both;
+        margin: 0;
+        padding: .5em 0;
+    }
+
+    pre {
+        display: block;
+        font: 100% "Courier New", Courier, monospace;
+        padding: 10px;
+        border: 1px solid #bae2f0;
+        background: #e3f4f9;
+        margin: .5em 0;
+        overflow: auto;
+        width: 800px;
+    }
+
+    img {
+        border: none;
+    } 
+
+    #preview {
+        position: absolute;
+        border: 1px solid #ccc;
+        background: #333;
+        padding: 5px;
+        display: none;
+        color: #fff;
+    }
+</style>

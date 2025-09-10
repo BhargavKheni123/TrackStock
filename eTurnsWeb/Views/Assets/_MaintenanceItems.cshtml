@@ -1,0 +1,322 @@
+﻿@model IEnumerable<eTurns.DTO.ToolMaintenanceDetailsDTO>
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = true, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = true, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, ColumnSetupFor = "MaintenanceItemsList", DataTableName = "MaintenanceItemsTable" + ViewBag.MaintenanceGUID };
+}
+<script type="text/javascript" src="@Url.Content("~/Scripts/DynemicDataTable.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+<div class="innerGrid" style="padding: 10px 0 0 28px">
+    <table style="width: 100%;">
+        <tr>
+            <td class="BtnBlock" style="float: none; border: 1px solid #F8F8F8; height: 2px;">
+
+                <div class="innerHeadSec">
+                    <div style="position: absolute; left: 400px; top: -9px; width: 350px; z-index: 10;">
+                        @Html.GridInnerGridTopHeader(settings)
+                    </div>
+
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="padding-top: 14px; padding-bottom: 35px; border: 1px solid #F8F8F8;">
+                <div class="userContentInnerGrid">
+                    <table id="MaintenanceItemsTable@(ViewBag.MaintenanceGUID)" class="display" style="width: 800px;">
+                        <thead>
+                            <tr>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.ItemNumber
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.Cost
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResToolsSchedulerDetails.Quantity
+                                </th>
+                                @Html.RenderColumnsHeader("PullMaster", typeof(eTurns.DTO.ResPullMaster))
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model != null)
+                            {
+                                foreach (var item in Model)
+                                {
+                                    <tr>
+                                        <td>
+                                            @item.ItemNumber
+                                        </td>
+                                        <td>
+                                            @item.ItemCost
+                                        </td>
+                                        <td>
+                                            @item.Quantity
+                                            <input id="hdnID" type="hidden" value="@item.GUID" />
+                                        </td>
+                                        @(Html.RenderColumnsArrayForDOM("PullMaster", item, "Pull"))
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<div class="dialog" id="mdlQLYesNo" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+        </p>
+        <a href="JavaScript:void{}" id="btnQLModelYesSP" class="yes">
+            <img src="@Url.Content("~/Content/images/yes.png")" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no"
+               onclick="QLcloseModal()">
+            <img src="@Url.Content("~/Content/images/no.png")" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<script type="text/javascript">
+    var oTableMaintananceItems;
+    var deleteURL2 = "/Assets/ScheduleItemsDelete";
+    var DTNameItem = 'MaintenanceItemsTable' + '@ViewBag.MaintenanceGUID';
+    objColumns = GetGridHeaderColumnsObject(DTNameItem);
+    $(document).ready(function () {
+        oTableMaintananceItems = $('#' + DTNameItem).dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            //"bScrollCollapse": true,
+            "sScrollX": "100%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            "oColVis": {},
+            "aaSorting": [],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                //if (!bIsFilter) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'MaintenanceItemsList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+               // }
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'MaintenanceItemsList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            }
+        });
+        $("div.innerGrid").find("#deleteRows1").attr("id", "deleteRows1_" + '@ViewBag.MaintenanceGUID');
+        $("div.innerGrid").find("#btnModelYesInnerGrid").attr("id", "btnModelYesInnerGrid_" + '@ViewBag.MaintenanceGUID');
+        $('.DTTT_container').css('z-index', '-1');
+        oTableGlobalTABLE = oTableMaintananceItems;
+        BindReorderInnerGridPopUpAndEvents(false);
+        $("a#ColumnOrderSetupInnerGrid").on("click", function () {
+            $("#ColumnSortableModalInnerGrid").dialog("open");
+        });
+
+
+    });
+
+    $('#' + DTNameItem + ' tbody tr').die('tap click');
+    $('#deleteRows1_' + '@ViewBag.MaintenanceGUID').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid_' + '@ViewBag.MaintenanceGUID').die('click');
+    $(".ColVis_MasterButton").hide();
+
+    function InnerGridReloadAfterReorder() {
+        $('#AssetsToolsMaintenanceDetails').find("tbody tr").each(function (index, tr) {
+                if ($(tr).find('#hdnID').val() == '@(ViewBag.MaintenanceGUID)') {
+                    $(tr).find('img.#pullDrillDown').click(); //$(tr).find('img.ExpandLocationSerials').click();
+                    $(tr).find('img.#pullDrillDown').click();
+                //ToolIDToOpen = '';
+                return;
+            }
+        });
+    }
+
+
+    // To adjust the print block next to colvis button
+    $('#btnblock').css({ 'margin-right': '45px' });
+
+    $('#' + DTNameItem + ' tbody tr').live('tap click', function () {
+        $(this).toggleClass('row_selected');
+        return false;
+    });
+
+    /* Add a click handler for the delete rows multiple rows */
+
+    $('#deleteRows1_' + '@ViewBag.MaintenanceGUID').click(function () {
+
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+        if ($("body").hasClass('DTTT_Print')) {
+            return false;
+        }
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+        var anSelected = fnGetSelected(oTableMaintananceItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            //anSelected[0].cells[0].innerHTML
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+            IsDeletePopupOpen = false;
+        }
+    });
+
+    $("#btnModelYesInnerGrid_" + '@ViewBag.MaintenanceGUID').live("click", function () {
+
+        var anSelected = fnGetSelected(oTableMaintananceItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+
+        if (anSelected.length !== 0) {
+            $.ajax({ 'url': deleteURL2,
+                data: { ids: stringIDs },
+                success: function (response) {
+
+                    if (response == "ok") {
+
+
+                        for (var i = 0; i <= anSelected.length - 1; i++) {
+                            oTableMaintananceItems.fnDeleteRow(anSelected[i]);
+                        }
+
+                        if (anSelected.length > 0) {
+                            $("#spanGlobalMessage").html('@ResCommon.RecordDeletedSuccessfully'.replace("{0}","(" + anSelected.length + ")"));
+                        }
+                        //$('div#target').fadeToggle();
+                        //$("div#target").delay(2000).fadeOut(200);
+                        showNotificationDialog();
+                        //CallThisFunctionFromModel('success');
+                        //oTableMaintananceItems.fnDraw();
+                    }
+                },
+                error: function (response) {
+                    // through errror message
+                }
+            });
+            $.modal.impl.close();
+        }
+    });
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+        $('#' + DTNameItem).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+    /* global search function */
+    function fnFilterGlobalPS() {
+        //set filter only if more than 2 characters are pressed
+        //if (typeof $("#InnerItem_filter") != 'undefined' && ($("#InnerItem_filter").val().length > 2 || $("#InnerItem_filter").val().length == 0)) {
+        if (typeof $("#InnerItem_filter") != 'undefined') {
+            bIsFilter = true;
+            var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+
+            $('#' + DTNameItem + ' td').removeHighlight();
+
+            $('#' + DTNameItem).dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+
+
+            if (searchtext.length > 0)
+                $('#' + DTNameItem + ' td').highlight($("#InnerItem_filter").val());
+        }
+    }
+
+
+    //Apply filter
+    $("#InnerItem_filter").keyup(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        var index = $.inArray(code, NotAllowedCharCodes);
+        if (code == 13) {
+        }
+        else {
+            fnFilterGlobalPS();
+        }
+    });
+
+    //Keydown event is required to handle ENTER KEY to work in IE
+    $("#InnerItem_filter").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            fnFilterGlobalPS();
+        }
+    });
+
+    //Clear Filter
+    $("#clear_QLItem_filter").click(function () {
+        $("#InnerItem_filter").val('');
+        fnFilterGlobalPS();
+        $("#InnerItem_filter").focus();
+        return false;
+    });
+
+    function callPrint1(DataTableName) {
+        var oConfig = {
+            "sInfo": "<h6>Print view</h6><p>Please use your browser's print function to " + "print this table. Press escape when finished.",
+            "sMessage": null,
+            "bShowAll": false,
+            "sToolTip": "View print view",
+            "sButtonClass": "DTTT_button_print",
+            "sButtonText": "Print"
+        };
+        if (typeof (TableTools) != undefined && typeof (TableTools) != 'undefined')
+            TableTools.fnGetInstance(DataTableName).fnPrint(true, oConfig);
+    }
+
+    /* DATA TABLE GRID COMMON FUNCTIONS END */
+
+</script>

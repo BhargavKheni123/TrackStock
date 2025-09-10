@@ -1,0 +1,258 @@
+﻿@model SiteListMasterDTO
+@{
+    ViewBag.Title = ResCommon.EturnsListPageSettingPageTitle;
+}
+
+
+<div class="userHead">
+    <h2 style="color: #1971bd;font-size: 20px;padding: 4px 0 0 4%;float: left;"> @ResCommon.EturnsListPageSettingPageHeader </h2>
+    <table style="width:100%;margin-left:29.5%">
+        <tr>
+            <td style="width: 15%;">
+                <h3 style="color: #1971bd;font-size: 14px;padding: 4px 0 0 4%;">@ResCommon.ModuleBreadCrumb</h3>
+            </td>
+            <td style="width: auto;">
+                <h4 id="breadcrumb" style="color: #1971bd;font-size: 14px;padding: 4px 0 0 4%;clear:both"></h4>
+            </td>
+        </tr>
+    </table>        
+    <div class="editorForm" style="float: none; padding-left: 30%;">
+        <span>@ResCommon.Modules:</span>
+        @Html.DropDownListFor(model => model.ID, new SelectList((IEnumerable<eTurns.DTO.SiteListMasterDTO>)ViewBag.ListPageName, "ID", "ListName", ViewBag.Li), string.Empty, new { @class = "selectBox", @ID = "PageNameList" })
+        @ResCommon.PageSize
+        <select id="PageSize" class="selectBox">
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="250">250</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+        </select>
+    </div>
+    <br />
+    <div id="columns" class="listing">
+        <div style="width:100%;padding-left:30%;">
+            <span style="float:left;margin-right:7px;" class="DataTables_sort_wrapper">@ResCommon.SortingOn</span>
+            <select style="float:left;" class="selectBox" id="ColumNameList"></select>
+            <span style="float: left; margin-right: 7px;margin-left:7px;">
+                @ResCommon.SortingType
+            </span><select id="OrderBy" style="float:left;" class="selectBox">
+                       <option value="asc">@ResReportMaster.Asc</option>
+                       <option value="desc">@ResReportMaster.Desc</option>
+            </select>
+        </div>
+        <br />
+        <div style="clear: both; ">
+            <div style="padding-left: 30%;float:left;width:100%;padding-top:10px;">
+                <span style="float:left;">@ResCommon.Columns:</span>
+                <ul id="ColumnSortable"  class="ui-sortable" style="width: auto; float: left;"></ul>
+                <br />
+            </div>
+            <input type="button" id="btnSave" class="CreateBtn" value="@ResCommon.SaveSetting" style="clear: both; margin-left: 35%;float:left;" />
+        </div>
+    </div>
+
+</div>
+<script>
+    $(document).ready(function () {
+        var currentPageListId = $("select#PageNameList").val();
+        if ($("select#PageNameList").val() == '')
+        {
+            $("select#PageNameList").val("4");
+            currentPageListId = 4;
+        }
+        $.ajax({
+            url: '@Url.Content("~/Master/BindColumns")',
+            data: { currentPageListId: currentPageListId, isForeTurns: true },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                bindColums(response.objSiteListColumnDetailDTO);
+
+                $("select#ColumNameList").val(response.ColumnName.trim());
+                $("select#OrderBy").val(response.SortType);
+                $("select#PageSize").val(response.Pagesize);
+                var result = response;
+                $("#breadcrumb").text(result.ListBreadCrumb);
+                $('#ColumnSortable').sortable({
+
+                });
+            }
+        });
+    });
+
+    $("select#PageNameList").change(function () {
+        var currentPageListId = $(this).val();
+        if (currentPageListId > 0) {
+            $("div.listing").show();
+        }
+        else {
+            $("div.listing").hide();
+        }
+        $('#ColumnSortable li').each(function (index) {
+            $(this).remove();
+        });
+        $.ajax({
+            url: '@Url.Content("~/Master/BindColumns")',
+            data: { currentPageListId: currentPageListId, isForeTurns: true },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                bindColums(response.objSiteListColumnDetailDTO);
+
+                $("select#ColumNameList").val(response.ColumnName.trim());
+                $("select#OrderBy").val(response.SortType);
+                $("select#PageSize").val(response.Pagesize);
+                var result = response;
+                $("#breadcrumb").text(result.ListBreadCrumb);
+                $('#ColumnSortable').sortable({
+
+                });
+            }
+        });
+    });
+    function sort(result) {
+        var sortableList = $('#ColumnSortable');
+        var listitems = $('li', sortableList);
+
+        var i = -1;
+        listitems.sort(function (a, b) {
+            return ($(a).text().toUpperCase() > $(b).text().toUpperCase()) ? 1 : -1;
+        });
+        sortableList.append(listitems);
+
+    }
+    $("input#btnSave").click(function () {
+
+        var sortelist = '';
+        var visible = '';
+        var colsizelist = '';
+        var orderNumberCounter = 0;
+        $('#ColumnSortable li').each(function () {
+            var tmpVisibility = "";
+            if ($('input[data-OrdNo="' + orderNumberCounter + '"]').is(":checked")) {
+                tmpVisibility = "true";
+            }
+            else {
+                tmpVisibility = "false";
+            }
+
+            if (visible != '') {
+                visible = visible + ',' + tmpVisibility;
+            }
+            else {
+                visible = tmpVisibility;
+            }
+            orderNumberCounter++;
+
+            if (sortelist != '') {
+                sortelist = sortelist + ',' + $(this).children("input#OrderNumber").val();
+            }
+            else {
+                sortelist = $(this).children("input#OrderNumber").val();
+            }
+            if (colsizelist != '') {
+                colsizelist = colsizelist + ',' + $(this).children("input#txtSize").val();
+            }
+            else {
+                colsizelist = $(this).children("input#txtSize").val();
+            }
+        });
+
+        var pageSize = $("select#PageSize").val();
+        var currentPageListId = $("select#PageNameList").val();
+        var SortColumn = $("select#ColumNameList").val();
+        var SortColumnIndex = $("ul#ColumnSortable").find("label[text=" + SortColumn + "]").next("input[type=hidden]").val();
+        var sortColumnIndexValue = $('option[value=' + SortColumn + ']').data('number');
+        var Sorttype = $("select#OrderBy").val();
+
+        $.ajax({
+            url: '@Url.Content("~/Master/SaveJsonData")',
+            data: { sortelist: sortelist, visible: visible, pageSize: pageSize, currentPageListId: currentPageListId, SortColumn: SortColumn, Sorttype: Sorttype, colsizelist: colsizelist, SortColumnIndex: sortColumnIndexValue, isForeTurns: true },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                $("#spanGlobalMessage").html('@ResCommon.MsgSavesuccessfully');
+                showNotificationDialog();
+            },
+            complete: function () {
+                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                $("#spanGlobalMessage").html('@ResCommon.MsgSavesuccessfully');
+                showNotificationDialog();
+            }
+        });
+    });
+    function bindColums(response) {
+        $('#ColumnSortable').html("");
+        $('#ColumNameList').html("");
+
+        for (var i = 0; i < response.length; i++) {
+
+            if (response[i].ActualColumnName != null && response[i].ActualColumnName != "" && response[i].ActualColumnName.length > 0) {
+                $("#ColumNameList").append("<option  value='" + response[i].ActualColumnName.trim() + "' data-number=" + response[i].OrderNumber + " >" + response[i].ColumnName.trim() + "</option>");
+            }
+
+            if (response[i].Visibility) {
+                if (response[i].IsVisibilityEditable == 1) {
+                    $('#ColumnSortable').append('<li class="ui-state-default" ><input type="checkbox"  class="checkBox" checked="checked" id="' + response[i].ID + '" data-OrdNo="' + response[i].OrderNumber + '" /><label for="' + response[i].ID + '">' + response[i].ColumnName.trim() + '</label><input type="hidden" id="OrderNumber"  value="' + response[i].OrderNumber + '" /><input type="hidden" id="LastOrder" value="' + response[i].LastOrder + '" /><label style="float:right">px</label><input type="textbox" id="txtSize" style="width:45px;float:right;" maxlength="3" value="' + response[i].ColumnSize + '" /></li>');
+                }
+                else {
+                    $('#ColumnSortable').append('<li class="ui-state-default" ><input type="checkbox"  class="checkBox" checked="checked" disabled="disabled" id="' + response[i].ID + '"  data-OrdNo="' + response[i].OrderNumber + '" /><label for="' + response[i].ID + '">' + response[i].ColumnName.trim() + '</label><input type="hidden" id="OrderNumber"  value="' + response[i].OrderNumber + '" /><input type="hidden" id="LastOrder" value="' + response[i].LastOrder + '" /><label style="float:right">px</label><input type="textbox" id="txtSize" style="width:45px;float:right;" maxlength="3" value="' + response[i].ColumnSize + '" /></li>');
+                }
+
+                $('#ColumNameList option').each(function () {
+                    if ($(this).val() == response[i].ColumnName.trim()) {
+                        $(this).show();
+                    }
+                });
+            }
+            else {
+                if (response[i].IsVisibilityEditable == 1)
+                {
+                    $('#ColumnSortable').append('<li class="ui-state-default" ><input type="checkbox" class="checkBox" id="' + response[i].ID + '" data-OrdNo="' + response[i].OrderNumber + '" /><label for="' + response[i].ID + '">' + response[i].ColumnName.trim() + '</label><input type="hidden" id="OrderNumber"  value="' + response[i].OrderNumber + '" /><input type="hidden" id="LastOrder"  value="' + response[i].LastOrder + '" /><label style="float:right">px</label><input type="textbox" id="txtSize" style="width:45px;float:right;" maxlength="3" value="' + response[i].ColumnSize + '" /></li>');
+                }
+                else
+                {
+                    $('#ColumnSortable').append('<li class="ui-state-default" ><input type="checkbox" disabled="disabled" class="checkBox" id="' + response[i].ID + '" data-OrdNo="' + response[i].OrderNumber + '" /><label for="' + response[i].ID + '">' + response[i].ColumnName.trim() + '</label><input type="hidden" id="OrderNumber"  value="' + response[i].OrderNumber + '" /><input type="hidden" id="LastOrder"  value="' + response[i].LastOrder + '" /><label style="float:right">px</label><input type="textbox" id="txtSize" style="width:45px;float:right;" maxlength="3" value="' + response[i].ColumnSize + '" /></li>');
+                }
+
+                $('#ColumNameList option').each(function () {
+                    if ($(this).val() == response[i].ColumnName.trim()) {
+                        $(this).hide();
+                    }
+                });
+            }
+        }
+        $('#ColumnSortable li input[type=checkbox]').click(function () {
+
+            var column = $(this).parents("li").find("label:first").text();
+            if ($(this).is(":checked")) {
+                $('#ColumNameList option').each(function () {
+                    if ($(this).val() == column) {
+                        $(this).show();
+                    }
+                });
+            }
+            else {
+                $('#ColumNameList option').each(function () {
+                    if ($(this).val() == column) {
+                        $(this).hide();
+                    }
+                });
+            }
+            if ($('#ColumNameList').val() == column) {
+                var val = $('#ColumNameList option:first').attr("value");
+                $('#ColumNameList').prop('selectedIndex', 0);
+                $('#ColumNameList').val(val);
+            }
+        });
+    }
+</script>

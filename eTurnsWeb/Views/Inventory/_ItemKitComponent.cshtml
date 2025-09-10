@@ -1,0 +1,200 @@
+@model IList<eTurns.DTO.KitDetailDTO>
+@{
+    bool Result = true;
+
+    bool isBOMItem = false;
+
+    isBOMItem = ViewBag.IsBOMItem ?? false;
+
+    eTurns.DAL.KitDetailDAL objkitDal = new eTurns.DAL.KitDetailDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    if (Model != null && Model.Count > 0)
+    {
+        if (Model[0].GUID.ToString() != "00000000-0000-0000-0000-000000000000")
+        {
+            Result = objkitDal.IsKitItemDeletable(Model[0].GUID.ToString(), Model[0].Room, Model[0].CompanyID);
+        }
+    }
+
+}
+<div id="divitemKit" style="width: 99.5%; min-height: 140px">
+    <div>
+        <div>
+            <div style="text-align: center; float: left; width: 80%;">
+                <span id="spanErrorMsg" style="color: Green;"></span>
+            </div>
+            <div>
+                @if (Result && isBOMItem == false)
+                {
+                    <input type="button" value='@ResItemMaster.AddKitComponent' class="CreateBtn" onclick="return AddNewKitComponent()" />
+                }
+            </div>
+        </div>
+    </div>
+    <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+        float: left;">
+        <table id="ItemKitComponent" class="display">
+            <thead>
+                <tr>
+                    <th>@eTurns.DTO.ResItemMaster.ItemType
+                    </th>
+                    <th>@eTurns.DTO.ResItemMaster.ItemNumber
+                    </th>
+                    <th>@eTurns.DTO.ResItemMaster.Description</th>
+                    <th>@eTurns.DTO.ResKitMaster.QuantityPerKit
+                    </th>
+                    <th>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null)
+                {
+                    foreach (var item in Model)
+                    {
+                        string iDesc = string.Empty;
+                        if((item.Description ?? string.Empty).ToLower() != "null")
+                        {
+                            iDesc = item.Description;
+                        }
+                    <tr>
+                        <td>
+                            @if (item.ItemType == 1)
+                            {
+                                <text>Item</text>
+                            }
+                            else if (item.ItemType == 3)
+                            {
+                                <text>Kit</text>
+                            }
+                            else if (item.ItemType == 4)
+                            {
+                                <text>Labor</text>
+                            }
+                        </td>
+                        <td>@item.ItemNumber
+                        </td>
+                        <td>@iDesc</td>
+                        <td>
+                            @if (isBOMItem == true)
+                            {
+                                @Html.TextBox("txtQuantityPerKit", item.QuantityPerKit, new { @style = "width:100px;", @maxlength = "20", @class = "numericinput onlynumbers disableBack", @readonly = "readonly" })
+                                @Html.HiddenFor(model => item.QuantityPerKit)
+                            }
+                            else
+                            {
+                                if (Result == false)
+                                {
+                                    @Html.TextBox("txtQuantityPerKit", item.QuantityPerKit, new { @style = "width:100px;", @maxlength = "20", @class = "numericinput onlynumbers disableBack", @readonly = "readonly" })
+                                    @Html.HiddenFor(model => item.QuantityPerKit)
+                                }
+                                else
+                                {
+                                    @Html.TextBox("txtQuantityPerKit", item.QuantityPerKit, new { @style = "width:100px;", @maxlength = "20", @class = "numericinput onlynumbers" })
+                                }
+                            }
+                        </td>
+                        <td>
+                            @*<a href="JavaScript:void{0}" onclick="return SavetoSeesionItemKitComponent(this)">
+                                <img alt="Save" src="/Content/images/save.png"></a> 
+                            *@ 
+                            @if (isBOMItem == false)
+                            {
+                            <a href="JavaScript:void{0}" onclick="return DeletetoSeesionItemKitComponentSingle(this)">
+                                <img alt="@ResCommon.Save" src="/Content/images/delete.png"></a>
+                            }
+                            <input id="hdnID" type="hidden" value="@item.ID" />
+                            <input id="hdnGUID" type="hidden" value="@item.GUID" />
+                            <input id="hdnItemGUID" type="hidden" value="@item.ItemGUID" />
+                            <input id="hdnKitGUID" type="hidden" value="@item.KitGUID" />
+                            <input id="hdnSessionSr" type="hidden" value="@item.SessionSr" />
+                        </td>
+                    </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="dialog" id="mdlQLYesNo" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm</p>
+        <a href="JavaScript:void{}" id="btnQLModelYesSP" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes</a><a href="javascript:void(0)" class="no"
+                onclick="QLcloseModal()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo</a>
+    </div>
+</div>
+<script type="text/javascript">
+    var oTableItemKit;
+    var deleteURL1 = "/Inventory/ItemKitDelete";
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var DTName = 'ItemKitComponent';
+    var bIsFilter = false;
+
+
+    $(document).ready(function () {
+
+        var gaiSelected = [];
+        oTableItemKit = $('#' + DTName).dataTable({
+            "bPaginate": false,
+            "bLengthChange": false,
+            "bFilter": false,
+            "bSort": false,
+            "bInfo": false,
+            "bAutoWidth": false,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable', //+ "&nbsp; This barcode text is not assing to any item.<br>Would you like to assing it?<br><a id='aBarcodeYes'href='javascript:void(0)' onclick='javascript:return OpenItemInPopup(this);' >Yes</a> ",
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                }
+        });
+        $('.DTTT_container').css('z-index', '-1');
+    });
+
+
+    $('#' + DTName + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    // To adjust the print block next to colvis button
+    $('#btnblock').css({ 'margin-right': '45px' });
+
+    //    $('#' + DTName + ' tbody tr').live('tap click', function () {
+    //        $(this).toggleClass('row_selected');
+    //        return false;
+    //    });
+
+    /* Add a click handler for the delete rows multiple rows */
+
+    $('#deleteRows1').click(function () {
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+        if ($("body").hasClass('DTTT_Print')) {
+            return false;
+        }
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+
+
+        var anSelected = fnGetSelected(oTableItemKit);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            //anSelected[0].cells[0].innerHTML
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+            IsDeletePopupOpen = false;
+        }
+
+
+    });
+
+</script>

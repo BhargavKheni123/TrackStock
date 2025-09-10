@@ -1,0 +1,1346 @@
+@{
+
+    ViewBag.Title = eTurns.DTO.ResRequisitionMaster.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DisplayUDFButton = true, UDFSetupFor = "RequisitionMaster&UDFHeader=" + @eTurns.DTO.ResRequisitionMaster.RequisitionMasterHeader, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "RequisitionMaster", DisplayArchiveButton = true, ShowCloseButton = true };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "RequisitionMaster", ListName = "RequisitionMaster" };
+
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Requisitions, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Requisitions, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    Session["IsInsert"] = "";
+    string RequisitionPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Requisition.pdf", DateTime.Now.Ticks);
+
+    //string str = Convert.ToString(Html.RenderColumnsHeader("RequisitionMaster", typeof(eTurns.DTO.ResRequisitionMaster)));
+
+    //bool addUDF = false;
+    //if (!string.IsNullOrWhiteSpace(str))
+    //{
+    //    addUDF = true;
+    //}
+    //Boolean.TrueString
+    Int32 RequestedXDays = 0;
+    Int32 RequestedYDays = 0;
+    if (eTurnsWeb.Helper.SessionHelper.RoomID > 0)
+    {
+        RoomDTO roomDTO = new eTurns.DAL.RoomDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetRoomByIDPlain(eTurnsWeb.Helper.SessionHelper.RoomID);
+
+        if (roomDTO != null && roomDTO.ID > 0)
+        {
+            RequestedXDays = roomDTO.RequestedXDays.GetValueOrDefault(0);
+            RequestedYDays = roomDTO.RequestedYDays.GetValueOrDefault(0);
+        }
+    }
+    bool IsShowChangeLog = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Requisitions, eTurnsWeb.Helper.SessionHelper.PermissionType.ShowChangeLog);
+    //HelpDocumentMasterDTO objHelpDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentMaster("Requisition");
+    //string RequisitionBasicVideo = "";
+    //if (objHelpDTO != null)
+    //{
+    //    RequisitionBasicVideo = objHelpDTO.ModuleVideoPath.Replace("../Uploads/HelpVideo/", "");
+    //}
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Requisition", (int)HelpDocType.Module);
+}
+<style>
+    .IteamBlock li {
+        width: 93% !important;
+    }
+
+    .paginationBlock {
+        float: left;
+        position: absolute;
+        right: 253px;
+        top: -4px;
+    }
+</style>
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script language="javascript" type="text/javascript">
+
+        var oTable;
+        var IsRefreshGrid = false;
+        var deleteURL = "/Consume/DeleteRequisitionMasterRecords";
+        var sImageUrl = "/Content/images/";
+        var anOpen = [];
+        var objColumns = {};
+        //var PostCount = 0;
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+        var SelectedHistoryRecordID = 0;
+        var HistorySelected;
+        var RequisitionUniqueID = '';
+        RequisitionTabFilter = 'All';
+        var ReqListColumnsArr = new Array();
+        ReqListColumnsArr.push({ mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' });
+        ReqListColumnsArr.push({ "mDataProp": "ID", "sClass": "read_only" });
+        ReqListColumnsArr.push({ "mDataProp": "RequisitionStatus", "sClass": "read_only" });
+        ReqListColumnsArr.push({
+            "mDataProp": "RequisitionNumber",
+            "sClass": "read_only",
+            "sDefaultContent": '',
+            "bSortable": true,
+            "bSearchable": false,
+            "fnRender": function (obj, val) {
+                return "<a id='aEditLink' onclick='BlankSession(1);  return ShowEditTabGUID(&quot;RequisitionEdit?RequisitionGUID=" + obj.aData.GUID + "&quot;,&quot;frmRequisitionMaster&quot;)' href='JavaScript:void(0);'>" + obj.aData.RequisitionNumber + "</a>" + " <input type='hidden' id='RequisitionGUID' value='" + obj.aData.GUID.toString() + "' />";
+            }
+        });
+        ReqListColumnsArr.push({ "mDataProp": "ReleaseNumber", "sClass": "read_only" });
+        ReqListColumnsArr.push({
+            "mDataProp": "Description", "sClass": "read_only", "sDefaultContent": '',
+            "fnRender": function (obj, val) {
+                return "<div class='comment more'>" + val + "</div>" + " <span id='spnRequisitionStatus' style='display:none'>" + obj.aData.RequisitionStatus + "</span>";;
+            }
+        });
+        ReqListColumnsArr.push({
+            "mDataProp": "WorkorderName", "sClass": "read_only", "sDefaultContent": '',
+            "fnRender": function (obj, val) {
+                if (obj.aData.WorkorderName != '' && obj.aData.WorkorderName != null)
+                    return "<a onclick='openModel(&quot;" + obj.aData.WorkorderGUID + "&quot;);' href='JavaScript:void(0);'>" + obj.aData.WorkorderName + "</a>";
+                else
+                    return "";
+            }
+        });
+        ReqListColumnsArr.push({
+            "mDataProp": "RequiredDate", "sClass": "read_only"
+            , "fnRender": function (obj, val) { return obj.aData.RequiredDateStr; }
+        });
+        ReqListColumnsArr.push({
+            "mDataProp": "NumberofItemsrequisitioned", "sClass": "read_only numericalign",
+            "fnRender": function (obj, val) {
+                return "<div class='comment more'>" + val + "</div>" + " <span id='spnNumberofItemsrequisitioned' style='display:none'>" + obj.aData.NumberofItemsrequisitioned + "</span>";
+            }
+        });
+        ReqListColumnsArr.push({ "mDataProp": "Customer", "sClass": "read_only" });
+        ReqListColumnsArr.push({ "mDataProp": "RequisitionType", "sClass": "read_only" });
+        ReqListColumnsArr.push({ "mDataProp": "Created", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.CreatedDate; } });
+        ReqListColumnsArr.push({ "mDataProp": "Updated", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.UpdatedDate; } });
+        ReqListColumnsArr.push({ "mDataProp": "RoomName", "sClass": "read_only" });
+        ReqListColumnsArr.push({ "mDataProp": "CreatedByName", "sClass": "read_only" });
+        ReqListColumnsArr.push({ "mDataProp": "UpdatedByName", "sClass": "read_only" });
+        ReqListColumnsArr.push({ "mDataProp": "AddedFrom", "sClass": "read_only" });
+        ReqListColumnsArr.push({ "mDataProp": "EditedFrom", "sClass": "read_only" });
+        ReqListColumnsArr.push({ "mDataProp": "ReceivedOnWeb", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.ReceivedOnWebDate; } });// { return GetDateInFullFormat(val); } });
+        ReqListColumnsArr.push({ "mDataProp": "ReceivedOn", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.ReceivedOnDate; } }); //{ return GetDateInFullFormat(val); } });
+
+
+        ReqListColumnsArr.push({
+			                    "mDataProp": "SupplierName", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        // return GetDateInFullFormat(val);
+			                        return obj.aData.SupplierName;
+			                    }
+        });
+        ReqListColumnsArr.push({
+            "mDataProp": "SupplierAccountNumberName", "sClass": "read_only",
+            "fnRender": function (obj, val) {
+                // return GetDateInFullFormat(val);
+                return obj.aData.SupplierAccountNumberName;
+            }
+        });
+        ReqListColumnsArr.push({ "mDataProp": "StagingName", "sClass": "read_only" });
+        ReqListColumnsArr.push(@Html.RenderColumnsArray("RequisitionMaster", false));
+        HasRequisitionTab = true;
+        $(document).ready(function () {
+            $('.dataTables_length').attr('style', 'left:0;top:-35px !important');
+            $('.dataTables_paginate').attr('style', 'left: 145px;top:-24px !important');
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            LoadTabs();
+            var gaiSelected = [];
+
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "150%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[2, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    if (aData.IsDeleted == true && aData.IsArchived == true) {
+                        $(nRow).css('background-color', '#B9BCBF');
+                        //nRow.className = "GridDeleatedArchivedRow";
+                    }
+                    else if (aData.IsDeleted == true) {
+                        $(nRow).css('background-color', '#FFCCCC');
+                        // nRow.className = "GridDeletedRow";
+                    }
+                    else if (aData.IsArchived == true) {
+                        $(nRow).css('background-color', '#CCFFCC');
+                        // nRow.className = "GridArchivedRow";
+                    }
+                    else {
+                        /*START : QTY Legends*/
+                        if (aData.ShowRequisitionPullNotification == "Red") {
+                            $(nRow).css("background-color", "#FF6633");
+                        }
+                        else if (aData.ShowRequisitionPullNotification == "Green") {
+                            $(nRow).css("background-color", "#40FF00");
+                        }
+                    }
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+
+                    if (oData.oSearch != null)
+                        oData.oSearch.sSearch = "";
+                    //if (PostCount > 1) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'RequisitionMaster' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                    //}
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'RequisitionMaster' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Consume/RequisitionMasterListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    //PostCount = PostCount + 1;
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    //                    if (oSettings.aaSorting.length != 0)
+                    //                        aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                    //                    else
+                    //                        aoData.push({ "name": "SortingField", "value": "0" });
+                    if (oSettings.aaSorting.length != 0) {
+                        var sortValue = "";
+                        for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                            if (sortValue.length > 0)
+                                sortValue += ", "
+                            sortValue += arrCols[oSettings.aaSorting[i][0]] + ' ' + oSettings.aaSorting[i][1];
+
+                        }
+                        aoData.push({ "name": "SortingField", "value": sortValue });
+                    }
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        cache: false,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#txtReqfilter").val() != '') {
+                                $('#myDataTable').highlight($("#txtReqfilter").val());
+                            }
+                            CallShowHideData();
+                            //TODO: Barcode Changes
+                            // if(oTable.fnGetData().length <= 0 && $("#global_filter").val().length>0){
+                            //     $('#cnfBarcodeAddmdl').modal();
+                            // }
+                            //                            if ($("#global_filter").val().length > 0) {
+                            //                                if ($('#myDataTable').dataTable().fnGetData().length <= 0) {
+                            //                                    $('#cnfBarcodeAddmdl').modal();
+                            //                                }
+                            //                                //                                else if ($('#myDataTable').dataTable().fnGetData().length === 1) {
+                            //                                //                                    $('#myDataTable tr').find('#aEditLink').click();
+                            //                                //                                    $('#global_filter').val('');
+                            //                                //                                    $('#myDataTable').dataTable().fnFilter('', null, null, null);
+
+                            //                                //                                }
+                            //                            }
+                            //CallNarrowfunctions();
+                        }
+                    })
+                },
+                "fnInitComplete": function (oSettings, json) {
+
+                    $('#divQTYLegends').show(1000);
+
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+
+                },
+                "aoColumns": ReqListColumnsArr,
+            }).makeEditable({
+                sUpdateURL: '@Url.Content("~/Master/UpdateData")'
+            });
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+
+            if (window.location.hash.toLowerCase() == "#unsubmitted") {
+                $("#tab2").click();
+            }
+            else if (window.location.hash.toLowerCase() == "#submitted") {
+                $("#tab3").click();
+            }
+            else if (window.location.hash.toLowerCase() == "#approved") {
+                $("#tab4").click();
+            }
+            else if (window.location.hash.toLowerCase() == "#closed") {
+                $("#tab7").click();
+            }
+            var LoadeTabName = "";
+            if (window.location.hash.toLowerCase() == "#unsubmitted") {
+                LoadeTabName = "Unsubmitted";
+            }
+            else if (window.location.hash.toLowerCase() == "#submitted") {
+                LoadeTabName = "Submitted";
+            }
+            else if (window.location.hash.toLowerCase() == "#approved") {
+                LoadeTabName = "Approved";
+            }
+            else if (window.location.hash.toLowerCase() == "#closed") {
+                LoadeTabName = "Closed";
+            }
+            fillRequisitionNarrowSearchDiv(LoadeTabName);
+            //fromPull
+            var QueryStringParam = getParameterByName('fromPull');
+            if (QueryStringParam != '' && QueryStringParam == 'yes') {
+                $("#tab1").click();
+            }
+
+            var QueryStringParam1 = getParameterByName('fromMTN');
+            var QueryStringParam2 = getParameterByName('ReqID');
+            if (QueryStringParam1 != '' && QueryStringParam1 == 'yes') {
+                //ShowEditTab("RequisitionEdit/" + QueryStringParam2 ,"frmRequisitionMaster");
+                ShowEditTabGUID("RequisitionEdit?RequisitionGUID=" + QueryStringParam2, "frmRequisitionMaster");
+            }
+
+
+            var QueryStringParam3 = getParameterByName('fromdashboard');
+            var QueryStringParam4 = getParameterByName('RequisitionGUID');
+            if (QueryStringParam4 != '' && QueryStringParam3 == 'yes') {
+                //ShowEditTab("RequisitionEdit/" + QueryStringParam2 ,"frmRequisitionMaster");
+                ShowEditTabGUID("RequisitionEdit?RequisitionGUID=" + QueryStringParam4, "frmRequisitionMaster");
+            }
+
+
+            /*Functions used for nasted data binding START*/
+            $("#myDataTable").on("click", "td.control", function (event) {
+
+                var nTr = this.parentNode;
+                var i = $.inArray(nTr, anOpen);
+
+                if (i === -1) {
+                    $('img', this).attr('src', sImageUrl + "drildown_close.jpg");
+                    oTable.fnOpen(nTr, fnFormatDetails(oTable, nTr), '');
+                    anOpen.push(nTr);
+                }
+                else {
+                    $('img', this).attr('src', sImageUrl + "drildown_open.jpg");
+                    oTable.fnClose(nTr);
+                    anOpen.splice(i, 1);
+                }
+            });
+
+            $('#deleteRows').click(function () {
+                /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+                if ($("body").hasClass('DTTT_Print')) {
+                    return false;
+                }
+                deleteURL = "/Consume/DeleteRequisitionMasterRecords";
+                /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+                var anSelectedReq = fnGetSelected(oTable);
+                var stringIDs = "";
+                for (var i = 0; i <= anSelectedReq.length - 1; i++) {
+                    var SpanReqStatus = $(anSelectedReq[i]).find('#spnRequisitionStatus').text();
+                    var NumberofItemsrequisitioned = $(anSelectedReq[i]).find('#spnNumberofItemsrequisitioned').text();
+                    if (SpanReqStatus == "Unsubmitted" || SpanReqStatus == "Submitted" || SpanReqStatus == "Closed" || NumberofItemsrequisitioned == "0" || NumberofItemsrequisitioned == 0)
+                        stringIDs = stringIDs + anSelectedReq[i].id + ",";
+                }
+                if (stringIDs.length > 0) {
+                    $('#basic-modal-content').modal();
+                    IsDeletePopupOpen = true;
+                }
+                else {
+                    $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                    $("#spanGlobalMessage").html("@ResRequisitionMaster.msgApprovedRecordsDelete");
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                }
+            });
+
+            $('#undeleteRows').click(function () {
+                /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+                if ($("body").hasClass('DTTT_Print')) {
+                    return false;
+                }
+                deleteURL = "/Inventory/UnDeleteRecords";
+                /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+                var anSelectedReq = fnGetSelected(oTable);
+                var stringIDs = "";
+                for (var i = 0; i <= anSelectedReq.length - 1; i++) {
+                    var stringIDs = $(anSelectedReq[i]).find('#RequisitionGUID').val();
+                    stringIDs = stringIDs + anSelectedReq[i].id + ",";
+                }
+                if (stringIDs.length > 0) {
+                    $('#basic-Undelmodal-content').modal();
+                    IsDeletePopupOpen = true;
+                }
+                else {
+                    $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                    $("#spanGlobalMessage").html("@ResRequisitionMaster.SelectRecordstoUnDelete");
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                }
+            });
+
+            function fnFormatDetails(oTable, nTr) {
+                var oData = oTable.fnGetData(nTr);
+                RequisitionUniqueID = oData.ID;
+                var sOut = '';
+                $('#DivLoading').show();
+                $.ajax({
+                    "url": '@Url.Content("~/Consume/RequisitionDetails")',
+                    data: { RequisitionID: oData.ID },
+                    "async": true,
+                    cache: false,
+                    "dataType": "text",
+                    "success": function (json) {
+                        sOut = json;
+                        $('#DivLoading').hide();
+                    },
+                    error: function (response) {
+                        //
+                    }
+                });
+
+                return sOut;
+            }
+            /*Functions used for nasted data binding END*/
+
+
+            /* HISTORY related data deleated and archived START */
+            //$('#IsDeletedRecords').live('click', function () {
+
+                //if (RequisitionCurrentTab == '') {
+                //    if (window.location.hash.toLowerCase() == "#unsubmitted") {
+                //        RequisitionCurrentTab = 'Unsubmitted';
+                //    }
+                //    else if (window.location.hash.toLowerCase() == "#submitted") {
+                //        RequisitionCurrentTab = 'Submitted';
+                //    }
+                //    else if (window.location.hash.toLowerCase() == "#approved") {
+                //        RequisitionCurrentTab = 'Approved';
+                //    }
+                //    else if (window.location.hash.toLowerCase() == "#closed") {
+                //        RequisitionCurrentTab = 'Closed';
+                //    }
+                //    else {
+                //        RequisitionCurrentTab = "All";
+                //    }
+                //}
+
+                ////var t = ddlRequisitionStatusNarroValues;
+                //if (RequisitionCurrentTab != "All") {
+                //    var searchtext = RequisitionCurrentTab.replace(/'/g, "''");
+                //    var globalSearch = $("#global_filter").val().replace(/'/g, "''");
+                //    if (globalSearch == '')
+                //        RequisitionTabFilter = "[####]" + searchtext;
+                //    else {
+                //        RequisitionTabFilter = globalSearch + "[####]" + searchtext;
+                //    }
+                //    NarrowSearchInGrid(RequisitionTabFilter);
+                //}
+
+                //if ($('#IsDeletedRecords').is(':checked')) {
+                //    $('#undeleteRows').css('display', '');
+                //    $('#deleteRows').css('display', 'none');
+                //}
+                //else {
+                //    $('#undeleteRows').css('display', 'none');
+                //    $('#deleteRows').css('display', '');
+                //}
+
+            //});
+
+            $('#ViewHistory').live('click', function () {
+                HistorySelected = fnGetSelected(oTable);
+                if (HistorySelected != undefined && HistorySelected.length == 1) {
+                    $("#atab5").click();
+                }
+                else {
+                    $('#tab5').html('');
+                    $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    return false;
+                }
+            });
+            /* HISTORY related data deleated and archived END */
+
+
+            $('#myDataTable').on('tap click', 'a[id^="aEditLink"]', function () {
+                var tr = $(this).parent().parent();
+                $("#myDataTable").find("tbody tr").removeClass("row_selected");
+                $(tr).addClass('row_selected');
+
+            });
+
+        });
+        /* HISTORY related data deleated and archived START */
+
+        function getParameterByName(name) {
+            name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+            var regexS = "[\\?&]" + name + "=([^&#]*)";
+            var regex = new RegExp(regexS);
+            var results = regex.exec(window.location.search);
+            if (results == null)
+                return "";
+            else
+                return decodeURIComponent(results[1].replace(/\+/g, " "));
+        }
+
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+        function HistoryTabClick() {
+            GetHistoryData();
+        }
+        function GetHistoryData() {
+            HistorySelected = fnGetSelected(oTable);
+            if ($('#IsDeletedRecords').is(':checked')) {
+                $('#undeleteRows').css('display', '');
+                $('#deleteRows').css('display', 'none');
+            }
+            else {
+                $('#undeleteRows').css('display', 'none');
+                $('#deleteRows').css('display', '');
+            }
+            if (HistorySelected != undefined && HistorySelected.length == 1) {
+                var ReqGUID = $(HistorySelected).find('#RequisitionGUID')[0].value;
+                SelectedHistoryRecordID = ReqGUID;
+                $('#DivLoading').show();
+                $("#CTab").hide();
+                $("#CtabCL").show();
+                $('#CtabCL').load('/Master/RequisitionMHistory', function () { $('#DivLoading').hide(); });
+            }
+            else {
+                $('#CtabCL').html('');
+                $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                return false;
+            }
+        }
+        function ReqNarrowSearchInGrid(searchstr) {
+            FilterStringGlobalUse = searchstr;
+            if (searchstr != '') {
+                RequisitionNarrowFilterString = searchstr;
+            }
+            $('#myDataTable').dataTable().fnFilter(searchstr, null, null, null)
+        }
+        function UpdateTopMenuReqCount() {
+            var ReqMenuName = '@eTurns.DTO.Resources.ResLayout.Requisitions';
+            var tempCount = 0;
+            $.ajax({
+                url: '/Master/GetTabStatusModuleWiseWithCount',
+                dataType: 'json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (response) {
+                    if ($(".consume")[0].getElementsByTagName("span").length > 0) {
+                        if (response != null && response.Result != null) {
+                            var reqCount = 0;
+                            if (!isNaN(parseInt(response.Result)) && parseInt(response.Result) > 0) {
+                                $($(".consume")[0].getElementsByTagName("span")).text(response.Result);
+                                $(".consume .consumeReq")[0].text = ReqMenuName + ' (' + response.Result + ')';
+                            }
+                            else {
+                                $($(".consume")[0].getElementsByTagName("span")).text('');
+                                $(".consume .consumeReq")[0].text = ReqMenuName + '';
+                                $("#spnTotConsumeCnt").hide();
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        /* HISTORY related data deleated and archived END */
+    </script>
+}
+<script src="@Url.Content("~/Scripts/jQuery.print.js")" type="text/javascript"></script>
+<script type="text/javascript">
+    var LastTab = '';
+    var isTabClick = false;
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+        new TabClass('tab2', '@eTurns.DTO.Resources.ResCommon.Unsubmitted', 'CallBackTabs("tab2");', true, true, 0, 'divUnsubmitted'),
+         new TabClass('tab3', '@eTurns.DTO.Resources.ResCommon.Approved', 'CallBackTabs("tab3");', true, true, 0, 'divSubmittted'),
+        new TabClass('tab4', '@eTurns.DTO.Resources.ResCommon.Pull', 'CallBackTabs("tab4");', true, true, 0, 'divApproved'),
+        new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.History', 'CallBackTabs("tab5");', true, true),
+
+    ];
+    if ('@IsShowChangeLog.ToString().ToUpper()' == 'TRUE') {
+        TabsArry.push(new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true));
+    }
+    TabsArry.push(new TabClass('tab7', '@eTurns.DTO.Resources.ResCommon.Close', 'CallBackTabs("tab7");', true, true, 0, 'divClosed'));
+
+    function callbacknew() { window.location.hash = '#new'; ShowNewTab('RequisitionCreate', 'frmRequisitionMaster'); }
+    function callbackUnS() { window.location.hash = '#Unsubmitted'; _NarrowSearchSave.currentListName = "RequisitionMasterUnsubmitted"; setHeader(); IsRefreshGrid = true; IsNarrowSearchRefreshRequired = true; RequisitionNarrowFilterString = ''; FilterRecordsByStatus('Unsubmitted'); RequisitionCurrentTab = 'Unsubmitted'; clearReqNarrowSearchSelection(); CallNarrowfunctions(); /*CallReqNarrowFunctions();*/ SetFocus(); }
+    function callbackAprv() { window.location.hash = '#Submitted'; _NarrowSearchSave.currentListName = "RequisitionMasterSubmitted"; setHeader(); IsRefreshGrid = true; IsNarrowSearchRefreshRequired = true; RequisitionNarrowFilterString = ''; FilterRecordsByStatus('Submitted'); RequisitionCurrentTab = 'Submitted'; clearReqNarrowSearchSelection(); CallNarrowfunctions(); /*CallReqNarrowFunctions();*/ SetFocus(); }
+    function callbackpull() { window.location.hash = '#Approved'; _NarrowSearchSave.currentListName = "RequisitionMasterApproved"; setHeader(); IsRefreshGrid = true; IsNarrowSearchRefreshRequired = true; RequisitionNarrowFilterString = ''; FilterRecordsByStatus('Approved'); RequisitionCurrentTab = 'Approved'; clearReqNarrowSearchSelection(); CallNarrowfunctions(); /*CallReqNarrowFunctions();*/ SetFocus(); }
+    function callbackhistory() {              
+        LastTab = window.location.hash;
+        window.location.hash = '#list';
+        _NarrowSearchSave.currentListName = "RequisitionMaster";
+        if (LastTab != '#list' && LastTab != '') {
+            RequisitionNarrowFilterString = "";
+        }
+        setHeader();
+        if (RequisitionNarrowFilterString != '') {
+            IsRefreshGrid = false;
+            IsNarrowSearchRefreshRequired = false;
+        }
+        else {
+            IsRefreshGrid = true;
+            IsNarrowSearchRefreshRequired = true;
+            FilterRecordsByStatus('All');
+        }
+        RequisitionCurrentTab = 'All';
+
+        if (RequisitionNarrowFilterString != '') {
+            IsRefreshGrid = false;
+            IsNarrowSearchRefreshRequired = false;
+            $('#myDataTable').dataTable().fnFilter(RequisitionNarrowFilterString,null,null,null);
+        }
+        else {
+            IsRefreshGrid = true;
+            IsNarrowSearchRefreshRequired = true;
+            clearReqNarrowSearchSelection();
+            CallNarrowfunctions();
+            /*CallReqNarrowFunctions();*/
+        }
+
+        SetFocus();
+    }
+
+    function callbackCL() { window.location.hash = ''; setHeader(); IsRefreshGrid = true; IsNarrowSearchRefreshRequired = true; RequisitionNarrowFilterString = ''; HistoryTabClick(); SetFocus(); }
+    function callbackClose() { window.location.hash = '#Closed'; _NarrowSearchSave.currentListName = "RequisitionMasterClosed"; setHeader(); IsRefreshGrid = true; IsNarrowSearchRefreshRequired = true; RequisitionNarrowFilterString = ''; FilterRecordsByStatus('Closed'); RequisitionCurrentTab = 'Closed'; clearReqNarrowSearchSelection(); CallNarrowfunctions(); /*CallReqNarrowFunctions();*/ SetFocus(); }
+    function setHeader() {
+        $('.dataTables_length').attr('style', 'left:0;top:-35px !important');
+        $('.dataTables_paginate').attr('style', 'left: 145px;top:-24px !important');
+    }
+    function SetFocus() {
+        if ($("input#txtReqfilter").length > 0) {
+            $("input#txtReqfilter").focus();
+            setTimeout(function () {
+                $("input#txtReqfilter").focus();
+            }, 600);
+        }
+        if ($("input.searchinput").length > 0) {
+            $("input.searchinput").focus();
+            setTimeout(function () {
+                $("input.searchinput").focus();
+            }, 600);
+
+        }
+    }
+    function FilterRecordsByStatus(StatusValue) {
+
+        var searchtext = StatusValue.replace(/'/g, "''");
+        if (StatusValue == 'All' && RequisitionNarrowFilterString != '') {
+            searchtext = RequisitionNarrowFilterString;
+        }
+        var globalSearch = $("#txtReqfilter").val().replace(/'/g, "''");
+        if (globalSearch == '')
+            RequisitionTabFilter = "[####]" + searchtext;
+        else {
+            RequisitionTabFilter = globalSearch + "[####]" + searchtext;
+        }
+        $('#myDataTable').dataTable().fnFilter(
+                            RequisitionTabFilter,
+                            null,
+                            null,
+                            null
+                        );
+        SetConsumeRedCount();
+    }
+    function SetSize() {
+        alert($(".tabs").height());
+        if ($(".tabs").height() > 350) {
+            $('#Ctab').css("height", $(".tabs").height());
+            $('#CtabNew').css("height", $(".tabs").height());
+            $('#CtabCL').css("height", $(".tabs").height());
+        }
+    }
+
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+            case "#unsubmitted":
+                $("#tab2").click();
+                break
+            case "#submitted":
+                $("#tab3").click();
+                break
+            case "#approved":
+                $("#tab4").click();
+                break;
+        }
+
+        if ($('#IsArchivedRecords').is(':checked')) {
+            $('#aUnArchiveRows').css('display', '');
+            $('#aArchiveRows').css('display', 'none');
+            $('#undeleteRows').css('display', 'none');
+            $('#deleteRows').css('display', 'none');
+            $('#actionCloseRequisition').css('display', 'none');
+        }
+        else if ($('#IsDeletedRecords').is(':checked')) {
+            $('#undeleteRows').css('display', '');
+            $('#deleteRows').css('display', 'none');
+            $('#aArchiveRows').css('display', 'none');
+            $('#aUnArchiveRows').css('display', 'none');
+            $('#actionCloseRequisition').css('display', 'none');
+        }
+        else if (!$('#IsDeletedRecords').is(':checked')
+            && !$('#IsArchivedRecords').is(':checked')) {
+            $('#deleteRows').css('display', '');
+            $('#undeleteRows').css('display', 'none');
+            $('#aArchiveRows').css('display', '');
+            $('#aUnArchiveRows').css('display', 'none');
+            $('#actionCloseRequisition').css('display', '');
+        }
+        else {
+            $('#deleteRows').css('display', '');
+            $('#actionCloseRequisition').css('display', '');
+            $('#undeleteRows').css('display', 'none');
+            $('#aArchiveRows').css('display', 'none');
+            $('#aUnArchiveRows').css('display', 'none');
+        }
+
+        if ($('#IsDeletedRecords').is(':checked')
+            || $('#IsArchivedRecords').is(':checked')) {
+            $(".print").attr("style", "display:none");
+        }
+        else {
+            $(".print").attr("style", "display:block");
+        }
+    }
+
+    $(document).ready(function () {
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+    });
+
+
+    var TempNarrow = '';
+    var EmptyNarrow = '[###]~~~~~~~~~~~~~[###]';
+    var IsRetainNarrow = false;
+    var LastTab = '';
+    var tabName = '';
+    function CallBackTabs(tab) {                
+        IsRetainNarrow = false;
+        switch (tab) {
+            case "tab5":
+                LastTab = window.location.hash;
+                window.location.hash = '#list';
+                IsRetainNarrow = true;
+                if (LastTab != '#list' && LastTab != '') {
+                    IsRetainNarrow = false;
+                    TempNarrow = 'All';
+                }
+                tabName = '';                
+                break;
+            case "tab2":                
+                window.location.hash = '#UnSubmitted';
+                IsRetainNarrow = false;
+                TempNarrow = 'UnSubmitted';
+                tabName = 'UnSubmitted';               
+                break;
+            case "tab3":
+                window.location.hash = '#Submitted';
+                IsRetainNarrow = false;
+                TempNarrow = 'Submitted';
+                tabName = 'Submitted';
+                break;
+            case "tab4":
+                window.location.hash = '#Approved';
+                IsRetainNarrow = false;
+                TempNarrow = 'Approved';
+                tabName = 'Approved';
+                break;
+            case "tab7":
+                window.location.hash = '#Closed';
+                IsRetainNarrow = false;
+                TempNarrow = 'Closed';
+                tabName = 'Closed';
+                break;
+            default:
+                window.location.hash = '';
+                TempNarrow = '';
+                tabName = '';
+                break;
+        }        
+        if ($('#IsArchivedRecords').is(':checked')) {
+            $('#aUnArchiveRows').css('display', '');
+            $('#aArchiveRows').css('display', 'none');
+            $('#undeleteRows').css('display', 'none');
+            $('#deleteRows').css('display', 'none');
+        }
+        else if ($('#IsDeletedRecords').is(':checked')) {
+            $('#undeleteRows').css('display', '');
+            $('#deleteRows').css('display', 'none');
+            $('#aArchiveRows').css('display', 'none');
+            $('#aUnArchiveRows').css('display', 'none');
+        }
+        else if (!$('#IsDeletedRecords').is(':checked')
+            && !$('#IsArchivedRecords').is(':checked')) {
+            $('#deleteRows').css('display', '');
+            $('#undeleteRows').css('display', 'none');
+            $('#aArchiveRows').css('display', '');
+            $('#aUnArchiveRows').css('display', 'none');
+        }
+        else {
+            $('#deleteRows').css('display', '');
+            $('#undeleteRows').css('display', 'none');
+            $('#aArchiveRows').css('display', 'none');
+            $('#aUnArchiveRows').css('display', 'none');
+        }
+
+        if ($('#IsDeletedRecords').is(':checked')
+            || $('#IsArchivedRecords').is(':checked')) {
+            $(".print").attr("style", "display:none");
+        }
+        else {
+            $(".print").attr("style", "display:block");
+        }
+        SetConsumeRedCount();
+        fillRequisitionNarrowSearchDiv(tabName);
+        CurrentListTabID = tab;
+        SetFocus();
+        FilterRecordsByStatus(TempNarrow);
+    }    
+   
+</script>
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResRequisitionMaster.RequisitionMasterHeader
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <input type="hidden" id="hdnModuleName" name="hdnModuleName" value="Requisition" />
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener" style="min-height: 750px;">
+        </div>
+        <div id="Ctab" class="tabContener" style="min-height: 750px;">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="txtReqfilter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            @*<img src="~/Content/images/x.png" alt="X" onclick="return ClearReqFilter();" />*@
+                            <img src="~/Content/images/x.png" alt="X" id="imgClearReqFilter" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Requisitions)
+            @*@Html.Partial("NarrowSearchLayout", modelCommon)*@
+            <div id="divNarrowSearch" style="float: left; padding: 0 5px 0 0; width: 18%;">
+                &nbsp;
+            </div>
+            <div class="userContent ">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResRequisitionMaster.RequisitionStatus
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResRequisitionMaster.RequisitionNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResRequisitionMaster.ReleaseNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResRequisitionMaster.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResRequisitionMaster.WorkorderName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResRequisitionMaster.RequiredDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResRequisitionMaster.NumberofItemsrequisitioned
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResCustomer.Customer
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResRequisitionMaster.RequisitionType
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RoomName
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.Supplier
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.SupplierAccountDetail
+                            </th>
+                            <th>
+                                @ResMaterialStaging.StagingName
+                            </th>
+                            @Html.RenderColumnsHeader("RequisitionMaster", typeof(eTurns.DTO.ResRequisitionMaster))
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div id="processing_message" style="display: none" title="Processing">
+                    @eTurns.DTO.Resources.ResMessage.RequestProcessMessage
+                </div>
+                <div id="divQTYLegends" style="clear: both; width: 90%; margin-top: 10px; display: none">
+                    <div>
+                        <span class="SpanCriticalLegend" style="background-color: #FF6633;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>&nbsp;@eTurns.DTO.ResRequisitionMaster.MsgRequiredXDaysRed.Replace("\"n\"", RequestedXDays.ToString())
+                    </div>
+                    <div style="clear: both; margin-top: 5px;">
+                        <span class="SpanMinimumLegend" style="background-color: #40FF00">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>&nbsp;@eTurns.DTO.ResRequisitionMaster.MsgRequiredXDaysGreen.Replace("\"n\"", RequestedXDays.ToString())
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="CtabCL" class="tabContener" style="min-height: 750px;">
+        </div>
+    </div>
+    <div class="dialog" id="RequisitionCloseConfirm" style="display: none;">
+        <div class="inner">
+            <p class="text">
+                Are you sure you want to close selected requisition(s)?
+            </p>
+            <a href="JavaScript:void(0)" id="btnRequisitionListConfirmYes" class="yes yesornooryes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="javascript:void(0)" class="no" onclick="closeModalCloseRequisitionListDialog();">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    function ClearReqFilter() {
+        //Check length first
+        if ($("#txtReqfilter").val().length > 0) {
+            $("#txtReqfilter").val('');
+            $("#txtReqfilter").val("");
+            $("#txtReqfilter").change();
+        }
+        return false;
+    }
+
+    function OpenPrintTab(URlToOpen) {
+        mywindow = window.open(URlToOpen, "_blank");
+    }
+
+    function BlankSession(ID) {
+        $.ajax({
+            url: '@Url.Content("~/Consume/BlankSession")'
+                                    , type: 'GET'
+                                   // , data: { ID: '1' }
+                                    , dataTy: 'json'
+                                    , contentType: "application/json"
+                                    , success: function (result) {
+                                    },
+            error: function (msg) {
+            }
+        });
+    }
+
+    function openModel(id) {
+        $('#divWOLineItemHistory').data("cid", id).dialog('open')
+        return false;
+    }
+
+</script>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+<div id="divWOLineItemHistory">
+</div>
+<script type="text/javascript">
+    $(document).on("tap click touchstart", "#imgClearReqFilter", function () {
+        if ($("#txtReqfilter").val().length > 0) {
+            $("#txtReqfilter").val("");
+            $("#txtReqfilter").trigger("input");
+        }
+        return false;
+    });
+    function fillRequisitionNarrowSearchDiv(tabName) {
+        $('#divNarrowSearch').html('&nbsp');
+        $.ajax({
+            url: 'GetRequisitionNarrwSearchHTML',
+            data: { tabName: tabName, IsDeleted: $('#IsDeletedRecords').is(':checked'), IsArchived: $('#IsArchivedRecords').is(':checked') },
+            async: true,
+            success: function (data) {
+                $('#divNarrowSearch').html(data);
+                return;
+            }
+        });
+    }
+    $(document).ready(function () {
+
+
+        $("#tab2 .tabmidbg").css("width", "115px");
+
+        $("#divWOLineItemHistory").dialog({
+            autoOpen: false,
+            modal: true,
+            draggable: true,
+            resizable: true,
+            width: '95%',
+            height: 720,
+            title: '@ResWorkOrder.WorkOrderListHistoryHeader',
+            open: function () {
+                $('#DivLoading').show();
+                $("#divWOLineItemHistory").empty();
+                $.get('/WorkOrder/WorkOrderLineItemsDetailsForReq', { GUID: $(this).data("cid") }, function (data) {
+                    $("#divWOLineItemHistory").html(data);
+                });
+            },
+            close: function () {
+                $("#divWOLineItemHistory").empty();
+            }
+        });
+
+        SetConsumeRedCount();
+
+        $('#IsDeletedRecords').live('click', function () {
+            CallBackTabs($(".tabs li div.selected").attr('id'));
+        });
+        $('#IsArchivedRecords').live('click', function () {
+            CallBackTabs($(".tabs li div.selected").attr('id'));
+        });
+    });
+    function openModel(id) {
+        $('#divWOLineItemHistory').data("cid", id).dialog('open')
+        return false;
+    }
+
+    $('#amnuRequisitionNewLink').click(function () {
+        $("#tab1").click();
+    });
+
+    $('#amnuReqUnsubmittedLink').click(function () {
+        $("#tab2").click();
+    });
+
+    $('#amnuReqSubmittedLink').click(function () {
+        $("#tab3").click();
+    });
+    $('#amnuReqApprovedLink').click(function () {
+        $("#tab4").click();
+    });
+    $('#amnuReqHistoryLink').click(function () {
+        $("#tab5").click();
+    });
+    $('#amnuReqClosedLink').click(function () {
+        $("#tab7").click();
+    });
+    _Common.setGloblaSearch('txtReqfilter', 'myDataTable', function (txtSearch) {
+        DoReqNarrowSearch();
+        //if ($myDataTable.dataTable().fnGetData().length === 1) {
+        //    //$('#myDataTable tr').find('#aEditLink').click();
+        //    $myDataTable.find('tr').find('#aEditLink').click();
+        //}
+    },
+        function (txtSearch, keycode) {
+            DoReqNarrowSearch_OnEnter(keycode);
+        }
+    );
+
+
+    function PrintAttachedDocs(lnk) {
+        var rowSelected = fnGetSelected(oTable);
+        var arrIds = new Array();
+        if (rowSelected.length > 0) {
+            for (var i = 0; i < rowSelected.length; i++) {
+                var ReqGUID = $(rowSelected[i]).find('#RequisitionGUID').val();
+                arrIds.push(ReqGUID);
+            }
+        }
+
+        if (arrIds.length) {
+            $.ajax({
+                url: 'DownloadRequisitionDocument',
+                type: 'Post',
+                data: JSON.stringify(arrIds),
+                dataType: 'json',
+                async: false,
+                contentType: 'application/json',
+                success: function (result) {
+                    if (result.Status) {
+                        var isURLHttps = false;
+                        var CurrentURL = window.location.href;
+                        if (CurrentURL.indexOf("localhost:") < 0
+                            && CurrentURL.toLowerCase().indexOf("demo") < 0) {
+                            if (CurrentURL.indexOf("https:") >= 0) {
+                                isURLHttps = true;
+                            }
+                        }
+
+                        if (result.ReturnFiles.length > 0) {
+                            for (var i = 0; i < result.ReturnFiles.length; i++) {
+                                if (isURLHttps == false) {
+                                    if (result.ReturnFiles[i].indexOf("https:") >= 0) {
+                                        result.ReturnFiles[i] = result.ReturnFiles[i].replace("https:", "http:");
+                                    }
+                                }
+                                if (isURLHttps == true) {
+                                    if (result.ReturnFiles[i].indexOf("http:") >= 0) {
+                                        result.ReturnFiles[i] = result.ReturnFiles[i].replace("http:", "https:");
+                                    }
+                                }
+                                window.open(result.ReturnFiles[i]);
+                            }
+                        }else {
+                        $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                        $("#spanGlobalMessage").html('@ResCommon.NoDocsToDownload');
+                        showNotificationDialog();
+                    }
+                    }
+                },
+                error: function (xhr) {
+                    alert(MsgResErrorInProcess);
+                }
+            });
+        }
+        else {
+            alert(MsgSelectRow);
+
+        }
+    }
+
+    $('#actionCloseRequisition').click(function () {
+            var anSelected = fnGetSelected(oTable);
+            var cntIDs = 0;
+            for (var i = 0; i <= anSelected.length - 1; i++) {
+                var aData = oTable.fnGetData(anSelected[i]);
+                if (aData.RequisitionStatus != 'Closed'){
+                    cntIDs = cntIDs + 1;
+                }
+            }
+            if (cntIDs > 0) {
+                $('#RequisitionCloseConfirm').modal();
+            }
+            else {
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon').html("@ResRequisitionMaster.ReqOneUnClosedRequisition");
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            }
+    });
+
+    $('#btnRequisitionListConfirmYes').click(function () {
+         $('#DivLoading').show();
+            var anSelected = fnGetSelected(oTable);
+            var stringIDs = "";
+            var cntIDs = 0;
+            if (anSelected.length !== 0) {
+                for (var i = 0; i <= anSelected.length - 1; i++) {
+                    var aData = oTable.fnGetData(anSelected[i]);
+                    if (aData.RequisitionStatus != 'Closed') {
+                        stringIDs = stringIDs + aData.GUID + ",";
+                        cntIDs = cntIDs + 1;
+                    }
+                }
+
+                if (cntIDs > 0) {
+                    $.ajax({
+                        url: '@Url.Action("UpdateSelectedRequisitionToClose", "Consume")',
+                        type: "POST",
+                        data: { GUIDs: stringIDs },
+                        success: function (responce) {
+                            if (responce.Status == "ok") {
+                                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon').html("@ResCommon.RecordClosedSuccessfully".replace("{0}", "(" + cntIDs + ")"));
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                                oTable.fnDraw();
+                            }
+                            else {
+                                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon').html("@ResOrder.ErrortoPerformOperation");
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            }
+                            closeModalCloseRequisitionListDialog();
+                        },
+                        error: function (err) {
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon').html(responce.Message);
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        }
+                    });
+                }
+                else {
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon').html("@ResRequisitionMaster.ReqOneUnClosedRequisition");
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    closeModalCloseRequisitionListDialog();
+                    $('#DivLoading').hide();
+                }
+
+            }
+    });
+
+    function closeModalCloseRequisitionListDialog() {
+        $.modal.impl.close();
+    }
+
+</script>

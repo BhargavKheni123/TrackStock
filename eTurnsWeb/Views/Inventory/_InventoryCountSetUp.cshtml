@@ -1,0 +1,497 @@
+﻿@model CycleCountSettingDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    string currentYear = eTurns.DAL.DateTimeUtility.DateTimeNow.Year.ToString();
+    List<SelectListItem> TimeBaseUnits = new List<SelectListItem>();
+    TimeBaseUnits.Add(new SelectListItem() { Text = "", Value = "" });
+    TimeBaseUnits.Add(new SelectListItem() { Text = eTurns.DTO.Resources.ResCommon.Days, Value = Convert.ToString((int)TimebasedScheduleFreq.Days) });
+    TimeBaseUnits.Add(new SelectListItem() { Text = eTurns.DTO.Resources.ResCommon.Weeks, Value = Convert.ToString((int)TimebasedScheduleFreq.Weeks) });
+    TimeBaseUnits.Add(new SelectListItem() { Text = eTurns.DTO.Resources.ResCommon.Months, Value = Convert.ToString((int)TimebasedScheduleFreq.Months) });
+    TimeBaseUnits.Add(new SelectListItem() { Text = eTurns.DTO.Resources.ResCommon.Years, Value = Convert.ToString((int)TimebasedScheduleFreq.Years) });
+
+}
+<script type='text/javascript' src="@Url.Content("~/Scripts/jquery.watermark.js")"></script>
+<script type='text/javascript' src="@Url.Content("~/Scripts/jquery-ui-timepicker-addon.js")"></script>
+@{
+    bool isUpdate;
+    bool isInsert;
+    if (ViewBag.ViewOnly == true)
+    {
+        isUpdate = false;
+        isInsert = false;
+    }
+    else
+    {
+        isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Count, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+        isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Count, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    }
+}
+@using (Ajax.BeginForm("SaveInventoryCountSetUp", "Inventory", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmInventoryCountSetup" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="userHead">
+        @Html.ValidationSummary(true)
+        @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+        @Html.HiddenFor(model => model.GUID, new { id = "hiddenGUID" })
+        @if (Model.ID != 0)
+        {
+            <div class="infoBlock">
+                <ul>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.RoomName)
+                        </label>
+                        : <span>@(Model.RoomName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Created)
+                        </label>
+                        : <span>@(Model.CreatedDate)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.CreatedByName)
+                        </label>
+                        : <span>@(Model.CreatedByName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Updated)
+                        </label>
+                        : <span>@(Model.UpdatedDate)</span>
+                    </li>
+                    <li style="border: none">
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.UpdatedByName)
+                        </label>
+                        : <span>@(Model.UpdatedByName)</span>
+                    </li>
+                </ul>
+            </div>
+        }
+        <div class="mainForm">
+            <div class="editorForm">
+                @if (Model.lstCycleCountSetup != null && Model.lstCycleCountSetup.Count > 0)
+                {
+
+                    <ul>
+                        <li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.RecurringType)
+                            </div>
+                            <div class="editor-field">
+                                <ul style="float:left;">
+                                    <li>@Html.RadioButtonFor(model => model.RecurringType, 1) @ResCycleCountSetting.CycleBaseRecurring </li>
+                                    <li>@Html.RadioButtonFor(model => model.RecurringType, 2) @ResCycleCountSetting.TimeBaseRecurring </li>
+                                </ul>
+                            </div>
+                        </li>
+                        @for (int i = 0; i < Model.lstCycleCountSetup.Count; i++)
+                        {
+                            if (TimeBaseUnits.Any(t => t.Value == Convert.ToString(Model.lstCycleCountSetup[i].TimeBaseUnit ?? 0)))
+                            {
+                                TimeBaseUnits.Where(t => t.Value == Convert.ToString(Model.lstCycleCountSetup[i].TimeBaseUnit ?? 0)).First().Selected = true;
+                            }
+                            <li id="liCycleBase_@(i)">
+                                <div class="editor-label">
+                                    @string.Format(ResCycleCountSetting.NoOfTimesClassCount, Model.lstCycleCountSetup[i].InventoryClassification)
+                                    @*@Model.lstCycleCountSetup[i].InventoryClassification*@ <em>*</em>
+                                </div>
+                                <div class="editor-field">
+                                    @Html.TextBoxFor(model => Model.lstCycleCountSetup[i].CycleCountFrequency, new { @class = "text-box", maxlength = 3 })
+                                    @Html.HiddenFor(model => Model.lstCycleCountSetup[i].ICGUID, new { @class = "text-box", maxlength = 256 })
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => Model.lstCycleCountSetup[i].CycleCountFrequency)</span>
+                                </div>
+                            </li>
+                            <li id="liTimeBase_@(i)">
+                                <div class="editor-label">
+                                    @string.Format(ResCycleCountSetting.ClassTimeBaseRecurring, Model.lstCycleCountSetup[i].InventoryClassification)
+
+                                    @*@Model.lstCycleCountSetup[i].InventoryClassification*@ <em>*</em>
+                                </div>
+                                <div class="editor-field">
+                                    @Html.TextBoxFor(model => Model.lstCycleCountSetup[i].TimeBaseRecurfrequency, new { @class = "text-box", maxlength = 256 })
+                                    @Html.DropDownListFor(model => Model.lstCycleCountSetup[i].TimeBaseUnit, TimeBaseUnits, new { @class = "selectBox" })
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => Model.lstCycleCountSetup[i].TimeBaseRecurfrequency)</span>
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => Model.lstCycleCountSetup[i].TimeBaseUnit)</span>
+                                </div>
+                            </li>
+                        }
+
+                        <li style="border-right: none;">
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.YearStartDate)<em>*</em>
+                            </div>
+
+                            @Html.TextBoxFor(model => model.YearStartDateStr, new { @class = "text-box", @readonly = "readonly", @style = "background:white", maxlength = 128 })
+                            @*@Html.DropDownListFor(model => model.YearStartMonth, lstMonths, new { @class = "selectBox" }) - @Html.DropDownListFor(model => model.YearStartDay, lstDays, new { @class = "selectBox" })*@
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.YearStartDate)</span>
+                        </li>
+                        <li style="border-right: none;">
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.YearEndDate)<em>*</em>
+                            </div>
+                            @Html.TextBoxFor(model => model.YearEndDateStr, new { @class = "text-box", @readonly = "readonly", @style = "background:white", maxlength = 128 })
+                            @*@Html.DropDownListFor(model => model.YearEndMonth, lstMonths, new { @class = "selectBox" }) - @Html.DropDownListFor(model => model.YearEndDay, lstDays, new { @class = "selectBox" })*@
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.YearEndDate)</span>
+                        </li>
+
+                        <li style="border-right: none;">
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.CountFrequencyType)<em>*</em>
+                            </div>
+                            <ul style="float:left;">
+                                <li>
+                                    @Html.RadioButtonFor(model => model.CountFrequencyType, "1", new { @style = "display:none;" })    @eTurns.DTO.ResSchedulerReportList.Every  @Html.TextBoxFor(model => model.RecurrringDays, new { @class = "text-box", @style = "width:50px;" }) @eTurns.DTO.ResSchedulerReportList.Days
+                                    @Html.HiddenFor(model => model.RecurrringDays)
+                                </li>
+                                <li class="hidethisli">
+                                    @Html.RadioButtonFor(model => model.CountFrequencyType, "2", new { }) :  @Html.TextBoxFor(model => model.CycleCountsPerCycle, new { @class = "text-box", @style = "width:50px;" }) Counts per cycle
+                                    @Html.HiddenFor(model => model.CycleCountsPerCycle)
+                                </li>
+                            </ul>
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.RecurrringDays)</span>
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CycleCountsPerCycle)</span>
+
+                        </li>
+                        <li class="hidethisli">
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.CycleCountTime)
+                            </div>
+                            <div class="editor-field">
+                                @Html.TextBoxFor(model => model.CycleCountTimestr, new { @class = "text-box", maxlength = 128, onkeypress = "javascript:return false;" })
+                                @Html.ValidationMessageFor(model => model.CycleCountTimestr)
+                            </div>
+                        </li>
+
+                        <li class="hidethisli">
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.MissedItemsEmailTime)
+                            </div>
+                            <div class="editor-field">
+                                @Html.TextBoxFor(model => model.MissedItemsEmailTimestr, new { @class = "text-box", maxlength = 128, onkeypress = "javascript:return false;" })
+                                @Html.ValidationMessageFor(model => model.MissedItemsEmailTimestr)
+                            </div>
+                        </li>
+                        <li class="hidethisli">
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.MissedItemEmailPriorHours)
+                            </div>
+                            <div class="editor-field">
+                                @Html.TextBoxFor(model => model.MissedItemEmailPriorHours, new { @class = "text-box", maxlength = 128 })
+                                @Html.ValidationMessageFor(model => model.MissedItemEmailPriorHours)
+                            </div>
+                        </li>
+                        <li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.IsActive)
+                            </div>
+                            <div class="editor-field">
+                                @Html.CheckBoxFor(model => model.IsActive)
+                            </div>
+                        </li>
+
+                        <li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.NextRunDate)
+                            </div>
+                            <div class="editor-field">
+                                @Html.DisplayFor(model => model.NextRunDatestr)
+                            </div>
+                        </li>
+                        <li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.CountType)
+                            </div>
+                            <div class="editor-field">
+                                 @Html.DropDownListFor(model => model.CountType, new SelectList(ViewBag.CountTypeBag, "Value", "Text", Model.CountType), "", new { @class = "selectBox", @id = "dlCycleCountType" })
+                                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CountType)</span>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="editor-label">
+                                &nbsp;
+                            </div>
+                            <div class="BtnBlockform">
+                                <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+                                <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+
+                            </div>
+                        </li>
+                    </ul>
+
+                }
+                else
+                {
+                    <ul>
+                        <li>
+                            <div class="editor-label">
+                                &nbsp;
+                            </div>
+                            <div class="BtnBlockform">
+                                You Have no inventory classification set.Please go supporting information > Inventory classification and set up them first.
+                            </div>
+                        </li>
+                    </ul>
+                }
+
+                @*<li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.AClassFrequency)<em>*</em>
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.AClassFrequency, new { @class = "text-box", maxlength = 256 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.AClassFrequency)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CClassFrequency)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.CClassFrequency, new { @class = "text-box", maxlength = 1024 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CClassFrequency)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.EClassFrequency)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.EClassFrequency, new { @class = "text-box", maxlength = 1024 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.EClassFrequency)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.BClassFrequency)<em>*</em>
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.BClassFrequency, new { @class = "text-box", maxlength = 256 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.BClassFrequency)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.DClassFrequency)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.DClassFrequency, new { @class = "text-box", maxlength = 1024 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.DClassFrequency)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.FClassFrequency)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.FClassFrequency, new { @class = "text-box", maxlength = 1024 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.FClassFrequency)</span>
+                        </div>
+                    </li>*@
+
+
+
+            </div>
+            <div class="editorForm padRightNone">
+                <ul>
+
+
+                    <li>
+                        <div id="divClassficationParam">
+
+                        </div>
+                    </li>
+
+
+                    @*
+                        <li style="border-right: none;">
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.YearStartDate)<em>*</em>
+                            </div>
+                            @Html.TextBoxFor(model => model.YearStartDateStr, new { @class = "text-box", @readonly = "readonly", @style = "background:white", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.YearStartDate)</span>
+                        </li>
+                        <li style="border-right: none;">
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.YearEndDate)<em>*</em>
+                            </div>
+                            @Html.TextBoxFor(model => model.YearEndDateStr, new { @class = "text-box", @readonly = "readonly", @style = "background:white", maxlength = 128 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.YearEndDate)</span>
+                        </li>
+                        <li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.EmailAddressesDailyCycle)
+                            </div>
+                            <div class="editor-field">
+                                @Html.TextAreaFor(model => model.EmailAddressesDailyCycle, new { id = "txtEmailAddressesDailyCycle", @class = "text-box", maxlength = 1024 })
+                                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.EmailAddressesDailyCycle)</span>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.EmailAddressesPreCountNotification)
+                            </div>
+                            <div class="editor-field">
+                                @Html.TextAreaFor(model => model.EmailAddressesPreCountNotification, new { id = "txtEmailAddressesPreCountNotification", @class = "text-box", maxlength = 1024 })
+                                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.EmailAddressesPreCountNotification)</span>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="editor-label">
+                                &nbsp;
+                            </div>
+                            <div class="BtnBlockform">
+                                <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+                                <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                            </div>
+                        </li>*@
+                </ul>
+            </div>
+        </div>
+    </div>
+}
+@Html.Partial("_RequiredMessages")
+@*@if (false)
+    {
+    <script src="../../Scripts/jquery-1.9.1-vsdoc.js" type="text/javascript"></script>
+    }*@
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        SetScheduleControl($("input[name='CountFrequencyType']").val());
+        $('form').areYouSure();
+        $('#CycleCountTimestr').timepicker({ timeFormat: 'HH:mm' });
+        $('#MissedItemsEmailTimestr').timepicker({ timeFormat: 'HH:mm' });
+        SetRecurringType('@Model.RecurringType');
+        $("input[name='CountFrequencyType']").change(function () {
+            SetScheduleControl($(this).val());
+        });
+        $("input[name='RecurringType']").change(function () {
+            SetRecurringType($(this).val());
+        });
+        $(".hidethisli").hide();
+    });
+    //#region [Document ready]
+
+    jQuery(function () {
+        $("input[type='text'][id='RecurrringDays']").change(function () {
+            $("input[type='hidden'][id='RecurrringDays']").val($(this).val());
+        });
+
+
+        $("input[type='text'][id='CycleCountsPerCycle']").change(function () {
+            $("input[type='hidden'][id='CycleCountsPerCycle']").val($(this).val());
+        });
+
+
+        $("#YearStartDateStr").datepicker({ dateFormat: RoomDateJSFormat, changeYear: true, changeMonth: true });
+        $("#YearEndDateStr").datepicker({ dateFormat: RoomDateJSFormat, changeYear: true, changeMonth: true });
+        //$("#YearStartDate").datepicker(
+        //{
+        //    changeYear: true
+        //});
+
+
+        //$("#YearEndDate").datepicker(
+        //{
+        //    changeYear: true
+        //});
+
+        $("#frmInventoryCountSetup").submit(function (e) {
+            $.validator.unobtrusive.parse("#frmInventoryCountSetup");
+            if ($(this).valid()) {
+                rememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+            }
+            e.preventDefault();
+        });
+
+        $("#btnCancel").click(function (e) {
+            SwitchTextTab(0, 'InventoryCountCreate', 'frmInventoryCountSetup');
+            if (oTable !== undefined && oTable != null) {
+                oTable.fnDraw();
+            }
+            $('#NarroSearchClear').click();
+        });
+    });
+
+    //#endregion
+
+    //#region [Page functions]
+
+    function onSuccess(response) {
+
+        var retstat;
+        IsRefreshGrid = true;
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+        if (idValue < 1 || idValue == "") {
+            retstat = response.Status;
+            switch (retstat) {
+                case "fail":
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    break;
+                case "duplicate":
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    break;
+                case "ok":
+                    ShowNewTab('InventoryCountSetUp', 'frmInventoryCountSetup');
+                    break;
+            }
+        }
+        else if (idValue > 0) {
+            retstat = response.Status;
+            switch (retstat) {
+                case "fail":
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    break;
+                case "duplicate":
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    break;
+                case "ok":
+                    ShowNewTab('InventoryCountSetUp', 'frmInventoryCountSetup');
+                    break;
+            }
+        }
+    }
+
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#txtStagingName").focus();
+    }
+
+    function SetRecurringType(rType) {
+        if (rType == 1) {
+            $("li[id^='liCycleBase']").show();
+            $("li[id^='liTimeBase']").hide();
+        }
+        if (rType == 2) {
+            $("li[id^='liCycleBase']").hide();
+            $("li[id^='liTimeBase']").show();
+        }
+
+    }
+
+    function SetScheduleControl(Stype) {
+        if (Stype == 1) {
+            $("input[type='text'][id='RecurrringDays']").removeProp("disabled");
+            $("input[type='text'][id='CycleCountsPerCycle']").prop("disabled", "disabled");
+            $("input[type='hidden'][id='RecurrringDays']").prop("disabled", "disabled");
+        }
+        else {
+            $("input[type='text'][id='CycleCountsPerCycle']").removeProp("disabled");
+            $("input[type='text'][id='RecurrringDays']").prop("disabled", "disabled");
+            $("input[type='hidden'][id='CycleCountsPerCycle']").prop("disabled", "disabled");
+            //$("#RecurrringDays").prop("disabled", "disabled");
+            //$("#CycleCountsPerCycle").removeProp("disabled");
+        }
+    }
+    //#endregion
+    _Common.addRequiredSign();
+</script>

@@ -1,0 +1,454 @@
+@model ToFillPreReceiveDTO
+@{
+    //DateTime RecvDate = DateTime.Parse(Model.ReceivedDate);
+    DateTime RecvDate = DateTime.MinValue;
+    string CurrencyDecimalDigits = eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits;
+    // DateTime RecvDate = DateTime.Parse(Model.ReceivedDate);
+    //DateTime.TryParseExact(Model.ReceivedDate, eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurns.DTO.Resources.ResourceHelper.CurrentCult, System.Globalization.DateTimeStyles.None, out RecvDate);
+    DateTime.TryParseExact(Model.ReceivedDate, eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture, System.Globalization.DateTimeStyles.None, out RecvDate);
+    if (RecvDate <= DateTime.MinValue)
+    {
+        RecvDate = DateTime.Parse(Model.ReceivedDate);
+    }
+
+    bool isCost = false;
+    isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    ItemMasterDTO objItem = ViewBag.ItemDTO;
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+    int idx = 0;
+    int TotalRecords = Model.MakePreReceiveDetail.Count();
+    List<BinMasterDTO> lstBinMaster;
+    eTurns.DAL.RegionSettingDAL objRegionSettingDAL = new eTurns.DAL.RegionSettingDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+}
+<div class="innerGrid" id="divPreReceiveInfo" style="background: none repeat scroll 0 0 #F8F8F8;
+    padding: 10px; float: left; width: 98%;">
+    <div class="infoBlock" style="margin: 5px; width: 96%">
+        <ul>
+            <li>
+                <label for="RoomName">
+                    @ResOrder.OrderNo
+                </label>
+                : <span>@(Model.OrderNumber)</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    @ResOrder.ReleaseNumber
+                </label>
+                : <span>@(Model.ReleaseNumber)</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    @ResOrder.ItemNumber
+                </label>
+                : <span>@(Model.ItemNumber)</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    @ResItemMaster.ItemType
+                </label>
+                : <span>@(Model.ItemTypeSerialLot)</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    @ResOrder.ApprovedQuantity
+                </label>
+                : <span>@(Model.ApproveQty.GetValueOrDefault(Model.RequestedQty.GetValueOrDefault(0)))</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    @ResOrder.ReceivedQuantity
+                </label>
+                : <span>@(Model.ReceiveQty.GetValueOrDefault(0))</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    @ResItemMaster.Description
+                </label>
+                : <span title="@objItem.Description">
+                    @((objItem.Description ?? string.Empty).Length > 20 ? objItem.Description.Substring(0, 20) + " ..." : (objItem.Description ?? string.Empty))
+                </span>
+            </li>
+        </ul>
+    </div>
+    <br />
+    <div style="float: left; clear: both; width: 98%; margin: 5px; overflow-y: auto; height: 350px; border: 1px solid #2181d4 ">
+        <table id="tblPreReceiveHeader" class="display" style="float: left; clear: both;
+            width: 98%;">
+            <thead>
+
+                <tr>
+                    @if (Model.LotNumberTracking)
+                    {
+                        <th>
+                            @ResReceiveOrderDetails.LotNumber
+                        </th>
+                    }
+                    @if (Model.DateCodeTracking)
+                    {
+                        <th>
+                            @ResReceiveOrderDetails.ExpirationDate
+                        </th>
+                    }
+                    <th>
+                        @ResOrder.QuantityToReceive
+                    </th>
+                    @if (isCost)
+                    {
+                        <th>
+                            @ResItemLocationDetails.Cost
+                        </th>
+                    }
+                    <th>
+                        @ResItemLocationDetails.ReceivedDate
+                    </th>
+                    <th>
+                        @ResReceiveOrderDetails.ReceiveBin
+                    </th>
+                    <th>
+                        @ResReceiveOrderDetails.PackSlipNumber
+                        @if (Model.IsPackSlipMandatory)
+                        {
+                            <span style="color: Red">*</span>
+                        }
+                    </th>
+                    @Html.RenderColumnsHeader("ReceivedOrderTransferDetail", typeof(eTurns.DTO.ResReceiveOrderDetails), "")
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.MakePreReceiveDetail)
+                {
+                    idx = idx + 1;
+                    <tr class="odd" style="border: 1px solid #dddddd;">
+                        @if (Model.LotNumberTracking)
+                        {
+                            <td>
+                                @Html.TextBox("txtLotNumber_" + @idx, item.LotNumber, new { @id = "txtLotNumber_" + @idx, @class = "text-boxinner txtLotNumber", @style = "width:100px;" })
+                            </td>
+                        }
+                        @if (Model.DateCodeTracking)
+                        {
+
+                            DateTime expDate = DateTime.MinValue;
+                            DateTime.TryParseExact(item.ExpirationDate, eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture, System.Globalization.DateTimeStyles.None, out expDate);
+                            if (expDate > DateTime.MinValue)
+                            {
+                                <td>
+                                    @Html.TextBox("txtExpiration_" + @idx, expDate.ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat), new { @id = "txtExpiration_" + @idx, @class = "text-boxinner dateTextbox txtExpiration", @style = "width:100px;", @readonly = "readonly" })
+                                    @*@Html.TextBox("txtExpiration_" + @idx, expDate.ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat), new { @id = "txtExpiration_" + @idx, @class = "text-boxinner dateTextbox txtExpiration", @style = "width:100px;" })*@
+                                </td>
+                            }
+                            else
+                            {
+                                <td>
+                                    @Html.TextBox("txtExpiration_" + @idx, "", new { @id = "txtExpiration_" + @idx, @class = "text-boxinner dateTextbox txtExpiration", @style = "width:100px;", @readonly = "readonly" })
+                                    @*@Html.TextBox("txtExpiration_" + @idx, "", new { @id = "txtExpiration_" + @idx, @class = "text-boxinner dateTextbox txtExpiration", @style = "width:100px;" })*@
+                                </td>
+                            }
+                        }
+
+                        <td>
+                            @Html.TextBox("txtQuantity_" + @idx, item.Quantity, new { @id = "txtQuantity_" + @idx, @class = "text-boxinner text-boxQuantityFormat txtQuantity", @style = "width:120px;" })
+                        </td>
+
+                        @if (isCost)
+                        {
+                            <td>
+                                @if (objItem.Consignment)
+                                {
+                                    @Html.TextBox("txtReceivedCost_" + @idx, Model.Cost.GetValueOrDefault(0), new { @id = "txtReceivedCost_" + @idx, @class = "text-boxinner numericinput txtReceivedCost disableBack", @style = "width:100px;", @readonly = "readonly" })
+                                }
+                                else
+                                {
+                                    @Html.TextBox("txtReceivedCost_" + @idx, Model.Cost.GetValueOrDefault(0), new { @id = "txtReceivedCost_" + @idx, @class = "text-boxinner numericinput txtReceivedCost", @style = "width:100px;" })
+                                }
+                            </td>
+                        }
+                    <td>
+                        @*@Html.TextBox("txtReceivedDate_" + @idx, RecvDate.ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture), new { @id = "txtReceivedDate_" + @idx, @class = "text-boxinner dateTextbox txtReceivedDate", @style = "width:100px;", @readonly = "readonly" })*@
+                        @Html.TextBox("txtReceivedDate_" + @idx, objRegionSettingDAL.GetCurrentDatetimebyTimeZone(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.UserID, eTurnsWeb.Helper.SessionHelper.RoomCulture, eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture).ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture), new { @id = "txtReceivedDate_" + @idx, @class = "text-boxinner dateTextbox txtReceivedDate", @style = "width:100px;", @readonly = "readonly" })
+                        <input type="hidden" id="hdnOrdDtlGuid" value="@Model.OrderDetailGUID" />
+                        <input type="hidden" id="hdnOrdGuid" value="@Model.OrderGUID" />
+                        <input type="hidden" id="hdnItmGuid" value="@Model.ItemGUID" />
+                        <input type="hidden" id="hdnIsPackSlipMand" value="@Model.IsPackSlipMandatory" />
+                        <input type="hidden" id="hdnOrdStatus" value="@Model.OrderStatus" />
+                        <input type="hidden" id="hdnReceivedCost" value="@Model.Cost.GetValueOrDefault(0)" />
+                        <input type="hidden" id="hdnOrderDetailItemCost" value="@Model.OrderDetailItemCost.GetValueOrDefault(0)" />
+                        <input type="hidden" id="hdnComment" value="@Model.Comment" />
+                        <input type="hidden" id="hdnPOLineItemNumber" value="@Model.POLineItemNumber" />
+                        <input type="hidden" id="hdnOrderDetailTrackingID" value="@item.ID" />
+                    </td>
+                        <td>
+                            @*@Html.TextBox("txtReceiveBin_" + @idx, Model.BinNumber, new { @id = "txtReceiveBin" + @idx, @class = "text-boxinner ReciveEditAuto txtReceiveBin", @style = "width:100px;" })*@
+                            @if (HasOnTheFlyEntryRight)
+                            {
+                                <span style='position: relative'>
+                                    @Html.TextBox("txtReceiveBin_" + @idx, Model.BinNumber, new { id = "txtReceiveBin_" + @idx, @class = "PreRcvBinAuto text-boxinner txtReceiveBin", @style = "width:90px;" })
+                                    <a id='lnkShowAllOptions' href='javascript:void(0);' style='position: absolute; right: 5px;
+                                            top: 0px;' class="ShowAllOptions">
+                                        <img src='/Content/images/arrow_down_black.png' alt='select' />
+                                    </a>
+                                    <input type="hidden" value="false" id="hdnIsLoadMoreLocations" />
+                                </span>
+                            }
+                            else
+                            {
+                                lstBinMaster = new List<BinMasterDTO>();
+                                lstBinMaster.Add(new BinMasterDTO() { BinNumber = Model.BinNumber ?? string.Empty });
+                                <span style='position: relative'>
+                                    @Html.DropDownList("slctReceiveBin_" + @idx, new SelectList(lstBinMaster, "BinNumber", "BinNumber", Model.BinNumber), new { @class = "selectBox slctReceiveBin" })
+                                    <input type="hidden" name="txtReceiveBin" id="txtReceiveBin" value="@Model.BinNumber" />
+                                </span>
+                            }
+                        </td>
+                        <td>
+                            @{
+                                var packSlipNumber = item.PackSlipNumber ?? Model.PackSlipNumber;
+                            }
+                            @Html.TextBox("txtPackslip_" + @idx, packSlipNumber, new { @id = "txtPackslip" + @idx, @class = "text-boxinner txtPackslip", @style = "width:100px;" })
+                        </td>
+                        @Html.RenderColumnsArrayEditableObjectForDOMWithValue("ReceivedOrderTransferDetail", Model, "", "_" + @idx)
+                        
+                            <td>
+                                @if (idx == TotalRecords)
+                                {       
+                                    <input type="button" id="btnAddRowLotExpPreRcv" class="GridBtnStyle inLineBtn" value="@ResCommon.AddNew" onclick="return AddRowLotExpPreRcv(this)" />
+                                }
+                            </td>
+                      
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <br />
+    <div style="width: 98%; float: left; text-align: center; margin: 10px;">
+        <input type="button" class="CreateBtn" value="@ResCommon.Save" id="bntSavePreReceive" style="text-align: center;
+            float: left" />
+        <input type="button" class="CreateBtn" value="@ResCommon.Cancel" id="bntPreReceiveCancel" style="text-align: center;
+            float: left" />
+        <input type="button" class="CreateBtn" value="@ResCommon.CancelAll" id="bntPreReceiveCancelAll"
+               style="text-align: center; float: right" />
+    </div>
+</div>
+<script type="text/javascript">
+    $(document).ready(function () {
+        $("table#tblPreReceiveHeader tbody tr").find("input#txtLotNumber_1").focus();
+        UDFfillEditableOptionsForGrid();
+        $("input.dateTextbox").datepicker({
+            dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+            changeMonth: true,
+            changeYear: true,
+            clearText: 'Clear', onClose: function () { this.focus(); }
+        });
+        $('#DivLoading').hide();
+    });
+
+
+    $('#bntPreReceiveCancel').on('click', function (e) {
+        $('#divPreRecieveInfo').dialog('close');
+    });
+
+    $('#bntPreReceiveCancelAll').on('click', function (e) {
+        $('#divPreRecieveInfo').dialog('close');
+        gblArrPreReceiveObj = null;
+        gblArrReceiveInfoToSave = null;
+        $('#btnReceiveAllNew').removeAttr('disabled');
+        $('#DivLoading').hide();
+        closeOrdReceiveInfoModel();
+    });
+
+    $('#bntSavePreReceive').on('click', function (e) {
+        //$('input.txtExpiration').val();
+        var isDataValid = false;
+        $('#tblPreReceiveHeader tbody tr').each(function (i) {
+            if ($(this).find('input.txtLotNumber').length > 0) {
+                Lot = $(this).find('.txtLotNumber').val();
+                if (Lot.length > 0) {
+                    if ($(this).find('input.txtQuantity').length > 0) {
+                        qty = $(this).find('.txtQuantity').val();
+                        if (parseFloat(qty) > 0) {
+                            isDataValid = true;
+                        }
+                    }
+                }
+
+            }
+            else if ($(this).find('input.txtExpiration').length > 0) {
+                ExpDate = $(this).find('input.txtExpiration').val();
+                if (ExpDate.length > 0) {
+                    if ($(this).find('input.txtQuantity').length > 0) {
+                        qty = $(this).find('.txtQuantity').val();
+                        if (parseFloat(qty) > 0) {
+                            isDataValid = true;
+                        }
+                    }
+                }
+            }
+            //check validation
+            Lot = $(this).find('.txtLotNumber').val();
+            qty = $(this).find('.txtQuantity').val();
+            ExpDate = $(this).find('input.txtExpiration').val();
+
+            if (Lot != undefined && Lot.length <= 0) {
+                $("#spanGlobalMessage").html("@ResReceiveOrderDetails.LotNumber" + " " + "@ResMessage.Required");
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                $(this).find('.txtLotNumber').focus();
+                $(this).find('.txtLotNumber').css("background-color", "#F7BBC4");
+                isDataValid = false;
+                return;
+            }
+            else if (ExpDate != undefined && ExpDate.length <= 0) {
+                $("#spanGlobalMessage").html("@ResReceiveOrderDetails.ExpirationDate" + " " + "@ResMessage.Required");
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                $(this).find('.txtExpiration').css("background-color", "#F7BBC4");
+                isDataValid = false;
+                return;
+            }
+            else if (qty != undefined && parseFloat(qty) <= 0) {
+                $("#spanGlobalMessage").html("@ResOrder.QuantityToReceive" + " " + "@ResMessage.Required");
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                $(this).find('.txtQuantity').focus();
+                $(this).find('.txtQuantity').css("background-color", "#F7BBC4");
+                isDataValid = false;
+                return;
+            }
+
+        });
+        if (isDataValid) {
+            GetToFillPreRcvToAdd()
+            $('#divPreRecieveInfo').dialog('close');
+        }
+    });
+
+    function GetToFillPreRcvToAdd() {
+
+
+        $('#tblPreReceiveHeader tbody tr').each(function (i) {
+            var qty = 0;
+            var serial = ''
+            var Lot = ''
+            var ExpDate = ''
+            var arrRcvdtlObj = new Array();
+            if ($(this).find('.txtLotNumber').length > 0) {
+                Lot = $(this).find('.txtLotNumber').val();
+            }
+            if ($(this).find('.txtExpiration').length > 0) {
+                ExpDate = $(this).find('.txtExpiration').val();
+            }
+            if ($(this).find('.txtQuantity').length > 0) {
+                qty = $(this).find('.txtQuantity').val();
+            }
+
+            if ((!isNaN(parseFloat(qty)) && parseFloat(qty) > 0) && (('@Model.LotNumberTracking' == "True" && $.trim(Lot).length > 0) || ('@Model.DateCodeTracking' == "True" && $.trim(ExpDate).length > 0))) {
+                var tr = $(this);
+
+                var toFillRcvDtl = { "Quantity": qty, "ExpirationDate": ExpDate, "LotNumber": Lot, "SerialNumber": serial };
+                arrRcvdtlObj.push(toFillRcvDtl);
+
+                var Cost = 0;
+                if ($(tr).find('.txtReceivedCost').length > 0) {
+                    Cost = $(tr).find('.txtReceivedCost').val();
+                }
+                else if ($(tr).find('#hdnReceivedCost').length > 0) {
+                    Cost = $(tr).find('#hdnReceivedCost').val();
+                }
+
+                /// WI-6215 Related Changes Start ///
+                var CurrentReceiveCost = 0;
+                var OldReceiveCost = 0;
+                var IsReceivedCostChange = false;
+                if ($(tr).find('.txtReceivedCost').length > 0) {
+                    CurrentReceiveCost = $(tr).find('.txtReceivedCost').val();
+                }
+                if ($(tr).find('#hdnOrderDetailItemCost').length > 0) {
+                    OldReceiveCost = $(tr).find('#hdnOrderDetailItemCost').val();
+                }
+                var CurrencyDecimalDigits =@CurrencyDecimalDigits;
+                if (CurrencyDecimalDigits == null || CurrencyDecimalDigits == "") {
+                    CurrencyDecimalDigits = 0;
+                }
+                if (parseFloat(CurrentReceiveCost).toFixed(CurrencyDecimalDigits)
+                    != parseFloat(OldReceiveCost).toFixed(CurrencyDecimalDigits)) {
+                    IsReceivedCostChange = true;
+                }
+                /// WI-6215 Related Changes END ///
+
+                var IsPackslipMand = $(tr).find('#hdnIsPackSlipMand').val();
+                var ordStatus = $(tr).find('#hdnOrdStatus').val();
+                var itmGUID = $(tr).find('#hdnItmGuid').val();
+                var ordDtlGuid = $(tr).find('#hdnOrdDtlGuid').val();
+                var ordGuid = $(tr).find('#hdnOrdGuid').val();
+
+                var UDF1ID = "UDF1";
+                var UDF2ID = "UDF2";
+                var UDF3ID = "UDF3";
+                var UDF4ID = "UDF4";
+                var UDF5ID = "UDF5";
+
+                $(tr).find($('*[id*=UDF1]')).each(function () {
+                    UDF1ID = $(this).prop("id");
+                });
+
+                $(tr).find($('*[id*=UDF2]')).each(function () {
+                    UDF2ID = $(this).prop("id");
+                });
+
+                $(tr).find($('*[id*=UDF3]')).each(function () {
+                    UDF3ID = $(this).prop("id");
+                });
+
+                $(tr).find($('*[id*=UDF4]')).each(function () {
+                    UDF4ID = $(this).prop("id");
+                });
+
+                $(tr).find($('*[id*=UDF5]')).each(function () {
+                    UDF5ID = $(this).prop("id");
+                });
+
+                var uDF1 = getRecUDFSelectedVal(tr, UDF1ID);
+                var uDF2 = getRecUDFSelectedVal(tr, UDF2ID);
+                var uDF3 = getRecUDFSelectedVal(tr, UDF3ID);
+                var uDF4 = getRecUDFSelectedVal(tr, UDF4ID);
+                var uDF5 = getRecUDFSelectedVal(tr, UDF5ID);
+                //var bin = $(tr).find(".txtReceiveBin").val();
+                var bin;
+                var recvComment = $(tr).find('#hdnComment').val();
+                var POLineItemNumber = $(tr).find('#hdnPOLineItemNumber').val();
+
+                if ($(tr).find(".txtReceiveBin").length > 0)
+                    bin = $(tr).find(".txtReceiveBin").val();
+                else if ($(tr).find(".slctReceiveBin").length > 0)
+                    bin = $(tr).find(".slctReceiveBin").val();
+
+                var packSlip = $(tr).find(".txtPackslip").val();
+                var recvDate = $(tr).find(".txtReceivedDate").val();
+                var OrderDetailTrackingID = $(tr).find('#hdnOrderDetailTrackingID').val();
+                var toFillPreRcv = {
+                    "IsPackSlipMandatory": IsPackslipMand,
+                    "Cost": Cost,
+                    "BinNumber": bin, "ReceivedDate": recvDate, "PackSlipNumber": packSlip,
+                    "UDF1": uDF1, "UDF2": uDF2, "UDF3": uDF3, "UDF4": uDF4, "UDF5": uDF5,
+                    "Comment": recvComment,
+                    "ItemGUID": itmGUID, "OrderDetailGUID": ordDtlGuid,
+                    "OrderStatus": ordStatus, "OrderGUID": ordGuid,
+                    "OrderDetailTrackingID": OrderDetailTrackingID,
+                    "MakePreReceiveDetail": arrRcvdtlObj
+                    , "IsReceivedCostChange": IsReceivedCostChange
+                    , "POLineItemNumber": POLineItemNumber
+                };
+
+                gblArrReceiveInfoToSave.push(toFillPreRcv);
+            }
+        });
+
+    }
+
+
+
+
+
+</script>

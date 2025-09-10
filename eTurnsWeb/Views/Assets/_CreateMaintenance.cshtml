@@ -1,0 +1,876 @@
+@model eTurns.DTO.ToolsMaintenanceDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    string priceformate1 = "N" + eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits.ToString();
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Assets, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Assets, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    eTurns.DAL.RegionSettingDAL objRegionSettingDAL = new eTurns.DAL.RegionSettingDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    DateTime datetimetoConsider = objRegionSettingDAL.GetCurrentDatetimebyTimeZone(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.UserID);
+    string datetimestr = datetimetoConsider.ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+    List<SelectListItem> lstItems = new List<SelectListItem>();
+    lstItems.Add(new SelectListItem() { Text = "", Value = "0" });
+    lstItems.Add(new SelectListItem() { Text = "Mileage", Value = Convert.ToString((int)MaintenanceScheduleType.Mileage) });
+    lstItems.Add(new SelectListItem() { Text = "Operation Hours", Value = Convert.ToString((int)MaintenanceScheduleType.OperationalHours) });
+    double TotalCost = 0;
+    string CurrencySymbol = "";
+    if (eTurnsWeb.Helper.SessionHelper.CurrencySymbol != null
+        && !string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.CurrencySymbol))
+    {
+        CurrencySymbol = eTurnsWeb.Helper.SessionHelper.CurrencySymbol;
+    }
+}
+@using (Ajax.BeginForm("maintenanceSave", "Assets", new AjaxOptions { HttpMethod = "Post", LoadingElementId = "DivLoading", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmMaintenance" }))
+{
+    @Html.AntiForgeryToken()
+    @Html.ValidationSummary(true)
+
+    if (Model.ID != 0)
+    {
+        <div class="infoBlock">
+            <ul>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.RoomName)
+                    </label>
+                    : <span>@(Model.RoomName)</span>
+                </li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.Created)
+                    </label>
+                    : <span>@(Model.CreatedDate)</span>
+                </li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.CreatedByName)
+                    </label>
+                    : <span>@(Model.CreatedByName)</span>
+                </li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.UpdatedDate)
+                    </label>
+                    : <span>@(Model.Updated)</span>
+                </li>
+                <li style="border: none">
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.UpdatedByName)
+                    </label>
+                    : <span>@(Model.UpdatedByName)</span>
+                </li>
+            </ul>
+        </div>
+    }
+
+    <div class="editorForm">
+        <ul>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.MaintenanceType)<em> *</em>
+                </div>
+                <div class="editor-field">
+                    @Html.RadioButtonFor(model => model.MaintenanceType, MaintenanceType.UnScheduled, new { @id = "rdoUnScheduled" })  &nbsp; <label for="rdoUnScheduled">@ResToolsMaintenance.MaintenanceTypeUnScheduled</label>&nbsp;&nbsp; @Html.RadioButtonFor(model => model.MaintenanceType, MaintenanceType.Past, new { @id = "rdoPast" }) &nbsp;<label for="rdoPast">@ResToolsMaintenance.MaintenanceTypePast</label>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.ScheduleFor)<em> *</em>
+                </div>
+                <div class="editor-field">
+                    @Html.DropDownListFor(model => model.ScheduleFor, new SelectList(ViewBag.SheduleItemType, "ID", "Text", Model.ScheduleFor), "", new { @class = "selectBox", @style = "width:100px;", @id = "dlScheduleItemType" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ScheduleFor)</span>
+                </div>
+            </li>
+            <li id="liMaintainDate">
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.MaintenanceDateStr) <em style="color: Red">*</em>
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.MaintenanceDateStr, new { @class = "text-box", id = "txtMaintenancedDate", @readonly = "readonly", @style = "background:white", maxlength = 128, @Value = Model.MaintenanceDate })
+                    @Html.ValidationMessageFor(model => model.MaintenanceDateStr)
+                </div>
+            </li>
+            <li id="drpforAsset">
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.Itemname)<em> *</em>
+                </div>
+                <div class="editor-field">
+                    @Html.DropDownListFor(model => model.AssetToolGUID, new SelectList(ViewBag.SheduleAssetTool, "GUID", "Text", Model.AssetToolGUID), "", new { @class = "selectBox", @style = "width:200px;", @id = "ddlToolAsset" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.AssetToolGUID)</span>
+                </div>
+            </li>
+            <li id="drpforTool" style="display:none;">
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.ToolName)<em> *</em>
+                </div>
+                <div class="editor-field">
+                    @Html.DropDownListFor(model => model.ToolName, new SelectList(ViewBag.SheduleAssetTool, "Text", "Text", Model.ToolName), "", new { @class = "selectBox", @style = "width:200px;", @id = "ddlToolName" })
+
+                </div>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.Itemname)<em> *</em>
+                </div>
+                <div class="editor-field">
+                    @*@Html.DropDownListFor(model => model.AssetToolGUID, new SelectList(ViewBag.SheduleAssetTool, "GUID", "Text", Model.AssetToolGUID), "", new { @class = "selectBox", @style = "width:200px;", @id = "ddlToolAsset" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.AssetToolGUID)</span>*@
+                    @Html.TextBoxFor(model => model.Serial, new { @style = "width:200px;", @id = "ddlToolAsset", @class = "AutoCompleteddl text-box" })
+                    @Html.HiddenFor(model => model.AssetToolGUID, new { @id = "SubAssetToolGUID" })
+                    <a id='lnkShowAllOptions' href='javascript:void(0);' style='position: relative; right: 27px;
+                                            top: 6px;' class="ShowAllOptions">
+                        <img src='/Content/images/arrow_down_black.png' alt='select' />
+                    </a>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.SchedulerName)<em> *</em>
+                </div>
+                <div class="editor-field">
+                    @*@Html.DropDownListFor(model => model.ToolSchedulerGuid, new SelectList(ViewBag.ScheduleName, "GUID", "Text", Model.ToolSchedulerGuid), "", new { @class = "selectBox", @style = "width:200px;", @id = "ddlslScheduleName" })
+        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ToolSchedulerGuid)</span>*@
+                    @Html.TextBoxFor(model => model.SchedulerName, new { @style = "width:200px;", @id = "ddlslScheduleName", @class = "AutoCompleteddl text-box" })
+                    @Html.HiddenFor(model => model.ToolSchedulerGuid, new { @id = "SubToolSchedulerGuid" })
+                    <a id='lnkShowAllOptions' href='javascript:void(0);' style='position: relative; right: 27px;
+                                            top: 6px;' class="ShowAllOptions">
+                        <img src='/Content/images/arrow_down_black.png' alt='select' />
+                    </a>
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.SchedulerName)</span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.TrackngMeasurement , new { id = "lbltxtTrackingMeasurement" })
+                </div>
+                <div class="editor-field">
+                    <span id="txtTrackingMeasurement"></span>
+                </div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.TrackingMeasurementValue)
+                </div>
+                <div class="editor-field">
+                    @Html.DropDownListFor(model => model.TrackngMeasurement, new SelectList(lstItems, "Value", "Text"), new { @class = "selectBox", @style = "display:none;" })
+                    @Html.TextBoxFor(model => model.TrackingMeasurementValue, new { id = "txtTrackingMeasurementValue", @class = "text-box numericinput text-boxQuantityFormat", @maxlength = "50", @style = "width:70px;" })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.TrackingMeasurementValue)</span>
+</div>
+                @Html.HiddenFor(model => model.ID, new { id = "hiddenSchID" })
+                @Html.HiddenFor(model => model.GUID)
+                @Html.HiddenFor(model => model.LastMaintenanceDate)
+                @Html.HiddenFor(model => model.LastMeasurementValue)
+                @Html.HiddenFor(model => model.LastMaintenanceDateStr)
+                @Html.HiddenFor(model => model.Created)
+                @Html.HiddenFor(model => model.Updated)
+                @Html.HiddenFor(model => model.CreatedBy)
+                @Html.HiddenFor(model => model.LastUpdatedBy)
+                @Html.HiddenFor(model => model.CompanyID)
+                @Html.HiddenFor(model => model.Room)
+                @Html.HiddenFor(model => model.RoomName)
+                @Html.HiddenFor(model => model.CreatedByName)
+                @Html.HiddenFor(model => model.UpdatedByName)
+                @Html.HiddenFor(model => model.IsDeleted)
+                @Html.HiddenFor(model => model.IsArchived)
+                @Html.HiddenFor(model => model.MaintenanceType)
+                @Html.HiddenFor(model => model.Status)
+                @Html.HiddenFor(model => model.SchedulerType)
+            </li>
+            <li>
+                <div class="editor-label">
+                    @Html.LabelFor(model => model.MaintenanceName)
+                </div>
+                <div class="editor-field">
+                    @Html.TextBoxFor(model => model.MaintenanceName, new { id = "txtMaintenanceName", @class = "text-box", maxlength = 128 })
+                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.MaintenanceName)</span>
+</div>
+            </li>
+            <li>
+                <div class="editor-label">
+                    &nbsp;
+                </div>
+                <div class="BtnBlockform">
+                    <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+
+                    <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" style="display:none;" />
+
+                </div>
+
+                <input type="button" value="@eTurns.DTO.ResOrder.AddNewItemButton" id="btnAddNewItem" class="CreateBtn" style="float: left;
+                                    margin-left: 20px;display:none;" />
+
+            </li>
+        </ul>
+    </div>
+
+    <div class="editorForm padRightNone">
+        <ul>
+            @Html.Partial("UDFLayout", new eTurns.DTO.ResToolsMaintenance())
+        </ul>
+    </div>
+    <div class="infoBlock" style="margin-bottom: 10px; margin-top: 10px;">
+        <ul>
+            <li style="width: auto;">
+                <label for="RoomName">
+                    <label>
+                        No of line items
+                    </label>
+                </label>
+                : <span id="spnNoOfItems">0</span>
+            </li>
+            <li style="border: none; width: auto; display:none">
+                <label for="RoomName">
+                    Maintenance cost
+                </label>
+                : <span id="spnTotalCost">@CurrencySymbol  </span>
+            </li>
+            <li style="border: none; width: auto;" id="liOrderCostInfo">
+                <label for="RoomName">
+                    <label id="lblOrderTotalCost">Total Cost</label>
+                </label>
+                : <span id="spnTotalOrderCost">@CurrencySymbol  @TotalCost.ToString(priceformate1, eTurnsWeb.Helper.SessionHelper.RoomCulture)</span>
+            </li>
+        </ul>
+    </div>
+    <div id="ItemModel">
+
+    </div>
+    <div id="divOrderLineItems">
+
+    </div>
+}
+<script language="javascript" type="text/javascript">
+    var Maintenanceid = '@Model.ID';
+    var itemModeldialogTitle = 'Item add to Maintenance';
+    var MaintenanceType = '';
+
+    $(document).on('click', 'input#btnAddNewItem', function () {
+        return OpenItemPopup();
+    });
+
+    function SetMaintenanceMode(mode) {
+        if (mode == '@MaintenanceType.Past') {
+            $("#txtMaintenancedDate").val("");
+            $("#txtMaintenancedDate").removeAttr("disabled");
+
+        }
+        else {
+            $("#txtMaintenancedDate").val('@datetimestr');
+            $("#txtMaintenancedDate").prop("readonly", "readonly").prop("disabled", "disabled");
+            setTimeout(function () { $("#txtMaintenancedDate").datepicker("hide"); }, 1);
+
+        }
+    }
+
+
+    $(document).ready(function () {
+
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 0
+        });
+
+        SetMaintenanceMode($("input[type='radio'][name='MaintenanceType']:checked").val());
+        $('.ShowAllOptions').click(function () {
+            $(this).siblings('.AutoCompleteddl').trigger("focus");
+            $(this).siblings(".AutoCompleteddl").autocomplete("search", " ");
+        });
+        $("input[type='radio'][name='MaintenanceType']").change(function () {
+            SetMaintenanceMode($(this).val());
+        });
+        $('form').areYouSure();
+
+        $('#dlScheduleItemType').change(function (e) {
+            if ($('#dlScheduleItemType').val() == 1) {
+                $("label[for='Itemname']").text('@ResAssetMaster.AssetName');
+            }
+            else if ($('#dlScheduleItemType').val() == 2) {
+                $("label[for='Itemname']").text('@ResToolMaster.ToolName');
+            }
+            else {
+                $("label[for='Itemname']").text('@ResToolsSchedulerMapping.Itemname');
+            }
+        });
+        $.validator.unobtrusive.parse("#frmMaintenance");
+        $('#txtMaintenancedDate').click(function () { }).datepicker({ dateFormat: RoomDateJSFormat });
+        $('#btnCancel').click(function (e) {
+            if (TempNarrow != '' && IsRetainNarrow) {
+                callbackhistory($("#tab5"));
+            }
+            else {
+                window.location.href = '@Url.Action("Maintenance", "Assets")';
+            }
+            //SwitchTextTab(0, 'CreateMaintenance', 'frmMaintenance');
+            //if (oTable !== undefined && oTable != null) {
+            //    oTable.fnDraw();
+
+            //}
+            //callbackhistory($("#tab5"));
+        });
+        //$("#txtTrackingMeasurementValue").priceFormat({
+        //    prefix: '',
+        //    thousandsSeparator: '',
+        //    centsLimit: 0
+        //});
+        $('#dlScheduleItemType').change(function (e) {
+            var RequestURL = '@Url.Action("GetToolAsset", "Assets")';
+            var URLToGetScheduler = '@Url.Action("GetToolAssetsScheduler", "Assets")';
+            if ($(this).val() >= 1) {
+                var selectedVal = $('#dlScheduleItemType option:selected').attr('value');
+                if (selectedVal == 1) {
+                    RequestURL = '@Url.Action("GetAssets", "Assets")';
+                    URLToGetScheduler = '@Url.Action("GetAssetsSchedulerAutoComplete", "Assets")';
+                    $("li#drpforAsset").show();
+                    $("select#ddlToolAsset").removeAttr("disabled");
+                    $("input#SubAssetToolGUID").attr("disabled", "disabled");
+                    $("li#drpforTool").hide();
+                }
+                else if (selectedVal == 2) {
+                    RequestURL = '@Url.Action("GetToolsForMaintenance", "Assets")';
+                    URLToGetScheduler = '@Url.Action("GetToolsSchedulerAutoComplete", "Assets")';
+                    $("li#drpforAsset").hide();
+                    $("select#ddlToolAsset").attr("disabled", "disabled");
+                    $("input#SubAssetToolGUID").removeAttr("disabled");
+                    $("li#drpforTool").show();
+                }
+                else {
+                    RequestURL = '@Url.Action("GetToolAsset", "Assets")';
+                    URLToGetScheduler = '@Url.Action("GetToolAssetsSchedulerAutoComplete", "Assets")';
+                }
+
+                $.ajax({
+                    url: RequestURL
+                , type: 'GET'
+                , data: { 'ScheduleType': selectedVal }
+                , contentType: "application/json"
+                , success: function (result) {
+                    var items = "";
+                    items += "<option value=''></option>";
+
+                    $.each(result, function (i, result) {
+                        items += "<option value='" + result.Value + "'>" + result.Text + "</option>";
+
+
+                    });
+                    if (selectedVal == 1) {
+                        $("#ddlToolAsset").html(items);
+                    }
+                    else {
+                        $("#ddlToolName").html(items);
+                    }
+
+                }
+                , error: function (msg) {
+
+                }
+                });
+
+                //$.ajax({
+                //    url: URLToGetScheduler
+                //, type: 'GET'
+                //, data: { 'ScheduleType': selectedVal }
+                //, contentType: "application/json"
+                //, success: function (result) {
+                //    var items = "";
+                //    items += "<option value=''></option>";
+                //    $.each(result, function (i, result) {
+                //        items += "<option value='" + result.Value + "'>" + result.Text + "</option>";
+
+                //    });
+                //    $("#ddlslScheduleName").html(items);
+
+                //}
+                //, error: function (msg) {
+
+                //}
+                //});
+                $("body input#ddlslScheduleName").unbind("focus");
+                $("body input#ddlslScheduleName").off("focus");
+                $("body").on('focus', "input#ddlslScheduleName", function (e) {
+
+                    var type = "";
+                    var ajaxURL = '';
+
+                    $(this).autocomplete({
+                        source: function (request, response) {
+
+                            $.ajax({
+                                url: URLToGetScheduler,
+                                contentType: 'application/json',
+                                dataType: 'json',
+                                data: { 'NameStartWith': request.term, 'ScheduleType': selectedVal, 'ToolGUID': '@Model.ToolGUID', 'AssetGUID': '@Model.AssetGUID' },
+                                success: function (data) {
+                                    //$("input#SubToolSchedulerGuid").val('');
+                                    response($.map(data, function (Items) {
+
+                                        return {
+                                            label: Items.Text,
+                                            value: Items.Text,
+                                            selval: Items.Value
+                                        }
+
+                                    }));
+                                },
+                                error: function (err) {
+                                }
+                            });
+                        },
+                        autoFocus: false,
+                        minLength: 1,
+                        select: function (event, ui) {
+
+                            $("input#ddlslScheduleName").val('');
+                            $("input#SubToolSchedulerGuid").val(ui.item.selval);
+                            $("input#ddlslScheduleName").val(ui.item.label);
+                            GetSchedule(ui.item.selval);
+
+                        },
+                        open: function () {
+                            $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                            $("input#SubToolSchedulerGuid").val('');
+                            $("#litrackingmsrmnt").hide();
+                        },
+                        close: function () {
+                            $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                        },
+                        change: function (event, ui) {
+                        }
+                    });
+                });
+                $("#txtTrackingMeasurement").text('');
+                $("#lbltxtTrackingMeasurement").hide();
+            }
+            else {
+                $("#ddlToolAsset").html('');
+                $("#ddlslScheduleName").html('');
+                $("#txtTrackingMeasurement").text('');
+                $("#lbltxtTrackingMeasurement").hide();
+            }
+
+        });
+        $('#ddlToolName').change(function (e) {
+            var RequestURL = '@Url.Action("GetSerialsByToolName", "Assets")';
+            var selectedVal = $(this).val();
+
+            if (selectedVal != '') {
+                $("body input#ddlToolAsset").unbind("focus");
+                $("body input#ddlToolAsset").off("focus");
+                $("body").on('focus', "input#ddlToolAsset", function (e) {
+
+                    var type = "";
+                    var ajaxURL = '';
+
+                    $(this).autocomplete({
+                        source: function (request, response) {
+
+                            $.ajax({
+                                url: RequestURL,
+                                contentType: 'application/json',
+                                dataType: 'json',
+                                data: { 'NameStartWith': request.term, 'ToolName': selectedVal },
+                                success: function (data) {
+
+                                    //$("input#SubToolSchedulerGuid").val('');
+                                    response($.map(data, function (Items) {
+
+                                        return {
+                                            label: Items.Text,
+                                            value: Items.Text,
+                                            selval: Items.Value
+                                        }
+
+                                    }));
+                                },
+                                error: function (err) {
+                                }
+                            });
+                        },
+                        autoFocus: false,
+                        minLength: 1,
+                        select: function (event, ui) {
+
+                            $("input#ddlToolAsset").val('');
+                            $("input#SubAssetToolGUID").val(ui.item.selval);
+                            $("input#ddlToolAsset").val(ui.item.label);
+
+
+                        },
+                        open: function () {
+                            $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                            $("input#SubAssetToolGUID").val('');
+
+                        },
+                        close: function () {
+                            $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                        },
+                        change: function (event, ui) {
+                        }
+                    });
+                });
+                $("#txtTrackingMeasurement").text('');
+                $("#lbltxtTrackingMeasurement").hide();
+            }
+            else {
+                $("#ddlToolAsset").val('');
+                $("#SubAssetToolGUID").val('');
+
+            }
+        });
+
+
+        $(document).on("change", "select[name='TrackngMeasurement']", function () {
+
+            if ($(this).val() == "0") {
+                $("#txtTrackingMeasurementValue").prop("disabled", "disabled");
+            }
+            else {
+                $("#txtTrackingMeasurementValue").removeProp("disabled");
+            }
+
+        });
+        @*$('#ddlslScheduleName').change(function (e) {
+
+            if ($(this).val().length > 0) {
+                var selectedVal = $('#ddlslScheduleName option:selected').attr('value');
+
+                $.ajax({
+                    url: '@Url.Content("~/Assets/GetTrackingMeasurement")'
+                , type: 'GET'
+                , data: { 'ScheduleGUID': selectedVal }
+                , contentType: "application/json"
+                , success: function (result) {
+
+                    $("#txtTrackingMeasurement").text(result.Message);
+                    if (result.Message == '@ResToolsScheduler.TimeBased') {
+                        $("select[name='TrackngMeasurement']").show();
+                        $("#txtTrackingMeasurementValue").prop("disabled", "disabled");
+                    }
+                    else {
+                        $("select[name='TrackngMeasurement']").hide();
+                    }
+                }
+                , error: function (msg) {
+
+                }
+                });
+            }
+            else {
+                $("#txtTrackingMeasurement").text('');
+            }
+        });*@
+        $('#btnCancel').click(function (e) {
+
+            SwitchTextTab(0, 'ScheduleMappingCreate', 'frmSchedulermapping');
+            if (oTable !== undefined && oTable != null) {
+                oTable.fnDraw();
+
+            }
+        });
+
+        $("#ItemModel").dialog({
+            autoOpen: false, modal: true, draggable: true, resizable: true, width: '82%', height: 710, title: itemModeldialogTitle,
+            open: function () {
+                $('#DivLoading').show();
+                var strUrl = $(this).data("url");
+                var strupc = $(this).data("strupc");
+                $.get(strUrl, function (data) {
+                    $("#ItemModel").html(data);
+                    if (strupc == undefined || strupc == '') {
+                        @*$.get('@Url.Action("GetSupplierCatalog", "SupplierCatalog")?PageName=Maintenance&Openpopup=true&Buttonname=' + escape("Add from Catalog") + '&OrderGUID=' + OrderGUID, function (data) {
+                            $("#ItemModel").prepend(data);
+
+                        });*@
+                    }
+                    else {
+                        if ($("#ItemModel_filter") != undefined) {
+                            $("#ItemModel_filter").val(strupc);
+                            fnFilterGlobalIM();
+                        }
+                    }
+                });
+            },
+            close: function () {
+
+                $("#ItemModel").empty();
+                CallThisFunctionFromModel('success');
+            }
+        });
+        function CallThisFunctionFromModel(msg) {
+            if (MaintenanceEdit) {
+                $("input#btnSave").show();
+            }
+            else {
+                $("input#btnSave").hide();
+            }
+            if (msg == 'success') {
+                $('#DivLoading').show();
+                $('#divOrderLineItems').empty();
+                var url = '@Url.Action("LoadMaintenanceItems")'; // + '?orderID=' + OrderID;
+
+                // This for Receive
+                if ($('#hdnIsChangeOrdclick').val() == "True") {
+                    url = '@Url.Action("LoadMaintenanceItems")';
+                }
+
+                URL_Listget = url;
+                $.get(url, { 'MaintenanceID': Maintenanceid }, function (data) {
+                    $('#divOrderLineItems').html(data);
+                    $('#DivLoading').hide();
+                });
+            }
+            else if (json.Status == 'fail') {
+                alert(json.Message);
+                return false;
+            }
+        }
+        //setTimeout(function () {
+        //    $("#txtMaintenancedDate").datepicker("hide");
+        //    $("select#dlScheduleItemType").focus();
+
+        //}, 2);
+        if ('@Model.ID' > 0) {
+
+            Maintenanceid = '@Model.ID';
+            CallThisFunctionFromModel("success");
+            BindAssetTools();
+            if ('@Model.ScheduleFor' == 1) {
+                $("select#ddlToolAsset").val('@Model.AssetGUID');
+            }
+            else {
+                $("select#ddlToolAsset").val('@Model.ToolGUID');
+            }
+            $("input#txtMaintenancedDate").val('@Model.ScheduleDateStrOnlyDate');
+            if (!MaintenanceEdit) {
+                setTimeout(function () { DisabledControl(); }, 150);
+            }
+            var selectedVal = $("select#dlScheduleItemType").val();
+            var RequestURL = '';
+            if (selectedVal == 1) {
+                RequestURL = '@Url.Action("GetAssets", "Assets")';
+                //URLToGetScheduler = '@Url.Action("GetAssetsSchedulerAutoComplete", "Assets")';
+                $("li#drpforAsset").show();
+
+                $("input#SubAssetToolGUID").attr("disabled", "disabled");
+                $("li#drpforTool").hide();
+            }
+            else if (selectedVal == 2) {
+                RequestURL = '@Url.Action("GetToolsForMaintenance", "Assets")';
+                // URLToGetScheduler = '@Url.Action("GetToolsSchedulerAutoComplete", "Assets")';
+                $("li#drpforAsset").hide();
+
+                $("input#SubAssetToolGUID").removeAttr("disabled");
+                $("li#drpforTool").show();
+            }
+            else {
+                RequestURL = '@Url.Action("GetToolAsset", "Assets")';
+                URLToGetScheduler = '@Url.Action("GetToolAssetsSchedulerAutoComplete", "Assets")';
+            }
+
+            $.ajax({
+                url: RequestURL
+            , type: 'GET'
+            , data: { 'ScheduleType': selectedVal }
+            , contentType: "application/json"
+            , success: function (result) {
+                var items = "";
+                items += "<option value=''></option>";
+
+                $.each(result, function (i, result) {
+                    items += "<option value='" + result.Value + "'>" + result.Text + "</option>";
+
+
+                });
+                if (selectedVal == 1) {
+                    $("#ddlToolAsset").html(items);
+                }
+                else {
+                    $("#ddlToolName").html(items);
+                    $("#ddlToolName").val('@Model.ToolName');
+                }
+                if ('@Model.ScheduleFor' == 1) {
+                    $("select#ddlToolAsset").val('@Model.AssetGUID');
+                }
+                else {
+                    $("select#ddlToolAsset").val('@Model.ToolGUID');
+                }
+
+            }
+            , error: function (msg) {
+
+            }
+            });
+            if (NeedToOpenItemPopupNow) {
+                NeedToOpenItemPopupNow = false;
+                setTimeout("OpenItemPopup()", 3000);
+                return false;
+            }
+        }
+
+        ;
+
+        if (MaintenanceEdit) {
+            $("input#btnSave").show();
+        }
+        else {
+            $("input#btnSave").hide();
+        }
+        if ($("#txtTrackingMeasurement").text() != "") {
+            $("#lbltxtTrackingMeasurement").show();
+        }
+        else {
+            $("#lbltxtTrackingMeasurement").hide();
+        }
+    });
+
+ 
+
+    function BindAssetTools() {
+        var selectedVal = $('#dlScheduleItemType option:selected').attr('value');
+        if (selectedVal == 1) {
+            RequestURL = '@Url.Action("GetAssets", "Assets")';
+            URLToGetScheduler = '@Url.Action("GetAssetsSchedulerAutoComplete", "Assets")';
+        }
+        else if (selectedVal == 2) {
+            RequestURL = '@Url.Action("GetTools", "Assets")';
+            URLToGetScheduler = '@Url.Action("GetToolsSchedulerAutoComplete", "Assets")';
+        }
+        else {
+            RequestURL = '@Url.Action("GetToolAsset", "Assets")';
+            URLToGetScheduler = '@Url.Action("GetToolAssetsSchedulerAutoComplete", "Assets")';
+        }
+        $.ajax({
+            url: RequestURL
+        , type: 'GET'
+        , async: false
+        , data: { 'ScheduleType': selectedVal }
+        , contentType: "application/json"
+        , success: function (result) {
+            var items = "";
+            items += "<option value=''></option>";
+
+            $.each(result, function (i, result) {
+                items += "<option value='" + result.Value + "'>" + result.Text + "</option>";
+
+
+            });
+            $("#ddlToolAsset").html(items);
+
+        }
+        , error: function (msg) {
+
+        }
+        });
+    }
+    function DisabledControl() {
+        $("input#rdoUnScheduled").attr("disabled", "disabled");
+        $("input#rdoPast").attr("disabled", "disabled");
+        $("select#dlScheduleItemType").attr("disabled", "disabled");
+        $("input#txtMaintenancedDate").attr("disabled", "disabled");
+        $("input#txtMaintenancedDate").attr("disabled", "disabled");
+        $("select#ddlToolAsset").attr("disabled", "disabled");
+        $("input#ddlslScheduleName").attr("disabled", "disabled");
+        $("a#lnkShowAllOptions").attr("disabled", "disabled");
+        $("input#txtTrackingMeasurementValue").attr("disabled", "disabled");
+        $("input#txtMaintenanceName").attr("disabled", "disabled");
+        $("select#ddlToolName").attr("disabled", "disabled");
+        $("input#ddlToolAsset").attr("disabled", "disabled");
+        $("a#lnkShowAllOptions").attr("disabled", "disabled");
+        $("input#btnAddNewItem").hide();
+
+    }
+    function GetSchedule(Guid) {
+        if (Guid != "") {
+            $.ajax({
+                url: '@Url.Content("~/Assets/GetTrackingMeasurement")'
+              , type: 'GET'
+              , data: { 'ScheduleGUID': Guid }
+              , contentType: "application/json"
+              , success: function (result) {
+
+                  $("#txtTrackingMeasurement").text(result.Message);
+                  if (result.Message != "") {
+                      $("#lbltxtTrackingMeasurement").show();
+                  }
+                  else {
+                      $("#lbltxtTrackingMeasurement").hide();
+                  }
+                  if (result.Message == '@ResToolsScheduler.TimeBased') {
+                      $("select[name='TrackngMeasurement']").show();
+                      $("#txtTrackingMeasurementValue").prop("disabled", "disabled");
+                  }
+                  else {
+                      $("select[name='TrackngMeasurement']").hide();
+                  }
+              }
+              , error: function (msg) {
+
+              }
+            });
+        }
+        else {
+            $("#litrackingmsrmnt").hide();
+        }
+    }
+    function onSuccess(response) {
+
+        IsRefreshGrid = true;
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        if (response.Status == "ok") {
+            MaintenanceType = response.DTO.MaintenanceType;
+            if (response.DTO.MaintenanceType == '@MaintenanceType.UnScheduled.ToString()') {
+                CreateAssetToolRequisition(response.DTO.GUID, response.DTO.TrackingMeasurementValue, '');
+            }
+            else {
+                Maintenanceid = response.DTO.ID;
+
+                if ('@Model.ID' == 0 && response.DTO.MaintenanceType == 'Past') {
+                    NeedToOpenItemPopupNow = true;
+                }
+                else {
+                    NeedToOpenItemPopupNow = false;
+                }
+                $("input#hiddenSchID").val(Maintenanceid);
+                ShowEditTab('MaintenanceEdit/' + Maintenanceid, 'frmMaintenance');
+            }
+        }
+        if (response.Status == 'exists') {
+            $("#spanGlobalMessage").html('@ResToolsMaintenance.AlreadyStartMntsExist');
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        }
+        return false;
+    }
+    function OpenItemPopup() {
+
+        $("#ItemModel").empty();
+        var strUrl = '@Url.Action("LoadItemMasterModelMaintenance")';
+        strUrl = strUrl + '?ParentId=' + Maintenanceid;
+
+        $('#ItemModel').data({ "url": strUrl, "strupc": '' }).dialog('open');
+
+        if ($("input#global_filter").length > 0) {
+            $("input#global_filter").focus();
+
+            setTimeout(function () {
+                $("input#global_filter").focus();
+
+            }, 600);
+
+        }
+        if ($("input.searchinput").length > 0) {
+            $("input.searchinput").focus();
+            setTimeout(function () {
+                $("input.searchinput").focus();
+            }, 600);
+
+        }
+    }
+    _Common.addRequiredSign();
+</script>
+<style>
+    ul.ui-autocomplete {
+        height: 250px !important;
+        min-height: 100px !important;
+        overflow: auto !important;
+    }
+</style>

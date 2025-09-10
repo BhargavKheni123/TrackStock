@@ -1,0 +1,314 @@
+﻿@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    ViewBag.Title = ResLayout.EnterpriseQuickList;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DisplayUDFButton = false, DisplayColumnSetupButton = true, ColumnSetupFor = "EnterpriseQuickList", DisplayDeleteButton = true, DisplayPrintBlock = true };
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "EnterpriseQLMaster" };
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script language="javascript" type="text/javascript">
+        var oTable;
+        var IsRefreshGrid = false;
+        var PostCount = 0;
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+        var objColumns = {}
+        $(document).ready(function () {
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            LoadTabs();
+            var gaiSelected = [];
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "150%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[1, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'EnterpriseQuickList' },
+                        "async": false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+
+                    if (aData.IsDeleted == true && aData.IsArchived == true)
+                        $(nRow).css('background-color', '#B9BCBF');
+                       // nRow.className = "GridDeleatedArchivedRow";
+                    else if (aData.IsDeleted == true)
+                        $(nRow).css('background-color', '#FFCCCC');
+                      //  nRow.className = "GridDeletedRow";
+                    else if (aData.IsArchived == true)
+                        $(nRow).css('background-color', '#CCFFCC');
+                     //   nRow.className = "GridArchivedRow";
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'EnterpriseQuickList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/EnterpriseQL/EnterpriseQuickListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+
+                    if (oSettings.aaSorting.length != 0) {
+                        //aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                        var sortValue = "";
+                        for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                            if (sortValue.length > 0)
+                                sortValue += ", "
+                            sortValue += arrCols[oSettings.aaSorting[i][0]] + ' ' + oSettings.aaSorting[i][1];
+
+                        }
+                        aoData.push({ "name": "SortingField", "value": sortValue });
+                    }
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+
+
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable').highlight($("#global_filter").val());
+                            }
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [
+                            { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' },
+			                {
+			                    "mDataProp": "Name",
+			                    "sClass": "read_only",
+			                    "sDefaultContent": '',
+			                    "bSortable": true,
+			                    "bSearchable": false,
+			                    "fnRender": function (obj, val) {
+                                    return "<a href='javascript:void(0);' onclick='EditEnterpriseQL(&quot;" + obj.aData.GUID + "&quot;);'>" + obj.aData.Name + "</a> <input type='hidden' id='hdnGuid' name='hdnGuid' value='" + obj.aData.GUID +"' /> ";
+			                    }
+			                },
+                            {
+                                "mDataProp": "Created", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.CreatedDate;
+			                    }
+			                },
+			                {
+			                    "mDataProp": "Updated", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.UpdatedDate;
+			                    }
+			                },
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                            { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                            { "mDataProp": "AddedFrom", "sClass": "read_only" },
+                            { "mDataProp": "EditedFrom", "sClass": "read_only" },
+                            {
+                                "mDataProp": "ReceivedOn", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.ReceivedOnDate;
+                                }
+                            },
+                            {
+                                "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.ReceivedOnDateWeb;
+                                }
+                            }
+
+		    ]
+            });
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+            //$('#myDataTable').on("click", "td", function (e) {
+            //    //e.stopPropagation(); //return false;
+            //});
+
+        });
+
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+
+    </script>
+}
+<script type="text/javascript">
+    var isTabClick = false;
+    var deleteURL = "/EnterpriseQL/DeleteEnterpriseQL";
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true)
+         ];
+    function callbacknew() { window.location.hash = '#new'; ShowNewTab('CreateEnterpriseQL', 'frmEnterpriseQL'); }
+    function callbackhistory() { window.location.hash = '#list'; }
+
+    //function callbackCL() { window.location.hash = ''; HistoryTabClick(); }
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+        }
+    }
+
+    $(document).ready(function () {
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+    });
+
+</script>
+<div class="userListingWrapper">
+    <h2>
+        @ResLayout.EnterpriseQuickList
+    </h2>
+    @*<div class="Infoclass">
+            <a href="@RolesPDFURL" target="_blank">
+                <img src="~/Content/images/Info.png" alt="Help" />
+            </a>
+        </div>*@
+    <div class="userListBlock">
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener">
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                    @*<input type="button" value="Search" class="searchBtn" />*@
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.AssetCategory)
+            @*NARROW SEARCH STARTS HERE*@
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            @*NARROW SEARCH STARTS HERE*@
+            <div class="userContent">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @ResCommon.RowNo
+                            </th>
+                            <th>
+                                @ResCommon.Name
+                            </th>
+                            <th>
+                                @ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+
+    function EditEnterpriseQL(GUID) {
+        var paramsTopass = new Array();
+        paramsTopass.push({ name: "GUID", value: GUID });
+        return ShowEditTabWithParams("EditEnterpriseQL", "frmEnterpriseQL", paramsTopass);
+    }
+</script>
+@*<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>*@

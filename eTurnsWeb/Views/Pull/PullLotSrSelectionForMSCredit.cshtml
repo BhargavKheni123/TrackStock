@@ -1,0 +1,374 @@
+@model IList<eTurns.DTO.PullMasterDTO>
+
+@{
+    string viewRight = "ViewOnly";
+    //string viewRight = "NoRight";
+    //string viewRight = "ViewOnly";
+
+    bool IsAllowOverwriteLotOrSerial = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowOverwriteLotOrSerial, eTurnsWeb.Helper.SessionHelper.PermissionType.AllowPull);
+    bool IsAllowToEnterLotOrSerialInBlankBox = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowToEnterLotOrSerialInBlankBox, eTurnsWeb.Helper.SessionHelper.PermissionType.AllowPull);
+    bool IsViewOnlyLotOrSerial = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ViewOnlyLotOrSerial, eTurnsWeb.Helper.SessionHelper.PermissionType.AllowPull);
+
+    if (IsAllowOverwriteLotOrSerial)
+    {
+        viewRight = "ViewOverwrite";
+    }
+    else if (IsAllowToEnterLotOrSerialInBlankBox)
+    {
+        viewRight = "NoRight";
+    }
+    else if (IsViewOnlyLotOrSerial)
+    {
+        viewRight = "ViewOnly";
+    }
+
+    eTurns.DAL.RoomDAL objRoomDAL = new eTurns.DAL.RoomDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    bool IsIgnoreCreditRule = false;
+    IsIgnoreCreditRule = objRoomDAL.checkCreditRuleApplybyId(eTurnsWeb.Helper.SessionHelper.RoomID);
+}
+
+@if (Model != null && Model.Count > 0)
+{
+    <div style="width: 100%; padding-bottom: 10px;">
+        <input type="button" class="btnGeneral" value="@ResPullMaster.CreditAll" id="btnPullAllPopUp" name="btnPullAllPopUpNew" />       
+    </div>
+    <div style="width: 100%; padding-bottom: 10px;">
+        <span>@eTurns.DTO.ResItemMaster.StagingHeader : </span>
+        <div style="width: 50%; padding-bottom: 10px;">
+            <span style='position: relative'>
+                <input type="text" id="txtStagingHeader" name="txtStagingHeader" class="text-boxinner95 AutoStagingHeader" />
+                <a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptions"><img src="/Content/images/arrow_down_black.png" alt="select" /></a>
+            </span>
+        </div>
+    </div>
+       
+    <input type='hidden' id='hdnMaterialStagingGuid' />
+    <input type='hidden' id='hdnMaterialStagingID' />
+    foreach (PullMasterDTO objPullMasterDTO in Model)
+    {
+        string jsonPullMasterDTO = Newtonsoft.Json.JsonConvert.SerializeObject(objPullMasterDTO);
+
+        <div style="padding: 10px; margin-bottom: 10px; border: 1px solid red;" id="divItem_@(objPullMasterDTO.ItemGUID)">
+            <input type="hidden" id="hdnPullIds_@(objPullMasterDTO.ItemGUID)" value="PullIds_@(objPullMasterDTO.ItemGUID)" />
+            <table style="width: 100%" class="display" id="tblItemPullheader_@(objPullMasterDTO.ItemGUID)">
+                <thead>
+                    <tr>
+                        <th>
+                                <input type="hidden" id="hdnPullMasterDTO_@(objPullMasterDTO.ItemGUID)" value="@jsonPullMasterDTO" name="hdnPullMasterDTO" />
+                          
+                           
+                                <span>
+                                    @ResItemMaster.ItemNumber
+                                </span>
+                           
+                        </th>
+                        <th>
+                            @ResItemMaster.TrackingDetails
+                        </th>
+                       
+                            <th>
+
+                                <span>
+                                    @ResPullMaster.BinID
+                                </span>
+
+                            </th>
+                        <th>
+                            <span>@ResPullMaster.PoolQuantity</span>
+                        </th>
+
+                        <th>
+                                <span>@ResPullMaster.PullOrderNumber</span>
+                            
+                        </th>
+                        @Html.RenderColumnsHeader("PullMaster", typeof(eTurns.DTO.ResPullMaster))
+                        @*<th>
+                <span>@ResPullMaster.UDF1</span>
+
+        </th>
+        <th>
+            <span>@ResPullMaster.UDF2</span>
+        </th>
+        <th>
+            <span>@ResPullMaster.UDF3</span>
+        </th>
+        <th>
+            <span>@ResPullMaster.UDF4</span>
+        </th>
+        <th>
+            <span>@ResPullMaster.UDF5</span>
+        </th>*@
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                                <span>@objPullMasterDTO.ItemNumber</span>
+                        </td>
+                        <td>
+                            @if (objPullMasterDTO.LotNumberTracking)
+                            {
+                                <text>Lot Number Tracking</text>
+                                <input type='hidden' id='hdnTrackingType_@(objPullMasterDTO.ItemGUID)_@(objPullMasterDTO.RequisitionDetailGUID)' value='LotNumberTracking' />
+                            }
+                            else if (objPullMasterDTO.SerialNumberTracking)
+                            {
+                                <text>Serial Number Tracking</text>
+                                <input type='hidden' id='hdnTrackingType_@(objPullMasterDTO.ItemGUID)_@(objPullMasterDTO.RequisitionDetailGUID)' value='SerialNumberTracking' />
+                            }
+                            else if (objPullMasterDTO.DateCodeTracking)
+                            {
+                                <text>Date Code Tracking</text>
+                                <input type='hidden' id='hdnTrackingType_@(objPullMasterDTO.ItemGUID)_@(objPullMasterDTO.RequisitionDetailGUID)' value='DateCodeTracking' />
+                            }
+                            else
+                            {
+                                <text>No tracking</text>
+                                <input type='hidden' id='hdnTrackingType_@(objPullMasterDTO.ItemGUID)_@(objPullMasterDTO.RequisitionDetailGUID)' value='NoTracking' />
+                            }
+
+                            @if (objPullMasterDTO.SerialNumberTracking && objPullMasterDTO.DateCodeTracking)
+                            {
+                                <input type='hidden' id='hdnTrackingTypeForCreditRule_@(objPullMasterDTO.ItemGUID)' value='SERIALDATECODETRACK' />
+                            }
+                            else if (objPullMasterDTO.LotNumberTracking && objPullMasterDTO.DateCodeTracking)
+                            {
+                                <input type='hidden' id='hdnTrackingTypeForCreditRule_@(objPullMasterDTO.ItemGUID)' value='LOTTDATECODERACK' />
+                            }
+                            else if (objPullMasterDTO.LotNumberTracking)
+                            {
+                                <input type='hidden' id='hdnTrackingTypeForCreditRule_@(objPullMasterDTO.ItemGUID)' value='LotNumberTracking' />
+                            }
+                            else if (objPullMasterDTO.SerialNumberTracking)
+                            {
+                                <input type='hidden' id='hdnTrackingTypeForCreditRule_@(objPullMasterDTO.ItemGUID)' value='SerialNumberTracking' />
+                            }
+                            else if (objPullMasterDTO.DateCodeTracking)
+                            {
+                                <input type='hidden' id='hdnTrackingTypeForCreditRule_@(objPullMasterDTO.ItemGUID)' value='DateCodeTracking' />
+                            }
+                            else
+                            {
+                                <input type='hidden' id='hdnTrackingTypeForCreditRule_@(objPullMasterDTO.ItemGUID)' value='NoTracking' />
+                            }
+                        </td>
+                        @if (objPullMasterDTO.ItemGUID.GetValueOrDefault(Guid.Empty) != Guid.Empty)
+                        {
+                            <td>
+                                @if (objPullMasterDTO.BinNumber != null)
+                                { 
+                                    if ((objPullMasterDTO.BinNumber).Equals("[|EmptyStagingBin|]"))
+                                    {
+                                        <span>@string.Empty</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@objPullMasterDTO.BinNumber</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span>@objPullMasterDTO.BinNumber</span>
+                                }     
+                                <input type='hidden' id='hdnMainBinNumber_@(objPullMasterDTO.ItemGUID)' value='@objPullMasterDTO.BinNumber' />
+                                <input type='hidden' id='hdnBinID_@(objPullMasterDTO.ItemGUID)' value='@objPullMasterDTO.BinID' />
+                                <input type='hidden' id='hdnCurrentDate_@(objPullMasterDTO.ItemGUID)' value='@FnCommon.ConvertDateByTimeZone(eTurns.DAL.DateTimeUtility.DateTimeNow, true, true)' />
+                            </td>
+                        }
+                        <td>
+                                <input type='text' value='@objPullMasterDTO.PoolQuantity' id='txtPoolQuantity_@(objPullMasterDTO.ItemGUID)' name='txtPoolQuantity_@(objPullMasterDTO.ItemGUID)' class='text-boxinner pull-quantity numericinput' />
+                            
+                        </td>
+
+                        <td>
+                                <span>@objPullMasterDTO.PullOrderNumber</span>
+                           
+                        </td>
+                         @Html.RenderColumnsArrayCommonNonEditable("PullMaster", objPullMasterDTO)
+                        @*@if (objPullMasterDTO.isPullUDF1Deleted == false)
+                        {
+                            <td>
+                                <span>@objPullMasterDTO.UDF1</span>
+                            </td>
+                        }
+                        @if (objPullMasterDTO.isPullUDF2Deleted == false)
+                        {
+                            <td>
+                                <span>@objPullMasterDTO.UDF2</span>
+                            </td>
+                        }
+                        @if (objPullMasterDTO.isPullUDF3Deleted == false)
+                        {
+                            <td>
+                                <span>@objPullMasterDTO.UDF3</span>
+                            </td>
+                        }
+                        @if (objPullMasterDTO.isPullUDF4Deleted == false)
+                        {
+                            <td>
+                                <span>@objPullMasterDTO.UDF4</span>
+                            </td>
+                        }
+                        @if (objPullMasterDTO.isPullUDF5Deleted == false)
+                        {
+                            <td>
+                                <span>@objPullMasterDTO.UDF5</span>
+                            </td>
+                        }*@
+                        @*<td>
+                <span>@objPullMasterDTO.UDF1</span>
+
+        </td>
+        <td>
+            <span>@objPullMasterDTO.UDF2</span>
+        </td>
+        <td>
+            <span>@objPullMasterDTO.UDF3</span>
+        </td>
+        <td>
+            <span>@objPullMasterDTO.UDF4</span>
+        </td>
+        <td>
+            <span>@objPullMasterDTO.UDF5</span>
+        </td>*@
+                    </tr>
+                </tbody>
+            </table>
+            <table>
+                <tr>
+                    <td>
+                        &nbsp;
+                    </td>
+                </tr>
+            </table>
+            @if (objPullMasterDTO.PoolQuantity > 0)
+            {
+                string htmltableName = "tblItemPull_" + objPullMasterDTO.ItemGUID;
+                if (objPullMasterDTO.ItemGUID.GetValueOrDefault(Guid.Empty) != Guid.Empty)
+                {
+                    <table style="width: 100%" class="display tbl-item-pull" id="@htmltableName">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">
+                                    @if (objPullMasterDTO.LotNumberTracking)
+                                    {
+                                        @eTurns.DTO.ResItemLocationDetails.LotNumber
+                                    }
+                                    else if (objPullMasterDTO.SerialNumberTracking)
+                                    {
+                                        @eTurns.DTO.ResItemLocationDetails.SerialNumber
+                                    }
+                                    else
+                                    {
+                                        @eTurns.DTO.ResPullMaster.LotSrnumber
+                                    }
+                                </th>
+                                @*<th style="text-align: left;">
+                                    @eTurns.DTO.ResPullMaster.BinID
+                                </th>*@
+                                <th style="text-align: left;">
+                                    @eTurns.DTO.ResPullMaster.CustomerOwnedQuantityAvail
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResPullMaster.PoolQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.ReceivedDate
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.ExpirationDate
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                }
+                <script type="text/javascript">                    
+                    var IsCheckViewRight = true;
+                    var objPullItemDTO = {
+                        tableID: '@htmltableName',
+                        ItemGUID: '@objPullMasterDTO.ItemGUID',
+                        ToolGUID: '@objPullMasterDTO.ToolGUID',                       
+                        RequisitionDetailGUID: '@objPullMasterDTO.RequisitionDetailGUID',
+                        PullQuantity: '@objPullMasterDTO.PoolQuantity',
+                        BinID: '@objPullMasterDTO.BinID',
+                        BinNumber: '@objPullMasterDTO.BinNumber',
+                        InventoryConsuptionMethod: '@objPullMasterDTO.InventoryConsuptionMethod',
+                        LotNumberTracking: '@objPullMasterDTO.LotNumberTracking',
+                        SerialNumberTracking: '@objPullMasterDTO.SerialNumberTracking',
+                        DateCodeTracking: '@objPullMasterDTO.DateCodeTracking',
+                        ViewRight: '@viewRight',
+                        IsIgnoreCreditRule: '@IsIgnoreCreditRule',
+                        SupplierAccountGuid: '@objPullMasterDTO.SupplierAccountGuid.GetValueOrDefault(Guid.Empty)',
+                        MaterialStagingGUID: '@objPullMasterDTO.MaterialStagingGUID.GetValueOrDefault(Guid.Empty)',
+                        MaterialStagingHeaderName: '@objPullMasterDTO.MaterialStagingHeaderName'
+                    };
+
+                    PreparePullDataTableForMSSerialLot(objPullItemDTO);
+                    
+                </script>
+            }
+            <div style="width: 100%; padding-top: 10px;">
+                @if (viewRight != "ViewOnly" && objPullMasterDTO.ItemGUID.GetValueOrDefault(Guid.Empty) != Guid.Empty && objPullMasterDTO.BinID.GetValueOrDefault(0) > 0)
+                {
+                    <input type="button" class="btnGeneral" value="@ResCommon.Add" id="btnLoadMoreLots_@(objPullMasterDTO.ItemGUID)" name="btnLoadMoreLots" />
+                    <input type="button" class="btnGeneral" value="@ResCommon.Delete" id="btnDeleteLots_@(objPullMasterDTO.ItemGUID)" name="btnDeleteLots" />
+                }
+                    <input type="button" class="btnGeneral" value="@ResCommon.Credit" id="btnPullPopup_@(objPullMasterDTO.ItemGUID)" name="btnPullPopup" />
+               
+                <input type="hidden" name="hdnSelectedId" id="hdnSelectedId_@(objPullMasterDTO.ItemGUID)" />
+                <input type="hidden" name="hdnCurrentLoadedIds" id="hdnCurrentLoadedIds_@(objPullMasterDTO.ItemGUID)" />
+                <input type="hidden" name="hdnCurrentDeletedLoadedIds" id="hdnCurrentDeletedLoadedIds_@(objPullMasterDTO.ItemGUID)" />
+            </div>
+        </div>
+    }
+}
+<table style="width: 100%">
+    <tr>
+        <td>
+            &nbsp;
+        </td>
+    </tr>
+    <tr>
+        <td style="text-align: right;">
+            <input type="button" class="btnGeneral" value="@ResPullMaster.CreditAll" id="btnPullAllPopUp1" name="btnPullAllPopUp" />
+            <input type="button" class="btnGeneral" value="@ResCommon.Cancel" id="btnCancel1" name="btnCancelPullPopup" />
+        </td>
+    </tr>
+</table>
+<div class="dialog" id="dlgCommonErrorMsgPopup" style="display: none; width: 600px;">
+    <div class="inner" style="width: 600px; max-height: 300px; overflow: scroll;">
+        <p class="text" id="pErrMessage" style="text-align: left; padding-left: 10px;">
+        </p>
+        <p id="pOkbtn" class="text" style="text-align: center; padding-left: 10px; display: none;">
+            <a href="#" class="no" onclick="closeMessageModalInPopup()">
+                <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.InformOk" />@eTurns.DTO.Resources.ResMessage.InformOk
+            </a>
+        </p>
+    </div>
+</div>
+<script type="text/javascript">
+
+    $(document).ready(function () {
+
+        if ('@viewRight' == "ViewOnly") {
+            $("input[type='text'][name^='txtPoolQuantity_']").keypress(function () {
+                return false;
+            });
+        }
+
+        $('#tblPreReceiveHeader tbody tr').each(function (i) {
+            $(this).find('input.dateTextbox').removeClass('hasDatepicker');
+            $(this).find('input.dateTextbox').datepicker({
+                dateFormat: RoomDateJSFormat, showButtonPanel: true,
+                clearText: 'Clear', onClose: function () { this.focus(); }
+            });
+        });
+
+    });
+
+    function closeMessageModalInPopup() {
+        $.modal.impl.close();
+    }
+
+</script>

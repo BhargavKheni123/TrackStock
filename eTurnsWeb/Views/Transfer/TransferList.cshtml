@@ -1,0 +1,1321 @@
+﻿@using eTurns.DAL;
+@{
+    ViewBag.Title = eTurns.DTO.ResTransfer.PageTitle;
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DisplayUDFButton = true, UDFSetupFor = "TransferMaster&UDFHeader=" + @eTurns.DTO.ResTransfer.PageHeader, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "TransferMasterList", ShowCloseButton = true };
+    //var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DisplayUDFButton = true, UDFSetupFor = "TransferMaster&UDFHeader=" + @eTurns.DTO.ResTransfer.PageHeader, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "TransferMasterList", DisplayArchiveButton = true };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "TransferMaster" };
+
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Transfer, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Transfer, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    bool isApproveList = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.TransferApproval, eTurnsWeb.Helper.SessionHelper.PermissionType.Approval);
+    bool isChangeOrder = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ChangeTransfer, eTurnsWeb.Helper.SessionHelper.PermissionType.ChangeOrder);
+    Session["IsInsert"] = "";
+    bool IsShowChangeLog = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Transfer, eTurnsWeb.Helper.SessionHelper.PermissionType.ShowChangeLog);
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    string TransferHelpDocPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Transfer.pdf", DateTime.Now.Ticks);
+    //HelpDocumentMasterDTO objHelpDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentMaster("Transfer");
+    //string TransferBasicVideo = "";
+    //if (objHelpDTO != null)
+    //{
+    //    TransferBasicVideo = objHelpDTO.ModuleVideoPath.Replace("../Uploads/HelpVideo/", "");
+    //}
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Transfer", (int)HelpDocType.Module);
+    string InventoryConsuptionMethod= "Fifo";
+    CommonDAL commonDAL = new CommonDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    string columnList = "ID,RoomName,InventoryConsuptionMethod";
+    RoomDTO roomDTO = commonDAL.GetSingleRecord<RoomDTO>(columnList, "Room", "ID = " + eTurnsWeb.Helper.SessionHelper.RoomID.ToString() + "", "");
+
+    if (roomDTO != null && roomDTO.InventoryConsuptionMethod != "Fifo")
+    {
+        InventoryConsuptionMethod = roomDTO.InventoryConsuptionMethod;
+    }
+
+}
+
+@*
+    
+    <style>
+    .paginationBlock {
+        float: left;
+        position: absolute;
+        right: 253px;
+        top: -4px;
+    }
+</style>*@
+
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script type="text/javascript">
+        HasMaintenanceTab = false;
+        var oTable;
+        var IsRefreshGrid = false;
+        var deleteURL = "/Transfer/DeleteTransferMasterRecords";
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+        var SelectedTechnicianID = 0;
+        var HistorySelected;
+        var HistorySelectedID = 0;
+        var bIsFilter = true;
+        var objColumns = {};
+        var MsgSubmittedUnsubmittedRestriction = '@eTurns.DTO.ResTransfer.MsgSubmittedUnsubmittedRestriction';
+        var MsgQuantityNotAvailableToTransfer = "@ResTransfer.QuantityNotAvailableToTransfer";
+
+        $(document).ready(function () {
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            LoadTabs();
+            var gaiSelected = [];
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "150%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[2, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    if (aData.IsDeleted == true && aData.IsArchived == true)
+                        $(nRow).css('background-color', '#B9BCBF');
+                    else if (aData.IsDeleted == true)
+                        $(nRow).css('background-color', '#FFCCCC');
+                    else if (aData.IsArchived == true)
+                        $(nRow).css('background-color', '#CCFFCC');
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+
+
+                        oData.oSearch.sSearch = "";
+                        $.ajax({
+                            "url": '@Url.Content("~/Master/SaveGridState")',
+                            "type": "POST",
+                            data: { Data: JSON.stringify(oData), ListName: 'TransferMasterList' },
+                            "async": false,
+                            cache: false,
+                            "dataType": "json",
+                            "success": function (json) {
+                                if (json.jsonData != '')
+                                    o = json;
+                            }
+                        });
+
+                    bIsFilter = false
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'TransferMasterList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Transfer/TransferListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    IsEditMode = false;
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    //if (oSettings.aaSorting.length != 0)
+                    //    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                    //else
+                    //    aoData.push({ "name": "SortingField", "value": "0" });
+
+                    if (oSettings.aaSorting.length != 0) {
+                        var sortValue = "";
+                        for (var k = 0; k <= oSettings.aaSorting.length - 1; k++) {
+                            if (sortValue.length > 0)
+                                sortValue += ", "
+                            sortValue += arrCols[oSettings.aaSorting[k][0]] + ' ' + oSettings.aaSorting[k][1];
+
+                        }
+                        aoData.push({ "name": "SortingField", "value": sortValue });
+                    }
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        cache: false,
+                        "data": aoData,
+                        "headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#txtTransferFilter").val() != '') {
+                                $('#myDataTable').highlight($("#txtTransferFilter").val());
+                            }
+                            //if ($("#txtTransferFilter").val().length > 0) {
+                            //    if ($('#myDataTable').dataTable().fnGetData().length <= 0) {
+                            //        $('#cnfBarcodeAddmdl').modal();
+                            //    }
+                            //}
+                            $('#tab1').find('#spnTabName').css('padding', '30px;');
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [
+                            { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: ''},
+			                { "mDataProp": "ID", "sClass": "read_only" },
+                            {
+                                "mDataProp": "TransferNumber",
+                                "sClass": "read_only",
+                                "sDefaultContent": '',
+                                "bSortable": true,
+                                "bSearchable": false,
+                                "fnRender": function (obj, val) {
+                                    var tabid = $(".tabs li div.selected").attr('id');
+
+                                    if (obj.aData.RequestType === 0) {
+                                        if (tabid === 'tab7' || (parseInt(obj.aData.TransferStatus) >= parseInt('@((int)TransferStatus.Transmitted)') && parseInt(obj.aData.TransferStatus) < parseInt('@((int)TransferStatus.Closed)')))
+                                            return "<a id='aEditLink' class='editTrfLink' data-id='" + obj.aData.ID + "' onclick='BlankSession(); return LoadReceiveTab(&quot;ReceivedTransfer/" + obj.aData.ID + "&quot;,&quot;frmReceiveTransfer&quot;,&quot;" + obj.aData.ID + "&quot;)' href='JavaScript:void(0);'>" + obj.aData.TransferNumber + "</a>";
+                                        else
+                                            return "<a id='aEditLink' class='editTrfLink' data-id='" + obj.aData.ID + "' onclick= 'return ShowTransferInEditTab(&quot;TransferEdit/" + obj.aData.ID + "&quot;,&quot;frmTransfer&quot;,&quot;" + obj.aData.ID + "&quot;)' href='JavaScript:void(0);'>" + obj.aData.TransferNumber + "</a>";
+                                    }
+                                    else if (obj.aData.RequestType === 1) {
+                                        return "<a  id='aEditLink' class='editTrfLink' data-id='" + obj.aData.ID + "' onclick= 'return ShowTransferOutEditTab(&quot;TransferEdit/" + obj.aData.ID + "&quot;,&quot;frmTransfer&quot;,&quot;" + obj.aData.ID + "&quot;)' href='JavaScript:void(0);'>" + obj.aData.TransferNumber + "</a>";
+                                    }
+
+                                }
+                            },
+			                { "mDataProp": "RequestingRoomName", "sClass": "read_only" },
+                            { "mDataProp": "ReplenishingRoomName", "sClass": "read_only" },
+                            { "mDataProp": "StagingName", "sClass": "read_only" },
+			                { "mDataProp": "Comment", "sClass": "read_only" },
+
+			                { "mDataProp": "RequestTypeName", "sClass": "read_only" },
+                            {
+                                "mDataProp": "TransferStatusName", "sClass": "read_only"
+                             , "fnRender": function (obj, val) {
+                                 return "<span id='spnOrdStatus'>" + val + "</span>"
+                                                + " <span id='spnIsNotEditable' style='display:none'>" + obj.aData.IsRecordNotEditable + "</span>"
+                                                + " <span id='spnIsableToDelete' style='display:none'>" + obj.aData.IsAbleToDelete + "</span>"
+                                                + "<span id='spnTransferStatus' style='display:none'>" + obj.aData.TransferStatus + "</span>"
+                                                + "<span id='spnTransferMasterID' style='display:none'>" + obj.aData.ID + "</span>"
+                                                + "<span id='spnTransferIsInReceive' style='display:none'>" + obj.aData.TransferIsInReceive + "</span>"
+                                                + "<span id='spnRequestType' style='display:none'>" + obj.aData.RequestType + "</span>"
+                                                + "<span id='spnIsDeleted' style='display:none'>" + obj.aData.IsDeleted + "</span>"
+                                                + "<span id='spnIsArchived' style='display:none'>" + obj.aData.IsArchived + "</span>"
+                                                + "<span id='spnTransferMasterGUID' style='display:none'>" + obj.aData.GUID + "</span>"
+                                                 + "<span id='spnRefTransferMasterGUID' style='display:none'>" + obj.aData.RefTransferGUID + "</span>";
+
+                             }
+                            },
+                             { "mDataProp": "RejectionReason", "sClass": "read_only" },
+			                {
+			                    "mDataProp": "RequireDate", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.RequiredDateString;
+			                    }
+			                },
+                            { "mDataProp": "Created", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.CreatedDate; } },
+                            { "mDataProp": "Updated", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.UpdatedDate; } },
+			                { "mDataProp": "CreatedByName", "sClass": "read_only" },
+			                { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+			                { "mDataProp": "RoomName", "sClass": "read_only" },
+                            { "mDataProp": "AddedFrom", "sClass": "read_only" },
+                            { "mDataProp": "EditedFrom", "sClass": "read_only" },
+                            {
+                                "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.ReceivedOnWebDate;
+                                }
+                            },
+			                {
+			                    "mDataProp": "ReceivedOn", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.ReceivedOnDate;
+			                    }
+			                },
+                            { "mDataProp": "NoOfItems", "sClass": "read_only numericalign", "fnRender": function (obj, val) { return val; } },
+			                {
+			                    "mDataProp": "TotalCost", "sClass": "read_only numericalign isCost", //"fnRender": function (obj, val) { return val; }
+
+			                    "fnRender": function (obj, val) {
+			                        if (obj.aData.TotalCost != null && obj.aData.TotalCost != NaN)
+			                            return "<span>" + FormatedCostQtyValues(obj.aData.TotalCost, 1) + "</span>";
+			                        else
+			                            return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+
+			                    }
+			                }
+                            @Html.RenderColumnsArray("TransferMaster")
+                ]
+            }).makeEditable();
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+            if ('@isCost' == '@Boolean.FalseString') {
+                HideColumnUsingClassName("myDataTable");
+            }
+
+            var QueryStringParam1 = getParameterByName('fromdashboard');
+            var QueryStringParam2 = getParameterByName('TransferID');
+            var QueryStringParam3 = getParameterByName('RequestType');
+            var QueryStringParam4 = getParameterByName('Status');
+            if (QueryStringParam1 == 'yes' && QueryStringParam2 != '' && QueryStringParam3 != '') {
+
+                var tabid = $(".tabs li div.selected").attr('id');
+                if (QueryStringParam3 == 0) {
+                    if (tabid === 'tab7'|| (parseInt(QueryStringParam4) >= parseInt('@((int)TransferStatus.Transmitted)') && parseInt(QueryStringParam4) < parseInt('@((int)TransferStatus.Closed)'))) {
+                        BlankSession();
+                        setTimeout(function () {
+                        LoadReceiveTab("ReceivedTransfer/" + QueryStringParam2, "frmReceiveTransfer", QueryStringParam2);
+                        }, 300);
+                    }
+                    else
+                        ShowTransferInEditTab("TransferEdit/" + QueryStringParam2, "frmTransfer", QueryStringParam2);
+                }
+                else if (QueryStringParam3 == 1) {
+                    if (tabid === 'tab8') {
+                        BlankSession();
+                        LoadFullFillTab("FullFillTransfer/" + QueryStringParam2, "frmFullFillTransfer", QueryStringParam2);
+                    }
+                    else
+                        ShowTransferOutEditTab("TransferEdit/" + QueryStringParam2, "frmTransfer", QueryStringParam2);
+                    //ShowTransferOutEditTab("TransferEdit/" + QueryStringParam2, "frmTransfer");
+                }
+            }
+            var QueryStringParam1 = getParameterByName('fromdashboard');
+            var QueryStringParam20 = getParameterByName('OrderID');
+            if (QueryStringParam1 == 'yes' && QueryStringParam20 != '') {
+                ShowTransferInEditTab("TransferEdit/" + QueryStringParam20, "frmTransfer", QueryStringParam20);
+                IsReloadItemList = true;
+            }
+
+
+            $('#myDataTable').on('tap click', 'a[id^="aEditLink"]', function () {
+                var tr = $(this).parent().parent();
+                $("#myDataTable").find("tbody tr").removeClass("row_selected");
+                $(tr).addClass('row_selected');
+
+            });
+
+            $('#actionCloseTransfer').click(function () {
+            var anSelected = fnGetSelected(oTable);
+            var cntIDs = 0;
+                for (var i = 0; i <= anSelected.length - 1; i++) {
+                var aData = oTable.fnGetData(anSelected[i]);
+                if (parseInt(aData.TransferStatus) == parseInt("@((int)TransferStatus.UnSubmitted)")) {
+                    cntIDs = cntIDs + 1;
+                }
+
+            }
+            if (cntIDs > 0) {
+                $('#TransferListCloseConfirm').modal();
+            }
+            else {
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon').text("@ResTransfer.SelectAtleastOneUnsubmittedTransfer");
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            }
+        });
+
+        $('#bntCloseTransferListConfirmYes').click(function () {
+            $('#DivLoading').show();
+            var anSelected = fnGetSelected(oTable);
+            var stringIDs = "";
+            var cntIDs = 0;
+            if (anSelected.length !== 0) {
+                for (var i = 0; i <= anSelected.length - 1; i++) {
+                    var aData = oTable.fnGetData(anSelected[i]);
+                    if (parseInt(aData.TransferStatus) == parseInt("@((int)TransferStatus.UnSubmitted)")) {
+                        stringIDs = stringIDs + aData.ID + ",";
+                        cntIDs = cntIDs + 1;
+                    }
+                }
+
+                if (cntIDs > 0) {
+                    $.ajax({
+                        url: '@Url.Action("CloseTransfer", "Transfer")',
+                        type: "POST",
+                        data: { ids: stringIDs },
+                        success: function (responce) {
+                            if (responce.Status == "ok") {
+                                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon').text("@ResCommon.RecordClosedSuccessfully".replace("{0}", "(" + cntIDs + ")"));
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                                oTable.fnDraw();
+                            }
+                            else {
+                                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon').text("@ResOrder.ErrortoPerformOperation");
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            }
+                            CloseTransferListDialog();
+                            fillTransferNarrowSearchDiv();
+                        },
+                        error: function (err) {
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon').text("@ResOrder.ErrortoPerformOperation");
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        }
+                    });
+                }
+                else {
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon').text("@ResTransfer.SelectAtleastOneUnsubmittedTransfer");
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    CloseTransferListDialog();
+                    $('#DivLoading').hide();
+                }
+
+            }
+        });
+
+
+        });
+
+        function getParameterByName(name) {
+            name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+            var regexS = "[\\?&]" + name + "=([^&#]*)";
+            var regex = new RegExp(regexS);
+            var results = regex.exec(window.location.search);
+            if (results == null)
+                return "";
+            else
+                return decodeURIComponent(results[1].replace(/\+/g, " "));
+        }
+
+
+
+        function getParameterByName(name) {
+            name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+            var regexS = "[\\?&]" + name + "=([^&#]*)";
+            var regex = new RegExp(regexS);
+            var results = regex.exec(window.location.search);
+            if (results == null)
+                return "";
+            else
+                return decodeURIComponent(results[1].replace(/\+/g, " "));
+        }
+        $(document).keyup(function (evt) {
+            if (evt.keyCode === 27 || evt.key === "Escape" || evt.key === "Esc") {
+                $('#txtTransferFilter').val('');
+                DoTransferNarrowSearch();
+            }
+        });
+    </script>
+}
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResTransfer.PageHeader
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        @Html.Hidden("hdnInventoryConsuptionMethod", InventoryConsuptionMethod)
+        <input type="hidden" id="hdnModuleName" name="hdnModuleName" value="Transfer" />
+        <input id="hdnTransferId" type="hidden" name="hdnTransferId" />
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener" style="min-height: 1250px;">
+        </div>
+        <div id="CtabOut" class="tabContener" style="min-height: 1250px;">
+        </div>
+        <div id="Ctab" class="tabContener" style="min-height: 1250px;">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="txtTransferFilter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="imgClearTransferFilter" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Transfer)
+            <div id="divNarrowSearch" style="float: left; padding: 0 5px 0 0; width: 18%;">
+                &nbsp;
+            </div>
+            <div class="userContent ">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.TransferNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.RequestedRoom
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.ReplinishRoom
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResMaterialStaging.StagingName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.Comment
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.RequestType
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.TransferStatus
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.RejectedReason
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.RequireDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RoomName
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.NoOfItems
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.TotalCost
+                            </th>
+
+                            @Html.RenderColumnsHeader("TransferMaster", typeof(eTurns.DTO.ResTransfer))
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="BtnBlockform">
+                <input type="button" value="@eTurns.DTO.ResOrder.ChangeOrder" id="btnChangeTransfer" style="display: none"
+                       class="CreateBtn" />
+            </div>
+        </div>
+        <div id="CtabCL" class="tabContener" style="min-height: 1250px;">
+        </div>
+    </div>
+</div>
+<div class="dialog" id="TransferListCloseConfirm" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.ResTransfer.CloseTransferConfirmationMsg
+        </p>
+        <a href="JavaScript:void(0)" id="bntCloseTransferListConfirmYes" class="yes yesornooryes">
+            <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResCommon.Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no" onclick="CloseTransferListDialog();">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<script type="text/javascript">
+    var CurrentListTabID = 'tab5'
+    var _IsArchived = false;
+    var _IsDeleted = false;
+    
+
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.ResTransfer.In', 'callbacknewIn();', true, true),
+         new TabClass('tab21', '@eTurns.DTO.ResTransfer.Out', 'callbacknewOut();', true, true),
+         new TabClass('tab11', '@eTurns.DTO.ResOrder.ReceiveButton', 'callbackRecieve();', true, true),
+         new TabClass('tab12', '@eTurns.DTO.ResTransfer.FullfillQuantityTab ', 'callbackFullFill();', false, false),
+         new TabClass('tab2', '@eTurns.DTO.Resources.ResCommon.Unsubmitted', 'CallBackTabs("tab2");', true, true, '@(ViewBag.iunsubmittedCount)', 'divUnsubmitted'),
+         new TabClass('tabReq', '@eTurns.DTO.Resources.ResCommon.Requested', 'CallBackTabs("tabReq");', false, false, '', 'divRequested'),
+         new TabClass('tab3', '@eTurns.DTO.Resources.ResCommon.Approved', 'CallBackTabs("tab3");', true, true, '@(ViewBag.iSubmitttedCount)', 'divSubmittted'),
+         new TabClass('tab4', '@eTurns.DTO.ResTransfer.ChangeTransferTab', 'CallBackTabs("tab4");', true, true, '', 'divChangeOrder'),
+         new TabClass('tab7', '@eTurns.DTO.Resources.ResCommon.Receivable', 'CallBackTabs("tab7");', true, true, '', 'divReceivable'),
+         new TabClass('tab8', '@eTurns.DTO.ResTransfer.TransferableTab', 'CallBackTabs("tab8");', true, true),
+         new TabClass('tab9', '@eTurns.DTO.Resources.ResCommon.Close', 'CallBackTabs("tab9");', true, true),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.History', 'CallBackTabs("tab5");', true, true),
+      ];
+    if ('@IsShowChangeLog.ToString().ToUpper()' == 'TRUE') {
+        TabsArry.push(new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true));
+    }
+
+    var TempNarrow = '';
+    var EmptyNarrow = '[###]~~~~~~~~~~~~[###]';
+    var IsRetainNarrow = false;
+    var LastTab = '';
+    function CallBackTabs(tab) {
+        
+        IsRetainNarrow = false;
+        switch (tab) {
+            case "tab5":
+                LastTab = window.location.hash;
+                window.location.hash = '#list';
+                IsRetainNarrow = true;
+                if (LastTab != '#list' && LastTab != '') {
+                    IsRetainNarrow = false;
+                    TempNarrow = '';
+                }
+                break
+            case "tab2":
+                window.location.hash = '#UnSubmitted';
+                IsRetainNarrow = false;
+                TempNarrow = '';
+                break
+            case "tab3":
+                window.location.hash = '#Approve';
+                IsRetainNarrow = false;
+                TempNarrow = '';
+                break
+            case "tab4":
+                window.location.hash = '#ChangeTransfer';
+                IsRetainNarrow = false;
+                TempNarrow = '';
+                break
+            case "tabReq":
+                window.location.hash = '#ChangeOrder';
+                IsRetainNarrow = false;
+                TempNarrow = '';
+                break;
+            case "tab7":
+                window.location.hash = '#Receive';
+                IsRetainNarrow = false;
+                TempNarrow = '';
+                break;
+            case "tab8":
+                window.location.hash = '#Transferable';
+                IsRetainNarrow = false;
+                TempNarrow = '';
+                break;
+            case "tab9":
+                window.location.hash = '#Close';
+                IsRetainNarrow = false;
+                TempNarrow = '';
+                break;
+            default:
+                window.location.hash = '';
+                TempNarrow = '';
+                break;
+        }
+        
+        if ($('#IsArchivedRecords').is(':checked')) {
+            $('#actionCloseTransfer').css('display', 'none');
+        }
+        else {
+            $('#actionCloseTransfer').css('display', '');
+        }
+
+        $('#deleteRows').css('display', '');
+        if ($('#IsDeletedRecords').is(':checked')) {
+            $('#actionCloseTransfer').css('display', 'none');
+        }
+        else {
+            if (!$('#IsArchivedRecords').is(':checked')) {
+                $('#actionCloseTransfer').css('display', '');
+            } else {
+                $('#actionCloseTransfer').css('display', 'none');
+            }
+        }
+        $('#tab11').hide();
+        $('#tab12').hide();
+        if (tab == 'tab4' || tab == 'tab7' || tab == 'tab8') {
+            $('#deleteRows').css('display', 'none');
+            $('#undeleteRows').css('display', 'none');
+        }
+        else
+            HideDisplayIcon();
+
+        if (IsRetainNarrow == false || TempNarrow == '') {
+            fillTransferNarrowSearchDiv();
+        }
+        //fillTransferNarrowSearchDiv();
+        SetReplenishRedCount();
+        if (TempNarrow != '' && IsRetainNarrow) {
+            fnFilterTransferList(TempNarrow);
+        }
+        else {
+            fnFilterTransferList('');
+        }
+        
+        $('#tab1').find("#spnTabName").text('@eTurns.DTO.ResTransfer.In');
+        $('#tab1').find('#spnTabName').css('padding-left', ' 15px');
+        CurrentListTabID = tab;
+        $("#btnChangeTransfer").css('display', 'none');
+        $("#btnChangeTransfer").removeAttr("onclick");
+        SetFocus();
+    }
+    function SetFocus() {
+        if ($("input#global_filter").length > 0) {
+            $("input#global_filter").focus();
+            setTimeout(function () {
+                $("input#global_filter").focus();
+            }, 600);
+        }
+        if ($("input.searchinput").length > 0) {
+            $("input.searchinput").focus();
+            setTimeout(function () {
+                $("input.searchinput").focus();
+            }, 600);
+
+        }
+    }
+    function callbacknewIn() { window.location.hash = '#new'; $('#CtabNew').empty(); ShowNewTab('CreateTransferIn', 'frmTransfer'); }
+    function callbacknewOut() { window.location.hash = '#out'; $('#CtabNew').empty(); ShowOutTab('CreateTransferOut', 'frmTransfer'); }
+
+    function ShowOutTab(action, formName) {
+        if (IsEditMode) {
+            IsEditMode = false;
+            return;
+        }
+        AllowDeletePopup = false;
+        $('#DivLoading').show();
+
+        $(formName).append($('#CtabNew').load(action, function () { $("#" + formName + " :input:text:visible:first").focus(); }));
+        $.validator.unobtrusive.parseDynamicContent('#' + formName + ' input:last');
+    }
+
+    function callbackRecieve() {
+        window.location.hash = '';
+        var rowSelected = fnGetSelected(oTable);
+        if (rowSelected != undefined && rowSelected.length == 1) {
+            var transferID = $(rowSelected).find('#spnTransferMasterID').text();
+            var tStatus = $(rowSelected).find('#spnTransferStatus').text();
+            var isDeleted = $(rowSelected).find('#spnIsDeleted').text();
+            var isArchived = $(rowSelected).find('#spnIsArchived').text();
+            var TransferIsInReceive = $(rowSelected).find('#spnTransferIsInReceive').text();
+            var ReqType = $(rowSelected).find('#spnRequestType').text();
+            if (ReqType === '0' && transferID > 0 && (parseInt(tStatus) >= parseInt("@((int)TransferStatus.Transmitted)") && parseInt(tStatus) <= parseInt("@((int)TransferStatus.TransmittedInCompletePastDue)")) && isDeleted == 'false' && isArchived == 'false') {
+                $('#DivLoading').show();
+                $('#CtabNew').empty();
+                $('#CtabNew').show();
+                $.get("ReceivedTransfer/" + transferID, function (data) { $('#CtabNew').html(data); });
+                $.validator.unobtrusive.parseDynamicContent('#frmReceiveTransfer input:last');
+            }
+        }
+        IsRetainNarrow = false;
+        TempNarrow = '';
+    }
+
+    function callbackFullFill() {
+        window.location.hash = '';
+        var rowSelected = fnGetSelected(oTable);
+        if (rowSelected != undefined && rowSelected.length == 1) {
+            var transferID = $(rowSelected).find('#spnTransferMasterID').text();
+            var tStatus = $(rowSelected).find('#spnTransferStatus').text();
+            var isDeleted = $(rowSelected).find('#spnIsDeleted').text();
+            var isArchived = $(rowSelected).find('#spnIsArchived').text();
+            var ReqType = $(rowSelected).find('#spnRequestType').text();
+
+            var TransferIsInReceive = $(rowSelected).find('#spnTransferIsInReceive').text();
+            if (ReqType === '1' && transferID > 0 && (parseInt(tStatus) >= parseInt("@((int)TransferStatus.Transmitted)") && parseInt(tStatus) <= parseInt("@((int)TransferStatus.TransmittedInCompletePastDue)")) && isDeleted == 'false' && isArchived == 'false') {
+                $('#DivLoading').show();
+                $('#CtabNew').empty();
+                $('#CtabNew').show();
+                $.get("FullFillTransfer/" + transferID, function (data) { $('#CtabNew').html(data); });
+                $.validator.unobtrusive.parseDynamicContent('#frmReceiveTransfer input:last');
+            }
+        }
+        IsRetainNarrow = false;
+        TempNarrow = '';
+    }
+
+    function callbackOutRequest() {
+        var rowSelected = fnGetSelected(oTable);
+        if (rowSelected != undefined && rowSelected.length == 1) {
+            var transferID = $(rowSelected).find('#spnTransferMasterID').text();
+            var isDeleted = $(rowSelected).find('#spnIsDeleted').text();
+            var isArchived = $(rowSelected).find('#spnIsArchived').text();
+            var ReqType = $(rowSelected).find('#spnRequestType').text();
+
+            var TransferIsInReceive = $(rowSelected).find('#spnTransferIsInReceive').text();
+            if (ReqType === '1' && transferID > 0 && isDeleted == 'false' && isArchived == 'false') {
+                $('#DivLoading').show();
+                $('#CtabNew').empty();
+                $('#CtabNew').show();
+                $.get("TransferEdit/" + transferID + "?IsArchived=" + isArchived + "&IsDeleted=" + isDeleted, function (data) { $('#CtabNew').html(data); });
+                $.validator.unobtrusive.parseDynamicContent('#frmReceiveTransfer input:last');
+            }
+        }
+    }
+
+    function LoadReceiveTab(action, formName, transferId) {
+        if (transferId !== undefined && transferId != null)
+        {
+            $("#hdnTransferId").val(transferId);
+        }
+        $('#DivLoading').show();
+        $('#CtabNew').empty();
+        $('#tab11').show();
+        $('#tab11').click();
+        $('#CtabNew').show();
+        $.get(action, function (data) { $('#CtabNew').html(data); });
+        $.validator.unobtrusive.parseDynamicContent('#' + formName + ' input:last');
+    }
+
+    function LoadFullFillTab(action, formName, transferId) {
+        if (transferId !== undefined && transferId != null) {
+            $("#hdnTransferId").val(transferId);
+        }
+        $('#DivLoading').show();
+        $('#CtabNew').empty();
+        $('#tab12').show();
+        $('#tab12').click();
+        $('#CtabNew').show();
+        $.get(action, function (data) { $('#CtabNew').html(data); });
+        $.validator.unobtrusive.parseDynamicContent('#' + formName + ' input:last');
+    }
+
+
+    function callbackCL() { HistoryTabClick(); }
+    function SwitchTransferTab(action, frmName) {
+        HideDisplayIcon();
+        isDirtyForm = false;
+        if (!dirtyCheck()) {
+            return false;
+        }
+        else {
+            removeDirtyclass();
+        }
+        //$('#CtabNew').empty();
+        if (HasInsertPermission == "False") {
+            $('#tab1').hide();
+        }
+        $('#tab1').find("#spnTabName").text('@eTurns.DTO.ResTransfer.In');
+
+        AllowDeletePopup = true;
+        $("#" + CurrentListTabID).click();
+        $('#tab1').find("#spnTabName").text('@eTurns.DTO.ResTransfer.In');
+        $('#tab1').find('#spnTabName').css('padding', '15px');
+        $('#CtabNew').hide();
+        if (IsRefreshGrid) {
+            IsRefreshGrid = false;
+            oTable.fnDraw();
+        }
+        SetReplenishRedCount();
+    }
+
+    function ShowTransferInEditTab(action, formName, transferId) {
+        if (transferId !== undefined && transferId != null) {
+            $("#hdnTransferId").val(transferId);
+        }
+        $('#CtabNew').empty();
+        var IsArchived = $('#IsArchivedRecords').is(':checked');
+        var IsDeleted = $('#IsDeletedRecords').is(':checked');
+        action += '?IsArchived=' + IsArchived + '&IsDeleted=' + IsDeleted;
+        IsEditMode = true;
+        IsShowHistory = true;
+        AllowDeletePopup = false;
+        $('#DivLoading').show();
+        $('#tab1').show();
+        $('#tab1').click();
+        $(formName).append($('#CtabNew').load(action, function () { $("#" + formName + " :input:text:visible:first").focus(); }));
+        $.validator.unobtrusive.parseDynamicContent('#' + formName + ' input:last');
+    }
+
+
+    function ShowTransferOutEditTab(action, formName, transferId) {
+        if (transferId !== undefined && transferId != null) {
+            $("#hdnTransferId").val(transferId);
+        }
+        $('#CtabNew').empty();
+        var IsArchived = $('#IsArchivedRecords').is(':checked');
+        var IsDeleted = $('#IsDeletedRecords').is(':checked');
+        action += '?IsArchived=' + IsArchived + '&IsDeleted=' + IsDeleted;
+        IsEditMode = true;
+        IsShowHistory = true;
+        AllowDeletePopup = false;
+        $('#DivLoading').show();
+        $('#tab21').show();
+        $('#tab21').click();
+        $(formName).append($('#CtabNew').load(action, function () { $("#" + formName + " :input:text:visible:first").focus(); }));
+        $.validator.unobtrusive.parseDynamicContent('#' + formName + ' input:last');
+    }
+
+
+    function fnGetSelected(oTableLocal) {
+        return oTableLocal.$('tr.row_selected');
+    }
+    function HistoryTabClick() {
+        HideDisplayIcon();
+        HistorySelected = fnGetSelected(oTable);
+        if (HistorySelected != undefined && HistorySelected.length == 1) {
+            var transferID = $(HistorySelected).find('#spnTransferMasterID').text();
+            HistorySelectedID = transferID;
+            $('#DivLoading').show();
+            $("#CTab").hide();
+            $("#CtabCL").show();
+            $('#tab1').find("#spnTabName").text('@eTurns.DTO.ResTransfer.In');
+            $('#CtabCL').load('TransferMasterListHistory', function () { $('#DivLoading').hide(); });
+        }
+        else {
+            $('#CtabCL').html('');
+            $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+            showNotificationDialog();
+            return false;
+        }
+    }
+
+    /* HISTORY related data deleated and archived START */
+    $('#IsDeletedRecords').live('click', function () {
+        HideDisplayIcon();
+        CallBackTabs($(".tabs li div.selected").attr('id'));
+    });
+    $('#IsArchivedRecords').live('click', function () {
+        CallBackTabs($(".tabs li div.selected").attr('id'));
+    });
+
+    $('#ViewHistory').live('click', function () {
+        HideDisplayIcon();
+        HistorySelected = fnGetSelected(oTable);
+        if (HistorySelected != undefined && HistorySelected.length == 1) {
+            $("#atab5").click();
+        }
+        else {
+            $('#tab5').html('');
+            $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+            showNotificationDialog();
+            return false;
+        }
+    });
+
+    function HideDisplayIcon() {
+        if ($('#IsDeletedRecords').is(':checked')) {
+            $('#undeleteRows').css('display', '');
+            $('#deleteRows').css('display', 'none');
+            $(".print").attr("style", "display:none");
+        }
+        else {
+            $('#undeleteRows').css('display', 'none');
+            $('#deleteRows').css('display', '');
+            $(".print").attr("style", "display:block");
+        }
+    }
+
+
+    function GetCurrentSelectedTab() {
+
+        var tabid = $(".tabs li div.selected").attr('id');
+
+        if (tabid == 'tab2') {
+            return "@((int)TransferStatus.UnSubmitted)";
+        }
+        else if (tabid == 'tab3') {
+            return "@((int)TransferStatus.Submitted)";
+        }
+        else if (tabid == 'tab4') {
+            return "ChangeTransefer";
+        }
+        else if (tabid == 'tab7') {
+            return "Receivable";
+        }
+        else if (tabid == 'tab8') {
+            return "Transferable";
+        }
+        else if (tabid == 'tab9') {
+            return "@((int)TransferStatus.Closed)";
+        }
+        else if (tabid == 'tabReq') {
+            return "requested";
+        }
+        else {
+            return "";
+        }
+    }
+
+    function fnFilterTransferList(searchtext) {
+        bIsFilter = true;
+        if (searchtext.length > 0 && searchtext != EmptyNarrow) {
+            TempNarrow = searchtext;
+        }
+        else {
+            TempNarrow = '';
+            IsRetainNarrow = false;
+        }
+        var appendedText = GetCurrentSelectedTab();
+        if (appendedText.length > 0) {
+            searchtext = searchtext + "[^]" + appendedText;
+        }
+
+        $('#myDataTable').dataTable().fnFilter(searchtext, null, null, null);
+
+        $('#myDataTable' + ' td').removeHighlight();
+        $('#tab11').hide();
+        $('#tab12').hide();
+
+        if (searchtext.length > 0)
+            $('#myDataTable' + ' td').highlight(searchtext);
+    }
+
+    var txtFilerId = 'txtTransferFilter';
+        var myDataTableId = 'myDataTable';
+        var $searchInAllItems = $('#' + txtFilerId);
+        
+
+        _Common.setGloblaSearch(txtFilerId, myDataTableId, function (txtSearch) {
+                DoTransferNarrowSearch();
+            },
+            function (txtSearch, keycode) {
+                 DoTransferNarrowSearch_OnEnter(keycode);
+            }
+    );
+
+    //var timeoutsc1;
+    //$('#txtTransferFilter').bind('textchange', function () {
+    //    clearTimeout(timeoutsc1);
+    //    var self = this;
+    //    timeoutsc1 = setTimeout(function () {
+    //        if (SearchPattern == 2 || SearchPattern == "2") {
+    //            DoTransferNarrowSearch();
+    //        }
+    //        else {
+    //            $('#txtTransferFilter').unbind("keypress");
+    //            $('#txtTransferFilter').keypress(function (event) {
+    //                var keycode = (event.keyCode ? event.keyCode : event.which);
+    //                setTimeout(function () { DoTransferNarrowSearch_OnEnter(keycode); }, 200);
+    //            });
+    //            if ($("#txtTransferFilter").val().length == 0) {
+    //                setTimeout(function () { DoTransferNarrowSearch_OnEnter(0); }, 200);
+    //            }
+    //        }
+    //    }, 200);
+    //});
+    //if (SearchPattern == 2 || SearchPattern == "2") {
+    //    $("#txtTransferFilter").keydown(function (e) {
+    //        var code = (e.keyCode ? e.keyCode : e.which);
+    //        if (code == 13) {
+    //            DoTransferNarrowSearch();
+    //            return false;
+    //        }
+    //    });
+    //}
+    //else {
+    //    if ($("#txtTransferFilter").val().length == 0) {
+    //        //setTimeout(function () { DoTransferNarrowSearch(); }, 30000);
+    //    }
+    //}
+
+    //$("#imgClearTransferFilter").click(function () {
+    //    $("#txtTransferFilter").val('');
+    //    $("#txtTransferFilter").focus();
+    //    $("#txtTransferFilter").change();
+    //    return false;
+    //});
+
+    $(document).on("tap click touchstart", "#imgClearTransferFilter", function () {
+        if ($("#txtTransferFilter").val().length > 0) {
+            $("#txtTransferFilter").val("");
+            $("#txtTransferFilter").trigger("input");
+        }
+        return false;
+    });
+
+    function fillTransferNarrowSearchDiv() {
+        $('#divNarrowSearch').html('&nbsp');
+        $.get('@Url.Action("GetTransferNarrwSearchHTML")', function (data) {
+            $('#divNarrowSearch').html(data);
+        });
+    }
+
+    function BlankSession(ID) {
+        $.ajax({
+            url: '@Url.Content("~/Transfer/BlankSession")'
+                                    , type: 'GET'
+                                    , contentType: "application/json"
+                                    , success: function (result) {
+                                    },
+            error: function (msg) {
+            }
+        });
+    }
+</script>
+<script type="text/javascript">
+    var isTabClick = false;
+
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+            case "#out":
+                $("#tab21").click();
+                break
+            case "#unsubmitted":
+                $("#tab2").click();
+                break
+            case "#approve":
+                $("#tab3").click();
+                break
+            case "#requested":
+                $("#tabReq").click();
+                break;
+            case "#receive":
+                $("#tab7").click();
+                break;
+            case "#changetransfer":
+                $("#tab4").click();
+                break;
+            case "#transferable":
+                $("#tab8").click();
+                break;
+            case "#close":
+                $("#tab9").click();
+                break;
+        }
+    }
+
+    $(document).ready(function () {
+        $('#tab11').hide();
+        $('#tab12').hide();
+
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+
+        var ShowEdittabonLoad = '@Request.Params["FromItem"]';
+        var OID = '@Request.Params["TID"]';;
+        var oStatus = '@Request.Params["TransferStatus"]';;
+        var rqType = '@Request.Params["rqType"]';;
+        if (ShowEdittabonLoad == 'true') {
+            if (rqType == "0") {
+                if (parseInt(oStatus) < 4)
+                    ShowTransferInEditTab("TransferEdit/" + OID, "frmTransfer", OID);
+                else {
+                    LoadReceiveTab("ReceivedTransfer/" + OID, "frmReceiveTransfer", OID)
+                }
+            } else {
+                ShowTransferOutEditTab("TransferEdit/" + OID, "frmTransfer", OID);
+            }
+        }
+
+
+        if (typeof ($('#IsArchivedRecords')) != undefined)
+            _IsArchived = $('#IsArchivedRecords').is(':checked');
+
+        if (typeof ($('#IsDeletedRecords')) != undefined)
+            _IsDeleted = $('#IsDeletedRecords').is(':checked');
+
+        fillTransferNarrowSearchDiv()
+        SetReplenishRedCount();
+         
+        //if (window.location.hash.toLowerCase() == "#unsubmitted") {
+        //    $("#tab2").click();
+        //}
+        //if (window.location.hash.toLowerCase() == "#requested") {
+        //    $("#tabReq").click();
+        //}
+        //else if (window.location.hash.toLowerCase() == "#approve") {
+        //    $("#tab3").click();
+        //}
+        //else if (window.location.hash.toLowerCase() == "#receive") {
+        //    $("#tab7").click();
+        //}
+
+        SetTabView();
+
+        var QueryStringParam1 = getParameterByName('fromdashboard');
+        var QueryStringParam4 = getParameterByName('TransferQuantity');
+        if (QueryStringParam1 == 'yes' && QueryStringParam4 == 'yes') {
+            $('#tab5').removeClass('selected');
+            $('#tab7').addClass('selected');
+            CurrentListTabID = 'tab7';
+            $("#" + CurrentListTabID).click();
+        }
+
+        $('#tab1').find('#spnTabName').css('padding', '15px');
+    });
+     
+    $('#deleteRows').click(function () {
+
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU + STOP DELETE */
+        if ($("body").hasClass('DTTT_Print')) {
+            return false;
+        }
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU + STOP DELETE */
+
+        var anSelectedRows = fnGetSelected(oTable);
+        var stringMasterIDs = "";
+        for (var i = 0; i <= anSelectedRows.length - 1; i++) {
+
+            var rawData = oTable.fnGetData(anSelectedRows[i]);
+            if (rawData != null && typeof (rawData) != "undefined" && rawData.IsAbleToDelete && rawData.GUID != null && typeof (rawData.GUID) != "undefined"
+                && rawData.GUID.length > 0) {
+                stringMasterIDs += rawData.GUID + ",";
+            }             
+        }
+        if (stringMasterIDs.length > 0) {
+            $('#basic-modal-content').modal();
+            IsDeletePopupOpen = true;
+        }
+        else {
+            $("#spanGlobalMessage").html("@ResTransfer.MsgSubmittedUnsubmittedRestriction");
+            showNotificationDialog();
+        }
+
+    });
+
+
+    function ShowHideTransferTab() {
+        $('#tab11').hide();
+        $('#tab12').hide();
+        var anSelectedRows = fnGetSelected(oTable);
+        if (anSelectedRows.length == 1) {
+            var ID = $(anSelectedRows).find('#spnTransferMasterID').text();
+            var status = $(anSelectedRows).find('#spnTransferStatus').text();
+            var isDeleted = $(anSelectedRows).find('#spnIsDeleted').text();
+            var isArchived = $(anSelectedRows).find('#spnIsArchived').text();
+            var ReqType = $(anSelectedRows).find('#spnRequestType').text();
+            var TransferIsInReceive = $(anSelectedRows).find('#spnTransferIsInReceive').text();
+            var RefTransferID = $(anSelectedRows).find('#spnRefTransferMasterID').text();
+            if (isDeleted === 'false' && isArchived === 'false') {
+                if ((parseInt(status) >= parseInt("@((int)TransferStatus.Transmitted)") && parseInt(status) <= parseInt("@((int)TransferStatus.TransmittedInCompletePastDue)"))) {
+                    if (ReqType === '0') {
+                        $('#tab11').show();
+                        $('#tab12').hide();
+                    }
+                    else if (ReqType === '1') {
+                        //$('#tab12').show();
+                        $('#tab11').hide();
+                    }
+                }
+            }
+        }
+    }
+    function CloseTransferListDialog() {
+        $.modal.impl.close();
+    }
+</script>
+<script type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>
+ 

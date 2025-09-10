@@ -1,0 +1,522 @@
+﻿@model eTurns.DTO.QuickListMasterDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.QuickListPermission, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.QuickListPermission, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+
+}
+@using (Ajax.BeginForm("SaveQL", "QuickList", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmQuickList", @autocomplete = "off" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="userHead">
+        @Html.ValidationSummary(true)
+        @if (Model.ID > 0)
+        {
+            <div class="infoBlock">
+                <ul>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.RoomName)
+                        </label>
+                        : <span>@(Model.RoomName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Created)
+                        </label>
+                        : <span>@Model.ReceivedOnDateWeb</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.CreatedByName)
+                        </label>
+                        : <span>@(Model.CreatedByName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.LastUpdated)
+                        </label>
+                        : <span>@Model.ReceivedOnDate</span>
+                    </li>
+                    <li style="border: none">
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.UpdatedByName)
+                        </label>
+                        : <span>@(Model.UpdatedByName)</span>
+                    </li>
+                </ul>
+            </div>
+        }
+        <div class="editorForm">
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Name)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @*@Name = "txtQLNameNew",*@
+                        @Html.TextBoxFor(model => model.Name, new { @id = "txtQLName", @class = "text-box", @maxlength = 128, @autocomplete = "off" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Name)</span>
+                        @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                        @Html.HiddenFor(model => model.Name, new { id = "hdnQLName" })
+                        @Html.HiddenFor(model => model.GUID)
+                        @Html.HiddenFor(model => model.Created)
+                        @Html.HiddenFor(model => model.LastUpdated)
+                        @Html.HiddenFor(model => model.CreatedBy)
+                        @Html.HiddenFor(model => model.LastUpdatedBy)
+                        @Html.HiddenFor(model => model.CompanyID)
+                        @Html.HiddenFor(model => model.Room)
+                        @Html.HiddenFor(model => model.RoomName)
+                        @Html.HiddenFor(model => model.CreatedByName)
+                        @Html.HiddenFor(model => model.UpdatedByName)
+                        @Html.HiddenFor(model => model.IsDeleted)
+                        @Html.HiddenFor(model => model.IsArchived)
+                        @Html.HiddenFor(model => model.ReceivedOn)
+                        @Html.HiddenFor(model => model.ReceivedOnWeb)
+                        @Html.HiddenFor(model => model.AddedFrom)
+                        @Html.HiddenFor(model => model.EditedFrom)
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Comment)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextAreaFor(model => model.Comment, new { id = "Comment", @class = "text-box", maxlength = 1024 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Comment)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Type)
+                    </div>
+                    <div class="editor-field">
+                        @* @Html.TextBoxFor(model => model.Type, new { id = "Type", @class = "text-box", maxlength = 128 })*@
+                        @if (Model.ID > 0)
+                        {
+                             @Html.DropDownListFor(model => model.Type, (List<SelectListItem>)ViewBag.QuickListType, new { id = "ddlType", @class = "selectBox", disabled= "disabled"})
+                        }
+                        else
+                        { 
+                            @Html.DropDownListFor(model => model.Type, (List<SelectListItem>)ViewBag.QuickListType, new { id = "ddlType", @class = "selectBox", @onchange = "QuickListTypeChange();" })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Type)</span>
+                        }
+                    </div>
+                    @Html.HiddenFor(model => model.Type)
+                </li>
+            </ul>
+        </div>
+        <div class="editorForm padRightNone">
+            <ul>
+                @Html.Partial("UDFLayout", new eTurns.DTO.ResQuickList())
+            </ul>
+        </div>
+        <div class="editorForm" style="width: 55%">
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="BtnBlockform">
+                        <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+                        @if (!Model.IsDeleted.GetValueOrDefault(false) && !Model.IsArchived.GetValueOrDefault(false))
+                        {
+                            if ((isInsert == true && Model.ID == 0) || (isUpdate == true && Model.ID > 0) || Convert.ToString(Session["IsInsert"]) == "True")
+                            {
+                                <input type="button" value="@eTurns.DTO.Resources.ResCommon.Save" onclick="return UpdateQLItemQty();" id="btnSave" class="CreateBtn" />
+                            }
+                            else //if (isUpdate == false && isInsert == false)
+                            {
+                                <script type="text/javascript">
+                                    disableControls('frmQuickList');
+                                </script>
+                            }
+                        }
+                    </div>
+                </li>
+                <li>
+                    <div class="BtnBlockform">
+                        @if (Model.ID > 0 && !Model.IsDeleted.GetValueOrDefault(false) && !Model.IsArchived.GetValueOrDefault(false))
+                        {
+                            if (isUpdate == true || Convert.ToString(Session["IsInsert"]) == "True")
+                            {
+                                <input type="button" value="@eTurns.DTO.Resources.ResCommon.AddNew " id="btnAddNewItem" class="CreateBtn" style="float: left;
+                                margin-left: 20px;" />
+                            }
+                        }
+                    </div>
+                </li>
+            </ul>
+        </div>
+        <div id="divQuickListItems">
+        </div>
+    </div>
+}
+<div id="ItemModel">
+</div>
+@Html.Partial("_RequiredMessages")
+<script type="text/javascript">
+
+    var QuicklistType = null;
+
+    $("form").submit(function (e) {
+        IsNarrowSearchRefreshRequired = false;
+        $.validator.unobtrusive.parse("#frmQuickList");
+        if ($(this).valid()) { //&& UpdateQLItemQty()
+            rememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        } e.preventDefault();
+    });
+    $('input#txtQLName').on('change', function (e) {
+        $('input#hdnQLName').val($(this).val());
+    });
+    $(document).ready(function () {
+        window.location.hash = '';
+        $('form').areYouSure();
+        $("#ItemModel").dialog({
+            autoOpen: false,
+            modal: true,
+            draggable: true,
+            resizable: true,
+            width: '82%',
+            height: 710,
+            title: '@eTurns.DTO.ResQuickList.ModelHeader',
+            open: function () {
+                var strUrl = $(this).data("url");
+                $("#ItemModel").load(strUrl);
+            },
+            close: function () {
+                $("#ItemModel").html('');
+                CallThisFunctionFromModel('success');
+                //oTable.fnDraw();
+                LoadQuicklistItems();
+            }
+        });
+
+        $("#divQuickListItems").on("click", "a.ShowAllOptions", function () {
+            $('#myDataTable1').find('input.OrdDetailAuto').off('focus');
+            $('#myDataTable1').find('input.OrdDetailAuto').on('focus');
+            $(this).siblings('.OrdDetailAuto').trigger("focus");
+            $(this).siblings(".OrdDetailAuto").autocomplete("search", " ");
+        });
+        $('#btnCancel').click(function (e) {
+            if (IsRefreshGrid)
+                $('#NarroSearchClear').click();
+
+            $('#divQuickListItems').html('');
+            SwitchTextTab(0, 'QuickListCreate', 'frmQuickList');
+            if (oTable !== undefined && oTable != null) {
+                oTable.fnDraw();
+                fillQLNarrowSearchDiv();
+            }
+            $("#tab6").hide();
+            $('#global_filter').val('');
+            $('#myDataTable').dataTable().fnFilter('', null, null, null);
+        });
+        checkRememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+
+        LoadQuicklistItems();
+
+        if ('@Model.IsDeleted.GetValueOrDefault(false)' === 'True' || '@Model.IsArchived.GetValueOrDefault(false)' === 'True') {
+            $(':input', '#frmQuickList')
+        .not('#btnCancel')
+        .attr('disabled', 'disabled');
+        }
+
+        if (parseInt('@Model.ID') <= 0) {
+            $('#bntAddNew').attr('style', 'display:none');
+        }
+        else {
+            $('#bntAddNew').attr('style', 'display:inline');
+        }
+
+        @*if (parseInt('@Model.ID') !== NaN && parseInt('@Model.ID') > 0)
+            $("#tab6").hide();*@
+    });
+
+    $('#btnAddNewItem').click(function () {
+        return OpenItemPopup();
+    });
+
+    function OpenItemPopup() {
+        if (parseInt('@Model.ID', 10) > 0) {
+            ClearVariables();
+            var strUrl = '@Url.Action("LoadItemMasterModel")';
+            strUrl = strUrl + '?ParentId=' + '@Model.ID';
+            strUrl = strUrl + '&ParentGuid=' + '@Model.GUID.ToString()';
+            strUrl = strUrl + '&QuicklistType=' + QuicklistType.toString();
+            $('#ItemModel').data("url", strUrl).dialog('open');
+            if ($("input#global_filter").length > 0) {
+                $("input#global_filter").focus();
+                setTimeout(function () {
+                    $("input#global_filter").focus();
+                }, 600);
+            }
+            if ($("input.searchinput").length > 0) {
+                $("input.searchinput").focus();
+                setTimeout(function () {
+                    $("input.searchinput").focus();
+                }, 600);
+
+            }
+        }
+        //return false;
+    }
+
+    function onSuccess(response) {
+
+        IsRefreshGrid = true;
+        IsRefreshGrid1 = true;
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#txtQLName").val("");
+            $("#txtQLName").focus();
+        }
+        else if (idValue == 0) {
+
+            $("#txtQLName").val("");
+            $("#txtQLName").focus();
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+                //$(".tab5").hide();
+                //TabItemClickedEdit("QuickListEdit/" + response.UpdatedDTO.ID, "frmQuickList");
+                NeedToOpenItemPopupNow = true;
+                ShowEditTabGUID("QuickListEdit?QuickListGUID=" + response.UpdatedDTO.GUID, "frmQuickList");
+                fillQLNarrowSearchDiv();
+            }
+        }
+        else if (idValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            }
+            else {
+                if (oTable !== undefined && oTable != null)
+                    oTable.fnDraw();
+
+                SwitchTextTab(0, 'QuickListCreate', 'frmQuickList');
+                fillQLNarrowSearchDiv();
+                $("#tab6").hide();
+            }
+        }
+
+    }
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        showNotificationDialog();
+        $("#txtQLName").focus();
+    }
+    function GetUDFValue(tr, udfName) {
+        var vUDF1 = '';
+        if ($(tr).find('#' + udfName) != null) {
+            if ($(tr).find('#' + udfName).attr("class") == 'selectBox') {
+                vUDF1 = $(tr).find('#' + udfName + ' option:selected').text();
+            }
+            else {
+                vUDF1 = $(tr).find('#' + udfName).val();
+            }
+        }
+        return vUDF1;
+    }
+
+    function UpdateQLItemQty() {
+
+        if ($.trim($("#QLItem_filter").val()).length > 0) {
+            funClearFilter1();
+        }
+
+        var arrObj = new Array();
+        var allowSubmit = true;
+        if ($('#myDataTable1 tbody tr').length == 1 && $('#myDataTable1 tbody tr').find('td').length == 1 &&
+            $('#myDataTable1 tbody tr').find('td').text().indexOf('No data available in table') >= 0) {
+            $("#frmQuickList").submit();
+        }
+        else {
+
+            $('#myDataTable1 tbody tr').each(function () {
+                var ID = $(this).find('#spnID').text();
+                var GUID = $(this).find('#spnGUID').text();
+                var ItemGUID = $(this).find('#spnQuickListItemGUID').text();
+                var Qty = $(this).find('#txtQLQty_' + ID).val();
+                var ConsignedQty = ($(this).find('#txtConsignedQty_' + ID).val() == 'NA' ? '0' : $(this).find('#txtConsignedQty_' + ID).val());
+
+                var BinName = $(this).find("#ddlItemSourceBinsQL").val();
+                if (QuicklistType == null || QuicklistType == undefined || QuicklistType != 3) {
+
+                    if (isNaN(parseFloat(Qty)) || parseFloat(Qty) <= 0) {
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html('@ResItemMaster.QuantitygreaterthanZero');
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $(this).find('#txtQLQty_' + ID).focus();
+                        allowSubmit = false;
+                        return false;
+                    }
+
+                }
+                else {
+                    if ((isNaN(parseFloat(Qty)) || parseFloat(Qty) <= 0) && (isNaN(parseFloat(ConsignedQty)) || parseFloat(ConsignedQty) <= 0) && (QuicklistType != 3)) {
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html('@ResQuickList.QuantityOrConsignedQtygreaterthanZero');
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $(this).find('#txtConsignedQty_' + ID).focus();
+                        allowSubmit = false;
+                        return false;
+                    }
+                }
+
+                var vUDF1 = GetUDFValue(this, 'UDF1');
+                var vUDF2 = GetUDFValue(this, 'UDF2');
+                var vUDF3 = GetUDFValue(this, 'UDF3');
+                var vUDF4 = GetUDFValue(this, 'UDF4');
+                var vUDF5 = GetUDFValue(this, 'UDF5');
+
+                var obj = {
+                    "GUID": GUID, "ItemGUID": ItemGUID, "Quantity": Qty, "BinName": BinName, "QuickListGUID": '@Model.GUID', "ConsignedQuantity": ConsignedQty,
+                    "UDF1": vUDF1, "UDF2": vUDF2, "UDF3": vUDF3, "UDF4": vUDF4, "UDF5": vUDF5
+                }
+                arrObj.push(obj);
+            });
+
+            if (allowSubmit) {
+                if (arrObj.length > 0) {
+                    $.ajax({
+                        url: '@Url.Content("~/QuickList/UpdateQLItemQtyData")'
+                        , type: 'POST'
+                        , cache: false
+                        , dataType: "json"
+                        , contentType: "application/json"
+                        , data: JSON.stringify(arrObj)
+                        , success: function (result) {
+                            if (result.success == 'ok') {
+                                $("#frmQuickList").submit();
+                            }
+                            else {
+                                showNotificationDialog();
+                                $("#spanGlobalMessage").html(result.Massage);
+                                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                                return false;
+                            }
+                        }, error: function (result) {
+                            showNotificationDialog();
+                            $("#spanGlobalMessage").html('@ResCommon.msgServerError');
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            return false;
+                        }
+                    });
+                }
+                else {
+                    $("#frmQuickList").submit();
+                }
+            }
+        }
+        $('#global_filter').val('');
+        $('#myDataTable').dataTable().fnFilter('', null, null, null);
+    }
+
+    function QuickListTypeChange() {
+        LoadQuicklistItems();
+    }
+
+    function LoadQuicklistItems() {        
+        QuicklistType = $('#ddlType').val();
+
+        if ('@Model.ID' > 0) {
+            $('#divQuickListItems').empty();
+            @*$('#divQuickListItems').load('@Url.Action("LoadQuickListItems", new { QuickListGUID = @Model.GUID })', function () { });*@
+            $('#divQuickListItems').load('LoadQuickListItems?QuickListGUID=' + '@Model.GUID.ToString()' + '&QuicklistType=' + QuicklistType.toString());
+
+            //// need to call below block in case of New Item saved and open POPUP Item ... START
+            if (NeedToOpenItemPopupNow) {
+                NeedToOpenItemPopupNow = false;
+                setTimeout("OpenItemPopup()", 3000);
+                return false;
+            }
+            //// need to call below block in case of New Item saved and open POPUP Item ... END
+        }
+    }
+
+    var timeoutsc1;
+    //$('#divQuickListItems').on('keyup', "input#QLItem_filter", function (e) {
+    //    var code = (e.keyCode ? e.keyCode : e.which);
+    //    if (code == 13) {
+    //    }
+    //    else {
+    //        clearTimeout(timeoutsc1);
+    //        var self = this;
+    //        timeoutsc1 = setTimeout(function () {
+    //            fnFilterGlobal1();
+    //        }, 500);
+    //    }
+    //});
+
+
+    //$('#divQuickListItems').on('keydown', "input#QLItem_filter", function (e) {
+    //    var code = (e.keyCode ? e.keyCode : e.which);
+    //    //alert(code + '  hi 2');
+    //    if (code == 13 && $("#QLItem_filter").val().length > 2) {
+    //        var searchtext = $("#QLItem_filter").val().replace(/'/g, "''");
+    //        $('#divQuickListItems').find('#myDataTable1').dataTable().fnFilter(searchtext, null, null, null);
+    //        return false;
+    //    }
+    //});
+
+    $('#divQuickListItems').on('click', '#clear_QLItem_filter', function (i) {
+        funClearFilter1();
+    });
+
+
+    function funClearFilter1() {
+        //Check length first
+        if ($("#QLItem_filter").val().length > 0) {
+            $("#QLItem_filter").val('');
+            $('#myDataTable1').dataTable().fnFilter($("#QLItem_filter").val().replace(/'/g, "''"), null, null, null);
+        }
+        $("#QLItem_filter").focus();
+        return false;
+    }
+
+
+
+
+    //Apply filter
+    //$("#global_filter").keyup(fnFilterGlobal);
+    var timeoutsc1;
+    $('#divQuickListItems').on('propertychange input', "#QLItem_filter", function () {
+        //SearchByBarcode(this);
+        clearTimeout(timeoutsc1);
+        var self = this;
+        timeoutsc1 = setTimeout(function () {
+            fnFilterGlobal1();
+        }, 500);
+    });
+
+    $('#divQuickListItems').on('keypress', "#global_filter", function (e) {
+        if (e.which == 13 && $("#global_filter").val().length >= 2) {
+            fnFilterGlobal1();
+        }
+    });
+
+    function fnFilterGlobal1() {
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#QLItem_filter") != 'undefined' && ($("#QLItem_filter").val().length >= 2 || $("#QLItem_filter").val().length == 0)) {
+            var searchtext = $("#QLItem_filter").val().replace(/'/g, "''");
+            //var char1 = "'";
+            //var searchtext = $("#QLItem_filter").val();
+            //if (searchtext.indexOf(char1) != -1) {
+            //    searchtext = $("#QLItem_filter").val().replace(/'/g, "");
+            //    $("#QLItem_filter").val(searchtext);
+            //}
+            $('#myDataTable1').dataTable().fnFilter(searchtext, null, null, null);
+        }
+        else {
+            $('#myDataTable1 td').removeHighlight();
+            $('#myDataTable1 td').highlight($("#QLItem_filter").val());
+        }
+    }
+
+
+    _Common.addRequiredSign();
+</script>

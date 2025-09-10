@@ -1,0 +1,298 @@
+﻿@model object
+@{ 
+    bool isSetMaxlength = false;
+    bool isUDFExist = false;
+    foreach (var i in ViewBag.UDFs)
+    {
+        int iMaxLength = 200;
+
+        if(i.UDFMaxLength != null && i.UDFMaxLength > 0)
+        {
+            iMaxLength = i.UDFMaxLength;
+        }
+
+        //System.Reflection.PropertyInfo propInfo = Model.GetType().GetProperty((string)i.UDFColumnName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.GetProperty | System.Reflection.BindingFlags.Static);
+        bool isUDFName = false;
+        if (i.UDFTableName.ToLower() != "companymaster" && i.UDFTableName.ToLower() != "enterprise" && i.UDFTableName.ToLower() != "room" && i.UDFTableName.ToLower() != "usermaster")
+        {
+            isUDFName = true;
+        }
+        if (eTurnsWeb.Helper.SessionHelper.RoomID > 0 && i.UDFTableName.ToLower() == "room")
+        {
+            isUDFName = true;
+        }
+        bool ForEnterPriseSetup = false;
+        if (i.UDFTableName.ToLower() == "usermaster")
+        {
+            ForEnterPriseSetup = true;
+        }
+        string UDFColumnName = string.Empty;
+        if (!Model.GetType().Name.ToLower().Contains("bom"))
+        {
+            UDFColumnName = eTurnsWeb.Helper.ResourceUtils.GetResource(Model.GetType().Name, (string)i.UDFColumnName, isUDFName, ForEnterPriseSetup: ForEnterPriseSetup); //Convert.ToString(propInfo.GetValue(Model.GetType(), null));
+        }
+        else
+        {
+            UDFColumnName = eTurnsWeb.Helper.ResourceUtils.GetResource(Model.GetType().Name, (string)i.UDFColumnName, false, ForEnterPriseSetup: ForEnterPriseSetup); //Convert.ToString(propInfo.GetValue(Model.GetType(), null));
+        }
+
+        //if (i.UDFTableName.ToLower() == "workorder" || i.UDFTableName.ToLower() == "requisitionmaster")
+        //{
+        //    isSetMaxlength = true;
+        //}
+
+        if (!i.IsDeleted && !String.IsNullOrEmpty(i.UDFControlType))
+        {
+            isUDFExist = true;
+        <li class="formaxlngt">
+            <div class="editor-label">
+                @*@Html.Label((string)i.UDFColumnName)*@
+                @Html.Label(UDFColumnName)
+                @if (i.UDFIsRequired)
+                {
+                    <em>*</em>
+                }
+            </div>
+            <div class="editor-field" id="UDFDiv">
+                @if (i.UDFTableName.ToLower() == "usermaster")
+                {
+                    <input type="hidden" id="UDFTableName" value="@i.UDFTableName" />
+                    <input type="hidden" id="UDFColumnName" value="@i.UDFColumnName" />
+                }
+                @if (i.UDFControlType.Trim().ToLower() == "textbox")
+                {
+                    <input type="checkbox" id="rem_@i.ID" name="rememberlist" uid="@i.UDFColumnName" utype="input" title="Remember Value" />
+                    //TextBox
+                    if (i.UDFIsRequired)
+                    {
+                        string requiredmsg = string.Format(ResCommon.RequiredFieldValidation, (string)i.UDFColumnName);
+                        @Html.TextBox((string)i.UDFColumnName, null, new { id = (string)i.UDFColumnName, @class = "text-box required", maxlength = @iMaxLength, @data_udfId = i.ID, @data_val = "true", @data_val_required = requiredmsg })
+                        <span class="ErrorMessage">@Html.ValidationMessage((string)i.UDFColumnName)</span>
+                    }
+                    else
+                    {
+                        @Html.TextBox((string)i.UDFColumnName, null, new { id = (string)i.UDFColumnName, @class = "text-box", maxlength = @iMaxLength, @data_udfId = i.ID })
+                        <span class="ErrorMessage">@Html.ValidationMessage((string)i.UDFColumnName)</span>
+                    }
+                }
+                else if (i.UDFControlType.Trim().ToLower() == "dropdown")
+                {
+                    <input type="checkbox" id="rem_@i.ID" name="rememberlist" uid="@i.UDFColumnName" utype="select" title="Remember Value" />
+
+                    //Dropdown
+                    <select id="drp_@i.ID" class="selectBox" style="width:110px" data-udfId="@i.ID"></select>
+
+                    if (i.UDFIsRequired)
+                    {
+                        string requiredmsg = string.Format(ResCommon.RequiredFieldValidation, (string)i.UDFColumnName);
+                        @Html.TextBox((string)i.UDFColumnName, null, new { id = (string)i.UDFColumnName, @class = "text-box required", maxlength = @iMaxLength, @style = "visibility:hidden;width:10px", @data_val = "true", @data_val_required = requiredmsg })
+                        <span class="ErrorMessage">@Html.ValidationMessage((string)i.UDFColumnName)</span>
+                    }
+                    else
+                    {
+                        @Html.TextBox((string)i.UDFColumnName, null, new { id = (string)i.UDFColumnName, @class = "text-box", maxlength = @iMaxLength, @style = "visibility:hidden;width:10px" })
+                    }
+                    <script type="text/javascript">
+
+                        $(document).ready(function () {
+                            var drpID = "drp_" + '@i.ID';
+                            UDFfillOptions('@i.ID', drpID, '@i.UDFColumnName', false);
+                            $(document).on("change", "#drp_" +@i.ID +"", function () {
+                                UDFtoggleControls("drp_" + '@i.ID', '@i.UDFColumnName', '@i.ID', false);
+                                if (!isNaN(parseInt($('select#' + drpID).val())) && parseInt($('select#' + drpID).val()) > 0) {
+                                    $('input#' + '@i.UDFColumnName').val($('select#' + drpID + ' option:selected').text()).trigger('blur');
+                                    $('select#' + drpID).focus();
+                                }
+                                else {
+                                    $('input#' + '@i.UDFColumnName').val('').trigger('blur');
+                                    $('select#' + drpID).focus();
+                                }
+                            });
+
+                        });
+
+                    </script>
+
+
+                }
+                else
+                {
+                    <input type="checkbox" id="rem_@i.ID" name="rememberlist" uid="@i.UDFColumnName" utype="editableselect" title="Remember Value" />
+                    <span style="position:relative">
+                        <input id="hdn_@i.ID" type="hidden" value="@i.ID" />
+                        @*//Editable Dropdown  *@
+                        @if (i.UDFIsRequired)
+                        {
+                            string requiredmsg = string.Format(ResCommon.RequiredFieldValidation, (string)i.UDFColumnName);
+                            @Html.TextBox((string)i.UDFColumnName, null, new { id = (string)i.UDFColumnName, @class = "text-box required udf-editable-dropdownbox", maxlength = @iMaxLength, @data_udfId = i.ID, @data_val = "true", @data_val_required = requiredmsg })
+                            <span class="ErrorMessage">@Html.ValidationMessage((string)i.UDFColumnName)</span>
+                        }
+                        else
+                        {
+                            @Html.TextBox((string)i.UDFColumnName, null, new { id = (string)i.UDFColumnName, @class = "text-box udf-editable-dropdownbox", maxlength = @iMaxLength, @data_udfId = i.ID })
+                        }
+                        <a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="show-all-options">
+                            <img src="~/Content/images/arrow_down_black.png" alt="select" />
+                        </a>
+                    </span>
+                    <script>
+                        $(document).ready(function () {
+                            var tmpUdfColumnName = '@i.UDFColumnName';
+                            if ('@i.UDFColumnName' != null && '@i.UDFTableName.ToLower()' == "toolcategorymaster") {
+                                tmpUdfColumnName = "frmToolCategory #" + '@i.UDFColumnName';
+                            }
+                            else if ('@i.UDFColumnName' != null && '@i.UDFTableName.ToLower()' == "locationmaster") {
+                                tmpUdfColumnName = "frmLocation #" + '@i.UDFColumnName';
+                            }
+                            setTimeout(function () { UDFfillEditableOptions('@i.ID', tmpUdfColumnName); }, 2000);
+                        });
+                    </script>
+                }
+            </div>
+        </li>
+        }
+    }
+    if (isUDFExist)
+    {
+        <div class="requiredField" id="UDFPreserveInfo">
+            <input type="checkbox" disabled="disabled" checked="checked" />&nbsp;@eTurns.DTO.Resources.ResMessage.UDFRememberMessage
+        </div>
+    }
+}
+
+<script type="text/javascript">
+
+    var entArr = ['10077'];
+    var vmUDF1Max = '30';
+    var vmUDF2Max = '30';
+    var vmUDF3Max = '30';
+    var vmUDF4Max = '30';
+    var vmUDF5Max = '30';
+    var MsgUDFOptionTryAnother = '@eTurns.DTO.ResUDFSetup.MsgUDFOptionTryAnother';
+    var MsgUDFOptionSaved = '@eTurns.DTO.ResUDFSetup.MsgUDFOptionSaved';
+    var MsgUDFOptionCanNotBlank = '@eTurns.DTO.ResUDFSetup.MsgUDFOptionCanNotBlank';
+    var MsgUDFSaveFirst = '@eTurns.DTO.ResUDFSetup.MsgUDFSaveFirst';
+
+
+    $(document).ready(function () {
+
+        $('.show-all-options').click(function () {
+            $(this).siblings(".udf-editable-dropdownbox").autocomplete("search", "");
+            $(this).siblings('.udf-editable-dropdownbox').trigger("focus");
+        });
+
+        if ('@isSetMaxlength' == "True") {
+            setUDFMaxLength();
+        }
+    });
+
+
+    function setUDFMaxLength() {
+        if ($('#ddlEnterprise').length > 0) {
+            var entVal = $('#ddlEnterprise').val();
+            if (entVal.length > 0) {
+                if (entArr.includes(entVal)) {
+
+                    $(".formaxlngt").find("input[type='text']").each(function (indx, objudffield) {
+                        var udfmxID = $(objudffield).attr("id").toLowerCase();
+                        var isudfvisible = $(objudffield).css('display');
+                        if (udfmxID == 'udf1' && isudfvisible != 'none') {
+                            $(objudffield).removeAttr("maxlength");
+                            $(objudffield).attr("maxlength", vmUDF1Max);
+                        }
+                        else if (udfmxID == 'udf2' && isudfvisible != 'none') {
+                            $(objudffield).removeAttr("maxlength");
+                            $(objudffield).attr("maxlength", vmUDF2Max);
+                        }
+                        else if (udfmxID == 'udf3' && isudfvisible != 'none') {
+                            $(objudffield).removeAttr("maxlength");
+                            $(objudffield).attr("maxlength", vmUDF3Max);
+                        }
+                        else if (udfmxID == 'udf4' && isudfvisible != 'none') {
+                            $(objudffield).removeAttr("maxlength");
+                            $(objudffield).attr("maxlength", vmUDF4Max);
+                        }
+                        else if (udfmxID == 'udf5' && isudfvisible != 'none') {
+                            $(objudffield).removeAttr("maxlength");
+                            $(objudffield).attr("maxlength", vmUDF5Max);
+                        }
+                    });
+                }
+            }
+        }
+    }
+
+    $('form').submit(function (evt) {
+        evt.preventDefault(); // prevent default form submit
+ 
+        if ($("input#UDFTableName").length > 0)
+        {
+          udftable = $("input#UDFTableName").val();
+
+        }
+        if (udftable == "UserMaster") {
+            var dataList = [];
+            var udftable = $("input#UDFTableName").length > 0 ? $("input#UDFTableName").val() : "";
+
+            $(this).find('.udf-editable-dropdownbox').each(function () {
+                dataList.push({
+                    UDFID: $(this).prev().val(),
+                    UDFOption: $(this).val(),
+                    UDFColumnName: $(this).parents("div#UDFDiv").find("input#UDFColumnName").val()
+                });
+            });
+
+            $.ajax({
+                url: '/UDF/InsertUDFOptionBulk',
+                type: 'POST',
+                data: JSON.stringify({ UDFTableName: udftable, Items: dataList }),
+                contentType: 'application/json',
+                success: function (response) {
+                    console.log(response);
+                }
+            });
+        }
+    });
+
+
+
+    $('form').submit(function (evt) {
+        var udftable = '';
+        if ($("input#UDFTableName").length > 0) {
+            udftable = $("input#UDFTableName").val();
+        }
+        if (udftable != "UserMaster") {
+            if ($(this).find('.udf-editable-dropdownbox').length > 0) {
+                $(this).find('.udf-editable-dropdownbox').each(function () {
+                    UDFInsertNew($(this).prev().val(), $(this).val(), $(this).parents("div#UDFDiv").find("input#UDFColumnName").val());
+                });
+            }
+        }
+    });
+
+    function UDFInsertNew(_UDFID, _UDFOption, _UDFColumnName) {
+
+        var actionURL;
+        var params;
+        var udftable = '';
+        if ($("input#UDFTableName").length > 0) {
+            udftable = $("input#UDFTableName").val();
+
+        }
+        if (_UDFID > 0) {
+
+            //Add Mode  - UDFOption
+            actionURL = '/UDF/InsertUDFOption';
+            params = { UDFID: _UDFID, UDFOption: _UDFOption, UDFTableName: udftable, UDFColumnName: _UDFColumnName }
+
+            $.ajax({
+                'url': actionURL,
+                data: params,
+                success: function (response) {
+                }
+            });
+
+        }
+    }
+
+</script>

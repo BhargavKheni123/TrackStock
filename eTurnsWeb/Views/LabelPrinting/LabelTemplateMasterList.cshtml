@@ -1,0 +1,525 @@
+﻿@{
+    ViewBag.Title = "Avery Template List";
+    var settings = new GridHeaderSettings() { DisplaySaveButton = false, ShowSelectAll = true, DisplayUDFButton = false, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "LabelTemplateMasterList", DisplayContextMenu = false };
+    //string LabelTemplateMasterPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Label Design.pdf", DateTime.Now.Ticks);
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Label Design", (int)HelpDocType.Module);
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script language="javascript" type="text/javascript">
+        var oTable;
+        var IsRefreshGrid = false;
+        var objColumns = {}
+        $(document).ready(function () {
+            LoadTabs();
+            var gaiSelected = [];
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "200%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[1, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+
+                    $(nRow).find('td').each(function (i) {
+                        if ($(this).hasClass("textbox")) {
+                            var strmDataProp = $('#myDataTable').dataTable().fnSettings().aoColumns[i].mDataProp;
+                            var txt = eval("aData." + strmDataProp);
+                            var txtID = "txt_" + strmDataProp;
+                            $(this).html('<input type="text"  id="' + txtID + '" maxlength="10" class="text-boxinner DecimalNumeric" style="width:50px" value="' + txt + '" /> ')
+                        }
+                    });
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'LabelTemplateMasterList' },
+                        "async": false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'LabelTemplateMasterList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/LabelPrinting/AjaxLabelTemplateList")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    if (oSettings.aaSorting.length != 0) {
+                        //aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                        var sortValue = "";
+                        for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                            if (sortValue.length > 0)
+                                sortValue += ", "
+                            sortValue += arrCols[oSettings.aaSorting[i][0]] + ' ' + oSettings.aaSorting[i][1];
+
+                        }
+                        aoData.push({ "name": "SortingField", "value": sortValue });
+                    }
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        cache: false,
+                        "url": sSource,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            //if ($("#global_filter").val() != '') {
+                            //    $('#myDataTable').highlight($("#global_filter").val());
+                            //}
+                            if ($("#global_filter").val() != '') {
+
+                                var SearchText = $("#global_filter").val();
+                                var count = (SearchText.match(/"/g) || []).length;
+
+                                if (count == 2 && SearchText.indexOf('"') == 0) {
+                                    SearchText = SearchText.replace('"', '').replace('"', '');
+                                    $('#myDataTable').highlight(SearchText);
+                                }
+                                if (count == 0) {
+                                    $('#myDataTable').highlight($("#global_filter").val());
+                                }
+                            }
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [{ "mDataProp": null, "sClass": "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' },
+                              { "mDataProp": "TemplateName", "sClass": "read_only" },
+                              { "mDataProp": "LabelSize", "sClass": "read_only" },
+                              { "mDataProp": "NoOfLabelPerSheet", "sClass": "read_only textbox" },
+                              { "mDataProp": "NoOfColumns", "sClass": "read_only textbox" },
+                              { "mDataProp": "PageMarginLeft", "sClass": "read_only textbox" },
+                              { "mDataProp": "PageMarginRight", "sClass": "read_only textbox" },
+                              { "mDataProp": "PageMarginTop", "sClass": "read_only textbox" },
+                              { "mDataProp": "PageMarginBottom", "sClass": "read_only textbox" },
+                              { "mDataProp": "LabelWidth", "sClass": "read_only textbox" },
+                              { "mDataProp": "LabelHeight", "sClass": "read_only textbox" },
+                              { "mDataProp": "LabelPaddingLeft", "sClass": "read_only textbox" },
+                              { "mDataProp": "LabelPaddingRight", "sClass": "read_only textbox" },
+                              { "mDataProp": "LabelPaddingTop", "sClass": "read_only textbox" },
+                              { "mDataProp": "LabelPaddingBottom", "sClass": "read_only textbox" },
+                              { "mDataProp": "LabelSpacingHorizontal", "sClass": "read_only textbox" },
+                              { "mDataProp": "LabelSpacingVerticle", "sClass": "read_only textbox" },
+                              { "mDataProp": "PageWidth", "sClass": "read_only textbox" },
+                              { "mDataProp": "PageHeight", "sClass": "read_only textbox" },
+                              { "mDataProp": "TemplateID", "sClass": "read_only"},
+                              { "mDataProp": "CompanyID", "sClass": "read_only"},
+                              { "mDataProp": "ID", "sClass": "read_only"}]
+            });
+            $('.DTTT_container').css('z-index', '-1');
+            $('.DTTT_container').css('display', 'none');
+
+            $("input.DecimalNumeric").live("keydown", function (event) {
+                if (event.shiftKey == true) {
+                    event.preventDefault();
+                }
+
+                if ((event.keyCode >= 48 && event.keyCode <= 57) ||
+                    (event.keyCode >= 96 && event.keyCode <= 105) ||
+                    event.keyCode == 8 || event.keyCode == 9 || event.keyCode == 37 ||
+                    event.keyCode == 39 || event.keyCode == 46 || event.keyCode == 190 || event.keyCode == 110) {
+                } else {
+                    event.preventDefault();
+                }
+
+                if ($(this).val().indexOf('.') !== -1 && (event.keyCode == 190 || event.keyCode == 110))
+                    event.preventDefault();
+            });
+
+
+        });
+         
+    </script>
+}
+<script type="text/javascript">
+    var TabsArry = [new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true)];
+    function callbackhistory() { } 
+</script>
+<div class="userListingWrapper">
+    <h2>
+        Avery Template List</h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        <ul class='tabs'>
+        </ul>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" /></a>
+                    </div>
+                    @*<input type="button" value="Search" class="searchBtn" />*@
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.GridTopHeader(settings)
+            <div class="userContent" style="width: 100%;">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.Name
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.LabelSize 
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.LabelsPerSheet
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.Columns
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.PageMarginLeft
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.PageMarginRight
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.PageMarginTop
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.PageMarginBottom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.LabelWidth
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.LabelHeight
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.LabelPaddingLeft
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.LabelPaddingRight
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.LabelPaddingTop
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.LabelPaddingBottom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.LabelSpacingHorizontal
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.LabelSpacingVerticle
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.PageWidth
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.PageHeight
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.TemplateID
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CompanyIDForCatalogReport
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+                
+                <div style="float: left; width: 50%; margin-left: 25px;">
+                    @if (0==1 && eTurnsWeb.Helper.SessionHelper.UserType == 1)
+                    {
+                        <input type="button" value="Save In eTurns Base" id="btnSave" class="GridBtnStyle inLineBtn" />
+                        <span style="width: 25px;"></span>
+                        <input type="button" value="Apply To All Enterprise" id="btnApplyToAllEnt" class="GridBtnStyle inLineBtn" />
+                        <span style="width: 25px;"></span>
+                        <span style="width: 25px;"></span>
+                        <span style="width: 25px;"></span>
+                        <input type="button" value="Save In Current Enterprise " id="btnSaveInCurrent" class="GridBtnStyle inLineBtn" />
+                        <span style="width: 25px;"></span>                        
+                    }                    
+                    else
+                    {
+                        <span style="width: 25px;"></span>
+                        <input type="button" value="@ResCommon.Save" id="btnSaveInCurrentCompany" class="GridBtnStyle inLineBtn" />
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>
+<script type="text/javascript" language="javascript">
+    $('#btnSave').live('click', function () {
+        $('#DivLoading').show();
+        var arrObj = new Array();
+        $('#myDataTable tbody tr.row_selected').each(function (i) {
+            var rowPosition = $('#myDataTable').dataTable().fnGetPosition(this);
+            var aData = $('#myDataTable').dataTable().fnGetData(rowPosition);
+            var str = '{"ID": "' + aData.ID + '"';
+            $(this).find('input[type="text"]').each(function (j) {
+                str += ', "' + $(this).attr('id').replace('txt_', '') + '": "' + $(this).val() + '"';
+            });
+            str += '}';
+            var obj = $.parseJSON(str);
+            arrObj.push(obj);
+        });
+        if (arrObj != null && arrObj.length > 0) {
+            $.ajax({
+                'url': '@Url.Content("~/LabelPrinting/UpdateDataInBaseTemplateMasterTable")',
+                'type': 'POST',
+                'data': JSON.stringify(arrObj),
+                'dataType': 'json',
+                'contentType': 'application/json',
+                'success': function (result) {
+                    $('#DivLoading').hide();
+                    $('#myDataTable').dataTable().fnDraw();
+                    alert(result.Massage);
+                },
+                'error': function (res) {
+                    $('#DivLoading').hide();
+                    alert('@ResCommon.ErrorInProcess');
+
+                }
+            });
+        }
+        else {
+            alert("@ResCommon.SelectRowToSave");
+        }
+    });
+
+    $('#btnApplyToAllEnt').live('click', function () {
+        $('#DivLoading').show();
+        $.ajax({
+            'url': '@Url.Content("~/LabelPrinting/UpdateAllEnterpriseTemplateMasterTable")',
+            'type': 'POST',
+            'dataType': 'json',
+            'success': function (result) {
+                $('#DivLoading').hide();
+                $('#myDataTable').dataTable().fnDraw();
+                alert(result.Massage);
+            },
+            'error': function (res) {
+                $('#DivLoading').hide();
+                alert('@ResCommon.ErrorInProcess');
+            }
+        });
+    });
+
+    $('#btnSaveInCurrent').live('click', function () {
+        $('#DivLoading').show();
+        var arrObj = new Array();
+        $('#myDataTable tbody tr.row_selected').each(function (i) {
+            var rowPosition = $('#myDataTable').dataTable().fnGetPosition(this);
+            var aData = $('#myDataTable').dataTable().fnGetData(rowPosition);
+            var str = '{"ID": "' + aData.ID + '"';
+            $(this).find('input[type="text"]').each(function (j) {
+                str += ', "' + $(this).attr('id').replace('txt_', '') + '": "' + $(this).val() + '"';
+            });
+            str += '}';
+            var obj = $.parseJSON(str);
+            arrObj.push(obj);
+        });
+        if (arrObj != null && arrObj.length > 0) {
+            $.ajax({
+                'url': '@Url.Content("~/LabelPrinting/UpdateDataInCurrentDBTemplateMasterTable")',
+                'type': 'POST',
+                'data': JSON.stringify(arrObj),
+                'dataType': 'json',
+                'contentType': 'application/json',
+                'success': function (result) {
+                    $('#DivLoading').hide();
+                    $('#myDataTable').dataTable().fnDraw();
+                    alert(result.Massage);
+                },
+                'error': function (res) {
+                    $('#DivLoading').hide();
+                    alert('@ResCommon.ErrorInProcess');
+
+                }
+            });
+        }
+        else {
+            alert("@ResCommon.SelectRowToSave");
+        }
+    });
+
+
+    $('#btnSaveInCurrentCompany').live('click', function () {
+        $('#DivLoading').show();
+        var arrObj = new Array();
+        $('#myDataTable tbody tr.row_selected').each(function (i) {
+            var rowPosition = $('#myDataTable').dataTable().fnGetPosition(this);
+            var aData = $('#myDataTable').dataTable().fnGetData(rowPosition);
+            var str = '{"ID": "' + aData.ID + '"';
+            str += ', "CompanyID": "' + aData.CompanyID + '"';
+            str += ', "TemplateID": "' + aData.TemplateID + '"';
+            $(this).find('input[type="text"]').each(function (j) {
+                str += ', "' + $(this).attr('id').replace('txt_', '') + '": "' + $(this).val() + '"';
+            });
+            str += '}';
+            var obj = $.parseJSON(str);
+            arrObj.push(obj);
+        });
+        if (arrObj != null && arrObj.length > 0) {
+            $.ajax({
+                'url': '@Url.Content("~/LabelPrinting/UpdateDataInCurrentDBTemplateMasterTable")',
+                'type': 'POST',
+                'data': JSON.stringify(arrObj),
+                'dataType': 'json',
+                'contentType': 'application/json',
+                'success': function (result) {
+                    $('#DivLoading').hide();
+                    $('#myDataTable').dataTable().fnDraw();
+                    alert(result.Massage);
+                },
+                'error': function (res) {
+                    $('#DivLoading').hide();
+                    alert('@ResCommon.ErrorInProcess');
+
+                }
+            });
+        }
+        else {
+            $('#DivLoading').hide();
+            alert("@ResCommon.SelectRowToSave");
+        }
+    });
+</script>

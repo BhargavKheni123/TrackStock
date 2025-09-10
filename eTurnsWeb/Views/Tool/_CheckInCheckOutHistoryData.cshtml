@@ -1,0 +1,317 @@
+﻿@model IEnumerable<eTurns.DTO.ToolCheckInOutHistoryDTO>
+@{
+
+    bool AllowCheckinCheckOut = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowCheckInCheckout);
+    var settings = new GridHeaderSettings() { DisplaySaveButton = false, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "CheckinCheckOutHistoryList" };
+}
+
+
+<script type="text/javascript" src="@Url.Content("~/Scripts/DynemicDataTable.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+<script>
+    var allowCheckinCheckOut = false;
+
+    if('@AllowCheckinCheckOut' == 'True')
+    {
+        allowCheckinCheckOut =true;
+    }
+
+</script>
+<style type="text/css">
+    .TableTools {
+        display: none;
+    }
+</style>
+<div class="innerGrid" style="background: none repeat scroll 0 0 #F8F8F8; padding: 10px 0 0 28px">
+    <table width="100%">
+        <tr>
+            <td class="BtnBlock" style="float: none; border: 1px solid #F8F8F8; height: 2px;">
+
+                <div class="innerHeadSec">
+                    <div style="position: absolute; left: 400px; top: -9px; width: 350px; z-index: 10;">
+                        @Html.GridInnerGridTopHeader(settings)
+                    </div>
+
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding-top: 14px; padding-bottom: 35px; border: 1px solid #F8F8F8;">
+                <div class="userContentInnerGrid">
+                    <table id="ToolChekinCheckoutHistoryTable@(ViewBag.ToolGUID)" class="display" style="width:800px;">
+                        <thead>
+                            <tr>
+                                <th>
+                                    @ResItemMaster.Expand
+                                </th>
+                                <th class="NotHide">
+                                    @ResToolCheckInOutHistory.Action
+                                </th>
+                                @*<th class="NotHide">
+                        @ResToolCheckInOutHistory.CheckinQuantity
+                    </th>*@
+                                <th>
+                                    @ResToolCheckInOutHistory.CheckOutDate
+                                </th>
+                                <th>
+                                    @ResToolMaster.Quantity
+                                </th>
+                                <th class="NotHide">
+                                    @ResToolCheckInOutHistory.CurrentAvalQty
+                                </th>
+                                <th>
+                                    @ResToolCheckInOutHistory.RemainingQty
+                                </th>
+                                <th>
+                                    @ResToolMaster.ForMaintanence
+                                </th>
+                                <th>
+                                    @ResToolMaster.CheckedOutBy
+                                </th>
+                                <th>
+                                    @ResToolMaster.UpdatedDate
+                                </th>
+                                <th>
+                                    @ResToolMaster.UpdatedBy
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.AddedFrom
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.EditedFrom
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                                </th>
+                                <th class="NotHide">
+                                    @eTurns.DTO.Resources.ResCommon.Technician
+                                </th>
+                                <th class="NotHide">
+                                    SerialNumber
+                                </th>
+                                @Html.RenderColumnsHeader("ToolCheckInOutHistory", typeof(eTurns.DTO.ResToolCheckInOutHistory), "")
+
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <div style="clear: both; width: 90%; margin-top: 10px;">
+                        <input type="button" value="@eTurns.DTO.ResToolMaster.ToolCheckInAllButton" id="btnToolCheckInAllNewFlow" class="CreateBtn" style="float: left;display:none; " />
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<input type="hidden" id="hdnListName" value="CheckinCheckOutList" />
+<input type="hidden" id="hdnGuid" value="'@ViewBag.ToolGUID'" />
+<script type="text/javascript">
+    var sImageUrl1 = "/Content/images/";
+    var anOpen1 = [];
+     var toolCheckInChekOutHistoryTableColumns;
+     $(document).ready(function () {
+        objColumns = GetGridHeaderColumnsObject('ToolChekinCheckoutHistoryTable' + '@(ViewBag.ToolGUID)');
+        toolCheckInChekOutHistoryTableColumns = objColumns;
+        BindReorderInnerGridPopUpAndEvents(true);
+    });
+    $(function (event) {
+
+        //AllowDeletePopup = false;
+        var tempCount = 1
+        var ColumnObject = new Array();
+        ColumnObject.push(
+        {
+            "mDataProp": null,
+            "bSortable": false,
+
+            "sClass": "read_only control1 center",
+            "sDefaultContent": '<img src="' + sImageUrl1 + 'drildown_open.jpg' + '">'
+        });
+        ColumnObject.push(
+        {
+            mDataProp: null, sClass: "read_only",
+            sClass: "read_only", bSortable: false, sDefaultContent: '',
+            fnRender: function (obj, val) {
+                if (obj.aData.CheckOutStatus == "Check Out") {
+
+                    if (obj.aData.CheckedOutMQTY > 0) {
+                        tempCount = obj.aData.CheckedOutMQTY - obj.aData.CheckedOutMQTYCurrent;
+                    }
+                    else {
+                        tempCount = obj.aData.CheckedOutQTY - obj.aData.CheckedOutQTYCurrent;
+                    }
+                    if (tempCount == 0 || (!allowCheckinCheckOut))
+                        return "<span id='spnCheckInCheckOutID'  style='display:none'>" + obj.aData.GUID + "</span>";
+                    else
+                        return "<span id='spnCheckInCheckOutID'  style='display:none'>" + obj.aData.GUID + "</span>";
+                        //return "";
+                }
+                else
+                    return "";
+            }
+        });
+
+        ColumnObject.push({
+            mDataProp: "CheckOutDate", sClass: "read_only", fnRender: function (obj, val) { //return GetDateInFullFormat(val);
+                return obj.aData.CheckOutedDate;
+            }
+        });
+        ColumnObject.push({
+            mDataProp: "CheckedOutQTY", sClass: "read_only",
+            "fnRender": function (obj, val) {
+                if (obj.aData.CheckedOutQTY > 0) {
+                    return obj.aData.CheckedOutQTY == null ? FormatedCostQtyValues(0, 2) : FormatedCostQtyValues(obj.aData.CheckedOutQTY, 2);
+                }
+                else {
+                    return obj.aData.CheckedOutMQTY == null ? 0 : FormatedCostQtyValues(obj.aData.CheckedOutMQTY, 2);
+                }
+            }
+        });
+        ColumnObject.push({
+            "mDataProp": null,
+            "bSortable": false,
+            "sClass": "read_only",
+            "sDefaultContent": '',
+            "fnRender": function (obj, val) {
+                if (obj.aData.CheckedOutMQTY > 0) {
+                    return obj.aData.CheckedOutMQTYCurrent == null ? FormatedCostQtyValues(0, 2) : FormatedCostQtyValues(obj.aData.CheckedOutMQTYCurrent, 2) + "<span id='spnCheckedOutMQTYCurrent' style='display:none'>" + obj.aData.CheckedOutMQTYCurrent + "</span>" + "<span id='spnCheckedOutQTYCurrent' style='display:none'>" + obj.aData.CheckedOutQTYCurrent + "</span>";
+                }
+                else {
+                    return obj.aData.CheckedOutQTYCurrent == null ? FormatedCostQtyValues(0, 2) : FormatedCostQtyValues(obj.aData.CheckedOutQTYCurrent, 2) + "<span id='spnCheckedOutMQTYCurrent' style='display:none'>" + obj.aData.CheckedOutMQTYCurrent + "</span>" + "<span id='spnCheckedOutQTYCurrent' style='display:none'>" + obj.aData.CheckedOutQTYCurrent + "</span>";;
+                }
+            }
+        });
+        ColumnObject.push({
+            mDataProp: null, sClass: "read_only", "sDefaultContent": '',
+            "fnRender": function (obj, val) {
+                if (obj.aData.CheckedOutMQTY > 0) {
+                    return FormatedCostQtyValues(obj.aData.CheckedOutMQTY - obj.aData.CheckedOutMQTYCurrent, 2);
+                }
+                else {
+                    return FormatedCostQtyValues(obj.aData.CheckedOutQTY - obj.aData.CheckedOutQTYCurrent, 2);
+                }
+            }
+        });
+        ColumnObject.push({
+            mDataProp: null, sClass: "read_only", "sDefaultContent": '',
+            "fnRender": function (obj, val) {
+                if (obj.aData.CheckedOutMQTY > 0) {
+                    return "Yes";
+                }
+                else {
+                    return "No";
+                }
+            }
+        });
+        ColumnObject.push({ mDataProp: "UpdatedByName", sClass: "read_only" });
+        //ColumnObject.push({ mDataProp: "Updated", sClass: "read_only", fnRender: function (obj, val) { return GetDateInFullFormat(val); } });
+        ColumnObject.push({ mDataProp: "Updated", sClass: "read_only", fnRender: function (obj, val) { return obj.aData.UpdatedDate; } });
+
+        ColumnObject.push({ mDataProp: "UpdatedByName", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "AddedFrom", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "EditedFrom", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "ReceivedOn", sClass: "read_only", fnRender: function (obj, val) { return obj.aData.ReceivedOnDate; } });
+        ColumnObject.push({ mDataProp: "ReceivedOnWeb", sClass: "read_only", fnRender: function (obj, val) { return obj.aData.ReceivedOnDateWeb; } });
+        //        ColumnObject.push({ mDataProp: "ReceivedOnDate", sClass: "read_only" });
+        //        ColumnObject.push({ mDataProp: "ReceivedOnDateWeb", sClass: "read_only" });
+
+        ColumnObject.push({
+            mDataProp: "Technician", sClass: "read_only", bSortable: false, fnRender: function (obj, val) {
+                var Technician = obj.aData.Technician;
+                if (Technician == '' || Technician == null)
+                {
+                    Technician = '';
+                }
+                var TechnicianCode = obj.aData.TechnicianCode;
+                if (TechnicianCode == '' || TechnicianCode == null) {
+                    TechnicianCode = '';
+                }
+                if (Technician != '') {
+                    return "<span id='spanTechName'>" + TechnicianCode + " --- " + Technician + "</span><input type='hidden' value='" + obj.aData.TechnicianGuid + "' id='hdntechGuid'/>";
+                }
+                else
+                {
+                    return "<span id='spanTechName'>" + TechnicianCode + "</span><input type='hidden' value='" + obj.aData.TechnicianGuid + "' id='hdntechGuid'/>";
+                }
+            }
+        });
+        ColumnObject.push({ mDataProp: "SerialNumber", sClass: "read_only" });
+        ColumnObject.push(@Html.RenderColumnsArray("ToolCheckInOutHistory", false, ""));
+
+
+        PrepareItemLocationDataTable("ToolChekinCheckoutHistoryTable", '@ViewBag.ToolGUID', '@Url.Content("~/Tool/CheckInCheckOutHistoryListAjax")', 'CheckinCheckOutHistoryList', ColumnObject);
+
+
+
+        /*Functions used for nasted data binding START*/
+        $("#" + "ToolChekinCheckoutHistoryTable" + '@ViewBag.ToolGUID').on("click", "td.control1", function (event) {
+
+            var nTr1 = this.parentNode;
+            var i1 = $.inArray(nTr1, anOpen1);
+
+            if (i1 === -1) {
+
+                $('img', this).attr('src', sImageUrl1 + "drildown_close.jpg");
+                $("#" + "ToolChekinCheckoutHistoryTable" + '@ViewBag.ToolGUID').DataTable().fnOpen(nTr1, fnFormatDetails1($("#" + "ToolChekinCheckoutHistoryTable" + '@ViewBag.ToolGUID').DataTable(), nTr1), '');
+                anOpen1.push(nTr1);
+            }
+            else {
+                $('img', this).attr('src', sImageUrl1 + "drildown_open.jpg");
+                $("#" + "ToolChekinCheckoutHistoryTable" + '@ViewBag.ToolGUID').DataTable().fnClose(nTr1);
+                anOpen1.splice(i1, 1);
+                // $("#" + "ToolChekinCheckoutHistoryTable" + '@ViewBag.ToolGUID').DataTable().fnDraw();
+            }
+        });
+
+        function fnFormatDetails1(oTable1, nTr1) {
+            var oData1 = $("#" + "ToolChekinCheckoutHistoryTable" + '@ViewBag.ToolGUID').DataTable().fnGetData(nTr1);
+            var sOut1 = '';
+            $('#DivLoading').show();
+            $.ajax({
+                "url": '@Url.Content("~/Tool/CheckInData")',
+                data: { CheckInCheckOutGUID: oData1.GUID,ToolGuid: '@ViewBag.ToolGUID' },
+                "async": false,
+                cache: false,
+                "dataType": "text",
+                "success": function (json) {
+                    sOut1 = json;
+                    $('#DivLoading').hide();
+                },
+                error: function (response) {
+                }
+            });
+
+            return sOut1;
+        }
+        /*Functions used for nasted data binding END*/
+
+        $("#" + "ToolChekinCheckoutHistoryTable" + '@ViewBag.ToolGUID' + '_wrapper .ColVis').css({ 'left': '780px' });
+
+    });
+    function DeleteItemLocatino() {
+        DeleteDynemicTableData_New($("#" + "ToolChekinCheckoutHistoryTable" + '@ViewBag.ToolGUID').DataTable(), '@Url.Content("~/Tool/DeleteCheckInCheckOutRecords")');
+    }
+    function InnerGridColumnAndTableRebinding() {
+        oTableGlobalTABLE = $("#" + "ToolChekinCheckoutHistoryTable" + '@ViewBag.ToolGUID').dataTable();
+        objColumns = toolCheckInChekOutHistoryTableColumns;
+    }
+    function InnerGridReloadAfterReorder() {
+        var anOpenToolCheckOuts = [];
+        anOpenToolCheckOuts = anOpen1;
+
+        $('#THLDataTable').find("tbody tr").each(function (index, tr) {
+            if ($(tr).find('#hdnGUID').val() == '@(ViewBag.ToolGUID)') {
+                $(tr).find('img.Expand').click(); //$(tr).find('img.ExpandLocationSerials').click();
+                $(tr).find('img.Expand').click();
+                //ToolIDToOpen = '';
+                return;
+            }
+        });
+    }
+    $("a#ColumnOrderSetupInnerGrid").on("click", function () {
+        $("#ColumnSortableModalInnerGrid").dialog("open");
+    });
+</script>
+

@@ -1,0 +1,215 @@
+@{
+    ViewBag.Title = "Report Setting";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@{ 
+    
+    List<EnterpriseDTO> lstEnterpriseList = new eTurnsMaster.DAL.EnterpriseMasterDAL().GetAllEnterprisesPlain();
+
+    List<ReportMasterDTO> lstReportMaster = new List<ReportMasterDTO>();
+
+    lstReportMaster = new eTurns.DAL.ReportMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetAllBaseReport(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID,false,false).ToList();
+}
+
+<div class="userListingWrapper">
+    <h2>
+        Report Setting
+    </h2>
+    <div class="userListBlock">
+        <div id="Ctab" class="tabContener" style="display: block; width: 100%;float:left;">
+            @if (eTurnsWeb.Helper.SessionHelper.RoleID == -1)
+            {
+                <div class="editorForm">
+                    <ul>
+                        <li>
+                            <div class="editor-label">
+                                <label>
+                                    Enterprise
+                                </label>
+                            </div>
+                            <div class="editor-field rightEdit">
+                                @Html.DropDownList("ddlEnterpriseList", new SelectList((IEnumerable<eTurns.DTO.EnterpriseDTO>)lstEnterpriseList, "ID", "Name"), new { id = "ddlEnterpriseList", @class = "text-box", multiple = "multiple" })
+                            </div>
+                        </li>
+                        <li>&nbsp;</li>
+                        <li>
+                            <div class="editor-label">
+                                <label>
+                                    Master Reports
+                                </label>
+                            </div>
+                            <div class="editor-field rightEdit">
+                                @Html.DropDownList("ddlMasterReport", new SelectList((IEnumerable<eTurns.DTO.ReportMasterDTO>)lstReportMaster, "ID", "ReportName"), new { id = "ddlMasterReport", @class = "text-box", multiple = "multiple" })
+                            </div>
+                        </li>
+                        <li>&nbsp;</li>
+                        <li>
+                            <div class="editor-label">
+                                <input type="checkbox" id="chkOverwrite" />
+                                <label>
+                                    Overwirte Existing Reports
+                                </label>
+                            </div>
+                            <div class="editor-label">
+                                <input type="checkbox" id="chkOverwriteRPTFeilds" />
+                                <label>
+                                    Overwirte Existing Reports Data Set Fields
+                                </label>
+                            </div>
+                        </li>
+                      
+                        <li>
+                            <div class="editor-label">
+                                <input type="button" style="float: left;" value="Update" class="CreateBtn" id="btnupdate" />
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <br />
+                <br />
+                <br />
+                <br />
+                <br />
+                <br />
+                <br />
+
+                <div id="divImportNewFile" style="display: block;float:left;width:100%;">
+                    @using (Html.BeginForm("ImportNewReportFile", "ReportBuilder", FormMethod.Post, new { @enctype = "multipart/form-data", @id = "frmImportNewReportFile" }))
+                {
+                        @Html.AntiForgeryToken()
+                        <div style="display: block;float:left;width:30%;">
+                            <br />
+                            <label>
+                                Please Select Report File:
+                            </label>
+                            <input type="hidden" id="hdnEntList" name="hdnEntList" value="" />
+                            <input type="file" name="fuResource" id="fuResource" />
+                            <br />
+                            <input type="submit" class="CreateBtn" value="Upload Report" id="btnUploadReport"
+                                   name="btnUploadReport" />
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+    </div>
+
+</div>
+
+<script type="text/javascript" language="javascript">
+
+    var SelectedReportValues = '';
+    var SelectedEnterpriseValues = '';
+
+    $(document).ready(function () {
+
+        bindEnterpriseMultiSelect();
+        bindReportMultiSelect();
+
+        $('#btnupdate').click(function (e) {
+            
+            $('#DivLoading').show();
+            var OverwirteExisting = $('#chkOverwrite').is(':checked');
+            var OverwirteRPTFieldsExisting = $('#chkOverwriteRPTFeilds').is(':checked');
+            
+            $.ajax({
+                url: '@Url.Content("~/ReportBuilder/UpdateChildEntReport")',
+                data: JSON.stringify({ 'OverwriteExisting': OverwirteExisting, 'OverwirteReportField': OverwirteRPTFieldsExisting, 'SelectedEnterprise': SelectedEnterpriseValues.join(','), 'SelectedReport': SelectedReportValues.join(',') }),
+                dataType: 'json',
+                contentType: 'application/json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (result) {
+                    $('#DivLoading').hide();
+                    alert(result.Message);
+                },
+                error: function (result) {
+                    $('#DivLoading').hide();
+                    alert('@ResCommon.ErrorInProcess');
+                }
+            });
+        });
+    });
+
+
+    function bindEnterpriseMultiSelect() {
+        $("#ddlEnterpriseList").multiselect
+        (
+        
+            {
+
+                noneSelectedText: 'Enterprises', selectedList: 5,
+                selectedText: function (numChecked, numTotal, checkedItems) {
+                    return 'Enterprises' + ' ' + numChecked + ' ' + selected;
+                }
+            },
+            {
+                checkAll: function (ui) {
+                    //$("#ddlAllowedIMMActionsCollapse").html('');
+                    for (var i = 0; i <= ui.target.length - 1; i++) {
+                        //if ($("#ddlAllowedIMMActionsCollapse").text().indexOf(ui.target[i].text) == -1) {
+                        //    $("#ddlAllowedIMMActionsCollapse").append("<span>" + ui.target[i].text + "</span>");
+                        //}
+                    }
+                    //$("#ddlAllowedIMMActionsCollapse").show();
+                }
+            }
+        )
+        .bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+
+            SelectedEnterpriseValues = $.map($(this).multiselect("getChecked"), function (input) {
+
+                return input.value;
+            })
+
+            $("#hdnEntList").val(SelectedEnterpriseValues);
+
+            //  alert(AllowedIMMActionsValues);
+
+
+        }).multiselectfilter();
+    }
+
+  
+
+    function bindReportMultiSelect() {
+
+        $("#ddlMasterReport").multiselect
+        (
+            {
+                noneSelectedText: 'Reports', selectedList: 5,
+                selectedText: function (numChecked, numTotal, checkedItems) {
+                    return 'Reports' + ' ' + numChecked + ' ' + selected;
+                }
+            },
+            {
+                checkAll: function (ui) {
+                    //$("#ddlAllowedIMMActionsCollapse").html('');
+                    for (var i = 0; i <= ui.target.length - 1; i++) {
+                        //if ($("#ddlAllowedIMMActionsCollapse").text().indexOf(ui.target[i].text) == -1) {
+                        //    $("#ddlAllowedIMMActionsCollapse").append("<span>" + ui.target[i].text + "</span>");
+                        //}
+                    }
+                    //$("#ddlAllowedIMMActionsCollapse").show();
+                }
+            }
+        )
+        .bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+
+            SelectedReportValues = $.map($(this).multiselect("getChecked"), function (input) {
+
+                return input.value;
+            })
+
+            //  alert(AllowedIMMActionsValues);
+
+
+        }).multiselectfilter();
+    }
+
+ 
+
+</script>

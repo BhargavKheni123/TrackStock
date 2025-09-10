@@ -1,0 +1,759 @@
+﻿@model eTurns.DTO.WorkOrderDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    Model.SignaturePath = "";
+    string priceformate1 = "N" + eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits.ToString();
+    if (Model.IsSignatureCapture && !string.IsNullOrEmpty(Model.SignatureName))
+    {
+        Model.SignaturePath = Url.Content("~/Uploads/WorkOrderSignature/") + Model.CompanyID.ToString() + "/" + Model.SignatureName;
+    }
+    List<SelectListItem> lstItems = new List<SelectListItem>();
+    lstItems.Add(new SelectListItem() { Text = "", Value = "0" });
+    lstItems.Add(new SelectListItem() { Text = "Mileage", Value = Convert.ToString((int)MaintenanceScheduleType.Mileage) });
+    lstItems.Add(new SelectListItem() { Text = "Operation Hours", Value = Convert.ToString((int)MaintenanceScheduleType.OperationalHours) });
+    ToolsMaintenanceDTO objToolsMaintenanceDTO = ViewBag.MntsDTO;
+    bool dispalytrackingdrp = false;
+    string Msrmntname = string.Empty;
+    if (objToolsMaintenanceDTO.TrackngMeasurement == (int)MaintenanceScheduleType.TimeBase)
+    {
+        dispalytrackingdrp = true;
+    }
+    if (objToolsMaintenanceDTO.TrackngMeasurement == (int)MaintenanceScheduleType.TimeBase)
+    {
+        Msrmntname = ResToolsScheduler.TimeBased;
+    }
+    else if (objToolsMaintenanceDTO.TrackngMeasurement == (int)MaintenanceScheduleType.OperationalHours)
+    {
+        Msrmntname = ResToolsScheduler.OperationalHours;
+    }
+    else
+    {
+        Msrmntname = ResToolsScheduler.Mileage;
+    }
+    string CurrencySymbol = "";
+    if (eTurnsWeb.Helper.SessionHelper.CurrencySymbol != null
+        && !string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.CurrencySymbol))
+    {
+        CurrencySymbol = eTurnsWeb.Helper.SessionHelper.CurrencySymbol;
+    }
+}
+@{
+    bool isUpdate;
+    bool isInsert;
+    bool onlyView = false;
+    bool isInsertPull;
+    if (ViewBag.ViewOnly == true)
+    {
+        isUpdate = false;
+        isInsert = false;
+        onlyView = true;
+        isInsertPull = false;
+    }
+    else
+    {
+        isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.WorkOrders, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+        isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.WorkOrders, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+        isInsertPull = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.PullMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    }
+}
+@using (Ajax.BeginRouteForm("Default", new { @controller = "WorkOrder", @action = "SaveWO" }, new AjaxOptions() { HttpMethod = "Post", OnSuccess = "onSuccess", OnFailure = "onFailure" }, new { @id = "frmWOMaster" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="userHead">
+        @Html.ValidationSummary(true)
+        @if (Model.ID != 0)
+        {
+            <div class="infoBlock">
+                <ul>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.RoomName)
+                        </label>
+                        : <span>@(Model.RoomName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Created)
+                        </label>
+                        : <span>@(Model.ReceivedOnWebDate)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.CreatedByName)
+                        </label>
+                        : <span>@(Model.CreatedByName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Updated)
+                        </label>
+                        : <span>@(Model.ReceivedOnDate)</span>
+                    </li>
+                    <li style="border: none">
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.UpdatedByName)
+                        </label>
+                        : <span>@(Model.UpdatedByName)</span>
+                    </li>
+                    @* <li style="border: none; text-align: right;"><a onclick="window.open('/Reports/Transaction/WorkOrder?Ids=@Model.ID','_blank')" href="javascript:void(null);">
+                                <img src="../../Content/images/print.png" title="Print WorkOrder" /></a> <a onclick="callPrintTransaction('','WorkOrder',false,@Model.ID,'','');" href="javascript:void(null);">
+                                    <img src="@Url.Content("~/Content/images/print.png")" title="Print WorkOrder" /></a>
+                        </li>*@
+                    <li style="border: none; text-align: right;">
+                        <a onclick="ReportExecutionSingleRecord('WorkOrder','@Model.GUID');" href="javascript:void(null);">
+                            <img src="@Url.Content("~/Content/images/print.png")" title="Print WorkOrder" />
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        }
+        <div style="clear: both; padding-top: 15px">
+            <a id="ancHideShowContent" style="float: left; margin-top: 8px; margin-left: 10px">
+                <img src="/Content/images/drildown_open.jpg" alt="" />
+            </a>
+            <div class="infoBlock" style="width: 95%; margin-left: 10px; background: none">
+                <div id="CollapsedContent" class="edtForm">
+                    <ul>
+                        <li style="border-right: none; padding: 0px; background: none;">
+                            <label for="label" style="width: 100px; float: left; padding: 1.3% 0;">
+                                @Html.LabelFor(model => model.WOName)<em style="color: Red">*</em>
+                            </label>
+                            @if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL))
+                            {
+                                @Html.TextBoxFor(model => model.WOName, new { id = "txtWONAme", @class = "text-box", @style = "background:white", maxlength = 22, @autocomplete = "off" })
+                            }
+                            else
+                            {
+                                @Html.TextBoxFor(model => model.WOName, new { id = "txtWONAme", @class = "text-box", @style = "background:white", maxlength = 128, @autocomplete = "off" })
+                            }
+
+                            @*@Html.EditorFor(model => model.WOName)*@
+                            <br />
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.WOName)</span>
+                            @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                            @Html.HiddenFor(model => model.GUID)
+                            @Html.HiddenFor(model => model.Created)
+                            @Html.HiddenFor(model => model.Updated)
+                            @Html.HiddenFor(model => model.CreatedBy)
+                            @Html.HiddenFor(model => model.LastUpdatedBy)
+                            @Html.HiddenFor(model => model.Room)
+                            @Html.HiddenFor(model => model.RoomName)
+                            @Html.HiddenFor(model => model.CompanyID)
+                            @Html.HiddenFor(model => model.CreatedByName)
+                            @Html.HiddenFor(model => model.UpdatedByName)
+                            @Html.HiddenFor(model => model.IsDeleted)
+                            @Html.HiddenFor(model => model.IsArchived)
+                            @Html.HiddenFor(model => model.Technician)
+                            @Html.HiddenFor(model => model.Customer)
+                            @Html.HiddenFor(model => model.Asset)
+                            @Html.HiddenFor(model => model.Tool)
+                            @Html.HiddenFor(model => model.WOType)
+                            @Html.HiddenFor(model => model.UsedItems)
+                            @Html.HiddenFor(model => model.UsedItemsCost)
+                            @Html.HiddenFor(model => model.SignatureName)
+                            @Html.HiddenFor(model => model.IsSignatureCapture)
+                            @Html.HiddenFor(model => model.IsSignatureRequired)
+                            @Html.HiddenFor(model => model.MaintenanceGUID)
+                        </li>
+                        <li style="border-right: none;"  class="editor-label">
+                            <label for="label" style="width: 100px; float: left; padding: 1.3% 0;">
+                                @Html.LabelFor(model => model.WOStatus)
+                            </label>
+                            @if (Model.ID > 0)
+                            {
+                                @Html.DropDownListFor(model => model.WOStatus, new SelectList(ViewBag.WOStatusBag, "Value", "Text", Model.WOStatus), new { @class = "selectBox" })
+                            }
+                            else
+                            {
+                                @Html.DropDownListFor(model => model.WOStatus, new SelectList(ViewBag.WOStatusBag, "Value", "Text", Model.WOStatus), new { @class = "selectBox" })
+                            }
+                        </li>
+                        <li style="border-right: none;"  class="editor-label">
+                            <label for="label" style="width: 100px; float: left; padding: 1.3% 0;">
+                                @Html.LabelFor(model => model.CustomerGUID)
+                            </label>
+                            @Html.DropDownListFor(model => model.CustomerGUID, new SelectList((IEnumerable<eTurns.DTO.CustomerMasterDTO>)ViewBag.CustomerBAG, "GUID", "Customer", Model.CustomerGUID), string.Empty, new { @class = "selectBox" })
+                            @if (@eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.CustomerMaster,
+eTurnsWeb.Helper.SessionHelper.PermissionType.Insert) && onlyView == false)
+                            {
+                                <label>
+                                    <a onclick="AddNewFromPopup('Customer');" id="btnAddNewCustomer" class="addNewLink">
+                                        (Add New)
+                                    </a>
+                                </label>
+                            }
+                            <br />
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CustomerGUID)</span>
+                        </li>
+                        @if (Model != null && !string.IsNullOrWhiteSpace(Model.RequisitionNumber))
+                        {
+                            <li style="border-right: none;">
+                                <label for="label" style="width: 100px; float: left; padding: 1.3% 0;">
+                                    @Html.LabelFor(model => model.RequisitionNumber)
+                                </label>
+                                <span style="color: Black;">@Html.DisplayFor(model => model.RequisitionNumber)</span>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div id="ExpandedContent" style="display: none">
+            <ul>
+                <li style="border: none">
+                    <div class="editorForm">
+                        <ul>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AssetGUID)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.DropDownListFor(model => model.AssetGUID, new SelectList((IEnumerable<eTurns.DTO.AssetMasterDTO>)ViewBag.AssetBAG, "GUID", "AssetName", Model.AssetGUID), string.Empty, new { @class = "selectBox" })
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.AssetGUID)</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.ToolGUID)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.DropDownListFor(model => model.ToolGUID, new SelectList((IEnumerable<eTurns.DTO.ToolMasterDTO>)ViewBag.ToolBAG, "GUID", "ToolName", Model.ToolGUID), string.Empty, new { @class = "selectBox" })
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ToolGUID)</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.Odometer_OperationHours)
+                                </div>
+                                <div class="editor-field">
+                                    @if (dispalytrackingdrp)
+                                    {
+                                        @Html.DropDownListFor(model => model.TrackngMeasurement, new SelectList(lstItems, "Value", "Text"), new { @class = "selectBox" })
+                                    }
+                                    else
+                                    {
+                                        <span>@Msrmntname</span>
+                                    }
+
+                                    @Html.TextBoxFor(model => model.Odometer_OperationHours, new { @class = "text-box numericinput", @style = "width:116px;", @placeholder = Msrmntname })
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Odometer_OperationHours)</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.Description)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.TextAreaFor(model => model.Description, new { @class = "text-box", maxlength = 500 })
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Description)</span>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="editorForm padRightNone">
+                        <ul>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.TechnicianID)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.DropDownListFor(model => model.TechnicianID, new SelectList((IEnumerable<eTurns.DTO.TechnicianMasterDTO>)ViewBag.TechnicianBAG, "ID", "Technician", Model.TechnicianID), string.Empty, new { @class = "selectBox" })
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.TechnicianID)</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.ProjectSpendName)
+                                </div>
+                                <div class="editor-field">
+                                    <span style="color: Black;">@Html.DisplayFor(model => model.ProjectSpendName)</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @ResToolsScheduler.SchedulerName
+                                </div>
+                                <div class="editor-field">
+                                    <span style="color: Black;">@objToolsMaintenanceDTO.SchedulerName</span>
+                                </div>
+                            </li>
+                            @Html.Partial("UDFLayout", new eTurns.DTO.ResWorkOrder())
+                        </ul>
+                    </div>
+                    @if (Model.IsSignatureCapture && !string.IsNullOrEmpty(Model.SignatureName) && !string.IsNullOrEmpty(Model.SignaturePath))
+                    {
+                        <div class="editorForm padRightNone">
+                            <ul>
+                                <li>
+                                    <div class="editor-label">
+                                        @Html.LabelFor(model => model.SignatureName)
+                                    </div>
+                                    <div class="editor-field">
+                                        <img src="@Model.SignaturePath" alt="WOSignature" id="imgSignature" style="border: 1px solid;" />
+                                    </div>
+                                </li>
+                                @Html.Partial("UDFLayout", new eTurns.DTO.ResWorkOrder())
+                            </ul>
+                        </div>
+                    }
+                </li>
+            </ul>
+        </div>
+        <div class="editorForm" style="width: 98%">
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="BtnBlockform">
+                        <input type="button" value="Cancel" id="btnCancel" class="CreateBtn" />
+                        @if ((isInsert == true && Model.ID == 0) || (isUpdate == true && Model.ID > 0) || Convert.ToString(Session["IsInsert"]) == "True")
+                        {
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                        }
+                        else if (Model.ID > 0 && Model.WOStatus.ToLower() == "close")
+                        {
+                            <input type="button" value="@eTurns.DTO.ResWorkOrder.UncloseWO" id="btnUncloseWO" class="CreateBtn" />
+                            <script type="text/javascript">
+                                disableControls('frmWOMaster');
+                                $("input[type='button'][id='btnUncloseWO']").removeAttr('disabled');
+                            </script>
+
+                        }
+                        else //if (isUpdate == false && isInsert == false)
+                        {
+                            <script type="text/javascript">
+                                disableControls('frmWOMaster');
+                            </script>
+                        }
+                    </div>
+                </li>
+                <li>
+                    <div class="BtnBlockform">
+                        @if (Model.ID > 0)
+                        {
+                            if (isUpdate == true || Convert.ToString(Session["IsInsert"]) == "True")
+                            {
+                                <input type="button" value="New Item" id="btnAddNewItemps" class="CreateBtn" style="float: left;
+                                margin-left: 20px;" />
+                            }
+                        }
+                    </div>
+                </li>
+            </ul>
+        </div>
+        @if (Model.UsedItems.GetValueOrDefault(0) > 0)
+        {
+            <div class="infoBlock" style="margin-bottom: 10px; margin-top: 10px;">
+                <ul>
+                    <li style="width: auto;">
+                        <label for="RoomName">
+                            <label>@eTurns.DTO.ResWorkOrder.UsedItems</label>
+                        </label>
+                        : <span>@(Model.UsedItems)</span>
+                    </li>
+                    <li style="border: none; width: auto;">
+                        <label for="RoomName">
+                            <label>@eTurns.DTO.ResWorkOrder.UsedItemsCost</label>
+                        </label>
+                        : <span id="spnTotalCost">@CurrencySymbol @(Model.UsedItemsCost.GetValueOrDefault(0).ToString(priceformate1, eTurnsWeb.Helper.SessionHelper.RoomCulture))</span>
+                    </li>
+                </ul>
+            </div>
+        }
+    </div>
+    <style type="text/css">
+        .dataTables_scrollBody {
+            max-height: 400px;
+            overflow-y: scroll;
+        }
+    </style>
+    <div id="WOLineItems">
+    </div>
+}
+<div id="ItemModelTemp">
+</div>
+
+<div class="dialog" id="basic-modal-content-Requisition" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.RequisitionApproveWithZero
+        </p>
+        <a href="JavaScript:void{}" id="btnModelYesRequisition" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="#" class="no" onclick="closeModalRequisition()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+@Html.Partial("_RequiredMessages")
+<script type="text/javascript">
+    var EditWOID = 0;
+    $("form").submit(function (e) {
+        $(':input', '#frmWOMaster')
+            .removeAttr('disabled');
+        $.validator.unobtrusive.parse("#frmWOMaster");
+        if ($(this).valid()) {
+        }
+        e.preventDefault();
+    });
+
+    $("#ItemModelTemp").dialog({
+        autoOpen: false,
+        modal: true,
+        draggable: true,
+        resizable: true,
+        width: '95%',
+        height: 710,
+        title: '@(eTurns.DTO.ResWorkOrder.ModelHeader)',
+        open: function () {
+            //$('#DivLoading').show();
+            //$(this).css("top", "-1247");
+        },
+        close: function () {
+            //CallThisFunctionFromModel('success');
+            ReDirectData();
+        }
+    });
+
+    $(document).ready(function () {
+
+        
+        $('form').areYouSure({ 'message': 'You have unsaved changes.  Do you want to leave this page and lose your changes?' });
+        var IsFirstTime = true;
+        $("select[name='TrackngMeasurement']").change(function () {
+            if ($(this).val() == 1) {
+                $("#Odometer_OperationHours").prop("placeholder", "@ResToolsScheduler.TimeBased");
+            }
+            else if ($(this).val() == 2) {
+                $("#Odometer_OperationHours").prop("placeholder", "@ResToolsScheduler.OperationalHours");
+            }
+            else if ($(this).val() == 3) {
+                $("#Odometer_OperationHours").prop("placeholder", "@ResToolsScheduler.Mileage");
+            }
+            else {
+                $("#Odometer_OperationHours").prop("placeholder", "");
+            }
+
+        });
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+
+        $(".odometer").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 2
+        });
+
+
+        $('#btnClose').click(function () {
+            $(".ui-dialog-titlebar-close").click();
+        });
+
+        if (parseInt('@Model.ID', 10) <= 0) {
+            $('#ExpandedContent').css('display', '');
+            $('#ancHideShowContent').css('display', 'none');
+        }
+        else {
+            $('#ExpandedContent').css('display', 'none');
+            $('#ancHideShowContent').css('display', '');
+        }
+
+
+        $('#btnCancel').click(function (e) {
+            if ('@Model.IsHistory' != 'True') {
+                SwitchTextTab(0, 'WOCreate', 'frmWOMaster');
+                if (oTable !== undefined && oTable != null) {
+                    oTable.fnDraw();
+                }
+                $(".tab5").hide();
+            }
+            else {
+                $(".ui-dialog-titlebar-close").click();
+
+            }
+            $("span#spnTotalCost").html('@CurrencySymbol' + " " + FormatedCostQtyValues($("span#spnTotalCost").html().toString().slice(2, -1), 1));
+
+            });
+        checkRememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        $('#WOLineItems').empty();
+
+        if ('@Model.ID' > 0) {
+            if ('@Model.IsHistory' != 'True') {
+                $('#WOLineItems').load('@Url.Action("LoadWOItems", "WorkOrder")', { 'WorkOrderGUID': '@Model.GUID', mntsGUID: '@Model.MaintenanceGUID' }, function () {
+                    $('#DivLoading').show();
+                });
+
+                //// need to call below block in case of New Item saved and open POPUP Item ... START
+                if (NeedToOpenItemPopupNow) {
+                    var ntop = NeedToOpenItemPopupNow;
+                    NeedToOpenItemPopupNow = false;
+                    setTimeout(function () { OpenItemPopup(ntop); }, 1000);
+                    return false;
+                }
+                //// need to call below block in case of New Item saved and open POPUP Item ... END
+            }
+            else {
+                var action = '@Url.Action("LoadWOItems", new { WorkOrderGUID = @Model.GUID })';
+                var IsHistory = true;
+                action += '&IsHistory=' + IsHistory;
+                $('#WOLineItems').load(action, function () {
+                });
+            }
+        }
+        //$('#DivLoading').hide();
+
+        if ('@Model.IsHistory' == 'True') {
+            $(':input', '#frmWOMaster').not('#btnClose').attr('disabled', 'disabled');
+        }
+    });
+    $('#btnAddNewItemps').click(function () {
+        if ('@isInsertPull' == '@Boolean.TrueString') {
+            return OpenItemPopup();
+        }
+        else {
+            alert('@ResToolsScheduler.NoPullRights');
+        }
+    });
+
+
+    $('#btnUncloseWO').on('click', function () {
+        var WOguid = '@(Model.GUID)';
+        $.ajax({
+            url: 'UncloseWorkOrder',
+            type: 'Post',
+            data: { 'WOGUID': WOguid },
+            dataType: 'json',
+            success: function (response) {
+
+                if (response.Status == "ok") {
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $("#spanGlobalMessage").html(response.Message);
+                    $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                    clearControls('frmWOMaster');
+                    oTable.fnDraw();
+                    SwitchTextTab(0, 'WOCreate', 'frmWOMaster');
+                }
+                else {
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $("#spanGlobalMessage").html(response.Message);
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                }
+            },
+            error: function (response) {
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                $("#spanGlobalMessage").html(response.Message);
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            }
+        });
+    });
+
+    $(".text-boxPriceFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+    });
+    $(".text-boxQuantityFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+    });
+
+    $('.selectBox').change(function () {
+        var ID = this.id;
+        if (ID == "CustomerGUID")
+            $("#Customer").val($("#" + ID + " option:selected").text());
+        else if (ID == "TechnicianID")
+            $("#Technician").val($("#" + ID + " option:selected").text());
+        else if (ID == "AssetGUID")
+            $("#Asset").val($("#" + ID + " option:selected").text());
+        else if (ID == "ToolGUID")
+            $("#Tool").val($("#" + ID + " option:selected").text());
+    });
+
+    $('#ancHideShowContent').click(function () {
+        if ($('#ExpandedContent').css('display') == 'none') {
+            $('#ExpandedContent').css('display', '');
+            $('#ancHideShowContent img').attr('src', '/Content/images/drildown_close.jpg');
+        }
+        else {
+            $('#ExpandedContent').css('display', 'none');
+            $('#ancHideShowContent img').attr('src', '/Content/images/drildown_open.jpg');
+        }
+    });
+
+
+    function OpenItemPopup(ntop) {
+
+        if (parseInt('@Model.ID', 10) > 0) {
+            var strUrl = '@Url.Action("LoadItemMasterModel","WorkOrder")';
+            strUrl = strUrl + '?ParentId=' + '@Model.ID';
+            strUrl = strUrl + '&ParentGuid=' + '@Model.GUID.ToString()';
+            strUrl = strUrl + '&mntsGUID=' + '@Model.MaintenanceGUID';
+            if (ntop == true || $("#slctItemstoLoad").val() == '1') {
+                strUrl = strUrl + '&firsttime=yes';
+                $('#divReorderPopup').find('#hdnReOrderExecuteFunctionString').val('OpenItemPopup(true)');
+            }
+            else {
+                $('#divReorderPopup').find('#hdnReOrderExecuteFunctionString').val('OpenItemPopup()');
+            }
+            $('#ItemModelTemp').load(strUrl, new function () {
+                $('#ItemModelTemp').dialog('open').dialog("moveToTop");
+                //style = "top:0;left:0;right:0;bottom:0"
+            });
+            if ($("input#global_filter").length > 0) {
+                $("input#global_filter").focus();
+                setTimeout(function () {
+                    $("input#global_filter").focus();
+                }, 600);
+            }
+            if ($("input.searchinput").length > 0) {
+                $("input.searchinput").focus();
+                setTimeout(function () {
+                    $("input.searchinput").focus();
+                }, 600);
+
+            }
+        }
+        //return false;
+    }
+
+    function onSuccess(response) {
+        IsRefreshGrid = true;
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+
+        if (response.Status == "fail") {
+
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#RequisitionNumber").val("");
+            $("#RequisitionNumber").focus();
+        }
+        else if (idValue == 0) {
+            $("#RequisitionNumber").val("");
+            $("#RequisitionNumber").focus();
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+                //clearControls('frmWOMaster');
+                NeedToOpenItemPopupNow = true;
+                setDefaultUDFValues($("#hdnPageName").val(), '@Model.ID');
+                ShowEditTabGUID("Assets/WOEdit?WorkOrderGUID=" + response.GUID, "frmWOMaster");
+            }
+        }
+        else if (idValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                $("#RequisitionNumber").val("");
+                $("#RequisitionNumber").focus();
+            }
+            else {
+                //IsRejectTheRequisition();
+                clearControls('frmWOMaster');
+                SwitchTextTab(0, 'WOCreate', 'frmWOMaster');
+            }
+        }
+    }
+    function onFailure(message) {
+
+        $("#spanGlobalMessage").html(message.statusText);
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#WOName").focus();
+    }
+
+    function closeModalRequisitionApprove() {
+        $.modal.impl.close();
+        return false;
+    }
+
+
+    function closeModalRequisition() {
+        $.modal.impl.close();
+        clearControls('frmWOMaster');
+        SwitchTextTab(0, 'WOCreate', 'frmWOMaster');
+    }
+</script>
+<script type="text/javascript">
+    // Assuming that the div or any other HTML element has the ID = loading and it contains the necessary loading image.
+    $('#DivLoading').hide();  //initially hide the loading icon
+
+    $('#DivLoading').ajaxStart(function () {
+        $(this).show();
+    });
+    $("#DivLoading").ajaxStop(function () {
+        $(this).hide();
+    });
+</script>
+<div id="NewMasterPopUP">
+</div>
+<script type="text/javascript">
+    $("#NewMasterPopUP").dialog({
+        autoOpen: false,
+        show: "blind",
+        hide: "explode",
+        height: 600,
+        width: 800,
+        modal: true,
+        open: function () {
+            $(this).parent().find("span.ui-dialog-title").html("Add New " + $(this).data("data"));
+        },
+        close: function () {
+            $('#DivLoading').show();
+            RefreshDropdownList($(this).data("data"), $(this).data("IDVal"));
+            $(this).data("data", null);
+            $(this).data("IDVal", null);
+            $(this).parent().find("span.ui-dialog-title").html('');
+        }
+    });
+    function AddNewFromPopup(PopupFor) {
+        $('#DivLoading').show();
+        var _URL = ''
+        if (PopupFor == 'Customer') {
+            _URL = '@Url.Action("../Master/CustomerMasterCreate")';
+        }
+        else {
+            return false;
+        }
+        $('#NewMasterPopUP').load(_URL, function () {
+            $('#NewMasterPopUP').data("data", PopupFor).dialog('open');
+            $('#DivLoading').hide();
+        });
+    }
+    function RefreshDropdownList(PopupFor, IDVal) {
+        if (IDVal != undefined) {
+            var _ControlID = '';
+            if (PopupFor == 'Customer') {
+                _ControlID = "CustomerGUID";
+            }
+            var arrdata = IDVal.split("~");
+            var listData = $('select[id*="' + _ControlID + '"]');
+            $(listData).each(function () {
+                $(this).append($("<option />").val(arrdata[0]).text(arrdata[1]));
+            });
+            var foption = $('select[id*="' + _ControlID + '"] option:first');
+            var soptions = $('select[id*="' + _ControlID + '"] option:not(:first)').sort(function (a, b) {
+                return a.text == b.text ? 0 : a.text < b.text ? -1 : 1
+            });
+            $(listData).html(soptions).prepend(foption);
+        }
+        $('#DivLoading').hide();
+    }
+    
+    _Common.addRequiredSign();
+</script>

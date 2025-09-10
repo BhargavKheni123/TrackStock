@@ -1,0 +1,177 @@
+﻿@model ItemLocationQTYDTO
+@{
+    string strDecimalFormat = eTurnsWeb.Helper.SessionHelper.QuantityFormat;
+}
+<div class="innerGrid" style="width: 90%; float: left; background: none; padding: 0;
+    border: 0 solid blue;">
+    @*@Html.Label("lblTitle", "Move Quantity To Location", new { @style = "font: bold 14px Calibri,Arial,Helvetica,sans-serif;" })*@
+    <table id="tblMoveQty" style="width: 350px; float: left;">
+        <tr style="height: 30px;">
+            <td style="width: 32%">
+                @Html.Label("lblItemNumber", ResItemMaster.ItemNumber)
+            </td>
+            <td>
+                @Html.Label("lblItemNumberValue", Model.ItemNumber)
+            </td>
+        </tr>
+        <tr style="height: 30px;">
+            <td>
+                @Html.Label("lblBinNumber", ResBin.BinNumber)
+            </td>
+            <td>
+                <label>
+                    @Model.BinNumber</label>
+            </td>
+        </tr>
+        <tr style="height: 30px;">
+            <td>
+                @Html.Label("lblAvailableQty", "Quantity")
+            </td>
+            <td>
+                <label>
+                    @Model.Quantity</label>
+            </td>
+        </tr>
+        <tr style="height: 30px;">
+            <td>
+                @Html.Label("lblMvLocation", "Move Location")
+            </td>
+            <td>
+                @Html.Hidden("ddlMoveLocation", "")
+                @*@Html.DropDownList("ddlMoveLocation", new SelectList((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations, "ID", "BinNumber"), new { @id = "ddlMoveLocation" })*@
+                @Html.TextBox("txtMoveLocationName", "", new { @class = "text-boxinner", @id = "txtMoveLocationName", @style = "z-index:10000;" })
+            </td>
+        </tr>
+        <tr style="height: 30px;">
+            <td>
+                @Html.Label("lblQuantyToMove", "Move Quantity")
+            </td>
+            <td>
+                @if (Model.SerialNumberTracking)
+                {
+                    //@Html.TextBox("txtMoveQty", Model.Quantity, "{0:0}", new { @id = "txtMoveQty", @class = "text-boxinner text-boxQuantityFormatSR", @style = "width: 100px; background-color: White", onblur = "javascript:return CheckMoveQty(this," + Model.Quantity + ")" })
+                    @Html.TextBox("txtMoveQty", Model.Quantity, "{0:0}", new { @id = "txtMoveQty", @class = "text-boxinner text-boxQuantityFormatSR", @style = "width: 100px; background-color: White" })
+                }
+                else
+                {
+                    //@Html.TextBox("txtMoveQty", Model.Quantity, strDecimalFormat, new { @id = "txtMoveQty", @class = "text-boxinner text-boxQuantityFormat", @style = "width: 100px; background-color: White", onblur = "javascript:return CheckMoveQty(this," + Model.Quantity + ")" })
+                    @Html.TextBox("txtMoveQty", Model.Quantity, strDecimalFormat, new { @id = "txtMoveQty", @class = "text-boxinner text-boxQuantityFormat", @style = "width: 100px; background-color: White" })
+                }
+            </td>
+        </tr>
+        <tr style="height: 20px;">
+            <td>
+                &nbsp;
+            </td>
+            <td>
+                &nbsp;
+            </td>
+        </tr>
+        <tr style="height: 30px;">
+            <td>
+                <input type="button" id="bntMove" value="Move" class="CreateBtn" onclick="javascript:return SaveMoveItemToLocation(this);" />
+                <input type="hidden" id="hdnBinID" value="@Model.BinID" />
+                <input type="hidden" id="hdnItemGUID" value="@Model.ItemGUID" />
+                <input type="hidden" id="hdnAvailQty" value="@Model.Quantity" />
+            </td>
+            <td>
+                <input type="button" id="bntCancel" value="Cancel" class="CreateBtn" onclick="javascript:return CancleMove(this);"
+                    style="float: left; margin-left: 10px;" />
+            </td>
+        </tr>
+        @*<tr style="height: 30px;">
+            <td>
+                &nbsp;
+            </td>
+            <td>
+                &nbsp;
+            </td>
+        </tr>*@
+    </table>
+</div>
+<style>
+    .ui-autocomplete
+    {
+        max-height: 200px;
+        overflow-y: auto; /* prevent horizontal scrollbar */
+        overflow-x: hidden; /* add padding to account for vertical scrollbar */
+        padding-right: 20px;
+    }
+    /* IE 6 doesn't support max-height
+ * we use height instead, but this forces the menu to always be this tall
+ */
+    * html .ui-autocomplete
+    {
+        height: 100px;
+    }
+</style>
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormatSR").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 0
+        });
+
+
+        $("#txtMoveLocationName").autocomplete({
+            source: function (request, response) {
+
+                $.ajax({
+                    url: '/Master/GetDefaultLocationByItemWise',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: {
+                        maxRows: 1000,
+                        name_startsWith: request.term,
+                        ItemGUID: '@Model.ItemGUID'
+                    },
+                    success: function (data) {
+                        response($.map(data, function (item) {
+                            return {
+                                label: item.BinNumber,
+                                value: item.BinNumber,
+                                selval: item.ID
+                            }
+                        }));
+
+                    },
+                    error: function (err) {
+                        //                            debugger;
+                        alert(err);
+                    }
+                });
+            },
+            autoFocus: false,
+            minLength: 0,
+            select: function (event, ui) {
+                $("#ddlMoveLocation").val(ui.item.selval);
+            },
+            open: function () {
+                $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+
+                $(this).autocomplete('widget').css('z-index', 100000);
+            },
+            close: function () {
+                $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+            }
+        }); //.bind('focus', function () { $(this).autocomplete("search", " ") }); ;
+
+        $("#txtMoveLocationName").click(function (e) {
+            if ($(this).attr('readonly') != 'readonly') {
+                if ($(this).val().length > 0) {
+                    $(this).autocomplete("search", $(this).val());
+                }
+                else {
+                    $(this).autocomplete("search", " ");
+                }
+            }
+        });
+    });
+</script>

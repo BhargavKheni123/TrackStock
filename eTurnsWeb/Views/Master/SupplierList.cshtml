@@ -1,0 +1,588 @@
+﻿@model IEnumerable<SupplierMasterDTO>
+@using eTurns.DTO.Resources
+@{
+    ViewBag.Title = ResSupplierMaster.PageTitle;
+    bool isForBom = false;
+    string columnSetupFor = string.Empty;
+    string pageName = string.Empty;
+    RouteValueDictionary obj = ViewContext.Controller.ControllerContext.RouteData.Values;
+    string controllerName = Convert.ToString(obj["controller"]);
+    //string ActionName = Convert.ToString(obj["action"]);
+    if (controllerName.ToLower() == "master")
+    {
+        columnSetupFor = "SupplierMasterList";
+        pageName = "SupplierMaster";
+    }
+    if (controllerName.ToLower() == "bom")
+    {
+        columnSetupFor = "BomSupplierMasterList";
+        pageName = "BomSupplierMaster";
+        isForBom = true;
+    }
+    var settings = new GridHeaderSettings { DisplaySaveButton = false, ShowSelectAll = true, DisplayUDFButton = true, UDFSetupFor = "Suppliers&UDFHeader=" + @ResSupplierMaster.PageHeader, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = columnSetupFor };
+    if (isForBom)
+    {
+        settings.DisplayUDFButton = false;
+    }
+    var modelCommon = new CommonDTO { PageName = pageName };
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.SupplierMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.SupplierMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    string SuppliersPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Suppliers.pdf", DateTime.Now.Ticks);
+    bool IsShowChangeLog = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.ShowChangeLog);
+    //System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    string UNCPathRootLink2 = eTurns.DTO.SiteSettingHelper.SupplierPhoto; // Settinfile.Element("SupplierPhoto").Value;
+
+
+    Int64 EnterpriseId = eTurnsWeb.Helper.SessionHelper.EnterPriceID;
+    Int64 CompanyID = eTurnsWeb.Helper.SessionHelper.CompanyID;
+    Int64 RoomID = eTurnsWeb.Helper.SessionHelper.RoomID;
+    UNCPathRootLink2 = UNCPathRootLink2.Replace("~", string.Empty);
+
+    string LogoPathImage = (UNCPathRootLink2 + EnterpriseId + "/" + CompanyID + "/" + RoomID);
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Suppliers", (int)HelpDocType.Module);
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+<style type="text/css">
+    .dataTable td {
+           position: relative;        
+    }
+</style>
+@section head{
+    <script type="text/javascript" src="@Url.Content("~/ScriptNG/Angular/Controller/SupplierController.js?v=" + version)"></script>
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script type='text/javascript' src="@Url.Content("~/Scripts/underscore-min.js")"></script>
+
+    <script language="javascript" type="text/javascript">
+        var oTable;
+        var deleteURL = "/Master/DeleteSupplierRecords";
+        var IsRefreshGrid = false;
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+        var SelectedHistoryRecordID = 0;
+        var objColumns = {};
+        var isForBom = '@isForBom';
+        $(document).ready(function () {
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            //var gaiSelected = [];
+            LoadTabs();
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "150%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[2, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@ResGridHeader.Show' + ' _MENU_ ' + '@ResGridHeader.Records',
+                    "sEmptyTable": '@ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@ResMessage.ShowingNoOfEntries',
+                    "sLoadingRecords": '@eTurns.DTO.Resources.ResMessage.MsgLoading',
+                    "sInfoEmpty": '@ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    //**************Code change for shift key selection start*********************************************************************************
+                    var shiftselectedarray = readCookieforshift("finalselectedarray");
+                    if (shiftselectedarray != null) {
+                        if (jQuery.inArray(aData.ID.toString(), shiftselectedarray.replace(/,\s+/g, ',').split(',')) >= 0) {
+                            nRow.className = nRow.className + " " + "row_selected";
+                            //nRow.addClass("row_selected");
+                            //Found it!
+                        }
+                    }
+                    //**************Code change for shift key selection end*********************************************************************************
+                    if (aData.IsDeleted == true && aData.IsArchived == true)
+                        // nRow.className = "GridDeleatedArchivedRow";
+                        $(nRow).css('background-color', '#B9BCBF');
+                    else if (aData.IsDeleted == true)
+                        // nRow.className = "GridDeletedRow";
+                        $(nRow).css('background-color', '#FFCCCC');
+                    else if (aData.IsArchived == true)
+                        //   nRow.className = "GridArchivedRow";
+                        $(nRow).css('background-color', '#CCFFCC');
+
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    if (oSettings.bSorted) {
+                        //**************Code change for shift key selection start*********************************************************************************
+                        eraseCookieforshift("selectstartindex");
+                        eraseCookieforshift("selectendindex");
+                        eraseCookieforshift("finalselectedarray");
+                        //**************Code change for shift key selection end*********************************************************************************
+                    }
+                    var o;
+                    oData.oSearch.sSearch = "";
+                    $.ajax({
+                        "url": '@Url.Action("SaveGridState", "Master")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: '@columnSetupFor' },
+                        "async": false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                },
+                "fnStateLoad": function () {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Action("LoadGridState", "Master")',
+                        data: { ListName: '@columnSetupFor' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Action("GetSupplierList", "Master")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    //endFor
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    //                    if (oSettings.aaSorting.length != 0)
+                    //                        aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                    //                    else
+                    //                        aoData.push({ "name": "SortingField", "value": "0" });
+                    if (oSettings.aaSorting.length != 0) {
+                        var sortValue = "";
+                        for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                            if (sortValue.length > 0)
+                                sortValue += ", "
+                            sortValue += arrCols[oSettings.aaSorting[i][0]] + ' ' + oSettings.aaSorting[i][1];
+
+                        }
+                        aoData.push({ "name": "SortingField", "value": sortValue });
+                    }
+                    else {
+                        aoData.push({ "name": "SortingField", "value": "0" });
+                    }
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+                    aoData.push({ "name": "IsForBom", "value": "@isForBom" });
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable').highlight($("#global_filter").val());
+                            }
+                        }
+                    });
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [
+                            { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' },
+			                { "mDataProp": "ID", "sClass": "read_only" },
+			                {
+			                    "mDataProp": "SupplierName",
+			                    "sClass": "read_only",
+			                    "sDefaultContent": '',
+			                    "bSortable": true,
+			                    "bSearchable": false,
+			                    "fnRender": function (obj) {
+			                        return "<a id='aEditLink' onclick='return ShowEditTab(&quot;/Master/SupplierEdit/" + obj.aData.ID + "&quot;,&quot;frmSupplier&quot;)' href='JavaScript:void(0);'>" + obj.aData.SupplierName + "</a><input type='hidden' id='hdnGuid' value='" + obj.aData.GUID + "' />";
+			                    }
+			                },
+                            { "mDataProp": "Description", "sClass": "read_only" },
+                            //{ "mDataProp": "ReceiverID", "sClass": "read_only" },
+                            { "mDataProp": "Address", "sClass": "read_only" },
+                            { "mDataProp": "City", "sClass": "read_only" },
+                            { "mDataProp": "State", "sClass": "read_only" },
+                            { "mDataProp": "ZipCode", "sClass": "read_only" },
+                            { "mDataProp": "Country", "sClass": "read_only" },
+                            { "mDataProp": "Contact", "sClass": "read_only" },
+                            { "mDataProp": "Phone", "sClass": "read_only" },
+
+                            { "mDataProp": "Fax", "sClass": "read_only" },
+                            { "mDataProp": "Email", "sClass": "read_only" },
+//                            { "mDataProp": "IsEmailPOInBody", "sClass": "read_only"
+//                            , "fnRender": function (obj, val) {
+//                                return GetBoolInFormat(obj, val);
+//                            }
+//                            },
+//                            { "mDataProp": "IsEmailPOInPDF", "sClass": "read_only"
+//                            , "fnRender": function (obj, val) {
+//                                return GetBoolInFormat(obj, val);
+//                            }
+//                            },
+//                            { "mDataProp": "IsEmailPOInCSV", "sClass": "read_only", "fnRender": function (obj, val) {
+//                                return GetBoolInFormat(obj, val);
+//                            }
+//                            },
+//                            { "mDataProp": "IsEmailPOInX12", "sClass": "read_only", "fnRender": function (obj, val) {
+//                                return GetBoolInFormat(obj, val);
+//                            }
+//                            },
+
+			                {
+			                    "mDataProp": "Created", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.CreatedDate;
+			                    }
+			                },
+			                {
+			                    "mDataProp": "LastUpdated", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.UpdatedDate;
+			                        //			                        return GetDateInFullFormat(val);
+			                    }
+			                },
+                            { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                             { "mDataProp": "AddedFrom", "sClass": "read_only" },
+                            { "mDataProp": "EditedFrom", "sClass": "read_only" },
+                            {
+                                "mDataProp": "ReceivedOn", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.ReceivedOnDate;
+                                }
+                            },
+			                {
+			                    "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.ReceivedOnDateWeb;
+			                    }
+			                },
+                           {
+                               "mDataProp": "SupplierImage", "sClass": "read_only", "bVisible": false,
+                               "fnRender": function (obj, val) {
+                                   if (obj.aData.ImageType != 'ExternalImage') {
+                                       if (obj.aData.SupplierImage != '' && obj.aData.SupplierImage != null) {
+                                           var path = '@LogoPathImage';
+
+                                           return '<img style="cursor:pointer;"  id="ItemImageBox" width="120px" height="120px" src="' + path  + "/" + obj.aData.ID + "/" + obj.aData.SupplierImage + '">';
+                                       }
+                                       else {
+                                           return '<img style="cursor:pointer;"  id="ItemImageBox" width="120px" height="120px" src="../../Content/images/no-image.jpg">';
+
+                                       }
+                                   }
+                                   else {
+                                       if (obj.aData.ImageExternalURL != '' && obj.aData.ImageExternalURL != null) {
+                                           return '<img style="cursor:pointer;"  id="ItemImageBox" width="120px" height="120px" src="' + obj.aData.ImageExternalURL + '">';
+                                       }
+                                       else {
+                                           return '<img style="cursor:pointer;"  id="ItemImageBox" width="120px" height="120px" src="../../Content/images/no-image.jpg">';
+                                       }
+                                   }
+                               }
+                           }
+//                            { "mDataProp": "ReceivedOnDate", "sClass": "read_only" },
+//                            { "mDataProp": "ReceivedOnDateWeb", "sClass": "read_only" }
+                            @Html.RenderColumnsArray("SupplierMaster")
+
+                ]
+            }).makeEditable({
+                sUpdateURL: '@Url.Action("UpdateSupplierData", "Master")' //"/Company/UpdateData",
+            });
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+            $('#myDataTable').on('tap click', 'a[id^="aEditLink"]', function () {
+                var tr = $(this).parent().parent();
+                $("#myDataTable").find("tbody tr").removeClass("row_selected");
+                $(tr).addClass('row_selected');
+
+            });
+
+        });
+
+        /* HISTORY related data deleated and archived START */
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+        function HistoryTabClick() {
+            GetHistoryData();
+        }
+        function GetHistoryData() {
+            var historySelected = fnGetSelected(oTable);
+            if (historySelected != undefined && historySelected.length == 1) {
+                //                if(SelectedHistoryRecordID != HistorySelected[0].id)
+                //                {
+                SelectedHistoryRecordID = historySelected[0].id;
+                $('#DivLoading').show();
+                $("#CTab").hide();
+                $("#CtabCL").show();
+                $('#CtabCL').load('/master/SupplierHistory', function () { $('#DivLoading').hide(); });
+                //}
+            }
+            else {
+                $('#CtabCL').html('');
+                $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                //$('div#target').fadeToggle();
+                //$("div#target").delay(2000).fadeOut(200);
+                showNotificationDialog();
+                return false;
+            }
+
+        }
+        /* HISTORY related data deleated and archived END */
+
+    </script>
+}
+<script type="text/javascript">
+    var isTabClick = false;
+    var TabsArry = [new TabClass('tab1', '@ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab5', '@ResCommon.List', 'callbackhistory();', true, true),
+
+    ];
+
+    if ('@IsShowChangeLog.ToString().ToUpper()' == 'TRUE') {
+        TabsArry.push(new TabClass('tab6', '@ResCommon.ChangeLog', 'callbackCL();', false, true));
+    }
+    function callbacknew() {
+        window.location.hash = '#new';
+        ShowNewTab('/Master/SupplierCreate?isforbom=' + '@isForBom', 'frmSupplier');
+
+
+    }
+    function callbackhistory() { window.location.hash = '#list'; } //HistoryTabClick(); }
+    function callbackCL() { window.location.hash = ''; HistoryTabClick(); }
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+        }
+    }
+
+    $(document).ready(function () {
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+    });
+</script>
+<div class="userListingWrapper" data-ng-controller="SupplierController">
+    <h2>@ResSupplierMaster.PageHeader</h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener">
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                    @*<input type="button" value="Search" class="searchBtn" />*@
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.SupplierMaster)
+            @*NARROW SEARCH STARTS HERE*@
+            @Html.Partial("NarrowSearchLayout", modelCommon) @*NARROW SEARCH STARTS HERE*@
+            <div class="userContent">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @ResCommon.ID
+                            </th>
+                            <th>
+                                @ResSupplierMaster.Supplier
+                            </th>
+                            <th>
+                                @ResSupplierMaster.Description
+                            </th>                            
+                            <th>
+                                @ResCommon.Address
+                            </th>
+                            <th>
+                                @ResCommon.City
+                            </th>
+                            <th>
+                                @ResCommon.State
+                            </th>
+                            <th>
+                                @ResCommon.ZipCode
+                            </th>
+                            <th>
+                                @ResCommon.Country
+                            </th>
+                            <th>
+                                @ResSupplierMaster.Contact
+                            </th>
+                            <th>
+                                @ResCommon.Phone
+                            </th>
+                            <th>
+                                @ResSupplierMaster.Fax
+                            </th>
+                            <th>
+                                @ResCommon.Email
+                            </th>                            
+                            <th>
+                                @ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @ResCommon.ReceivedOnDate
+                            </th>
+                            <th>
+                                @ResCommon.ReceivedOnWebDate
+                            </th>
+                            <th>
+                                @ResCommon.SupplierImage
+                            </th>
+                            @Html.RenderColumnsHeader("SupplierMaster", typeof(ResSupplierMaster))
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <button id="btnAddNewCompany" value="Ok" style="display: none">
+                    @ResCommon.AddNew
+                </button>
+                <button id="btnDeleteCompany" value="cancel" style="display: none">
+                    Delete Selected
+                </button>
+                <div id="processing_message" style="display: none" title="Processing">
+                    @ResMessage.RequestProcessMessage
+                </div>
+            </div>
+        </div>
+        <div id='CtabCL' class="tabContener">
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+</script>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>

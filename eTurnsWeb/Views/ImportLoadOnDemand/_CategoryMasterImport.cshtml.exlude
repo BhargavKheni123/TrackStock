@@ -1,0 +1,305 @@
+﻿@model eTurns.DTO.ImportMastersNewDTO.ImportPageDTO
+
+@{
+    string ImportPageDTO = Newtonsoft.Json.JsonConvert.SerializeObject(Model);
+}
+@if (Model != null && Model.RecordCount > 0)
+{
+<div id="divScroll" style="max-height:500px;overflow:auto">
+    <table class="display dataTable">
+        <thead>
+            <tr>
+                @if (Model.DataTableColumns.Count() > 0)
+                {
+                    <th class="ui-state-default read_only">
+                        @ResCommon.Status
+                    </th>
+                    <th class="ui-state-default read_only">
+                        @ResCommon.Reason
+                    </th>
+                }
+                @if (Model.DataTableColumns.Contains("category"))
+                {
+                    <th class="ui-state-default read_only">
+                        <em>* </em>
+                        @ResCategoryMaster.Category
+                    </th>
+                }
+                @if (Model.DataTableColumns.Contains("udf1"))
+                {
+                    <th class="ui-state-default read_only">
+                        @ResCategoryMaster.UDF1
+                    </th>
+                }
+                @if (Model.DataTableColumns.Contains("udf2"))
+                {
+                    <th class="ui-state-default read_only">
+                        @ResCategoryMaster.UDF2
+                    </th>
+                }
+                @if (Model.DataTableColumns.Contains("udf3"))
+                {
+                    <th class="ui-state-default read_only">
+                        @ResCategoryMaster.UDF3
+                    </th>
+                }
+                @if (Model.DataTableColumns.Contains("udf4"))
+                {
+                    <th class="ui-state-default read_only">
+                        @ResCategoryMaster.UDF4
+                    </th>
+                }
+                @if (Model.DataTableColumns.Contains("udf5"))
+                {
+                    <th class="ui-state-default read_only">
+                        @ResCategoryMaster.UDF5
+                    </th>
+                }
+            </tr>
+        </thead>
+        <tbody id="tBodyImportData"></tbody>
+    </table>
+   
+</div>
+<div class="bottom">
+    <div class="dataTables_info" id="tableRecord_info">Total 0 of 0</div>
+    <div class="clear"></div>
+</div>
+<div class="editor-field" style="width: 6%; float: left;">
+    <input type="button" id="btnSave" value="Save" title="Save" class="CreateBtn" onclick="return SaveImportClick();" />
+</div>
+
+<script type="text/javascript">
+    var IsScrollCompleted = true;
+    var TotalRows = @Model.RecordCount;
+    var _MaxRowIndex = 0;
+    var _MaxPageSize = 100;
+    var _IsAllDataLoaded = false;
+    var ChangedImportData = [];
+    var ChangedImportObject = function (){
+        this.RowIndex = 0;
+        this.FieldName = '';
+        this.Value = '';
+    }
+
+    $(document).ready(function () {
+        setTimeout(function(){
+            LoadNextPage();
+            ChangedImportData = [];
+        }, 1000);
+
+        $('#divScroll').on('scroll', function() {
+            var topscroll = 0;
+            var currPos = $(this).scrollTop();
+            if(topscroll < currPos){
+                if($(this).scrollTop() + $(this).innerHeight() >= $(this)[0].scrollHeight) {
+                
+                    if(IsScrollCompleted == true)
+                    {
+                        setTimeout(function(){
+                            LoadNextPage();
+                            IsScrollCompleted = true;
+                        }, 500);
+                    }
+                    IsScrollCompleted = false
+                }
+            }
+        })
+    });
+
+    function LoadNextPage()
+    {
+        //alert("totalrows: "+ TotalRows + " and MaxRowIndex: " + _MaxRowIndex);
+        if(TotalRows > _MaxRowIndex)
+        {
+            $('#DivGridLoading').show();
+            var tableName = "CategoryMaster";
+            $.ajax({
+                url: "/ImportLoadOnDemand/GetNextImportDataPage",
+                type: "POST",
+                data: JSON.stringify({ TableName: tableName, MaxRowIndex: _MaxRowIndex, MaxPageSize: _MaxPageSize }),
+                dataType: "json",
+                traditional: true,
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    if (data != null && data != undefined && data.lstDataPage != null && data.lstDataPage != undefined && data.lstDataPage.length > 0) {
+                        $('#tBodyImportData').append($('#importTemplate').tmpl(data.lstDataPage));
+
+                        _MaxRowIndex = _MaxRowIndex + _MaxPageSize;
+
+                        if(TotalRows <= _MaxRowIndex)
+                            _IsAllDataLoaded = false;
+                    }
+                    else
+                    {
+                        _IsAllDataLoaded = true;
+                    }
+                    $('#DivGridLoading').hide();
+                    var currentrecord = 0;
+                    currentrecord = (TotalRows > _MaxRowIndex) ?_MaxRowIndex:TotalRows;
+                    $('#tableRecord_info').text("Total "+ currentrecord +" of "+TotalRows+"");
+                },
+                error: function () {
+                    alert("Some Exception");
+                    $('#DivGridLoading').hide();
+                }
+            });
+        }
+        return false;
+    }
+
+    function isScrolledIntoView(elem)
+    {
+        var ScrollDivTop = $("#divScroll").offset().top
+        var ScrollDivBottom = ScrollDivTop + $("#divScroll").height()
+        var ElementTop = $(elem).offset().top;
+        return (ElementTop >= ScrollDivTop && ElementTop <= ScrollDivBottom)
+    }
+
+    function OnImportDataChange(txtBox, Index, ControlType)
+    {
+        var _id = $(txtBox)[0].id;
+        var _value = null;
+
+        if(ControlType == 'TEXTBOX')
+        {
+            _value = $(txtBox)[0].value;
+        }
+        else if(ControlType == 'CHECKBOX')
+        {
+            _value = $(txtBox).is(":checked");
+        }
+
+        var _FieldName = _id.substring(0, _id.indexOf('-'));;
+
+        //------------------Delete If Same Entry Exists------------------
+        //
+        ChangedImportData = jQuery.grep(ChangedImportData, function(x) {
+            return (x.RowIndex.toString() + '_' + x.FieldName != Index.toString() + '_' + _FieldName);
+        });
+
+        //-----------------------Add Changed Entry-----------------------
+        //
+        var obj = new ChangedImportObject();
+        obj.RowIndex = Index;
+        obj.FieldName = _FieldName;
+        obj.Value = _value;
+        ChangedImportData.push(obj);
+        //console.log(ChangedImportData);
+    }
+
+    function SaveImportClick()
+    {
+        $('#btnSave').prop("disabled", "disabled");
+        _MaxRowIndex = 0;
+        _MaxPageSize = 100;
+        $('#tBodyImportData').empty();
+        $('#DivGridLoading').show();
+        $.ajax({
+            url: "/ImportLoadOnDemand/SaveImport",
+            type: "POST",
+            data: JSON.stringify({ TableName: "CategoryMaster", lstImportDataChange: ChangedImportData, MaxRowIndex: _MaxRowIndex, MaxPageSize: _MaxPageSize }),
+            dataType: "json",
+            traditional: true,
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                if(data.ClearChangeObject)
+                {
+                    ChangedImportData = [];
+                }
+
+                if(data.status == 'success')
+                {
+                    alert('Data Imported Successfully');
+                    $('#tBodyImportData').empty();
+                    $('#tableRecord_info').text("Total 0 of 0");
+                    $("select#ImportModule")[0].selectedIndex = 0;
+                    $("select#ImportModule").attr('selected', true);
+                }
+                else
+                {
+                    _IsAllDataLoaded = false;
+                    if (data.lstDataPage != null && data.lstDataPage != undefined && data.lstDataPage.length > 0)
+                    {
+                        var successRecord = TotalRows - (data.lstDataPage.length);
+                        alert(successRecord + ' Records are Successfully Imported.');
+                        TotalRows = data.lstDataPage.length;
+                        $('#tBodyImportData').append($('#importTemplate').tmpl(data.lstDataPage));
+                        _MaxRowIndex = _MaxRowIndex + _MaxPageSize;
+                        if(TotalRows <= _MaxRowIndex)
+                            _IsAllDataLoaded = false;
+
+                        $('#tableRecord_info').text("Total "+ data.lstDataPage.length +" of "+data.lstDataPage.length+"");
+
+                        if(ChangedImportData != null && ChangedImportData != undefined)
+                        {
+                            for(var i = 0; i < ChangedImportData.length; i++)
+                            {
+                                $('#' + ChangedImportData[i].FieldName + '-' + ChangedImportData[i].RowIndex)[0].value = ChangedImportData[i].Value;
+                            }
+                        }
+
+                        setErrorcss();
+                    }
+                    else
+                    {
+                        _IsAllDataLoaded = true;
+                    }
+                }
+                $('#DivGridLoading').hide();
+                $('#btnSave').removeProp("disabled");
+            },
+            error: function () {
+                alert("Some Exception");
+                $('#DivGridLoading').hide();
+            }
+        });
+    }
+
+    function setErrorcss(){
+
+        $('#tBodyImportData tr').css('background-color', 'pink');
+        $('#tBodyImportData tr .ImportStatus').css('color','red');
+        $('#tBodyImportData tr .ImportReason').css('color','red');
+    }
+
+</script>
+<script id="importTemplate" type="text/x-jquery-tmpl">
+    <tr class='odd importtext-box-tr BlankImportRow' style='background-color: rgb(239, 247, 255);height: 35px;'>
+        @if (Model.DataTableColumns.Count() > 0)
+        {
+            <td class="read_only ImportStatus">
+                ${Status}
+            </td>
+            <td class="read_only ImportReason">
+                ${Reason}
+            </td>
+        }
+        @if (Model.DataTableColumns.Contains("category"))
+        {
+            <td class="read_only"><input id="Category-${Index}" name="objImportPageDTO.lstCategoryMasterImportData[${Index}].Category" value="${Category}" onchange="OnImportDataChange(this, ${Index}, 'TEXTBOX')" type="text" class="importtext-box"></td>
+        }
+        @if (Model.DataTableColumns.Contains("udf1"))
+        {
+            <td class="read_only"><input id="UDF1-${Index}" name="objImportPageDTO.lstCategoryMasterImportData[${Index}].UDF1" value="${UDF1}" onchange="OnImportDataChange(this, ${Index}, 'TEXTBOX')" type="text" class="importtext-box"></td>
+        }
+        @if (Model.DataTableColumns.Contains("udf2"))
+        {
+            <td class="read_only"><input id="UDF2-${Index}" name="objImportPageDTO.lstCategoryMasterImportData[${Index}].UDF2" value="${UDF2}" onchange="OnImportDataChange(this, ${Index}, 'TEXTBOX')" type="text" class="importtext-box"></td>
+        }
+        @if (Model.DataTableColumns.Contains("udf3"))
+        {
+            <td class="read_only"><input id="UDF3-${Index}" name="objImportPageDTO.lstCategoryMasterImportData[${Index}].UDF3" value="${UDF3}" onchange="OnImportDataChange(this, ${Index}, 'TEXTBOX')" type="text" class="importtext-box"></td>
+        }
+        @if (Model.DataTableColumns.Contains("udf4"))
+        {
+            <td class="read_only"><input id="UDF4-${Index}" name="objImportPageDTO.lstCategoryMasterImportData[${Index}].UDF4" value="${UDF4}" onchange="OnImportDataChange(this, ${Index}, 'TEXTBOX')" type="text" class="importtext-box"></td>
+        }
+        @if (Model.DataTableColumns.Contains("udf5"))
+        {
+            <td class="read_only"><input id="UDF5-${Index}" name="objImportPageDTO.lstCategoryMasterImportData[${Index}].UDF5" value="${UDF5}" onchange="OnImportDataChange(this, ${Index}, 'TEXTBOX')" type="text" class="importtext-box"></td>
+        }
+    </tr>
+</script>
+}

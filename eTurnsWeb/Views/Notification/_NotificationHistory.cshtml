@@ -1,0 +1,461 @@
+﻿@{
+
+    ViewBag.Title = eTurns.DTO.ResSchedulerReportList.PageTitle;
+    var settings = new GridHeaderSettings() { DataTableName = "myDataTable1", ShowCloseButton = false, ShowSelectAll = false, DisplayUDFButton = true, UDFSetupFor = "InventoryCount&UDFHeader=" + @eTurns.DTO.ResSchedulerReportList.PageTitle, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "NotificationMasterListChangeLog", DisplayDeleteButton = true };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "NotificationMasterList" };
+    Int64 NotificationID = ViewBag.NotificationID;
+    //bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Notifications, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    //bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Notifications, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    //bool isDelete = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Notifications, eTurnsWeb.Helper.SessionHelper.PermissionType.Delete);
+    string CurrentCulture = eTurns.DTO.Resources.ResourceHelper.CurrentCult.Name;
+    string NotificationPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Notification.pdf", DateTime.Now.Ticks);
+}
+@section head{
+
+    <style type="text/css">
+        .dataTables_scrollBody {
+            max-height: 410px;
+            overflow-y: scroll;
+        }
+    </style>
+    @*<script type='text/javascript' src="@Url.Content("~/Content/OpenAccess/jquery.cookie.js")"></script>*@
+
+}
+@Html.GridTopHeaderForHistory(settings)
+<div class="userContent " style="margin: 0 0.4% 1%; width: 99%;">
+    <table id="myDataTable1" class="display">
+        <thead>
+            <tr>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.HistoryID
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.HistoryAction
+                </th>
+                <th>
+                    @ResSchedulerReportList.ScheduleID
+                </th>
+                <th>
+                    @ResSchedulerReportList.ScheduleName
+                </th>
+                <th>
+                    @ResSchedulerReportList.TemplateName
+                </th>
+                <th>
+                    @ResSchedulerReportList.ReportName
+                </th>
+                <th>
+                    @ResSchedulerReportList.EmailAddress
+                </th>
+                <th>
+                    @ResSchedulerReportList.EmailSubject
+                </th>
+                <th>
+                    @ResSchedulerReportList.IsActive
+                </th>
+                <th>
+                    @ResSchedulerReportList.NextRunDate
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.CreatedOn
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.LastUpdatedBy
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.CreatedBy
+                </th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <div id="processing_message" style="display: none" title="Processing">
+        @eTurns.DTO.Resources.ResMessage.RequestProcessMessage
+    </div>
+</div>
+
+<script type="text/javascript">
+    @*var ReportNew = '@eTurns.DTO.Resources.ResCommon.ReportNew';
+    var AlertNew = '@eTurns.DTO.Resources.ResCommon.AlertNew';
+    var ReportEdit = '@eTurns.DTO.Resources.ResCommon.ReportEdit';
+    var AlertEdit = '@eTurns.DTO.Resources.ResCommon.AlertEdit';*@
+    var CountListColumnsArr = new Array();
+    CountListColumnsArr.push({ mDataProp: "HistoryID", "sClass": "read_only" }),
+    CountListColumnsArr.push({ mDataProp: "Action", "sClass": "read_only" }),
+    CountListColumnsArr.push({ mDataProp: "ID", sClass: "read_only" });
+    CountListColumnsArr.push({
+        mDataProp: "ScheduleName", sClass: "read_only", "sDefaultContent": '', "fnRender": function (obj, val) {
+            @*if ('@isUpdate' == 'True') {
+                return "<input name='hdnID' type='hidden' value='" + obj.aData.ID + "' /><a id='lnkEditNtfctn'>" + val + "</a>";
+            }
+            else {*@
+            return "<input name='hdnID' type='hidden' value='" + obj.aData.ID + "' /><span id='spnEditNtfctn'>" + val + "</span>";
+            //}
+        }
+    });
+    CountListColumnsArr.push({ mDataProp: "AlertResourceName", sClass: "read_only" });
+    CountListColumnsArr.push({ mDataProp: "ReportResourceName", sClass: "read_only" });
+
+    CountListColumnsArr.push({ mDataProp: "EmailAddress", sClass: "read_only" });
+    CountListColumnsArr.push({ mDataProp: "EmailSubject", sClass: "read_only" });
+
+    CountListColumnsArr.push({ mDataProp: "IsActive", sClass: "read_only", "fnRender": function (obj, val) { return GetBoolInFormat(obj, val); } });
+    CountListColumnsArr.push({ mDataProp: "NextRunDate", sClass: "read_only", fnRender: function (obj, val) { return obj.aData.ScheduleNextRunDate; } });
+    CountListColumnsArr.push({ mDataProp: "Created", sClass: "read_only", fnRender: function (obj, val) { return obj.aData.CreatedDate; } });
+    CountListColumnsArr.push({ mDataProp: "Updated", sClass: "read_only", fnRender: function (obj, val) { return obj.aData.UpdatedDate; } });
+    CountListColumnsArr.push({ mDataProp: "UpdatedByName", sClass: "read_only" });
+    CountListColumnsArr.push({ mDataProp: "CreatedByName", sClass: "read_only" });
+
+    var oTable;
+    var IsRefreshGrid = false;
+    var deleteURL = "/Notification/DeleteNotification";
+    //var PostCount = 0;
+    var IsDeletePopupOpen = false;
+    var AllowDeletePopup = true;
+    var HistorySelected;
+    var SelectedID = 0;
+    var objColumns = {}
+
+    $(document).ready(function () {
+        objColumns = GetGridHeaderColumnsObject('myDataTable1');
+
+        // LoadTabs();
+        var gaiSelected = [];
+
+        oTable = $('#myDataTable1').dataTable({
+            "bJQueryUI": true,
+            "sScrollX": "120%",
+            "bScrollCollapse": true,
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[1, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "aoColumns": CountListColumnsArr,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                compareHistoryRows(this);
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'NotificationMasterList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        o = json;
+                    }
+                });
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'NotificationMasterList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '') {
+                            o = JSON.parse(json.jsonData);
+                        }
+                    }
+                });
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Action("NotificationListAjax_ChangeLogListAjax", "Notification")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                aoData.push({ "name": "NotificationID", "value": '@(NotificationID.ToString())' });
+                if (oSettings.aaSorting != null && oSettings.aaSorting.length != 0) {
+                    var sortValue = "";
+                    for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                        if (sortValue.length > 0)
+                            sortValue += ", "
+                        sortValue += arrCols[oSettings.aaSorting[i][0]] + ' ' + oSettings.aaSorting[i][1];
+                    }
+                    aoData.push({ "name": "SortingField", "value": sortValue });
+                }
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('#myDataTable1').removeHighlight();
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                        if ($("#global_filter").val() != '') {
+                            $('#myDataTable1').highlight($("#global_filter").val());
+                        }
+                        //                            SetUDFSelected(oSettings);
+                    }
+                })
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+            }
+        }).makeEditable({
+            sUpdateURL: '@Url.Content("~/Master/UpdateData")'
+        });
+
+        //HIDE PRINT CONTAINER
+        $('.DTTT_container').css('z-index', '-1');
+
+        $('#deleteRows').click(function () {
+            /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+            if ($("body").hasClass('DTTT_Print')) {
+                return false;
+            }
+            /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+
+            var anSelectedReq = fnGetSelected(oTable);
+            var stringIDs = "";
+            for (var i = 0; i <= anSelectedReq.length - 1; i++) {
+                stringIDs = stringIDs + $(anSelectedReq[i]).find('#hdnUniqueID').val() + ",";
+            }
+            if (stringIDs.length > 0) {
+                $('#basic-modal-content').modal();
+                IsDeletePopupOpen = true;
+            }
+        });
+        /* HISTORY related data deleated and archived START */
+        $('#IsDeletedRecords').live('click', function () {
+            NarrowSearchInGrid('');
+        });
+        $('#IsArchivedRecords').live('click', function () {
+            NarrowSearchInGrid('');
+        });
+
+        $('#ViewHistory').live('click', function () {
+            HistorySelected = fnGetSelected(oTable);
+            if (HistorySelected != undefined && HistorySelected.length == 1) {
+                $("#atab5").click();
+            }
+            else {
+                $('#tab5').html('');
+                $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                return false;
+            }
+        });
+        /* HISTORY related data deleated and archived END */
+    });
+    /* HISTORY related data deleated and archived START */
+    //function fnGetSelected(oTableLocal) {
+    //    return oTableLocal.$('tr.row_selected');
+    //}
+    //function HistoryTabClick() {
+    //    GetHistoryData();
+    //}
+
+    //function GetHistoryData() {
+    //    HistorySelected = fnGetSelected(oTable);
+    //    if (HistorySelected != undefined && HistorySelected.length == 1) {
+    //        //SelectedHistoryRecordID = HistorySelected[0].id;
+    //        var ID = $(HistorySelected).find('#hdnID')[0].value;
+    //        SelectedID = ID;
+    //        $('#DivLoading').show();
+    //        $("#CTab").hide();
+    //        $("#CtabCL").show();
+
+    //        $('#CtabCL').load('/Notification/NotificationHistory?ID=' + SelectedID, function () { $('#DivLoading').hide(); });
+    //    }
+    //    else {
+    //        $('#CtabCL').html('');
+    //        $("#spanGlobalMessage").html("@ResCommon.msgSelectForViewHistory");
+    //        $('div#target').fadeToggle();
+    //        $("div#target").delay(2000).fadeOut(200);
+    //        return false;
+    //    }
+    //}
+    /* HISTORY related data deleated and archived END */
+</script>
+<script type="text/javascript">
+    @*var varisInsert = true;
+    if ('@isInsert' == "False")
+        varisInsert = false
+
+    var TabsArry = [
+      new TabClass('tab24', AlertNew, 'callbackAlertSetup();', varisInsert, varisInsert)
+    , new TabClass('tab25', ReportNew, 'callbackReportScheduleSetup();', varisInsert, varisInsert)
+    , new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+      new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true)];
+    function callbackReportScheduleSetup() {
+        $('#tab24').find("#spnTabName").text(AlertNew);
+        ShowNewTab('NotificationConfigurationCreate', 'frmNotificationConfigAlert');
+    }
+    function callbackhistory() {
+        $('#tab24').find("#spnTabName").text(AlertNew);
+        $('#tab25').find("#spnTabName").text(ReportNew);
+
+    }
+    function callbackAlertSetup() {
+        $('#tab25').find("#spnTabName").text(ReportNew);
+        ShowNewTab('NotificationConfigurationAlertCreate', 'frmNotificationConfigAlert');
+    }
+    function callbackCL() { HistoryTabClick(); }*@
+
+</script>
+
+<script type="text/javascript">
+    var CopyModeList = false;
+    var progresss = "completed";
+    var arrEmailTemplateDtl = new Array();
+    jQuery(function () {
+
+
+
+        $("#CtabNew").on("change", "#CultureCode", function () {
+
+            var curselect = $(this);
+
+            var mailSubject = $("#EmailSubject").val();
+            var mailBody = CKEDITOR.instances.txtTemplate.getData();
+            var cultureCode = $(curselect).data('prevVal');
+            var grepedArray = new Array();
+
+            grepedArray = jQuery.grep(arrEmailTemplateDtl, function (arritm, i) {
+                return (arritm.CultureCode == cultureCode);
+            });
+
+            if (grepedArray.length == 0) {
+                arrEmailTemplateDtl.push({ CultureCode: cultureCode, MailSubject: mailSubject, MailBodyText: escape(mailBody) });
+            }
+            else {
+                arrEmailTemplateDtl = jQuery.grep(arrEmailTemplateDtl, function (arritm, i) {
+                    return (arritm.CultureCode !== cultureCode);
+                });
+                arrEmailTemplateDtl.push({ CultureCode: cultureCode, MailSubject: mailSubject, MailBodyText: escape(mailBody) });
+            }
+            grepedArray = jQuery.grep(arrEmailTemplateDtl, function (arritm, i) {
+                return (arritm.CultureCode == $(curselect).val());
+            });
+
+            if (grepedArray.length > 0) {
+                CKEDITOR.instances.txtTemplate.setData(unescape(grepedArray[0].MailBodyText));
+                $("#EmailSubject").val(grepedArray[0].MailSubject);
+            }
+            else {
+                CKEDITOR.instances.txtTemplate.setData("");
+                $("#EmailSubject").val("");
+            }
+
+            $(curselect).data('prevVal', $(curselect).val());
+        });
+
+
+        $("#CtabNew").on("change", "select#EmailTemplates", function () {
+            var curselect = $(this);
+            $("input[type='hidden'][id='EmailTemplates']").val($(this).val());
+
+            GetEmailTemplateDetails($(this).val(), 0, $("#ScheduleFor").val());
+        });
+
+        $("#CtabNew").on("change", "select#Reports", function () {
+            var curselect = $(this);
+            $("input[type='hidden'][id='Reports']").val($(this).val());
+            arrEmailTemplateDtl = new Array();
+            GetEmailTemplateDetails($(this).val(), $("#ID").val(), $("#ScheduleFor").val());
+        });
+
+        $("#CtabNew").on("change", "select#Suppliers", function () {
+            var curselect = $(this);
+            $("input[type='hidden'][id='SupplierIds']").val($(curselect).val());
+
+        });
+
+        $("#CtabNew").on("change", "input[type='checkbox'][name='chkAttachmentTypes']", function () {
+            var selevals = new Array();
+            $("input[type='checkbox'][name='chkAttachmentTypes']:checked").each(function (indx, curobj) {
+                selevals.push($(curobj).val());
+            });
+            $("input#AttachmentTypes").val(selevals.toString());
+        });
+
+        @*$("#CtabNew").on({
+            focus: function (event) {
+                var thistxt = $(this);
+                if (progresss == "completed") {
+                    progresss = "running";
+                    SetAutoCompleteOpenOnFocus($(thistxt), '@Url.Action("GetAllSchedules", "Notification")', null, " ");
+                }
+            },
+            change: function (event) {
+                var thistxt = $(this);
+                $('#DivLoading').show();
+                setTimeout(function () {
+                    LoadScheduleparams($(thistxt).val(), false);
+                }, 10);
+
+
+            },
+            keydown: function (event) {
+                $("#dvParams").hide();
+            }
+
+
+        }, "input[type='text'][id='ScheduleName']");*@
+
+        $('#myDataTable1').on('touchstart click', 'a[id="lnkEditNtfctn"]', function () {
+            var ID = $(this).parent().find("input[name='hdnID']").val();
+            var currentTR = $(this).parent().parent()[0];
+            var aPos = oTable.fnGetPosition($(this).parent()[0]);
+            var aData = oTable.fnGetData(aPos[0]);
+            aData.CompanyName = "false";
+            ShowEditTabNotification('NotificationConfigurationAlertEdit/' + ID, 'frmNotificationConfigAlert', aData);
+            return false;
+        });
+        $('#myDataTable1').on('touchstart click', 'a[id="lnkCopy"]', function () {
+            var ID = $(this).parent().parent().find("input[name='hdnID']").val();
+            var currentTR = $(this).parent().parent()[0];
+            var aPos = oTable.fnGetPosition($(this).parent()[0]);
+            var aData = oTable.fnGetData(aPos[0]);
+            var actiontupess = "NotificationConfigurationAlertEdit/" + ID;
+            aData.CompanyName = "true";
+            ShowEditTabNotification(actiontupess, 'frmNotificationConfigAlert', aData);
+            return false;
+        });
+    });
+
+
+
+
+</script>
+<script type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>

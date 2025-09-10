@@ -1,0 +1,507 @@
+﻿@model IEnumerable<eTurns.DTO.ToolsSchedulerDetailsDTO>
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = true, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = false, DisplayColumnSetupButton = true, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, DataTableName = "ScheduleItemsTable" + ViewBag.ScheduleGUID };
+    var settings1 = new GridHeaderSettings() { DisplaySaveButton = false, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "SchedulerItemsList" };
+}
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="InnerItem_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="@Url.Content("~/Content/images/x.png")" alt="X" id="clear_QLItem_filter" /></a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Assets)
+            @Html.GridChildGridTopHeader(settings1);
+            <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="ScheduleItemsTable@(ViewBag.ScheduleGUID)" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>@eTurns.DTO.ResToolsSchedulerDetails.ID
+                            </th>
+                            <th>@eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th>@eTurns.DTO.ResItemMaster.Description
+                            </th>
+                            <th>@eTurns.DTO.ResToolsSchedulerDetails.Quantity
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null)
+                        {
+                            foreach (var item in Model)
+                            { 
+                            <tr>
+                                <td></td>
+                                <td>@item.ID
+                                </td>
+                                <td>@item.ItemNumber
+                                </td>
+                                <td>@item.ItemDescription<input id="hdnDescription" type="hidden" value="@item.ItemDescription" /><td>
+                                    @if (item.SerialNumberTracking)
+                                    {
+                                        @Html.TextBox("txtQuantity", item.Quantity, "{0:0}", new { @style = "width:93%;", @maxlength = "10", @class = "numericinput" })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("txtQuantity", item.Quantity, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @style = "width:93%;", @maxlength = "10", @class = "numericinput" })
+                                    }
+                                    @*<input id="txtQuantity" value="@item.Quantity" style="width:50px;" maxlength="10" class="text-boxPriceFormat text-boxinner"/>*@
+                                    <input id="hdnID" type="hidden" value="@item.GUID" />
+                                    <input id="hdnItemNumber" type="hidden" value="@item.ItemNumber" />
+                                    <input id="hdnItemGUID" type="hidden" value="@item.ItemGUID" />
+                                    <input id="hdnScheduleGUID" type="hidden" value="@item.ScheduleGUID" />
+                                </td>
+                            </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="dialog" id="mdlQLYesNo" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm</p>
+        <a href="JavaScript:void{}" id="btnQLModelYesSP" class="yes">
+            <img src="@Url.Content("~/Content/images/yes.png")" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes</a><a href="javascript:void(0)" class="no"
+                onclick="QLcloseModal()">
+                <img src="@Url.Content("~/Content/images/no.png")" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo</a>
+    </div>
+</div>
+<script type="text/javascript">
+    var oTableProjectItems;
+    var deleteURL1 = "/Assets/ScheduleItemsDelete";
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var DTName = 'ScheduleItemsTable' + '@ViewBag.ScheduleGUID';
+    var bIsFilter = false;
+    var SchedulerItemsGridColumns;
+    $('#saveRows').click(function () {
+        SaveAllClick();
+    });
+    function SaveAllClick() {
+
+        var arrItems = new Array();
+        $('#' + DTName + ' tbody tr').each(function () {
+            var txtQuantity = $(this).find('#txtQuantity').val();
+            var hdnID = $(this).find('#hdnID').val();
+            var hdnItemNumber = $(this).find('#hdnItemNumber').val();
+            var hdnItemGUID = $(this).find('#hdnItemGUID').val();
+            var hdnScheduleID = $(this).find('#hdnScheduleID').val();
+            var hdnScheduleGUID = $(this).find('#hdnScheduleGUID').val();
+            var hdnDescription = $(this).find('#hdnDescription').val();
+            if (txtQuantity != undefined) {
+                var data = { "GUID": hdnID, "ItemGUID": hdnItemGUID, "ScheduleGUID": hdnScheduleGUID, "ItemNumber": hdnItemNumber, "Quantity": txtQuantity, "ItemDescription": hdnDescription };
+                arrItems.push(data);
+            }
+        });
+        
+        if (arrItems.length > 0) {
+            $('#DivLoading').show();
+            $.ajax({
+                url: '@Url.Content("~/Assets/AddItemToDetailTable")',
+                data: { 'para': JSON.stringify(arrItems) },
+                dataType: 'json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (response) {
+                    $('#DivLoading').hide();
+                    if (response.Status == "ok") {
+                        //$('div#target').fadeToggle();
+                        //$("div#target").delay(2000).fadeOut(200);
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html(response.Message);
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                    }
+                    else {
+                        $("#spanGlobalMessage").html(response.Message);
+                        //$('div#target').fadeToggle();
+                        //$("div#target").delay(2000).fadeOut(200);
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    }
+                }
+            });
+        }
+        else {
+            $("#spanGlobalMessage").html('@ResCommon.NoChanges');
+            //$('div#target').fadeToggle();
+            //$("div#target").delay(2000).fadeOut(200);
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+        }
+    }
+
+    function OpenItemModel() {
+        $('#ItemModel').load('@Url.Action("LoadItemMasterModel", new { ParentId = ViewBag.ProjectID })', function () {
+            $('#ItemModel').modal();
+        });
+        return false;
+    }
+
+
+    function CallThisFunctionFromModel(msg) {
+        if (msg == 'success') {
+            $('#DivLoading').show();
+            $('#divProjectSpendItems').load('@Url.Action("LoadScheduleItems", new { ScheduleGUID = ViewBag.ScheduleGUID })', function () {
+                $('#DivLoading').hide();
+            });
+        }
+    }
+    
+    $(document).ready(function () {
+        SchedulerItemsGridColumns = GetGridHeaderColumnsObject(DTName);
+        $('form').areYouSure();
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormatSR").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 0
+        });
+
+
+        var gaiSelected = [];
+        oTableProjectItems = $('#' + DTName).dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "150%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            "oColVis": {},
+            "aaSorting": [],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                return nRow;
+            },
+            "aoColumnDefs": [
+                { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '', aTargets: [0] },
+                { "bSortable": false, aTargets: [4] }
+            ],
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                //if (!bIsFilter) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'SchedulerItemsList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+               // }
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'SchedulerItemsList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            }
+        });
+
+
+        $('.DTTT_container').css('z-index', '-1');
+        $('.ColVis_MasterButton').hide();
+        $('#divProjectSpendItems .refresh').css('margin-top', '-30px');
+        $('#divProjectSpendItems .refresh').css('left', '-6px');
+    });
+
+
+    $('#' + DTName + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    // To adjust the print block next to colvis button
+    $('#btnblock').css({ 'margin-right': '45px' });
+
+    var lastChecked1;
+    var starttrvalue1 = "";
+    $('#' + DTName + ' tbody tr').live('tap click', function (e) {
+        //$(this).toggleClass('row_selected');
+        //return false;
+
+        if ($(e.target).hasClass("control") == true || e.target.nodeName.toLowerCase() == "img" || e.target.type == "checkbox" || e.target.type == "radio" || e.target.type == "text" || e.target.type == "button" || $(e.target).is('a') == true || $(e.target).is('span') == true
+            || $(e.target).hasClass("selectBox")
+        ) {
+            e.stopPropagation();
+        }
+        else {
+            if (lastChecked1 !== undefined && lastChecked1 != null && !lastChecked1) {
+                lastChecked1 = this;
+            }
+
+            if (e.shiftKey) {
+                var start = $('#' + DTName + ' tbody tr').index(this);
+                var end = $('#' + DTName + ' tbody tr').index(lastChecked1);
+
+                var stringval1 = readCookieforshift("selectstartindex");
+                if (stringval1 != null) {
+                    var endindex = $(this).closest('tr').attr('id');
+                    createCookieforshift("selectendindex", endindex, 1);
+                    if ($("#hdnPageName").val() !== undefined) {
+                        var pagename = '';
+                        pagename = $("#hdnPageName").val();
+                        GetOnlyIdsForPassPagesForshift(pagename, true);
+                    }
+                }
+
+                for (i = Math.min(start, end); i <= Math.max(start, end); i++) {
+                    if (!$('#' + DTName + ' tbody tr').eq(i).hasClass('row_selected')) {
+                        $('#' + DTName + ' tbody tr').eq(i).addClass("row_selected");
+                    }
+                }
+                if (window.getSelection) {
+                    if (window.getSelection().empty) {  // Chrome
+                        window.getSelection().empty();
+                    } else if (window.getSelection().removeAllRanges) {  // Firefox
+                        window.getSelection().removeAllRanges();
+                    }
+                } else if (document.selection) {  // IE?
+                    document.selection.empty();
+                }
+            } else if ((e.metaKey || e.ctrlKey)) {
+                $(this).toggleClass('row_selected');
+            } else {
+                $(this).toggleClass('row_selected');
+
+
+                if ($(this).hasClass('row_selected')) {
+                    (starttrvalue1 == "") ? starttrvalue1 = $(this).closest('tr').attr('id') : starttrvalue1 = starttrvalue1 + "," + $(this).closest('tr').attr('id');
+                    createCookieforshift("selectstartindex", starttrvalue1, 1);
+                } else {
+
+                    var stringval = readCookieforshift("selectstartindex");
+                    if (stringval != "undefined") {
+                        if (stringval != null) {
+                            var tmp = stringval.split(',');
+                            var index = tmp.indexOf($(this).closest('tr').attr('id'));
+                            if (index !== -1) {
+                                tmp.splice(index, 1);
+                                stringval = tmp.join(',');
+                                createCookieforshift("selectstartindex", stringval, 1);
+                            }
+                        }
+                    }
+
+                }
+            }
+
+            lastChecked1 = this;
+        }
+    });
+
+    /* Add a click handler for the delete rows multiple rows */
+
+    $('#deleteRows1').click(function () {
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+        if ($("body").hasClass('DTTT_Print')) {
+            return false;
+        }
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+        var anSelected = fnGetSelected(oTableProjectItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            //anSelected[0].cells[0].innerHTML            
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+            IsDeletePopupOpen = false;
+        }
+    });
+
+    $("#btnModelYesInnerGrid").live("click", function () {
+
+        var anSelected = fnGetSelected(oTableProjectItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+
+        if (anSelected.length !== 0) {
+            $.ajax({ 'url': deleteURL1,
+                data: { ids: stringIDs },
+                success: function (response) {
+
+                    if (response == "ok") {
+
+
+                        for (var i = 0; i <= anSelected.length - 1; i++) {
+                            oTableProjectItems.fnDeleteRow(anSelected[i]);
+                        }
+
+                        if (anSelected.length > 0) {
+                            $("#spanGlobalMessage").html('@ResCommon.RecordDeletedSuccessfully'.replace("{0}", "(" + anSelected.length + ")"));
+                        }
+                        //$('div#target').fadeToggle();
+                        //$("div#target").delay(2000).fadeOut(200);
+                        showNotificationDialog();
+                        //CallThisFunctionFromModel('success');
+                        //oTableProjectItems.fnDraw();
+                    }
+                },
+                error: function (response) {
+                    // through errror message
+                }
+            });
+            $.modal.impl.close();
+        }
+    });
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+        $('#' + DTName).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+    /* global search function */
+    function fnFilterGlobalPS() {
+        //set filter only if more than 2 characters are pressed
+        //if (typeof $("#InnerItem_filter") != 'undefined' && ($("#InnerItem_filter").val().length > 2 || $("#InnerItem_filter").val().length == 0)) {
+        if (typeof $("#InnerItem_filter") != 'undefined') {
+            bIsFilter = true;
+            var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+
+            $('#' + DTName + ' td').removeHighlight();
+
+            $('#' + DTName).dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+
+
+            if (searchtext.length > 0)
+                $('#' + DTName + ' td').highlight($("#InnerItem_filter").val());
+        }
+    }
+
+    var timeoutsc1; 
+    //Apply filter
+    $("#InnerItem_filter").keyup(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        var index = $.inArray(code, NotAllowedCharCodes);
+        if (code == 13) {
+        }
+        else {
+            // fnFilterGlobalPS();
+            clearTimeout(timeoutsc1);
+            var self = this;
+            timeoutsc1 = setTimeout(function () {
+                fnFilterGlobalPS();
+            }, 500);
+        }
+    });
+
+    //Keydown event is required to handle ENTER KEY to work in IE
+    $("#InnerItem_filter").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            fnFilterGlobalPS();
+            return false;
+        }
+    });
+
+    //Clear Filter
+    $("#clear_QLItem_filter").click(function () {
+        $("#InnerItem_filter").val('');
+        fnFilterGlobalPS();
+        $("#InnerItem_filter").focus();
+        return false;
+    });
+
+    function callPrint1(DataTableName) {
+        var oConfig = {
+            "sInfo": "<h6>Print view</h6><p>Please use your browser's print function to " + "print this table. Press escape when finished.",
+            "sMessage": null,
+            "bShowAll": false,
+            "sToolTip": "View print view",
+            "sButtonClass": "DTTT_button_print",
+            "sButtonText": "Print"
+        };
+        if (typeof (TableTools) != undefined && typeof (TableTools) != 'undefined')
+            TableTools.fnGetInstance(DataTableName).fnPrint(true, oConfig);
+    }
+    $("#ColumnOrderSetupChildGrid").off('click')
+    $("#ColumnOrderSetupChildGrid").on('click', function () {
+        $("#divDetailGridReorderPopup").data({ 'DataTableName': DTName, 'ListName': 'SchedulerItemsList', 'ColumnObjectName': 'SchedulerItemsGridColumns' }).dialog("open");
+        return false;
+    });
+
+    function FillDetailGridDiv() {
+        $("#divDetailGridReorderPopup").dialog("close");
+        $('#divProjectSpendItems').empty();
+        $('#DivLoading').show();
+        $('#divProjectSpendItems').load('@Url.Action("LoadScheduleItems", new { ScheduleGUID = ViewBag.ScheduleGUID })', function () {
+            $('#DivLoading').hide();
+        });     
+    }
+    /* DATA TABLE GRID COMMON FUNCTIONS END */
+
+</script>

@@ -1,0 +1,527 @@
+@model IEnumerable<eTurns.DTO.ToolMasterDTO>
+@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    ViewBag.Title = ResToolMaster.PageTitle;
+    var settings = new GridHeaderSettings() { DisplaySaveButton = false, ShowSelectAll = true, DisplayUDFButton = true, UDFSetupFor = "Tools&UDFHeader=" + @ResToolMaster.PageHeader, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "ToolList" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ToolMaster", IDsufix = "_Tool", IDsufix2 = "_tech", ListName = "ToolMaster" };
+    /*
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    bool IsShowChangeLog = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.ShowChangeLog);
+    */
+    var moduleParm = eTurnsWeb.Helper.SessionHelper.GetModulePermissionByModule(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster);
+    bool isInsert = moduleParm.IsInsert;
+    bool isUpdate = moduleParm.IsUpdate;
+    bool IsShowChangeLog = moduleParm.IsShowChangeLog;
+
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    bool AllowCheckinCheckOut = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowCheckInCheckout);
+    bool isToolUDF = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetNonDeletedUDFCountByUDFTableName("ToolCheckInOutHistory", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID) > 0;
+    string ViewNewToolbuttons = Convert.ToString(System.Configuration.ConfigurationManager.AppSettings["ViewNewToolbuttons"]);
+    if (string.IsNullOrWhiteSpace(ViewNewToolbuttons))
+    {
+        ViewNewToolbuttons = "no";
+    }
+    string ToolsPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Tools.pdf", DateTime.Now.Ticks);
+
+    //System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    string UNCPathRootLink2 = eTurns.DTO.SiteSettingHelper.ToolPhoto; // Settinfile.Element("ToolPhoto").Value;
+    Int64 EnterpriseId = eTurnsWeb.Helper.SessionHelper.EnterPriceID;
+    Int64 CompanyID = eTurnsWeb.Helper.SessionHelper.CompanyID;
+    Int64 RoomID = eTurnsWeb.Helper.SessionHelper.RoomID;
+    UNCPathRootLink2 = UNCPathRootLink2.Replace("~", string.Empty);
+    string LogoPathImage = (UNCPathRootLink2 + EnterpriseId + "/" + CompanyID + "/" + RoomID);
+    string TechnicianRequired = ResCommon.TechnicianRequired;
+    string version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    bool haveToolWrittenOffRights = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowToolWrittenOff);
+    //HelpDocumentMasterDTO objHelpDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentMaster("Tools");
+    //string ToolBasicVideo = "";
+    //if (objHelpDTO != null)
+    //{
+    //    ToolBasicVideo = objHelpDTO.ModuleVideoPath.Replace("../Uploads/HelpVideo/", "");
+    //}
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Tools", (int)HelpDocType.Module);
+}
+<style type="text/css">
+    #myDataTable_wrapper div.top:first-child div.dataTables_length:first-child {
+        top: -82px;
+    }
+
+    /*WI-2589 - Maintanance Checkbox not able to checked*/
+    #myDataTable_paginate {
+        top: -72px;
+    }
+    /*.dataTables_paginate {
+        top: -72px;
+    }*/
+    /*WI-2589 - Maintanance Checkbox not able to checked*/
+
+    .td-udfs {
+        padding: 3px;
+    }
+
+    #tblPullCommonUDF .selectBox {
+        width: 90% !important;
+    }
+
+    #tblPullCommonUDF .text-boxinner {
+        width: 90% !important;
+    }
+
+    .tblPullCommonUDFthead {
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+</style>
+
+@*<link rel="stylesheet" type="text/css" href="@Url.Content(" ~/Content/tabstyle.css")" />*@
+@section head{
+
+}
+
+
+<div class="userListingWrapper">
+    <h2>
+        @ResToolMaster.PageHeader
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener" style="min-height: 970px;">
+        </div>
+        <div id="Ctab" class="tabContener" style="min-height: 970px;">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                    @*<input type="button" value="Search" class="searchBtn" />*@
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster)
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            <div class="userContent">
+
+                <table style="margin-bottom: 1px; margin-top: 1px;" id="tblPullCommonUDF">
+                    <thead>
+                        <tr>
+
+                            <th>
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.TechnicianList
+                            </th>
+                            @if (isToolUDF)
+                            {
+                                @Html.RenderColumnsHeaderByName("ToolCheckInOutHistory", typeof(eTurns.DTO.ResToolCheckInOutHistory))
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <b style="font-size: 13px;">&nbsp;&nbsp;&nbsp;Use this</b>
+                                <input type="checkbox" id="chkUseToolCommonUDF" />
+                            </td>
+                            <td>
+                                <span style="position:relative">
+                                    <input type="text" id="txtUseThisTechnician" class="text-boxinner UseThisAutoTechnician" style="width:120px;" value="@eTurns.DTO.Resources.ResCommon.SelectTechnicianText" autocomplete="off" role="textbox" aria-autocomplete="list" aria-haspopup="true">
+                                    <input type="hidden" id="UseThisTechnicianGUID" value="">
+                                    <a id="UseThislnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="UseThisShowAllOptions">
+                                        <img src="/Content/images/arrow_down_black.png" alt="select">
+                                    </a>
+                                </span>
+
+                            </td>
+                            @if (isToolUDF)
+                            {
+                                @Html.RenderColumnsArrayEditableObjectForDOMByName("ToolCheckInOutHistory", controlIDPostfix: "ToolCommon")
+                            }
+
+                        </tr>
+                    </tbody>
+                </table>
+
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @ResCommon.ID
+                            </th>
+                            <th>
+                                @ResItemMaster.Expand
+                            </th>
+                            <th>
+                                @ResToolMaster.CheckOut
+                            </th>
+                            <th>
+                                @ResToolMaster.ForMaintanence
+                            </th>
+                            <th>
+                                @ResToolMaster.QuantityTexBox
+                            </th>
+                            <th>
+                                @ResToolMaster.Quantity
+                            </th>
+                            <th>
+                                @ResToolCheckInOutHistory.AvailableQty
+                            </th>
+                            <th>
+                                @ResToolMaster.ToolName
+                            </th>
+                            <th>
+                                @ResToolCheckInOutHistory.CheckedOutQTY
+                            </th>
+                            <th>
+                                @ResToolCheckInOutHistory.CheckedOutMQTY
+                            </th>
+                            <th>
+                                @ResToolMaster.Serial
+                            </th>
+                            <th>
+                                @ResToolMaster.Description
+                            </th>
+                            <th>
+                                @ResToolMaster.IsGroupOfItems
+                            </th>
+                            <th>
+                                @ResToolMaster.Cost
+                            </th>
+                            <th>
+                                @ResToolMaster.ToolCategory
+                            </th>
+                            <th>
+                                @ResToolMaster.Location
+                            </th>
+                            <th>
+                                @ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.TechnicianList
+                            </th>
+                            <th>
+                                @ResToolMaster.ToolImage
+                            </th>
+                            <th>
+                                @ResToolCheckInOutHistory.CheckinQuantity
+                            </th>
+                            <th>
+                                @ResToolMaster.ToolType
+                            </th>
+                            @Html.RenderColumnsHeader("ToolMaster", typeof(eTurns.DTO.ResToolMaster), "Tool")
+                            @Html.RenderColumnsHeader("ToolCheckInOutHistory", typeof(eTurns.DTO.ResToolCheckInOutHistory), "")
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+
+                <div style="clear: both; width: 90%; margin-top: 10px;">
+                    @if (AllowCheckinCheckOut)
+                    {
+                        <input type="button" value="@eTurns.DTO.ResToolMaster.ToolCheckoutAllButton" id="btnToolCheckoutAllNewFlow" class="CreateBtn" style="float: left;" />
+                        <input type="button" value="@eTurns.DTO.ResToolMaster.ToolCheckInAllButton" id="btnToolCheckInAllBottom" class="CreateBtn" style="float: left;display:none;" />
+                    }
+                    @if (haveToolWrittenOffRights)
+                    {
+                        <input type="button" value="@eTurns.DTO.ResToolMaster.ToolWrittenOffAllButton" id="btnToolWrittenOffAllNewFlow" class="CreateBtn" style="float: left;" />
+                    }
+                    @if (AllowCheckinCheckOut)
+                    {
+                        <input type="button" value="@eTurns.DTO.ResToolMaster.ReassignTechnician" id="btnReassignTechnician" class="CreateBtn" style="float: left;" />
+                    }
+
+                </div>
+
+            </div>
+        </div>
+        <div id='CtabCL' class="tabContener" style="min-height: 970px;">
+        </div>
+        <div id='CtabSCH' class="tabContener" style="min-height: 970px;">
+        </div>
+        <div id='CtabSchedulerList' class="tabContener" style="min-height: 970px;">
+        </div>
+        <div id='CtabOdometer' class="tabContener" style="min-height: 970px;">
+        </div>
+        <div id='CtabOdometerList' class="tabContener" style="min-height: 970px;">
+        </div>
+        <div id='CtabMaintenance' class="tabContener" style="min-height: 970px;">
+        </div>
+        <div id="CtabToolListHistory" class="tabContener" style="min-height: 750px;">
+        </div>
+        <div id="CtabWrittenOffTool" class="tabContener" style="min-height: 970px;">
+        </div>
+    </div>
+    <div id="DivPullSelection">
+    </div>
+</div>
+
+@*<script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>
+<script type='text/javascript' src="@Url.Content("~/Scripts/PageScripts/ToolPage.js?v=" + version)"></script>
+<script type='text/javascript' src="@Url.Content("~/Scripts/PageScripts/ToolList.js?v=" + version)"></script>*@
+
+<script type='text/javascript' src="@Url.Content("~/bundles/toolMasterList?v=" + version)"></script>
+
+
+
+<script language="javascript" type="text/javascript">
+        ToolListTab = 'ToolList';
+        RequisitionCurrentTab = ToolListTab;
+
+    var msgSelectToolToWrittenOff = '@ResMessage.SelectRecordToWrittenOff',
+        msgAvailableQtyCantBeLessThanOne = '@ResToolMaster.AvailableQtyCantBeLessThanOne',
+        msgQtyNotAvailableToWrittenOff = '@ResToolMaster.QtyNotAvailableToWrittenOff',
+        msgWrittenOffOnlyAvailableQty = '@ResToolMaster.WrittenOffOnlyAvailableQty',
+        msgInvalidTechnician = '@ResToolCheckInOutHistory.MsgRemoveInvalidValueFromTechnician';
+    var msgSelectForViewHistory = '@ResCommon.msgSelectForViewHistory';
+    var MsgSelectRecordForScheduleList = '@ResToolMaster.MsgSelectRecordForScheduleList';
+    var ReqKitisBuildBreak = '@ResKitToolMaster.ReqKitisBuildBreak';
+    var MsgSelectToolKitTypeOnly = '@ResToolMaster.MsgSelectToolKitTypeOnly';
+    var MsgKindlyFillTechnician = '@ResTechnician.MsgKindlyFillTechnician';
+    var MsgSelectToolToCheckIn = '@ResToolMaster.MsgSelectToolToCheckIn';
+    var MsgSelectToolMainGridCheckIn = '@ResToolMaster.MsgSelectToolMainGridCheckIn';
+    var MsgEnterQuantityToCheckIn = '@ResToolMaster.MsgEnterQuantityToCheckIn';
+    var MsgInsertQuantityCheckOut = '@ResToolMaster.MsgInsertQuantityCheckOut';
+    var MsgSelectLocationCheckout = '@ResToolMaster.MsgSelectLocationCheckout';
+    var MsgQtyCheckOutMandatory = '@ResToolMaster.MsgQtyCheckOutMandatory';
+    var InventoryLocationMandatory = '@ResPullMaster.InventoryLocationMandatory';
+    var MsgSelectRowToDelete = '@ResPullMaster.MsgSelectRowToDelete';
+    var MsgQTYCheckOutQTYValidation = '@ResToolMaster.MsgQTYCheckOutQTYValidation';
+    var MsgSelectRecordCheckout = '@ResToolMaster.MsgSelectRecordCheckout';
+    var MsgDuplicateLotNumber = '@ResToolMaster.MsgDuplicateLotNumber';
+    var MsgDuplicateSerialNumberValidation = '@ResReceiveOrderDetails.MsgDuplicateSerialNumberValidation';
+    var MsgDuplicateNumber = '@ResMessage.DuplicateNumber';
+    var MsgInsertProperQuantityValue = '@ResAssetMaster.MsgInsertProperQuantityValue';
+    var MsgRecordSucessfullyUpdated = '@ResCommon.MsgRecordSucessfullyUpdated';
+    var logoPathImage = '@LogoPathImage';
+    var arrToolMaster = [@Html.RenderColumnsArray("ToolMaster", false, "Tool")];
+    var arrToolCheckInOutHistory = [@Html.RenderColumnsArrayEditableObject("ToolCheckInOutHistory", false, isUDFOrderRequire: true)];
+    var masterGridColumns = {};
+
+    var MsgNoQuantityForCheckout = '@ResToolMaster.MsgNoQuantityForCheckout';
+    var MsgCheckoutOnlyAvailableQuantity = '@ResToolMaster.MsgCheckoutOnlyAvailableQuantity';
+    var MsgCheckinCheckoutValidation = '@ResAssetMaster.MsgCheckinCheckoutValidation';
+    var MsgInvalidOperationNoCheckout = '@ResAssetMaster.MsgInvalidOperationNoCheckout';
+    var MsgAllPulldone = '@ResPullMaster.AllPulldon';
+    var MsgCheckoutDoneSuccess = '@ResToolMaster.MsgCheckoutDoneSuccess';
+    var MsgRescommonError = '@ResCommon.ErrorInProcess';
+    var MsgPullDoneSuccess = '@ResToolMaster.MsgPullDoneSuccess';
+    var MsgNoPullReasons = '@ResToolMaster.MsgNoPullReasons';
+    var MsgCheckoutMoreQuantityValidation = '@ResToolMaster.MsgCheckoutMoreQuantityValidation';
+    var MsgPullMoreQuantityValidation = '@ResToolMaster.MsgPullMoreQuantityValidation';
+    var MsgPullCreditQuantity = '@ResToolMaster.MsgPullCreditQuantity';
+    var MsgRowShouldExists = '@ResToolMaster.MsgRowShouldExists';
+
+    var sLengthMenu = '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+        sEmptyTable = '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+        sInfo = '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+        sInfoEmpty = '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries',
+        SelectTechnicianText = '@eTurns.DTO.Resources.ResCommon.SelectTechnicianText',
+        msgSelectCheckOutTool = '@ResMessage.SelectCheckOutTool',
+        msgCheckUseThis = '@ResMessage.CheckUseThis',
+        msgInvalidTechnicianForReassign = '@ResMessage.InvalidTechnician',
+        msgFailToReassign = '@ResMessage.FailToReassign';
+    var SelectProperRecordToCheckout = '@ResToolMaster.SelectProperRecordToCheckout';
+
+    var oLanguage = {
+    "sLengthMenu": sLengthMenu,
+    "sEmptyTable": sEmptyTable,
+    "sInfo": sInfo,
+    "sInfoEmpty": sInfoEmpty
+};
+
+    var TechnicianText = '@eTurns.DTO.Resources.ResCommon.SelectTechnicianText',
+        TechnicianRequired = '@TechnicianRequired',
+        ChecInOutURL = '@Url.Content("~/Assets/CheckOutCheckIn")',
+        CheckOutAll = '@Url.Content("~/Assets/CheckOutAll")',
+        CheckInAllNew = '@Url.Content("~/Assets/CheckInAllNew")',
+        urlWrittenOffToolQuantity = '@Url.Action("WrittenOffToolQuantity", "Tool")',
+        WrittenOffSerialSelectionUrl = '@Url.Action("WrittenOffLotSrSelection", "Tool")',
+        IsRefreshGrid = false,
+        BoolTrueString = '@Boolean.TrueString',
+        WrittenOffToolURL = '@Url.Action("WrittenOffTool", "Assets")',
+        urlReassignTechnician = '@Url.Action("ReassignTechnician", "Tool")';
+
+    var isCost = '@isCost';
+
+     _ToolList.init();
+    _ToolList.initUrls('@Url.Content("~/Master/SaveGridState")', '@Url.Content("~/Master/LoadGridState")'
+        , '@Url.Content("~/Assets/ToolListAjax")', '@Url.Content("~/Assets/CheckInCheckOutData")');
+
+
+        if ('@AllowCheckinCheckOut' == 'True') {
+            allowCheckinCheckOut = true;
+        }
+
+     var isTabClick = false;
+     var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+        new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+        new TabClass('tabToolHistory', '@eTurns.DTO.Resources.ResCommon.ToolHistoryList', 'callbacktoolhistory();', true, true),
+        new TabClass('tabWrittenOffTool', '@eTurns.DTO.Resources.ResCommon.WrittenOffToolList', 'callbackWrittenOffTool();', true, true),
+    ];
+    TabsArry.push(new TabClass('tabBuildBreak', '@eTurns.DTO.Resources.ResLayout.KitToolBuildBreak', 'callKitToolBuildBreak();', false, true));
+    if ('@IsShowChangeLog.ToString().ToUpper()' == 'TRUE') {
+        TabsArry.push(new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true));
+    }
+    TabsArry.push(new TabClass('tabSchedule', '@eTurns.DTO.Resources.ResCommon.AddScheduler', 'callbackScheduler();', false, true));
+    TabsArry.push(new TabClass('tabScheduleList', '@eTurns.DTO.Resources.ResCommon.SchedulerList', 'callbackSchedulerList();', false, true));
+    TabsArry.push(new TabClass('tabOdometer', '@eTurns.DTO.Resources.ResCommon.UpdateMilesHours', 'callbackOdometer();', false, true));
+    TabsArry.push(new TabClass('tabMaintenance', '@eTurns.DTO.Resources.ResCommon.Maintenance', 'callbackMaintenance();', false, true));
+
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+            case "#history":
+                $("#tabToolHistory").click();
+                break
+            case "#writtenoff":
+                $("#tabWrittenOffTool").removeClass("unselected").addClass("selected");
+                $("#tab5,#tab1,#tabToolHistory").removeClass("selected").addClass("unselected");
+                $("#tabWrittenOffTool").click();
+                break
+        }
+
+    }
+    $(document).ready(function () {
+        
+        if (window.location.hash.toLowerCase() == "#list") {
+            $("#tab5").click();
+        }
+        else if (window.location.hash.toLowerCase() == "#new") {
+            $("#tab1").click();
+        }
+        else if (window.location.hash.toLowerCase() == "#history") {
+            $("#tabToolHistory").click();
+        }
+        else if (window.location.hash.toLowerCase() == "#writtenoff") {
+            //$("#tabWrittenOffTool").removeClass("unselected").addClass("selected");
+            //$("#tab5,#tab1,#tabToolHistory").removeClass("selected").addClass("unselected");
+            $("#tabWrittenOffTool").click();
+        }
+
+        $(window).on('hashchange', function () {
+            
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+        if ('@isInsert.ToString().ToUpper()' == 'FALSE') {
+            $("#tab1").hide();
+        }
+    });
+
+</script>

@@ -1,0 +1,181 @@
+@model eTurnsWeb.Models.ItemModelPerameter
+@{
+    ViewBag.Title = ResToolMaster.PageTitle;
+    var settings = new GridHeaderSettings() { DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = false, dataViewType = DataViewType.None, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "ToolListInModel" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ToolMaster", IDsufix = "_Tool" };
+    bool isToolUDF = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetNonDeletedUDFCountByUDFTableName("ToolCheckInOutHistory", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID) > 0;
+
+    System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    string UNCPathRootLink2 = Settinfile.Element("ToolPhoto").Value;
+    
+    Int64 EnterpriseId = eTurnsWeb.Helper.SessionHelper.EnterPriceID;
+    Int64 CompanyID = eTurnsWeb.Helper.SessionHelper.CompanyID;
+    Int64 RoomID = eTurnsWeb.Helper.SessionHelper.RoomID;
+    UNCPathRootLink2 = UNCPathRootLink2.Replace("~", string.Empty);
+    string LogoPathImage = (UNCPathRootLink2 + EnterpriseId + "/" + CompanyID + "/" + RoomID);
+    List<ToolCategoryMasterDTO> lstToolcats = new List<ToolCategoryMasterDTO>();
+    if (ViewBag.ToolCategoryList != null)
+    {
+        lstToolcats = ViewBag.ToolCategoryList;
+        lstToolcats = lstToolcats.OrderBy(t => t.ToolCategory).ToList();
+    }
+}
+<style type="text/css">
+   
+    
+</style>
+<script language="javascript" type="text/javascript">
+
+
+    $(document).ready(function () {
+        // "sAjaxSource": '@Url.Content("~/Consume/GetToolModelAjax")',
+    });
+
+</script>
+<div class="userListBlock">
+    <div id="Ctab" class="tabContener" style="width: 99%">
+        <div class="userContent">
+            <div style="height:80px"></div>
+            <div style="margin-left:58px">
+                <div class="editorForm" style="width: 99%">
+                  @Html.DropDownListFor(model => model.ToolCategoryID, new SelectList(lstToolcats, "ID", "ToolCategory", Model.ToolCategoryID), new { @class = "selectBox" })  
+                </div>
+                <div style="height:40px"></div>
+                <div class="editorForm" style="width: 99%">
+                    <input type="button" value="@ResCommon.Add" id="btnAddAllTool" class="CreateBtn" style="float: left;
+                    margin-left: 15px; margin-top: 1px;" />
+                    <input type="button" value="@ResCommon.Close" id="btnModelCancle" class="CreateBtn" style="float: left;
+                    margin-left: 15px; margin-top: 1px;" />
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    
+</div>
+<script language="javascript" type="text/javascript">
+    function AddTool(btn, objToolCategoryID) {
+        var arrItems = new Array();
+        if (btn.id == 'btnAddAllTool') {
+            var obj = GetObject(objToolCategoryID);
+            if (obj !== null) {
+                   arrItems.push(obj);
+            }
+        }
+
+        if (arrItems.length != undefined && arrItems.length > 0) {
+            $.ajax({
+                url: "@(Url.Content(Model.AjaxURLAddMultipleItemToSession))",
+                data: { 'para': JSON.stringify(arrItems) },
+                dataType: 'json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (json) {
+                    if (btn.id === 'btnAddAllTool') {
+                        $('#btnAddAll').removeAttr("disabled");
+
+                        if (json.Status == "success" || json.Status == "ok" || json.Status == "Ok" || json.Status == "OK") {
+                            $(btn).removeAttr("disabled");
+
+                            var successMessage = (json.Message);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('successIcon succesIcon');
+                            $("#spanGlobalMessage").html(successMessage);
+                            showNotificationDialog();
+                        }
+                        else {
+                            var successMessage = (json.Message);
+                            /////*if ('@(Model.CallingFromPageName)' == "WO") {
+                            ////    successMessage = '';
+                            ////    for (var i = 0; i < json.StatusMessage.length; i++) {
+                            ////        successMessage += '<br />' + json.StatusMessage[i];
+                            ////    }
+                            ////}*/
+
+                            $("#spanGlobalMessage").removeClass('successIcon succesIcon').addClass('errorIcon WarningIcon');
+                            $("#spanGlobalMessage").html(successMessage);
+                            showNotificationDialog();
+                            $(btn).removeAttr("disabled");
+
+                        }
+                    }
+                    $('#DivLoading').hide();
+                },
+                error: function (xhr) {
+                    $('#DivLoading').hide();
+                    $(btn).removeAttr("disabled");
+                    $('#btnAddAll').removeAttr("disabled");
+                }, complete: function () {
+
+                }
+            });
+        }
+        else {
+            $("#DivLoading").hide();
+            $(btn).removeAttr("disabled");
+            $('#btnAddAll').removeAttr("disabled");
+        }
+    }
+
+    $('#btnAddAllTool').on('click', function (e) {
+        var objToolCategoryID = $('#ToolCategoryID').val();
+        if (parseInt(objToolCategoryID) > 0) {
+            if ('@(Model.CallingFromPageName)' == "RQ") {
+                $('#DivLoading').show();
+                AddTool(this, objToolCategoryID);
+            }
+        }
+        else {
+            alert('@ResToolMaster.ReqToolCategory');
+        }
+
+    });
+
+    $("#btnModelCancle").on('click', function () {
+        if ($('#divToolCategoryModel') != undefined && $('#divToolCategoryModel').length == 1 && $('#divToolCategoryModel').parent().css('display') == "block") {
+            $("#divToolCategoryModel").dialog('close');
+        }
+        else {
+            $('.ui-dialog-titlebar-close').click();
+        }
+    });
+
+    function GetObject(objToolCategoryID) {
+        var txtQty = 0;
+        var Qty = 0;
+        var IsQuantityValid = true;
+        var ConsignedQtyVal = 0;
+        var vTechnician = '';
+        var vTechGuid = '';
+        if (parseInt('@Model.PerentID') <= 0) {
+            IsQuantityValid = false;
+        }
+
+        
+        if (IsQuantityValid == true) {
+            var toolGUID = null;
+            var _RequiredDate = null;
+            var DetailData = {};
+            if ('@(Model.CallingFromPageName)' == "RQ") {
+                DetailData = {
+                    "ToolGUID": toolGUID, "QuantityRequisitioned": Qty, 'RequisitionID': '@Model.PerentID', 'RequisitionGUID': '@Model.PerentGUID',
+                    "ItemCost": 0, "RequiredDate": _RequiredDate, "ToolCategoryID": objToolCategoryID, 
+                    RequiredDate: _RequiredDate, "Technician": vTechnician
+                };
+            }
+            return DetailData;
+        }
+        return null;
+    }
+
+
+
+
+    
+   
+
+ 
+    
+     
+</script>

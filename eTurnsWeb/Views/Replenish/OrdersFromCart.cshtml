@@ -1,0 +1,280 @@
+@model IList<eTurns.DTO.OrderMasterDTO>
+@{
+    eTurns.DAL.SupplierMasterDAL suppDAL = new eTurns.DAL.SupplierMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    SupplierMasterDTO suppDTO = null;
+    List<SelectListItem> orderStatusList = null;
+    bool IsApprove = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OrderApproval);
+    bool isOrderUDF = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetNonDeletedUDFCountByUDFTableName("OrderMaster", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID) > 0;
+    string OrderAllowedFileExtension = eTurns.DTO.SiteSettingHelper.OrderAllowedFileExtension;
+
+}
+<table style="width: 100%" class="display" id="tableCartOrder">
+    <thead>
+        <tr>
+            <th style="text-align: left;">
+                <input type="checkbox" name="chkHeader" id="chkHeader" />
+            </th>
+            <th style="text-align: left;">
+                @eTurns.DTO.ResOrder.Supplier
+            </th>
+            <th style="text-align: left;width:11%;">
+                @eTurns.DTO.ResOrder.OrderNumber
+            </th>
+            <th style="text-align: left;">
+                @eTurns.DTO.ResOrder.OrderStatus
+            </th>
+            <th style="text-align: left;">
+                @eTurns.DTO.ResOrder.ReleaseNumber
+            </th>
+            <th style="text-align: left;">
+                @eTurns.DTO.ResOrder.NoOfLineItems
+            </th>
+            <th style="text-align: left;">
+                @eTurns.DTO.ResOrder.Comment
+            </th>
+            <th style="text-align: left;width:8%;">
+                @eTurns.DTO.ResOrder.RequiredDate
+            </th>
+            <th style="text-align: left;width:8%;">
+                @eTurns.DTO.ResOrder.ShippingMethod
+            </th>
+            <th style="text-align: left;width:7%;">
+                @eTurns.DTO.ResOrder.StagingName
+            </th>
+            <th style="text-align: left;width:7%;">
+                @eTurns.DTO.ResOrder.Customer
+            </th>
+            <th style="text-align: left;width:7%;">
+                @eTurns.DTO.ResOrder.ShippingVendor
+            </th>
+            <th style="text-align: left;">
+                @eTurns.DTO.ResOrder.ShippingTrackNumber
+            </th>
+            <th style="text-align: left;">
+                @eTurns.DTO.ResOrder.SupplierAccountDetail
+            </th>
+            @if (isOrderUDF)
+            {
+            @Html.RenderColumnsHeaderByName("OrderMaster", typeof(eTurns.DTO.ResOrder))
+            }
+            <th>
+                @ResCommon.FileAttachment
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model != null && Model.Count() > 0)
+        {
+            orderStatusList = ViewBag.OrderStatusList;
+            string clasname = "";
+            string suppIDs = string.Join(",", Model.Where(x => x.Supplier.GetValueOrDefault(0) > 0).Select(s => s.Supplier.GetValueOrDefault(0)).Distinct().ToArray());
+            List<SupplierMasterDTO> lstSupplier = suppDAL.GetSupplierByIDsPlain(suppIDs, eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID);
+
+            for (int i = 0; i < Model.Count(); i++)
+            {
+                suppDTO = lstSupplier.Where(x=>x.ID == Model[i].Supplier.GetValueOrDefault(0)).FirstOrDefault();
+                if (suppDTO != null && orderStatusList != null && orderStatusList.Count > 0)
+                {
+                    if (suppDTO.IsSendtoVendor && orderStatusList.FindIndex(x => x.Value == "4") >= 0)
+                    {
+                        orderStatusList.RemoveAll(x => x.Value == "4");
+                    }
+                    else if (IsApprove && orderStatusList.FindIndex(x => x.Value == "4") < 0 && orderStatusList.FindIndex(x => x.Value == "3") >= 0)
+                    {
+                        orderStatusList.Add(new SelectListItem() { Text = ResOrder.GetOrderStatusText(OrderStatus.Transmitted.ToString()), Value = ((int)OrderStatus.Transmitted).ToString() });
+                    }
+                }
+                if ((i + 1) % 2 == 0)
+                {
+                    clasname = "even";
+                }
+                else
+                {
+                    clasname = "odd";
+                }
+                <tr class="@clasname">
+                    <td style="text-align: left;">
+                        @Html.CheckBoxFor(m => Model[i].IsOrderSelected, new { @class = "check-box", @id = "chkOrder_" + i, @value = i })
+                        @Html.HiddenFor(m => Model[i].Supplier, new { @id = "hdnSupplierId_" + i })
+                        @Html.HiddenFor(m => Model[i].NoOfLineItems, new { @id = "hdnNoOfLineItems_" + i })
+                        @Html.HiddenFor(m => Model[i].OrderLineItemsIds, new { @id = "hdnOrderLineItemsIds_" + i })
+                        @Html.HiddenFor(m => Model[i].OrderLineItemUDF1, new { @id = "hdnOrderLineUDF1_" + i })
+                        @Html.HiddenFor(m => Model[i].OrderLineItemUDF2, new { @id = "hdnOrderLineUDF2_" + i })
+                        @Html.HiddenFor(m => Model[i].OrderLineItemUDF3, new { @id = "hdnOrderLineUDF3_" + i })
+                        @Html.HiddenFor(m => Model[i].OrderLineItemUDF4, new { @id = "hdnOrderLineUDF4_" + i })
+                        @Html.HiddenFor(m => Model[i].OrderLineItemUDF5, new { @id = "hdnOrderLineUDF5_" + i })
+                        @Html.HiddenFor(m => Model[i].IsBlanketOrder, new { @id = "hdnIsBlanketOrder_" + i })
+                        @Html.HiddenFor(m => Model[i].CartQuantityString, new { @id = "hdnCartQuantity_" + i })
+                    </td>
+                    <td style="text-align: left;">
+                        @*@Html.DisplayFor(m => Model[i].SupplierName)*@
+                        <span id="spSupplierName" name="spSupplierName">@Model[i].SupplierName</span>
+                    </td>
+                    <td style="text-align: left;">
+                        @if ((Model[i].AutoOrderNumber != null && Model[i].AutoOrderNumber.IsBlanketPO))
+                        {
+                            @Html.DropDownListFor(m => Model[i].BlanketOrderNumberID, new SelectList(Model[i].AutoOrderNumber.BlanketPOs, "ID", "BlanketPO", Model[i].BlanketOrderNumberID), new { @id = "ddlBlanketPO_" + i, @class = "selectBox", @style = "width:120px" })
+                            @Html.TextBoxFor(m => Model[i].OrderNumber, new { id = "txtOrderNumber_" + i, @class = "text-box", @style = "background:white;display:none", maxlength = 22 })
+                        }
+                        else
+                        {
+                            @Html.TextBoxFor(m => Model[i].OrderNumber, new { @class = "text-boxinner", @style = "width:90%;", @maxlength = 22, @id = "txtOrderNumber_" + i })
+                        }
+                    </td>
+                    <td style="text-align: left;">
+                        @*@Html.DropDownListFor(m => Model[i].OrderStatus, new SelectList(ViewBag.OrderStatusList, "value", "Text", Model[i].OrderStatus), new { id = "ddlOrderStatus_" + i, @class = "selectBox", @style = "width:120px" })*@
+                        @Html.DropDownListFor(m => Model[i].OrderStatus, new SelectList(orderStatusList, "value", "Text", Model[i].OrderStatus), new { id = "ddlOrderStatus_" + i, @class = "selectBox", @style = "width:120px" })
+                    </td>
+                    <td style="text-align: left;" id="tdReleaseNo_@i">
+                        @Html.DisplayFor(m => Model[i].ReleaseNumber)
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.DisplayFor(m => Model[i].NoOfLineItems)
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.TextAreaFor(m => Model[i].Comment, new { @maxlength = 1024, @class = "text-boxinner", @style = "width:90%;", @cols = 20, @id = "txtComment_" + i })
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.TextBoxFor(m => Model[i].RequiredDateString, new { @class = "text-boxinner", @style = "width:90%;", @id = "txtRequiredDate_" + i })
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.TextBoxFor(m => Model[i].ShipViaName, new { @class = "AutoCompleteddl text-boxinner", @style = "width:90%;", @id = "txtShipViaName_" + i })
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.TextBoxFor(m => Model[i].StagingName, new { @class = "AutoCompleteddl text-boxinner", @style = "width:90%;", @id = "txtStagingName_" + i })
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.TextBoxFor(m => Model[i].CustomerName, new { @class = "AutoCompleteddl text-boxinner", @style = "width:90%;", @id = "txtCustomerName_" + i })
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.TextBoxFor(m => Model[i].ShippingVendorName, new { @class = "AutoCompleteddl text-boxinner", @style = "width:90%;", @id = "txtVendorName_" + i })
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.TextBoxFor(m => Model[i].ShippingTrackNumber, new { @class = "text-boxinner", @style = "width:90%;", @id = "ShippingTrackNumber_" + i })
+                    </td>
+                    <td style="text-align: left;">
+                        @Html.DropDownListFor(model => Model[i].SupplierAccountGuid, Enumerable.Empty<SelectListItem>(), new { @id = "ddlSupplierAccountt_" + i, @class = "selectBox", @style = "width:120px", autofocus = "autofocus" })
+                        @Html.HiddenFor(model => Model[i].SupplierAccountGuid)
+                    </td>
+                    @if (isOrderUDF)
+                    {
+                    @Html.RenderColumnsArrayEditableObjectForDOMByName("OrderMaster", controlIDPostfix: "")
+                    }
+                   <td>
+                       <input type='file' id="@Model[i].Supplier.ToString()" multiple />
+                       <span id="validFileList_@Model[i].Supplier.ToString()"></span>
+                  </td>
+                </tr>
+            }
+
+        }
+    </tbody>
+</table>
+<table style="width: 100%">
+    <tr>
+        <td>
+            &nbsp;
+        </td>
+    </tr>
+    <tr>
+        <td style="text-align: right;">
+            <input type="button" class="btnGeneral" value="@ResCommon.Save" id="btnSaveOrders" name="btnSaveOrders" />
+            <input type="button" class="btnGeneral" value="@ResCommon.Cancel" id="btnCancel" name="btnCancel" />
+        </td>
+    </tr>
+</table>
+<script>
+    $(document).ready(function () {
+
+        var MsgInvalidFileSelected = '@ResWorkOrder.MsgInvalidFileSelected';
+        var MsgvalidFileList = '@ResWorkOrder.MsgvalidFileList';
+        var OrderAllowedFileExtension = '@OrderAllowedFileExtension';
+
+        
+
+
+        $("table#tableCartOrder tbody tr").each(function () {
+            var currentTr = $(this);
+            var supplierId = $(currentTr).find("input[id^='hdnSupplierId_']").val();
+            $(currentTr).find("select[id^='ddlSupplierAccountt_']").empty();
+            $(currentTr).find("select[id^='ddlSupplierAccountt_']").html('');
+            if (supplierId != '' && supplierId != null) {
+                $.ajax({
+                    url: "/Order/ShowData",
+                    data: { "SupplierID": supplierId },
+                    type: "Get",
+                    async: false,
+                    success: function (data) {
+                        for (var i = 0; i < data.length; i++) {
+                            var opt = new Option(data[i].AccountNumnerMerge, data[i].GUID);
+                            $(currentTr).find("select[id^='ddlSupplierAccountt_']").append(opt);
+
+                        }
+                        $.ajax({
+                            url: "/Order/GetDefaultAccount",
+                            data: { "SupplierID": supplierId },
+                            type: "Get",
+                            async: false,
+                            success: function (data) {
+                                $(currentTr).find("select[id^='ddlSupplierAccountt_']").val(data);
+
+                            }
+                        });
+
+                    }
+                });
+            }
+        });
+
+        UDFfillEditableOptionsForGridTrnsAndOrd();
+
+        $("table#tableCartOrder input[type='file']").change(function () {
+            var strValidationMessage = "";
+            $(this).parent().find("#validFileList_" + $(this).attr("id")).empty();
+            var totalfiles = document.getElementById($(this).attr("id")).files.length;
+            deleteFromArray(parseInt($(this).attr("id")));
+            //get filename from control
+            //$($((document.getElementById("validFileList_252492"))).find("label"))
+            for (var i = 0; i < totalfiles; i++) {
+                var IsValidFile = true;
+                var fileExt = document.getElementById($(this).attr("id")).files[i].name;
+                fileExt = fileExt.substring(fileExt.lastIndexOf('.'));
+                if (OrderAllowedFileExtension.indexOf(fileExt.toLowerCase()) <= -1) {
+                    IsValidFile = false;
+                    strValidationMessage = strValidationMessage + document.getElementById($(this).attr("id")).files[i].name + MsgInvalidFileSelected;
+                } else {
+                    if ($(this).parent().find("#validFileList_" + $(this).attr("id")).length > 0) {
+                        var deletedID = "delete_"+$(this).attr("id");
+                        $(this).parent().find("#validFileList_" + $(this).attr("id")).append("<label>" + document.getElementById($(this).attr("id")).files[i].name + "</label><image class='ordertocartdelete' data-id=" + $(this).attr("id") +" data-filename=" + document.getElementById($(this).attr("id")).files[i].name+" id=" + deletedID + " src= '@Url.Content("/Content/images/delete.png")' alt='Delete'/>");
+                    }
+                }
+            }
+
+            if (strValidationMessage != "") {
+                alert(strValidationMessage + MsgvalidFileList.replace("{0}", OrderAllowedFileExtension.toString()));
+                $(this).attr("id").value = null;
+            }
+
+        });
+
+        $("#dvCreteOrderTransfer").on("click", ".ordertocartdelete", function () {
+            var ID = parseInt($(this).attr("data-id"));
+            var FILENAME = $(this).attr("data-filename");
+            var isavailable = removedFileListName.filter(function (item) {
+                return item.id == ID && item.fileName === FILENAME
+            });
+            if (isavailable.length == 0) {
+                removedFileListName.push({
+                    id: ID,
+                    fileName: FILENAME
+                });
+            }
+            $(this).prev().remove();
+            $(this).remove();
+        });
+
+    });
+
+
+
+</script>

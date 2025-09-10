@@ -1,0 +1,217 @@
+﻿@using eTurns.DTO
+@using eTurns.DTO.Resources
+@model eTurns.DTO.EmailTemplateDTO
+@{
+    ViewBag.Title = ResEmailConfiguration.PageTitle;
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "EmailConfiguration" };
+    string EmailconfigPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Emailconfig.pdf", DateTime.Now.Ticks);
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Emailconfig", (int)HelpDocType.Module);
+}
+<script src="@Url.Content("~/Content/ckeditor/ckeditor.js")" type="text/javascript"></script>
+<script src="@Url.Content("~/Content/ckeditor/_samples/sample.js")" type="text/javascript"></script>
+<link href="@Url.Content("~/Content/ckeditor/_samples/sample.css")" rel="stylesheet" type="text/css" />
+<style>
+    #cke_contents_txtTemplate {
+        height: 400px !important;
+    }
+</style>
+<script language="javascript" type="text/javascript">
+    var AllowDeletePopup = false;
+    $(document).ready(function () {
+        $('form').areYouSure();
+        $("#ddlEmailLanguage").val('@eTurns.DTO.Resources.ResourceHelper.CurrentCult');
+        LoadTemplate();
+        $("#btnSave").click(function () {
+            var selectedVal = $('#ddlEmailTemplate option:selected').attr('value');
+
+            var selectedLangVal = $('#ddlEmailLanguage option:selected').attr('value');
+            var EmailSubject = $('#txtsubject').val();
+            //            alert(EmailSubject);
+            //            alert(selectedVal);
+            //            alert(selectedLangVal);
+            if (selectedVal != "") {
+                var strEmailText = CKEDITOR.instances.txtTemplate.getData();
+                //  if (selectedVal == "OrderApproval") {
+                //      strEmailText = strEmailText.replace('<!--?xml version="1.0" encoding="utf-8"?-->', '<?xml version="1.0" encoding="utf-8"?>');
+                //      strEmailText = strEmailText.replace(/&nbsp;/g, '');
+                //      //strEmailText = strEmailText.replace(/> /g, '>');
+                //  }
+
+                $.ajax({
+                    url: '@Url.Content("~/Master/SaveEpEmailTemplate")',
+                    type: 'POST',
+                    cache: false,
+                    data: { 'EmailTemplateName': selectedVal, 'EmailText': escape(strEmailText), 'CurCulture': selectedLangVal, 'EmailSubject': EmailSubject },
+                    success: function (response) {
+                        //$('div#target').fadeToggle();
+                        //$("div#target").delay(2000).fadeOut(200);
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html(response.Message);
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        //CKEDITOR.instances.txtTemplate.setData(result.MessageBody);
+                    },
+                    error: function (msg) {
+                    }
+                });
+            }
+        });
+
+        $('#ddlEmailLanguage').change(function () {
+            var selectedVal = $('#ddlEmailLanguage option:selected').attr('value');
+            if (selectedVal != "") {
+                LoadTemplate();
+            }
+        });
+        $('#ddlEmailTemplate').change(function () {
+            LoadTemplate();
+        });
+
+        //CKEDITOR.instances.txtTemplate.resize('100%', '350', true)
+    });
+
+    function LoadTemplate() {
+        //alert($('#ddlEmailTemplate option:selected').text());
+        var selectedEmailTemplateVal = $('#ddlEmailTemplate option:selected').attr('value');
+
+        var selectedVal = $('#ddlEmailTemplate option:selected').text();
+        var selectedLangVal = $('#ddlEmailLanguage option:selected').attr('value');
+        var txtSub = $('#txtsubject');
+        //alert(selectedVal);
+        if (selectedVal != "") {
+            $.ajax({
+                url: '@Url.Content("~/Master/GetEpEmailTemplateText")'
+                                    , type: 'GET'
+                                    , data: { 'EmailTemplateName': selectedVal, 'CurCulture': selectedLangVal, 'selectedEmailTemplateVal': selectedEmailTemplateVal }
+                                    , contentType: "application/json"
+                                    , success: function (result) {
+                                        CKEDITOR.instances.txtTemplate.setData(result.MessageBody);
+                                        txtSub.val(result.EmailSubject);
+                                    },
+                error: function (msg) {
+                }
+            });
+        }
+        else {
+            CKEDITOR.instances.txtTemplate.setData('');
+        }
+    }
+
+</script>
+<form id="frmEmailconfig" method="post" action="Master/EpEmailConfiguration" >
+<div class="dashboardWrapper">
+    <h2>
+        @Html.AntiForgeryToken()
+        @ResEmailConfiguration.PageTitle
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99%">
+            <div class="userContent" style="padding-left: 5px; width: 99%;">
+                <div class="userHead" style="margin: 0.5% 0.1% 0;">
+                    <div class="editorForm" style="width: 98%">
+                        <ul>
+                            <li style="float: left;">
+                                <div class="editor-label" style="width: 9%; float: left; padding: 0px 0px 5px 0px;">
+                                    @Html.Label(ResEmailConfiguration.Language)
+                                </div>
+                                <div class="editor-field" style="width: 18%; float: left; padding: 0px 0px 5px 0px;">
+                                    @Html.DropDownList("ddlEmailLanguage", (List<SelectListItem>)ViewBag.DDLanguage, new { @style = "width:85%", @class = "selectBox" })
+                                </div>
+                                <div class="editor-label" style="width: 9%; float: left; padding: 0px 0px 5px 0px;">
+                                    @Html.Label(ResEmailConfiguration.lbltemplate)
+                                </div>
+                                <div class="editor-field" style="width: 18%; float: left; padding: 0px 0px 5px 0px;">
+                                    @Html.DropDownList("ddlEmailTemplate", new SelectList(ViewBag.DDLEmailTemplate, "ID", "AlertReportName"), new { @id = "ddlEmailTemplate", @class = "selectBox", @style = "width:85%" })
+                                </div>
+                                <div class="editor-label" style="width: 9%; float: left; padding: 0px 0px 5px 0px;">
+                                    @eTurns.DTO.Resources.ResCommon.Subject
+                                </div>
+                                <div class="editor-field" style="width: 18%; float: left; padding: 0px 0px 5px 0px;">
+                                    <input type="text" id="txtsubject" class="text-box" style="width: 90%;" />
+                                </div>
+                                <div style="width: 2%; float: left; padding: 0px 0px 0px 0px;">
+                                    <input type="button" value="@ResEmailConfiguration.btnSave" id="btnSave" class="CreateBtn" name="btnSave" />
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div style="width: 100%; float: left;">
+                <textarea class="ckeditor" id="txtTemplate"></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+</form>

@@ -1,0 +1,823 @@
+@model QuickListMasterDTO
+@{
+    string strDateFormat = "MM/dd/yyyy";
+    string QtyFormat = "N";
+    string CostFormat = "N";
+    bool IsPackSlipReq = ViewBag.IsPackSlipNumberMandatory; //false;
+
+    if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits))
+    {
+        CostFormat = CostFormat + eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits;
+    }
+
+    if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.NumberDecimalDigits))
+    {
+        QtyFormat = QtyFormat + eTurnsWeb.Helper.SessionHelper.NumberDecimalDigits;
+    }
+
+    if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.RoomDateFormat))
+    {
+        strDateFormat = QtyFormat + eTurnsWeb.Helper.SessionHelper.RoomDateFormat;
+    }
+
+    //if (eTurnsWeb.Helper.SessionHelper.CompanyConfig != null)
+    //{
+    //    if (!string.IsNullOrEmpty(eTurnsWeb.Helper.SessionHelper.CompanyConfig.DateFormatCSharp))
+    //    {
+    //        strDateFormat = eTurnsWeb.Helper.SessionHelper.CompanyConfig.DateFormatCSharp;
+    //    }
+
+
+    //    QtyFormat = QtyFormat + eTurnsWeb.Helper.SessionHelper.CompanyConfig.QuantityDecimalPoints.GetValueOrDefault(0);
+
+    //    CostFormat = CostFormat + eTurnsWeb.Helper.SessionHelper.CompanyConfig.CostDecimalPoints.GetValueOrDefault(0);
+    //    //if (eTurnsWeb.Helper.SessionHelper.CompanyConfig.IsPackSlipRequired.GetValueOrDefault(false))
+    //    //{
+    //    //    //IsPackSlipReq = true;
+    //    //}
+    //}
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+    bool isUpdate = false;
+    bool isInsert = false;
+    isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Receive, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Receive, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    eTurns.DAL.RegionSettingDAL objRegionSettingDAL = new eTurns.DAL.RegionSettingDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+}
+<div class="innerGrid" id="QLInnerGrid_@Model.ID" style="background: none repeat scroll 0 0 #F8F8F8; padding: 10px 20px 20px 10px;float:left;width: 35%;">
+    <span style="float: left; margin-bottom: 10px; width: 99%;"><b>Note:</b> @ResOrder.NoteQuickListNewReceive</span>
+    <table id="QLNewReceiveEntry@(Model.ID)" class="display" style="float:left;width:75%">
+        <thead>
+            <tr>
+                <th>
+                    <b>@eTurns.DTO.ResQuickList.Name</b>
+                </th>
+                <th>
+                    <b>@eTurns.DTO.ResOrder.OrderNumber</b>
+                </th>
+                <th>
+                    <b>@eTurns.DTO.ResOrder.Supplier</b>
+                </th>
+                <th>
+                    <b>@eTurns.DTO.ResOrder.RequestedQuantity</b>
+                </th>
+                <th>
+                    <b>@eTurns.DTO.ResOrder.PackSlipNumber</b>
+                </th>
+                <th>
+                    <b>@eTurns.DTO.ResOrder.ReceiveDate</b>
+                </th>
+                @Html.RenderColumnsHeaderRecieveQL("ReceivedOrderTransferDetail", typeof(eTurns.DTO.ResReceiveOrderDetails), "")
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <label style="width: 100px;">@Model.Name</label>
+                </td>
+                <td>
+                    @Html.TextBox("txtordernumber_" + Model.ID, (string)ViewBag.OrderNumber, new { @class = "text-boxinner", style = "width:100px;", maxlength = 22 })
+                    <input type="hidden" id="hdnOrderGUID_@Model.ID" value="" />
+                    <input type="hidden" id="hdnordernumberforsort_@Model.ID" value="@ViewBag.OrderNumberForSort" />
+                    <input type="hidden" id="hdnOrderID_@Model.ID" value="" />
+                </td>
+                <td>
+                    @Html.DropDownList("ddlSupplier_" + Model.ID, new SelectList(ViewBag.SupplierList, "ID", "SupplierName"), new { @class = "selectBox", @style = "width:120px" })
+                </td>
+                <td>
+                    @Html.TextBox("txtReceiveQuantity_" + Model.ID, "1", new { @class = "text-boxinner numericinput", @style = "width:90px;" })
+                </td>
+                <td>
+                    @Html.TextBox("txtPackslip_" + Model.ID, "", new { @class = "text-boxinner", @style = "width:90px;" })
+                </td>
+                <td>
+                    @*@Html.TextBox("txtReceiveDate_" + Model.ID, eTurns.DAL.DateTimeUtility.DateTimeNow.ToString(strDateFormat), new { @class = "text-boxinner myDatePicker", @style = "width:90px;" })*@
+                    @Html.TextBox("txtReceiveDate_" + Model.ID, objRegionSettingDAL.GetCurrentDatetimebyTimeZone(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.UserID, (System.Globalization.CultureInfo)System.Web.HttpContext.Current.Session["RoomCulture"]).ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture), new { @class = "text-boxinner myDatePicker", @style = "width:90px;" })
+                </td>
+                @Html.RenderColumnsArrayEditableObjectForDOM("ReceivedOrderTransferDetail", false, "_" + Model.ID + "_0")
+            </tr>
+        </tbody>
+    </table>
+    <br />
+    @if (isInsert)
+    {
+        <div class="userContent" style="width: 99%;">
+            <input type="button" style="float: left;" id="btnQLReceiveTop" value="Receive QL"
+                   class="GridBtnStyle inLineBtn BtnQLReceive" />
+        </div>}
+    <br />
+    <div class="userContent" style="width: 65%;">
+        <table id="tblItems_@Model.ID" class="display">
+            <thead>
+                <tr>
+                    @*
+                        <th class="NotSortable">
+                        </th>*@
+                    <th>
+                        @ResItemMaster.ItemNumber
+                    </th>
+                    <th class="NotSortable">
+                        @ResOrder.RequestedQuantity
+                    </th>
+                    <th class="NotSortable">
+                        @ResOrder.ReceiveQuentity
+                    </th>
+                    <th class="NotSortable">
+                        @ResItemMaster.Cost
+                    </th>
+                    <th class="NotSortable">
+                        @ResOrder.ReceiveBin
+                    </th>
+                    <th style="display: none">
+                        Item Tracking Type
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.QuickListDetailList != null && Model.QuickListDetailList.Count > 0)
+                {
+                    for (int i = 0; i < Model.QuickListDetailList.Count; i++)
+                    {
+                        List<BinMasterDTO> lstBins = new List<BinMasterDTO>();
+                        lstBins.Add(new BinMasterDTO() { BinNumber = (!string.IsNullOrEmpty(Model.QuickListDetailList[i].BinName)) ? Model.QuickListDetailList[i].BinName : Model.QuickListDetailList[i].DefaultLocationName ?? string.Empty });
+
+                        <tr>
+                            @*
+                                <td></td>*@
+                            <td>
+                                @Model.QuickListDetailList[i].ItemNumber
+                                <input type="hidden" id="hdnItemGUID" value="@(Model.QuickListDetailList[i].ItemGUID.GetValueOrDefault(Guid.Empty).ToString())" />
+                                <input type="hidden" id="hdnItemQty" value="@(Model.QuickListDetailList[i].Quantity)" />
+                                <input type="hidden" id="hdnItemType" value="@Model.QuickListDetailList[i].ItemType" />
+                                <input type="hidden" id="hdnItemNumber" value="@Model.QuickListDetailList[i].ItemNumber" />
+                                <input type="hidden" id="hdnIsConsignment" value="@Model.QuickListDetailList[i].Consignment" />
+                                <input type="hidden" id="hdnIsSerialNumberTracking" value="@(Model.QuickListDetailList[i].SerialNumberTracking.ToString())" />
+                                <input type="hidden" id="hdnIsLotNumberTracking" value="@(Model.QuickListDetailList[i].LotNumberTracking.ToString())" />
+                                <input type="hidden" id="hdnIsDateCodeTracking" value="@(Model.QuickListDetailList[i].DateCodeTracking.ToString())" />
+                            </td>
+                            <td class="NotSortable">
+                                @if (Model.QuickListDetailList[i].SerialNumberTracking)
+                                {
+                                @Html.TextBox("txtItemReqQty", Model.QuickListDetailList[i].Quantity.ToString(QtyFormat), new { @class = "text-boxinner text-boxQuantityFormat ReqQuantity", @style = "width:90px;" })
+                                }
+                                else if (Model.QuickListDetailList[i].LotNumberTracking)
+                                {
+                                @Html.TextBox("txtItemReqQty", Model.QuickListDetailList[i].Quantity.ToString(QtyFormat), new { @class = "text-boxinner text-boxQuantityFormat ReqQuantity", @style = "width:90px;" })
+                                }
+                                else if (Model.QuickListDetailList[i].DateCodeTracking)
+                                {
+                                @Html.TextBox("txtItemReqQty", Model.QuickListDetailList[i].Quantity.ToString(QtyFormat), new { @class = "text-boxinner text-boxQuantityFormat ReqQuantity", @style = "width:90px;" })
+                                }
+                                else
+                                {
+                                @Html.TextBox("txtItemReqQty", Model.QuickListDetailList[i].Quantity.ToString(QtyFormat), new { @class = "text-boxinner text-boxQuantityFormat ReqQuantity", @style = "width:90px;" })
+                                }
+                            </td>
+                            <td class="NotSortable">
+                                @if (Model.QuickListDetailList[i].SerialNumberTracking)
+                                {
+                                @Html.TextBox("txtItemRecQty", 0.ToString(QtyFormat), new { @class = "text-boxinner text-boxQuantityFormat RecQuantity", @style = "width:90px;;background-color: lightgray;", @readonly = "readonly" })
+                                }
+                                else if (Model.QuickListDetailList[i].LotNumberTracking)
+                                {
+                                @Html.TextBox("txtItemRecQty", 0.ToString(QtyFormat), new { @class = "text-boxinner text-boxQuantityFormat RecQuantity", @style = "width:90px;;background-color: lightgray;", @readonly = "readonly" })
+                                }
+                                else if (Model.QuickListDetailList[i].DateCodeTracking)
+                                {
+                                @Html.TextBox("txtItemRecQty", 0.ToString(QtyFormat), new { @class = "text-boxinner text-boxQuantityFormat RecQuantity", @style = "width:90px;background-color: lightgray;", @readonly = "readonly" })
+                                }
+                                else
+                                {
+                                @Html.TextBox("txtItemRecQty", Model.QuickListDetailList[i].Quantity.ToString(QtyFormat), new { @class = "text-boxinner text-boxQuantityFormat RecQuantity", @style = "width:90px;" })
+                                }
+                            </td>
+                            <td>
+                                @if (Model.QuickListDetailList[i].SerialNumberTracking)
+                                {
+                                @Html.TextBox("txtItemCost", Model.QuickListDetailList[i].Cost.GetValueOrDefault(0).ToString(CostFormat), new { @class = "text-boxinner text-boxQuantityFormat", @style = "width:90px;background-color: lightgray;", @readonly = "readonly" })
+                                }
+                                else if (Model.QuickListDetailList[i].LotNumberTracking)
+                                {
+                                @Html.TextBox("txtItemCost", Model.QuickListDetailList[i].Cost.GetValueOrDefault(0).ToString(CostFormat), new { @class = "text-boxinner text-boxQuantityFormat", @style = "width:90px;background-color: lightgray;", @readonly = "readonly" })
+                                }
+                                else if (Model.QuickListDetailList[i].DateCodeTracking)
+                                {
+                                @Html.TextBox("txtItemCost", Model.QuickListDetailList[i].Cost.GetValueOrDefault(0).ToString(CostFormat), new { @class = "text-boxinner text-boxQuantityFormat", @style = "width:90px;background-color: lightgray;", @readonly = "readonly" })
+                                }
+                                else
+                                {
+                                    if (Model.QuickListDetailList[i].Consignment)
+                                    {
+                                @Html.TextBox("txtItemCost", Model.QuickListDetailList[i].Cost.GetValueOrDefault(0).ToString(CostFormat), new { @class = "text-boxinner text-boxPriceFormat", @style = "width:90px;", @readonly = "readonly" })
+                                    }
+                                    else
+                                    {
+                                @Html.TextBox("txtItemCost", Model.QuickListDetailList[i].Cost.GetValueOrDefault(0).ToString(CostFormat), new { @class = "text-boxinner text-boxPriceFormat", @style = "width:90px;" })
+                                    }
+
+                                }
+                            </td>
+                            <td>
+                                @if (Model.QuickListDetailList[i].SerialNumberTracking)
+                                {
+
+                                    if (HasOnTheFlyEntryRight)
+                                    {
+                                        @Html.TextBox("txtReceiveBin", (!string.IsNullOrEmpty(Model.QuickListDetailList[i].BinName)) ? Model.QuickListDetailList[i].BinName : Model.QuickListDetailList[i].DefaultLocationName ?? string.Empty, new { id = "txtReceiveBin", @class = "text-boxinner", @style = "width:120px;;background-color: lightgray;", @readonly = "readonly" })
+                                    }
+                                    else
+                                    {
+                                        @Html.DropDownList("slctBinNumber", new SelectList(lstBins, "BinNumber", "BinNumber", (!string.IsNullOrEmpty(Model.QuickListDetailList[i].BinName)) ? Model.QuickListDetailList[i].BinName : Model.QuickListDetailList[i].DefaultLocationName ?? string.Empty), new { @id = "slctReceiveBinNumber", @class = "selectBox", @disabled = "disabled" })
+                                        <input type="text" name="txtReceiveBin" id="txtReceiveBin" value="@(!string.IsNullOrEmpty(Model.QuickListDetailList[i].BinName)? Model.QuickListDetailList[i].BinName : Model.QuickListDetailList[i].DefaultLocationName ?? string.Empty)" style="display:none;" />
+                                    }
+                                }
+                                else if (Model.QuickListDetailList[i].LotNumberTracking)
+                                {
+                                    if (HasOnTheFlyEntryRight)
+                                    {
+                                        @Html.TextBox("txtReceiveBin", (!string.IsNullOrEmpty(Model.QuickListDetailList[i].BinName)) ? Model.QuickListDetailList[i].BinName : Model.QuickListDetailList[i].DefaultLocationName ?? string.Empty, new { id = "txtReceiveBin", @class = "text-boxinner", @style = "width:120px;;background-color: lightgray;", @readonly = "readonly" })
+                                    }
+                                    else
+                                    {
+                                        @Html.DropDownList("slctBinNumber", new SelectList(lstBins, "BinNumber", "BinNumber", (!string.IsNullOrEmpty(Model.QuickListDetailList[i].BinName)) ? Model.QuickListDetailList[i].BinName : Model.QuickListDetailList[i].DefaultLocationName ?? string.Empty), new { @id = "slctReceiveBinNumber", @class = "selectBox", @disabled = "disabled" })
+                                        <input type="text" name="txtReceiveBin" id="txtReceiveBin" value="@(!string.IsNullOrEmpty(Model.QuickListDetailList[i].BinName)? Model.QuickListDetailList[i].BinName : Model.QuickListDetailList[i].DefaultLocationName ?? string.Empty)" style="display:none;" />
+                                    }
+                                }
+                                else if (Model.QuickListDetailList[i].DateCodeTracking)
+                                {
+                                    if (HasOnTheFlyEntryRight)
+                                    {
+                                        @Html.TextBox("txtReceiveBin", (!string.IsNullOrEmpty(Model.QuickListDetailList[i].BinName)) ? Model.QuickListDetailList[i].BinName : Model.QuickListDetailList[i].DefaultLocationName ?? string.Empty, new { id = "txtReceiveBin", @class = "text-boxinner", @style = "width:120px;;background-color: lightgray;", @readonly = "readonly" })
+                                    }
+                                    else
+                                    {
+                                        @Html.DropDownList("slctBinNumber", new SelectList(lstBins, "BinNumber", "BinNumber", (!string.IsNullOrEmpty(Model.QuickListDetailList[i].BinName)) ? Model.QuickListDetailList[i].BinName : Model.QuickListDetailList[i].DefaultLocationName ?? string.Empty), new { @id = "slctReceiveBinNumber", @class = "selectBox", @disabled = "disabled" })
+                                        <input type="text" name="txtReceiveBin" id="txtReceiveBin" value="@(!string.IsNullOrEmpty(Model.QuickListDetailList[i].BinName)? Model.QuickListDetailList[i].BinName : Model.QuickListDetailList[i].DefaultLocationName ?? string.Empty)" style="display:none;" />
+                                    }
+                                }
+                                else
+                                {
+                                    if (HasOnTheFlyEntryRight)
+                                    {
+                                        <span style='position:relative'>
+                                            @Html.TextBox("txtReceiveBin", (!string.IsNullOrEmpty(Model.QuickListDetailList[i].BinName)) ? Model.QuickListDetailList[i].BinName : Model.QuickListDetailList[i].DefaultLocationName ?? string.Empty, new { id = "txtReceiveBin", @class = "OrdDetailAuto text-boxinner", @style = "width:120px;" })
+                                            <a id='lnkShowAllOptions' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptions">
+                                                <img src='/Content/images/arrow_down_black.png' alt='select' />
+                                            </a>
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        @Html.DropDownList("slctBinNumber", new SelectList(lstBins, "BinNumber", "BinNumber", (!string.IsNullOrEmpty(Model.QuickListDetailList[i].BinName)) ? Model.QuickListDetailList[i].BinName : Model.QuickListDetailList[i].DefaultLocationName ?? string.Empty), new { @id = "slctReceiveBinNumber", @class = "selectBox" })
+                                        <input type="text" name="txtReceiveBin" id="txtReceiveBin" value="@(!string.IsNullOrEmpty(Model.QuickListDetailList[i].BinName)? Model.QuickListDetailList[i].BinName : Model.QuickListDetailList[i].DefaultLocationName ?? string.Empty)" style="display:none;" />
+                                    }
+                                }
+                            </td>
+                            <td style="display: none">
+                                @if (Model.QuickListDetailList[i].SerialNumberTracking)
+                                {
+                                    <text>Serial</text>
+                                }
+                                else if (Model.QuickListDetailList[i].LotNumberTracking)
+                                {
+                                    <text>Lot</text>
+                                }
+                                else if (Model.QuickListDetailList[i].DateCodeTracking)
+                                {
+                                    <text>Datecode</text>
+                                }
+                                else
+                                {
+                                    <text>ARegular</text>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    <br />
+    @if (isInsert)
+    {
+        <div class="userContent" style="width: 99%; margin-top: 5px">
+            <input type="button" style="float: left;" id="btnQLReceiveBottom" value="Receive QL"
+                   class="GridBtnStyle inLineBtn BtnQLReceive" />
+        </div>}
+    <span style="float: left; width: 99%;">
+        <b>Note:</b> @ResOrder.NoteQuickListNewReceive
+    </span>
+    <br />
+    <div class="dialog" id="QLReceiveProcessing" style="display: none; width: 400px;">
+        <div class="inner" style="width: 400px;">
+            <p class="text" style="text-align: left; padding-left: 10px;">
+                <b style="color: Green;">
+                    @*Kindly wait, Quick list receive transaction is going on.....*@
+                    @eTurns.DTO.Resources.ResMessage.PleaseWaitTransGoingOn
+                </b>
+            </p>
+            <p class="text" style="text-align: center; padding-left: 10px;">
+                <img src="@Url.Content("~/Content/images/ajax.gif")" alt="loding" />
+            </p>
+        </div>
+    </div>
+    <div class="dialog" id="QLReceivedErrorDialog" style="display: none; width: 470px;">
+        <div class="inner" style="width: 470px;">
+            <p class="text" id="QLReceivErrorMSGHeader" style="text-align: left; font-weight: bold;
+                color: Black; padding-left: 10px;">
+            </p>
+            <p class="text" id="QLReceivErrorMSG" style="text-align: left; font-weight: bold;
+                color: Red; padding-left: 10px;">
+            </p>
+            <p class="text" id="QLReceivSuccessMSG" style="text-align: left; font-weight: bold;
+                color: Green; padding-left: 10px;">
+            </p>
+            <p class="text btnA" style="text-align: center; padding-left: 10px;">
+                <a href="javascript:void(0)" class="no" onclick="javascript:return QLReceivedErrorDialogClose()">
+                    <img src="~/Content/images/yes.png" alt="ok" />Ok
+                </a>
+            </p>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var QLID = '@Model.ID';
+    var DataTableName = '#tblItems_' + QLID
+    $(document).ready(function () {
+
+        $('.ShowAllOptions').click(function () {
+            $(this).siblings('.OrdDetailAuto').trigger("focus");
+            $(this).siblings(".OrdDetailAuto").autocomplete("search", " ");
+        });
+
+        UDFfillEditableOptionsForGrid();
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormatSR").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 0
+        });
+
+        $('#txtSRReqQty_' + QLID).focus();
+        $(".myDatePicker").datepicker({
+            dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+            changeMonth: true,
+            changeYear: true,
+            clearText: 'Clear', onClose: function () { this.focus(); }
+        });
+
+
+
+        $(DataTableName).dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bAutoWidth": false,
+            "bScrollCollapse": false,
+            "sScrollX": "97%",
+            "bPaginate": false,
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[5, "asc"], [0, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "aLengthMenu": [[2147483647], ["All"]],
+            "iDisplayLength": 2147483647,
+            "bProcessing": false,
+            "bStateSave": false,
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+                $('.DTTT_container').css('z-index', '-1');
+            },
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            }
+        });
+        $('.DTTT_container').css('z-index', '-1');
+
+        $(DataTableName).on('focus', "input.OrdDetailAuto", function (e) {
+            var ajaxURL = '/Master/GetBinForItemOrStaging';
+            var itmGuid = $(this).parent().parent().parent().find('#hdnItemGUID').val();
+            var includeQty = false;
+
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'ItemGuid': itmGuid, 'StagingHeaderName': '', 'IncludeQty': includeQty, 'NameStartWith': request.term }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    $(this).val(ui.item.value);
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                    if ($(this).val().lenght <= 0) {
+                        $(this).val('');
+                    }
+                }
+            });
+        });
+
+    });
+
+    $(DataTableName).on({
+        mouseover: function () {
+            var tr = $(this).parent().parent();
+            var itmGuid = '@Model.GUID';
+            var orderGuid = '@Guid.Empty';
+            getItemInventoryStagingLocation($(this), "", itmGuid, orderGuid);
+        },
+        focus: function () {
+            var tr = $(this).parent().parent();
+            var itmGuid = '@Model.GUID';
+            var orderGuid = '@Guid.Empty';
+            getItemInventoryStagingLocation($(this), "", itmGuid, orderGuid);
+        },
+        change: function () {
+            var slctid = "txtReceiveBin";
+            $(this).parent().find("input[id='" + slctid + "']").val($(this).val());
+        }
+    }, "#slctReceiveBinNumber");
+
+    $('#txtReceiveQuantity_' + QLID).on('change', function (e) {
+        var val = $(this).val();
+        if (!isNaN(parseFloat(val)) && parseFloat(val) > 0) {
+            $(DataTableName + ' tbody tr').each(function (i) {
+                var inVal = $(this).find('#hdnItemQty').val();
+                if (!isNaN(parseFloat(inVal)) && parseFloat(inVal) > 0) {
+                    $(this).find('input.ReqQuantity').val(parseFloat(inVal) * parseFloat(val));
+                    if ($.trim($(this).find('td:last').html()) === "ARegular") {
+                        $(this).find('input.RecQuantity').val(parseFloat(inVal) * parseFloat(val));
+                    }
+                }
+            });
+        }
+        else {
+            $(DataTableName + ' tbody tr').each(function (i) {
+                $(this).find('input.ReqQuantity').val(0);
+                $(this).find('input.RecQuantity').val(0);
+            });
+            $("#spanGlobalMessage").text("Please enter quantity to receive QuickList.");
+            showNotificationDialog();
+            $('#txtReceiveQuantity_' + QLID).focus();
+            e.preventDefault();
+            return false;
+        }
+    });
+
+
+    $('input.ReqQuantity').on('change', function () {
+        var val = $(this).val();
+        if (!isNaN(parseFloat(val)) && parseFloat(val) > 0) {
+            if ($.trim($(this).parent().parent().find('td:last').html()) === "ARegular") {
+                $(this).parent().parent().find('input.RecQuantity').val(parseFloat(val));
+            }
+        }
+        else {
+            $(this).parent().parent().find('input.RecQuantity').val(0);
+        }
+    });
+
+    $('#ddlSupplier_' + QLID).on('change', function () {
+        if (!isNaN(parseInt($(this).val()) && parseInt($(this).val()) > 0)) {
+            GetOrderNumberBySupplier($(this).val())
+        }
+        else {
+            $("#spanGlobalMessage").text("Please select supplier.");
+            showNotificationDialog();
+            $('#ddlSupplier_' + QLID).focus();
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    function GetOrderNumberBySupplier(SupplierID) {
+        $("#DivLoading").show();
+        $.ajax({
+            "url": '@Url.Content("~/Receive/GetOrderNumberBySupplier")'
+            , "type": "GET"
+            , "data": { 'SupplierID': SupplierID }
+            , "dataType": "json"
+            , "contentType": "application/json"
+            , "async": false
+            , "cache": false
+            , "success": function (response) {
+                $("#txtordernumber_" + QLID).val(response.OrderNumber);
+                $("#hdnordernumberforsort_" + QLID).val(response.OrderNumberForSort);
+                $("#DivLoading").hide();
+                return false;
+            }
+            , "error": function (xhr) {
+                $("#DivLoading").hide();
+                return false;
+            }
+        });
+        return false;
+    }
+
+    function ShowQLReceiveProcessing() {
+        var divProcess = $('#QLInnerGrid_' + QLID).find('#QLReceiveProcessing');
+        $(divProcess).modal();
+        $(divProcess).parent().parent().find(".modalCloseImg").css('display', 'none');
+    }
+
+    function CloseQLReceiveProcessing() {
+        $('#QLReceiveProcessing').parent().parent().find(".modalCloseImg").click();
+    }
+
+    function QLReceivedErrorDialogOpen(errorMessage) {
+        var divMessage = $('#QLInnerGrid_' + QLID).find('#QLReceivedErrorDialog');
+        $(divMessage).find("#QLReceivErrorMSG").html(errorMessage);
+        $(divMessage).find("#QLReceivErrorMSGHeader").html('Quick list is not received due to following reason.');
+        $(divMessage).find("#QLReceivSuccessMSG").html('');
+        $(divMessage).modal();
+        $(divMessage).parent().parent().find(".modalCloseImg").css('display', 'none');
+    }
+
+    function QLReceivedSuccessDialogOpen(SuccessMessage) {
+        var divMessage = $('#QLInnerGrid_' + QLID).find('#QLReceivedErrorDialog');
+        $(divMessage).find("#QLReceivErrorMSG").html('');
+        $(divMessage).find("#QLReceivErrorMSGHeader").html('');
+        $(divMessage).find("#QLReceivSuccessMSG").html(SuccessMessage);
+        $(divMessage).modal();
+        $(divMessage).parent().parent().find(".modalCloseImg").css('display', 'none');
+    }
+
+    function QLReceivedErrorDialogClose() {
+        $('#QLReceivedErrorDialog').parent().parent().find(".modalCloseImg").css('display', 'none').click();
+        $('#QLReceivedErrorDialog').find('#QLReceivErrorMSG').html('')
+        $('#QLReceivedErrorDialog').find('#QLReceivErrorMSGHeader').html('')
+        $('#QLReceivedErrorDialog').find('#QLReceivSuccessMSG').html('')
+        var divMessage = $('#QLInnerGrid_' + QLID).find('#QLReceivedErrorDialog');
+        $(divMessage).find("#QLReceivErrorMSG").html('');
+        $(divMessage).find("#QLReceivErrorMSGHeader").html('');
+        $(divMessage).find("#QLReceivSuccessMSG").html('');
+        return false;
+    }
+
+    $('input.BtnQLReceive').on('click', function () {
+        ShowQLReceiveProcessing();
+        var obj = GetQLItemToReceive();
+        
+        if (obj.Success) {
+            $.ajax({
+                url: 'ReceiveQuickListItem',
+                data: JSON.stringify(obj.OrderHeader),
+                type: 'Post',
+                dataType: 'json',
+                contentType: 'application/json',
+                async: false,
+                cache: false,
+                success: function (result) {
+                    UDFInsertNewForGrid($('#QLNewReceiveEntry' + QLID));
+                    CloseQLReceiveProcessing()
+                    if (result.Success) {
+                        $('#ItemModeDataTable').dataTable().fnStandingRedraw();
+                        QLReceivedSuccessDialogOpen(result.Message);
+                    }
+                    else {
+                        QLReceivedErrorDialogOpen('> ' + result.Message);
+                    }
+                },
+                error: function (xhr) {
+                    CloseQLReceiveProcessing()
+                    QLReceivedErrorDialogOpen('Server Error!');
+                }
+            });
+        }
+        else {
+            CloseQLReceiveProcessing();
+            QLReceivedErrorDialogOpen(obj.Message);
+            return false;
+        }
+    });
+
+
+    function GetQLItemToReceive() {
+        
+        var ArrOrderItemsDetail = new Array();
+        var QLOrderHeader = new Object();
+        var returnObject = { Message: "", Success: true };
+        var ErrorMasssage = '';
+        var UDF1 = '';
+        var UDF2 = '';
+        var UDF3 = '';
+        var UDF4 = '';
+        var UDF5 = '';
+
+        var UDF1IsRequired = false;
+        var UDF2IsRequired = false;
+        var UDF3IsRequired = false;
+        var UDF4IsRequired = false;
+        var UDF5IsRequired = false;
+
+        if ($('#QLNewReceiveEntry' + QLID).find('#hdnUDF1_IsRequired').length > 0)
+            UDF1IsRequired = $('#QLNewReceiveEntry' + QLID).find('#hdnUDF1_IsRequired').val();
+
+        if ($('#QLNewReceiveEntry' + QLID).find('#hdnUDF2_IsRequired').length > 0)
+            UDF2IsRequired = $('#QLNewReceiveEntry' + QLID).find('#hdnUDF2_IsRequired').val();
+
+        if ($('#QLNewReceiveEntry' + QLID).find('#hdnUDF3_IsRequired').length > 0)
+            UDF3IsRequired = $('#QLNewReceiveEntry' + QLID).find('#hdnUDF3_IsRequired').val();
+
+        if ($('#QLNewReceiveEntry' + QLID).find('#hdnUDF4_IsRequired').length > 0)
+            UDF4IsRequired = $('#QLNewReceiveEntry' + QLID).find('#hdnUDF4_IsRequired').val();
+
+        if ($('#QLNewReceiveEntry' + QLID).find('#hdnUDF5_IsRequired').length > 0)
+            UDF5IsRequired = $('#QLNewReceiveEntry' + QLID).find('#hdnUDF5_IsRequired').val();
+
+        var orderNumber = '';
+        var orderNumberForSorting = '';
+        var receiveQuantity = 0;
+        var packSlip = '';
+        var receiveDate = '';
+        var supplierID = '';
+        var cnt = 0;
+
+        orderNumber = $.trim($('#txtordernumber_' + QLID).val());
+        orderNumberForSorting = $.trim($('#hdnordernumberforsort_' + QLID).val());
+        receiveQuantity = $.trim($('#txtReceiveQuantity_' + QLID).val());
+        packSlip = $.trim($('#txtPackslip_' + QLID).val());
+        receiveDate = $.trim($('#txtReceiveDate_' + QLID).val());
+        supplierID = $.trim($('#ddlSupplier_' + QLID).val());
+
+        if ($('#QLNewReceiveEntry' + QLID).find('#UDF1_' + QLID + "_" + cnt).length > 0) {
+            if ($('#QLNewReceiveEntry' + QLID).find('#UDF1_' + QLID + "_" + cnt)[0].nodeName === "SELECT")
+                UDF1 = $('#QLNewReceiveEntry' + QLID).find('#UDF1_' + QLID + "_" + cnt).find("option:selected").text();
+            else
+                UDF1 = $('#QLNewReceiveEntry' + QLID).find('#UDF1_' + QLID + "_" + cnt).val();
+        }
+
+        if ($('#QLNewReceiveEntry' + QLID).find('#UDF2_' + QLID + "_" + cnt).length > 0) {
+            if ($('#QLNewReceiveEntry' + QLID).find('#UDF2_' + QLID + "_" + cnt)[0].nodeName === "SELECT")
+                UDF2 = $('#QLNewReceiveEntry' + QLID).find('#UDF2_' + QLID + "_" + cnt).find("option:selected").text();
+            else
+                UDF2 = $('#QLNewReceiveEntry' + QLID).find('#UDF2_' + QLID + "_" + cnt).val();
+        }
+
+        if ($('#QLNewReceiveEntry' + QLID).find('#UDF3_' + QLID + "_" + cnt).length > 0) {
+            if ($('#QLNewReceiveEntry' + QLID).find('#UDF3_' + QLID + "_" + cnt)[0].nodeName === "SELECT")
+                UDF3 = $('#QLNewReceiveEntry' + QLID).find('#UDF3_' + QLID + "_" + cnt).find("option:selected").text();
+            else
+                UDF3 = $('#QLNewReceiveEntry' + QLID).find('#UDF3_' + QLID + "_" + cnt).val();
+        }
+
+        if ($('#QLNewReceiveEntry' + QLID).find('#UDF4_' + QLID + "_" + cnt).length > 0) {
+            if ($('#QLNewReceiveEntry' + QLID).find('#UDF4_' + QLID + "_" + cnt)[0].nodeName === "SELECT")
+                UDF4 = $('#QLNewReceiveEntry' + QLID).find('#UDF4_' + QLID + "_" + cnt).find("option:selected").text();
+            else
+                UDF4 = $('#QLNewReceiveEntry' + QLID).find('#UDF4_' + QLID + "_" + cnt).val();
+        }
+
+        if ($('#QLNewReceiveEntry' + QLID).find('#UDF5_' + QLID + "_" + cnt).length > 0) {
+            if ($('#QLNewReceiveEntry' + QLID).find('#UDF5_' + QLID + "_" + cnt)[0].nodeName === "SELECT")
+                UDF5 = $('#QLNewReceiveEntry' + QLID).find('#UDF5_' + QLID + "_" + cnt).find("option:selected").text();
+            else
+                UDF5 = $('#QLNewReceiveEntry' + QLID).find('#UDF5_' + QLID + "_" + cnt).val();
+        }
+
+        if (orderNumber.length <= 0) {
+            ErrorMasssage += "> Order number is required.<br/>";
+        }
+
+        if (isNaN(parseInt(supplierID)) || parseInt(supplierID) <= 0) {
+            ErrorMasssage += "> Supplier is required.<br/>";
+        }
+
+        if (isNaN(parseFloat(receiveQuantity)) && parseFloat(receiveQuantity) > 0) {
+            ErrorMasssage += "> Receive quantity is required.<br/>";
+        }
+
+        if ('@IsPackSlipReq.ToString()'.toUpperCase() == 'TRUE' && packSlip.length <= 0) {
+            ErrorMasssage += "> Packslip number is required.<br/>";
+        }
+
+        if (receiveDate.length <= 0) {
+            ErrorMasssage += "> Receive date is required.<br/>";
+        }
+
+        if (UDF1IsRequired.toString().toUpperCase() == 'TRUE' && UDF1.length <= 0) {
+            ErrorMasssage += "> UDF1 is required.<br/>";
+        }
+
+        if (UDF2IsRequired.toString().toUpperCase() == 'TRUE' && UDF2.length <= 0) {
+            ErrorMasssage += "> UDF2 is required.<br/>";
+        }
+
+        if (UDF3IsRequired.toString().toUpperCase() == 'TRUE' && UDF3.length <= 0) {
+            ErrorMasssage += "> UDF3 is required.<br/>";
+        }
+
+        if (UDF4IsRequired.toString().toUpperCase() == 'TRUE' && UDF4.length <= 0) {
+            ErrorMasssage += "> UDF4 is required.<br/>";
+        }
+
+        if (UDF5IsRequired.toString().toUpperCase() == 'TRUE' && UDF5.length <= 0) {
+            ErrorMasssage += "> UDF5 is required.<br/>";
+        }
+
+        if ($.trim(ErrorMasssage).length <= 0) {
+            $(DataTableName + ' tbody tr').each(function (i) {
+                var reqQty = $(this).find('input.ReqQuantity').val();
+                if (!isNaN(parseFloat(reqQty)) && parseFloat(reqQty) > 0) {
+                    var isConsiment = $('#hdnIsConsignment').val();
+                    var QLOrderItemDetail = new Object();
+                    var QLReceivedOrderDetail = new Object();
+                    QLOrderItemDetail.RequestedQuantity = parseFloat(reqQty);
+                    QLOrderItemDetail.ItemGUID = $(this).find('#hdnItemGUID').val();
+                    QLOrderItemDetail.ApprovedQuantity = reqQty; // $(this).find('input.RecQuantity').val();
+                    QLOrderItemDetail.BinName = $.trim($(this).find('#txtReceiveBin').val());
+                    QLOrderItemDetail.Cost = $.trim($(this).find('#txtItemCost').val());
+                    if (!isNaN(parseFloat(QLOrderItemDetail.RequestedQuantity)) && parseFloat(QLOrderItemDetail.RequestedQuantity) > 0 && QLOrderItemDetail.BinName.length <= 0) {
+                        ErrorMasssage += '> <i>"' + $(this).find('#hdnItemNumber').val() + '"</i>: Location is required.<br/>';
+                        $(this).css('background-color', 'Olive');
+                    }
+
+                    if ($.trim($(this).find('td:last').html()) === "ARegular") {
+                        if ($.trim(isConsiment).toUpperCase() == 'TRUE') {
+                            QLReceivedOrderDetail.ConsignedQuantity = QLOrderItemDetail.ApprovedQuantity
+                        }
+                        else {
+                            QLReceivedOrderDetail.CustomerOwnedQuantity = QLOrderItemDetail.ApprovedQuantity
+                        }
+                    }
+
+                    QLReceivedOrderDetail.LotNumberTracking = $(this).find('#hdnIsLotNumberTracking').val();
+                    QLReceivedOrderDetail.DateCodeTracking = $(this).find('#hdnIsDateCodeTracking').val();
+                    QLReceivedOrderDetail.SerialNumberTracking = $(this).find('#hdnIsSerialNumberTracking').val();
+                    QLReceivedOrderDetail.ItemType = $(this).find('#hdnItemType').val();
+                    QLReceivedOrderDetail.ReceivedDateStr = receiveDate;
+                    QLReceivedOrderDetail.Cost = QLOrderItemDetail.Cost;
+                    QLReceivedOrderDetail.BinNumber = QLOrderItemDetail.BinName;
+                    QLReceivedOrderDetail.ItemGUID = QLOrderItemDetail.ItemGUID
+                    QLReceivedOrderDetail.PackSlipNumber = packSlip
+                    QLReceivedOrderDetail.UDF1 = UDF1
+                    QLReceivedOrderDetail.UDF2 = UDF2
+                    QLReceivedOrderDetail.UDF3 = UDF3
+                    QLReceivedOrderDetail.UDF4 = UDF4
+                    QLReceivedOrderDetail.UDF5 = UDF5
+                    QLOrderItemDetail.ReceivedOrderDetail = QLReceivedOrderDetail;
+                    ArrOrderItemsDetail.push(QLOrderItemDetail);
+                }
+            });
+
+            if (ArrOrderItemsDetail.length <= 0) {
+                ErrorMasssage += '> All items have requested quantity is zero.<br/> ';
+            }
+        }
+
+        if ($.trim(ErrorMasssage).length > 0) {
+            ErrorMasssage = ErrorMasssage;
+            returnObject.Message = $.trim(ErrorMasssage);
+            returnObject.Success = false;
+        }
+        else {
+
+            QLOrderHeader.OrderNumber = orderNumber;
+            QLOrderHeader.Supplier = supplierID;
+            QLOrderHeader.RequiredDateStr = receiveDate;
+            QLOrderHeader.OrderNumber_ForSorting = orderNumberForSorting;
+            QLOrderHeader.OrderStatus = '@((int)OrderStatus.Transmitted)'
+            QLOrderHeader.PackSlipNumber = packSlip;
+            QLOrderHeader.Comment = 'Direct Receive Quick List: "' + '@Model.Name' + '" From New Receive.'
+            QLOrderHeader.ReleaseNumber = "1";
+            QLOrderHeader.OrderItemDetail = ArrOrderItemsDetail;
+            returnObject.OrderHeader = QLOrderHeader;
+        }
+        return returnObject;
+
+    }
+
+</script>

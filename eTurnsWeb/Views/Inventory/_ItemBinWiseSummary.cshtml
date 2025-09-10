@@ -1,0 +1,661 @@
+﻿@model eTurns.DTO.ItemMasterDTO
+<script type="text/javascript" src="@Url.Content("~/Scripts/DynemicDataTable.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+@{
+
+    bool isUpdate;
+    bool isInsert;
+    bool isDelete;
+    bool onlyView = false;
+    bool IsMoveAccess = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.MoveMaterial);
+    isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    isDelete = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Delete);
+    var settings = new GridHeaderSettings() { DisplaySaveButton = false, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "ItemBinWiseSummaryList" };
+    if ((isUpdate == false) && (isInsert == false))
+    {
+        onlyView = true;
+    }
+    if (ViewBag.ViewOnly)
+    {
+        onlyView = true;
+    }
+    bool ShowExpandPlus = false;
+    if (Model.SerialNumberTracking || Model.LotNumberTracking || Model.DateCodeTracking)
+    {
+        ShowExpandPlus = true;
+    }
+    bool isEVMI = false;
+    if (eTurnsWeb.Helper.SessionHelper.isEVMI != null)
+    {
+        isEVMI = (bool)eTurnsWeb.Helper.SessionHelper.isEVMI;
+    }
+    bool IseVMiSetup = true;
+    bool IsOldeVMIRoom = false;
+    string CurrentRoomFullId = eTurnsWeb.Helper.SessionHelper.EnterPriceID + "_" + eTurnsWeb.Helper.SessionHelper.CompanyID + "_" + eTurnsWeb.Helper.SessionHelper.RoomID;
+    if ((SiteSettingHelper.eVMIRooms ?? string.Empty).ToLower().Contains(CurrentRoomFullId.ToLower()))
+    {
+        IsOldeVMIRoom = true;
+    }
+    //bool IsOldeVMIRoom = eTurnsWeb.Helper.CommonUtility.IsOldeVMIRoom();
+    if (IsOldeVMIRoom)
+    {
+        IseVMiSetup = false;
+    }
+}
+<div class="innerGrid" style="background: none repeat scroll 0 0 #F8F8F8; padding: 10px 0 0 28px">
+    <input type="hidden" id="hdnListName" value="ItemBinWiseSummaryList" />
+    <input type="hidden" id="hdnGuid" value="@ViewBag.ItemGUID" />
+    <input type="hidden" id="hdnid" value="@Model.ID" />
+    <table style="width: 880px;">
+        <tr>
+            <td class="BtnBlock" style="float: none; border: 1px solid #F8F8F8; height: 2px;">
+                <div class="innerHeadSec">
+                    <div style="position: absolute; left: 470px; top: -11px; width: 350px; z-index: 10;">
+                        @if (onlyView == false)
+                        {
+                            <input type="button" value="@ResItemMaster.lblAddQuantityOnLocation" id="btnNewLocations@(ViewBag.ItemGUID)" class="CreateBtn"
+                                   style="margin: 0 5px 0 0; float: right; display:none;" />
+                            <input type="button" value="@ResItemMaster.lblAddLocation" id="btnNewLocationToItem_@(ViewBag.ItemGUID)" class="CreateBtn" style="margin: 0 5px 0 0; float: right;" />
+
+                        }
+                        <input type="button" id="SummaryInnerGridGobtn@(ViewBag.ItemGUID)" class="go" value=@eTurns.DTO.Resources.ResGridHeader.Go />
+                        <input type="text" id="SummaryInnerGridPageNumber@(ViewBag.ItemGUID)" class="inputNum" />
+                        <span class="label">@eTurns.DTO.Resources.ResGridHeader.GoToPage</span>
+                        @Html.GridInnerGridTopHeader(settings)
+                    </div>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding-top: 14px; padding-bottom: 35px; border: 1px solid #F8F8F8;">
+                <div class="userContentInnerGrid">
+                    <table id="ItemBinWiseSummaryTable@(ViewBag.ItemGUID)" class="display">
+                        <thead>
+                            <tr>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.RowNo
+                                </th>
+                                @if (ShowExpandPlus)
+                                {
+                                    <th>
+                                        @ResItemMaster.Expand
+                                    </th>
+                                }
+                                @if (IsMoveAccess)
+                                {
+                                    <th>
+                                        @ResItemMaster.Move
+                                    </th>
+                                }
+                                @if (isEVMI && IseVMiSetup)
+                                {
+                                    <th>
+                                        @ReseVMISetup.Poll
+                                    </th>
+                                    <th>
+                                        @ReseVMISetup.Tare
+                                    </th>
+                                    @*<th>
+                @ReseVMISetup.Calibrate
+            </th>*@
+                                }
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.ItemNumber
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResBin.BinNumber
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.CriticalQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.MinimumQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.MaximumQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationQTY.Quantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.CustomerOwnedQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.ConsignedQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResBin.SuggestedOrderQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.Cost
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.Markup
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.SellPrice
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.AverageCost
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.ExtendedCost
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.CostUOMID
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResBin.eVMISensorPort.
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResBin.eVMISensorID
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationQTY.Created
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationQTY.LastUpdated
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationQTY.CreatedBy
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationQTY.LastUpdatedBy
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.AddedFrom
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.EditedFrom
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationQTY.OnOrderQty
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResBin.SuggestedTransferQuantity
+                                </th>
+                                @Html.RenderColumnsHeader("BinUDF", typeof(eTurns.DTO.ResBinUDF), "Bin")
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<div id="BinWiseSummaryDetail@(ViewBag.ItemGUID)">
+</div>
+<script type="text/javascript">
+    var PopupOpenDynmicID = "";
+    var anOpen1 = [];
+    var IsPopUpOpenOrNot = false;
+    var ItemInnerGridTableColumns
+    $(document).ready(function () {
+
+        objColumns = GetGridHeaderColumnsObject('ItemBinWiseSummaryTable' + '@(ViewBag.ItemGUID)');
+        ItemInnerGridTableColumns = objColumns;
+        BindReorderInnerGridPopUpAndEvents(true);
+    });
+    $(function (event) {
+        //var anOpen1 = [];
+        AllowDeletePopup = false;
+
+        function OpenLocationDetailPopUP() {
+            $("#btnNewLocations@(ViewBag.ItemGUID)").click();
+            return false;
+        }
+
+        var SummaryColumnObject = new Array();
+        SummaryColumnObject.push({ mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' });
+        if ('@ShowExpandPlus' == '@Boolean.TrueString') {
+            SummaryColumnObject.push({
+                mDataProp: null, "bSortable": false, sClass: "read_only control center", sDefaultContent: "",
+                fnRender: function (obj, val) {
+                    return "<img id='" + obj.aData.BinID.toString() + "'  src='/Content/images/drildown_open.jpg' alt='no' style='cursor:pointer;'/>"
+                }
+            });
+        }
+
+
+        if ('@IsMoveAccess' == 'True') {
+            SummaryColumnObject.push({
+                mDataProp: null, "bSortable": false, sClass: "read_only controlHistory", sDefaultContent: "",
+                fnRender: function (obj, val) {
+                    return "<input type='button' class='CreateBtn' id='btnMove_" + obj.aData.BinID + "' onclick='javascript:return MoveMaterial(this," + obj.aData.BinID + ");' value='@ResMoveMaterial.GridButtonMove' />"
+                }
+            });
+        }
+
+        if ('@isEVMI' == 'True' && '@IseVMiSetup' == 'True') {
+            SummaryColumnObject.push({
+                mDataProp: null, "bSortable": false, sClass: "read_only controlHistory", sDefaultContent: "",
+                fnRender: function (obj, val) {
+                    if (obj.aData.eVMISensorID != null && obj.aData.eVMISensorID > 0) {
+                        return "<input type='button' class='CreateBtn' id='btneVMI_" + obj.aData.BinID + "' onclick='javascript:return PollItem(this," + obj.aData.BinID + ");' value='@ReseVMISetup.Poll' />"
+                    }
+                    else {
+                        return "";
+                    }
+                }
+            });
+
+            SummaryColumnObject.push({
+                mDataProp: null, "bSortable": false, sClass: "read_only controlHistory", sDefaultContent: "",
+                fnRender: function (obj, val) {
+                    if (obj.aData.eVMISensorID != null && obj.aData.eVMISensorID > 0) {
+                        return "<input type='button' class='CreateBtn' id='btneVMITare_" + obj.aData.BinID + "' onclick='javascript:return TareItem(this," + obj.aData.BinID + ");' value='@ReseVMISetup.Tare' />"
+                    }
+                    else {
+                        return "";
+                    }
+                }
+            });
+
+            @*SummaryColumnObject.push({
+                mDataProp: null, "bSortable": false, sClass: "read_only controlHistory", sDefaultContent: "",
+                fnRender: function (obj, val) {
+                    if (obj.aData.eVMISensorID != null && obj.aData.eVMISensorID > 0) {
+                        return "<input type='button' class='CreateBtn' id='btneVMICalibrate_" + obj.aData.BinID + "' onclick='javascript:return CalibrateItem(this," + obj.aData.BinID + ");' value='@ReseVMISetup.Calibrate' />"
+                    }
+                    else {
+                        return "";
+                    }
+                }
+            });*@
+        }
+
+        SummaryColumnObject.push({ mDataProp: "ItemNumber", sClass: "read_only" });
+
+        SummaryColumnObject.push({
+            mDataProp: "BinNumber", sClass: "read_only",
+            fnRender: function (obj, val) {
+                return obj.aData.BinNumber + " <input type='hidden' id='ItemGUID' value='" + obj.aData.ItemGUID.toString() + "' /><input type='hidden' id='SerialNumberTracking' value='" + obj.aData.SerialNumberTracking.toString() + "' /><input type='hidden' id='LotNumberTracking' value='" + obj.aData.LotNumberTracking.toString() + "' />"
+            }
+        });
+        SummaryColumnObject.push({
+            mDataProp: "CriticalQuantity", sClass: "read_only", "fnRender": function (obj, val) {
+                if (obj.aData.IsItemLevelMinMaxQtyRequired.toString() == "true") {
+                    return "<span>" + 'N/A' + "</span>";
+                }
+                else {
+                    if (obj.aData.CriticalQuantity != null && obj.aData.CriticalQuantity != NaN)
+                        return "<span>" + FormatedCostQtyValues(obj.aData.CriticalQuantity, 2) + "</span>";
+                    else
+                        return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+                }
+            }
+        });
+
+
+        SummaryColumnObject.push({
+            mDataProp: "MinimumQuantity", sClass: "read_only", "fnRender": function (obj, val) {
+                if (obj.aData.IsItemLevelMinMaxQtyRequired.toString() == "true") {
+                    return "<span>" + 'N/A' + "</span>";
+                }
+                else {
+                    if (obj.aData.MinimumQuantity != null && obj.aData.MinimumQuantity != NaN)
+                        return "<span>" + FormatedCostQtyValues(obj.aData.MinimumQuantity, 2) + "</span>";
+                    else
+                        return "<span>" + FormatedCostQtyValues(0, 2) + " </span>";
+                }
+            }
+        });
+
+        SummaryColumnObject.push({
+            mDataProp: "MaximumQuantity", sClass: "read_only", "fnRender": function (obj, val) {
+                if (obj.aData.IsItemLevelMinMaxQtyRequired.toString() == "true") {
+                    return "<span>" + 'N/A' + "</span>";
+                }
+                else {
+                    if (obj.aData.MaximumQuantity != null && obj.aData.MaximumQuantity != NaN)
+                        return "<span>" + FormatedCostQtyValues(obj.aData.MaximumQuantity, 2) + "</span>";
+                    else
+                        return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+                }
+            }
+        });
+
+
+        //        SummaryColumnObject.push({mDataProp : "MinimumQuantity",sClass : "read_only"});
+        //        SummaryColumnObject.push({mDataProp : "MaximumQuantity",sClass : "read_only"});
+
+        SummaryColumnObject.push({
+            mDataProp: "Quantity", sClass: "read_only", "fnRender": function (obj, val) {
+                if (obj.aData.Quantity != null && obj.aData.Quantity != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.Quantity, 2) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 2) + " </span>";
+            }
+        });
+
+        SummaryColumnObject.push({
+            mDataProp: "CustomerOwnedQuantity", sClass: "read_only", "fnRender": function (obj, val) {
+
+                if (obj.aData.CustomerOwnedQuantity != null && obj.aData.CustomerOwnedQuantity != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.CustomerOwnedQuantity, 2) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 2) + " </span>";
+
+            }
+        });
+
+        SummaryColumnObject.push({
+            mDataProp: "ConsignedQuantity", sClass: "read_only", "fnRender": function (obj, val) {
+                if (obj.aData.ConsignedQuantity != null && obj.aData.ConsignedQuantity != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.ConsignedQuantity, 2) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 2) + " </span>";
+
+            }
+        });
+
+        SummaryColumnObject.push({
+            mDataProp: "SuggestedOrderQuantity", sClass: "read_only", "fnRender": function (obj, val) {
+                if (obj.aData.SuggestedOrderQuantity != null && obj.aData.SuggestedOrderQuantity != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.SuggestedOrderQuantity, 2) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 2) + " </span>";
+            }
+        });
+
+        SummaryColumnObject.push({
+            mDataProp: "Cost", sClass: "read_only", "fnRender": function (obj, val) {
+
+                if (obj.aData.Cost != null && obj.aData.Cost != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.Cost, 1) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 1) + " </span>";
+
+            }
+        });
+
+        SummaryColumnObject.push({
+            mDataProp: "Markup", sClass: "read_only", "fnRender": function (obj, val) {
+
+                if (obj.aData.Markup != null && obj.aData.Markup != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.Markup, 1) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 1) + " </span>";
+
+            }
+        });
+
+        SummaryColumnObject.push({
+            mDataProp: "SellPrice", sClass: "read_only", "fnRender": function (obj, val) {
+
+                if (obj.aData.SellPrice != null && obj.aData.SellPrice != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.SellPrice, 1) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 1) + " </span>";
+
+            }
+        });
+
+
+        SummaryColumnObject.push({
+            mDataProp: "Averagecost", sClass: "read_only", "fnRender": function (obj, val) {
+
+                if (obj.aData.Averagecost != null && obj.aData.Averagecost != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.Averagecost, 1) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 1) + " </span>";
+
+            }
+        });
+
+
+
+        SummaryColumnObject.push({
+            mDataProp: "ExtendedCost", sClass: "read_only", "fnRender": function (obj, val) {
+
+                if (obj.aData.ExtendedCost != null && obj.aData.ExtendedCost != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.ExtendedCost, 1) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 1) + " </span>";
+
+            }
+        });
+
+
+        SummaryColumnObject.push({ mDataProp: "CostUOMName", sClass: "read_only" });
+
+        SummaryColumnObject.push({ mDataProp: "eVMISensorPort", sClass: "read_only" });
+        SummaryColumnObject.push({ mDataProp: "eVMISensorID", sClass: "read_only" });
+
+        SummaryColumnObject.push({ mDataProp: "Created", sClass: "read_only", "fnRender": function (obj, val) { return obj.aData.CreatedDate; } });
+        SummaryColumnObject.push({ mDataProp: "LastUpdated", sClass: "read_only", "fnRender": function (obj, val) { return obj.aData.UpdatedDate; } });
+        SummaryColumnObject.push({ mDataProp: "CreatedByName", sClass: "read_only" });
+        SummaryColumnObject.push({ mDataProp: "UpdatedByName", sClass: "read_only" });
+        SummaryColumnObject.push({ mDataProp: "AddedFrom", sClass: "read_only" });
+        SummaryColumnObject.push({ mDataProp: "EditedFrom", sClass: "read_only" });
+        SummaryColumnObject.push({ mDataProp: "ReceivedOn", sClass: "read_only", "fnRender": function (obj, val) { return obj.aData.ReceivedOnDate; } });
+        SummaryColumnObject.push({ mDataProp: "ReceivedOnWeb", sClass: "read_only", "fnRender": function (obj, val) { return obj.aData.ReceivedOnDateWeb; } });
+        SummaryColumnObject.push({
+            mDataProp: "OnOrderQty", sClass: "read_only", "fnRender": function (obj, val) {
+
+                if (obj.aData.OnOrderQty != null && obj.aData.OnOrderQty != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.OnOrderQty, 1) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 1) + " </span>";
+
+            }
+        });
+        SummaryColumnObject.push({
+            mDataProp: "SuggestedTransferQuantity", sClass: "read_only", "fnRender": function (obj, val) {
+                if (obj.aData.SuggestedTransferQuantity != null && obj.aData.SuggestedTransferQuantity != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.SuggestedTransferQuantity, 2) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 2) + " </span>";
+            }
+        });
+        SummaryColumnObject.push(@Html.RenderColumnsArray("BinUDF" ,false,"Bin"));
+        //        SummaryColumnObject.push({ mDataProp: "ReceivedOnDate", sClass: "read_only" });
+        //        SummaryColumnObject.push({ mDataProp: "ReceivedOnDateWeb", sClass: "read_only" });
+        // parameter details for the " PrepareItemLocationDataTable " function call ...
+        // 1) TableName prefix (it must match with your table object of current Page)
+        // 2) Unique ID(i.e. Primary Key)
+        // 3) Ajax Data Source Link (i.e. which binds the records)
+        // 4) Page name which required to get User wise saved data for Datatable
+        // 5) ColumnObject which required to pass dynemic column Array Object.
+        PrepareItemLocationDataTable("ItemBinWiseSummaryTable", '@ViewBag.ItemGUID', '@Url.Content("~/Inventory/ItemBinWiseSummaryListAjax")', 'ItemBinWiseSummaryList', SummaryColumnObject);
+
+        $("#BinWiseSummaryDetail@(ViewBag.ItemGUID)").dialog({
+            autoOpen: false,
+            show: "blind",
+            hide: "explode",
+            height: 700,
+            title: '@ResItemMaster.ItemLocations',
+            width: 900,
+            modal: true,
+            beforeClose: function () {
+                if (isDirtyForm) {
+                    if (confirm(SaveConfirmationMSG)) {
+                        //isDirtyForm = false;
+                        return false;
+                    }
+                    isDirtyForm = false;
+                }
+            },
+            close: function () {
+                $("#BinWiseSummaryDetail@(ViewBag.ItemGUID)").empty();
+                AllowDeletePopup = true;
+                if ($('#myDataTable') != undefined) {
+                    DrillDownItemGuid = '@ViewBag.ItemGUID';
+                    $("#myDataTable").DataTable().fnDraw();
+                }
+                else if ($('#ItemBinWiseSummaryTable@(ViewBag.ItemGUID)') != undefined) {
+                    $("#ItemBinWiseSummaryTable@(ViewBag.ItemGUID)").DataTable().fnDraw();
+                }
+                $('#DivLoading').hide();
+                if (IsPopUpOpenOrNot) {
+                    setTimeout('CallInnerGridTable()', 2000);
+                }
+                if (IsPopUpOpenOrNot) {
+                    GetCheckedRows();
+                }
+            }
+        });
+
+        $("#btnNewLocations@(ViewBag.ItemGUID)").click(function () {
+            //
+
+            UpperTR = $(this).parents("div.innerGrid").parents("tr").prev();
+
+
+            $('#DivLoading').show();
+            $('#BinWiseSummaryDetail@(ViewBag.ItemGUID)').load("@Url.Action("LocationDetailsNew", new { ItemID_ItemType = ViewBag.ItemGUID_ItemType })", function () {
+                $('#BinWiseSummaryDetail@(ViewBag.ItemGUID)').dialog('open');
+                $('#DivLoading').hide();
+            });
+            return false;
+        });
+
+        $("#btnNewLocationToItem_@(ViewBag.ItemGUID)").click(function () {
+            //
+
+            UpperTR = $(this).parents("div.innerGrid").parents("tr").prev();
+
+
+            $('#DivLoading').show();
+            $('#BinWiseSummaryDetail@(ViewBag.ItemGUID)').load("@Url.Action("AddLocationsFromGrid", "Inventory", new { ItemID_ItemType = ViewBag.ItemGUID_ItemType })", function () {
+
+                $('#BinWiseSummaryDetail@(ViewBag.ItemGUID)').dialog('open');
+                $('#DivLoading').hide();
+            });
+            return false;
+        });
+        /*Functions used for nasted data binding START*/
+        $("#ItemBinWiseSummaryTable@(ViewBag.ItemGUID)").on("click", "td.control img", function (event) {
+            var nTr = this.parentNode.parentNode;
+            var i = $.inArray(nTr, anOpen1);
+
+            if (IsPopUpOpenOrNot) {
+                i = 0;
+                IsPopUpOpenOrNot = false;
+            }
+            PopupOpenDynmicID = this.id;
+
+            if (i === -1) {
+
+                $('img', this.parentNode).attr('src', sImageUrl + "drildown_close.jpg");
+                $("#ItemBinWiseSummaryTable@(ViewBag.ItemGUID)").DataTable().fnOpen(nTr, fnFormatDetails($("#ItemBinWiseSummaryTable@(ViewBag.ItemGUID)").DataTable(), nTr), '');
+                anOpen1.push(nTr);
+            }
+            else {
+                $('img', this.parentNode).attr('src', sImageUrl + "drildown_open.jpg");
+                $("#ItemBinWiseSummaryTable@(ViewBag.ItemGUID)").DataTable().fnClose(nTr);
+                anOpen1.splice(i, 1);
+                //$("#ItemBinWiseSummaryTable@(ViewBag.ItemGUID)").DataTable().fnDraw();
+            }
+        });
+        $('.ColVis_MasterButton').hide();
+        $('.innerGrid .BtnBlock').css("margin-top", "-8.4%");
+        $('.innerGrid .refresh').css("margin-right", " -38px");
+        $('.InnerGridPaginationBlock').css("display","none")
+        /*Functions used for nasted data binding END*/
+    });
+
+
+    function CallInnerGridTable() {
+        ParentCallInnerGridTable(PopupOpenDynmicID);
+    }
+
+
+
+    function ParentCallInnerGridTable(objImageID) {
+        IsPopUpOpenOrNot = true;
+        var ObjThis = $("#ItemBinWiseSummaryTable@(ViewBag.ItemGUID)").find('#' + objImageID)[0];
+        var nTrParent = ObjThis.parentNode.parentNode;
+        var iObjeTemp = $.inArray(nTrParent, anOpen1);
+
+        if (iObjeTemp === -1) {
+
+            $('img', ObjThis.parentNode).attr('src', sImageUrl + "drildown_close.jpg");
+            $("#ItemBinWiseSummaryTable@(ViewBag.ItemGUID)").DataTable().fnOpen(nTrParent, fnFormatDetails($("#ItemBinWiseSummaryTable@(ViewBag.ItemGUID)").DataTable(), nTrParent), '');
+            anOpen1.push(nTrParent);
+        }
+        else {
+            $('img', ObjThis.parentNode).attr('src', sImageUrl + "drildown_open.jpg");
+            $("#ItemBinWiseSummaryTable@(ViewBag.ItemGUID)").DataTable().fnClose(nTrParent);
+            anOpen1.splice(iObjeTemp, 1);
+        }
+    }
+
+    function fnFormatDetails(oTable, nTr) {
+        var oData = $("#ItemBinWiseSummaryTable@(ViewBag.ItemGUID)").DataTable().fnGetData(nTr);
+        ItemName = oData.ItemNumber;
+        ItemUniqueID = oData.ID;
+        var sOut = '';
+        $('#DivLoading').show();
+        $.ajax({
+            "url": '@Url.Content("~/Inventory/ItemLocations2")',
+            data: { BinID: oData.BinID, ItemGUID: oData.ItemGUID },
+            "async": false,
+            cache: false,
+            "dataType": "text",
+            "success": function (json) {
+                sOut = json;
+                //   alert(sOut);
+                $('#DivLoading').hide();
+            },
+            error: function (response) {
+            }
+        });
+
+        return sOut;
+    }
+    $(document).ready(function () {
+
+        $("div[id^='BinWiseSummaryDetail']").on({
+            mouseover: function () {
+                FillLocations($(this), "");
+            },
+            focus: function () {
+                FillLocations($(this), "");
+            },
+            change: function () {
+                $(this).parent().find("input[id='txtLocation']").val($(this).val());
+            }
+        }, "select[id^='ddlBin']");
+
+        $("div[id^='BinWiseSummaryDetail']").on({
+            focus: function () {
+                SetAutoCompleteOpenOnFocus($(this), '@Url.Action("GetAllLocationOfRoom", "Master")', null, " ");
+            }
+        }, "input[type='text'][id^='ddlBin']");
+    });
+    function InnerGridReloadAfterReorder() {
+        $('#myDataTable').find("tbody tr").each(function (index, tr) {
+            if ($(tr).find('#ItemGUID').val() == '@(ViewBag.ItemGUID)') {
+                $(tr).find('td.control img').click(); //$(tr).find('img.ExpandLocationSerials').click();
+                $(tr).find('td.control img').click();
+                return;
+            }
+        });
+    }
+
+    function InnerGridColumnAndTableRebinding() {
+        oTableGlobalTABLE = $("#" + "ItemBinWiseSummaryTable" + '@ViewBag.ItemGUID').dataTable();
+        objColumns = ItemInnerGridTableColumns;
+    }
+
+    $("#SummaryInnerGridGobtn"+'@(ViewBag.ItemGUID)').click(function () {
+        var pval = $('#SummaryInnerGridPageNumber'+'@(ViewBag.ItemGUID)').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+        $("#" + "ItemBinWiseSummaryTable" + '@ViewBag.ItemGUID').dataTable().fnPageChange(Number(pval - 1));
+        $('#SummaryInnerGridPageNumber'+'@(ViewBag.ItemGUID)').val('');
+    });
+
+</script>

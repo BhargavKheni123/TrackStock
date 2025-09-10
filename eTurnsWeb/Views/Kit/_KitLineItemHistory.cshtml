@@ -1,0 +1,285 @@
+﻿@model eTurns.DTO.KitMasterDTO
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = false, DisplayColumnSetupButton = true, DisplayContextMenu = false, DisplayPrintBlock = true, DisplayDeleteButton = false, DataTableName = "KitLineItem" + Model.ID };
+}
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="HInnerItem_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="Hclear_QLItem_filter" /></a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Kits)
+            <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="HKitLineItem@(Model.GUID)" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.HistoryID
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.HistoryAction
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResKitMaster.QuantityPerKit
+                            </th>
+                            <th>
+                                @if (Model.KitCategory.GetValueOrDefault(0) == 0)
+                                {
+                                    @eTurns.DTO.ResKitMaster.AvailableItemsInWIP 
+                                }
+                                else
+                                {
+                                    @eTurns.DTO.ResKitMaster.QuantityToBuildKit
+                                }
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResKitMaster.QuantityReadyForAssembly
+                            </th>
+                            <th>
+                                QuentityNeededToMeetDemand
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Cost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnHandQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MinimumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MaximumQuantity
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.KitItemList != null && Model.KitItemList.Count > 0)
+                        {
+                            foreach (var item in Model.KitItemList)
+                            { 
+                            <tr id="@item.ID">
+                                <td>@item.HistoryID
+                                </td>
+                                <td>@item.Action
+                                </td>
+                                <td>@item.ID
+                                </td>
+                                <td>@item.ItemDetail.ItemNumber
+                                    <input id="hdnID" type="hidden" value="@item.ID" />
+                                    <input id="hdnGUID" type="hidden" value="@item.GUID" />
+                                    <input id="hdnItemGUID" type="hidden" value="@item.ItemGUID" />
+                                    <input id="hdnKitGUID" type="hidden" value="@item.KitGUID" />
+                                </td>
+                                <td>
+                                    @(item.QuantityPerKit)
+                                </td>
+                                <td>
+                                    <span id="spnAvlItmInWIP">@item.AvailableItemsInWIP</span>
+                                </td>
+                                <td>
+                                    @item.QuantityReadyForAssembly
+                                </td>
+                                <td>
+                                    @((item.QuantityPerKit.GetValueOrDefault(0) * Model.KitDemand.GetValueOrDefault(0)) - item.AvailableItemsInWIP.GetValueOrDefault(0))
+                                </td>
+                                <td>
+                                    <span id="spnItemCost">@item.ItemDetail.Cost.GetValueOrDefault(0)</span>
+                                </td>
+                                <td>
+                                    @item.ItemDetail.OnHandQuantity
+                                </td>
+                                <td>
+                                    @item.ItemDetail.MinimumQuantity
+                                </td>
+                                <td>
+                                    @item.ItemDetail.MaximumQuantity
+                                </td>
+                            </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var KitID = '@Model.ID';
+    var KitGUID = '@Model.GUID';
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var oTableHKitLineItems;
+    var bIsFilter = false;
+
+
+    $(document).ready(function () {
+        IsDeletePopupOpen = false;
+        var ColumnObject = new Array();
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": false, "sWidth": "80px" });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+
+
+        var gaiSelected = [];
+        oTableHKitLineItems = $('#HKitLineItem' + KitGUID).dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "120%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[0, "desc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+               // if (!bIsFilter) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'KitLineItemListHistory' },
+                        "async": true,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = json;
+                        }
+                    });
+               // }
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'KitLineItemListHistory' },
+                    "async": true,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            }
+            , "aoColumns": ColumnObject
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+
+        $('#btnblock').css({ 'margin-right': '45px' });
+    });
+
+
+    $('#HKitLineItem' + KitGUID + ' tbody tr').die('tap click');
+
+    $('#Gobtn1').unbind("click");
+    $('#Hclear_QLItem_filter').unbind("click");
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    $('#HKitLineItem' + KitGUID + ' tbody tr').live('tap click', function () {
+        $(this).toggleClass('row_selected');
+        return false;
+    });
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+
+        $('#HKitLineItem' + KitGUID).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+    /* global search function */
+    function fnFilterKitLineItem() {
+
+        bIsFilter = true;
+        var searchtext = $("#HInnerItem_filter").val().replace(/'/g, "''");
+        $('#HKitLineItem' + KitGUID).dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+
+        $('#HKitLineItem' + KitGUID + ' td').removeHighlight();
+
+        if (searchtext.length > 0)
+            $('#HKitLineItem' + KitGUID + ' td').highlight($("#HInnerItem_filter").val());
+
+    }
+
+
+    $("#HInnerItem_filter").on("keyup", function (e) {
+
+        var code = (e.keyCode ? e.keyCode : e.which);
+        var index = $.inArray(code, NotAllowedCharCodes);
+        if (index >= 0) return false;
+
+        fnFilterKitLineItem();
+
+    });
+
+    $("#HInnerItem_filter").on("keydown", function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            fnFilterKitLineItem();
+        }
+
+    });
+
+
+    $("#Hclear_QLItem_filter").click(function () {
+        $("#HInnerItem_filter").val('');
+        fnFilterKitLineItem();
+        $("#HInnerItem_filter").focus();
+        return false;
+    });
+</script>

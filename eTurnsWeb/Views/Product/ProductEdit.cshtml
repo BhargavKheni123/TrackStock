@@ -1,0 +1,824 @@
+﻿@model eTurns.DTO.ABProductDetails
+@{
+    ViewBag.Title = eTurns.DTO.ResABProducts.PageTitleDetailPage;
+
+    System.Collections.Specialized.NameValueCollection qscoll = HttpUtility.ParseQueryString(HttpContext.Current.Request.Url.Query);
+
+    RouteValueDictionary rQueryForBack = new RouteValueDictionary();
+    foreach (string s in qscoll.AllKeys)
+    {
+        if (s != "asin" && s != "PageName")
+        {
+            rQueryForBack.Add(s, qscoll[s]);
+        }
+    }
+
+    RouteValueDictionary rQuery = new RouteValueDictionary();
+    foreach (string s in qscoll.AllKeys)
+    {
+        rQuery.Add(s, qscoll[s]);
+    }
+
+    string BackURL = (rQueryForBack.Keys.Count > 0 ?
+                        Url.Action("ProductList", "Product", rQueryForBack)
+                        : Url.Action("ProductList", "Product"));
+
+    if (ViewBag.PageName == "List")
+    {
+        BackURL = (rQueryForBack.Keys.Count > 0 ?
+                        Url.Action("ProductList", "Product", rQueryForBack)
+                        : Url.Action("ProductList", "Product"));
+    }
+    else if (ViewBag.PageName == "Grid")
+    {
+        BackURL = (rQueryForBack.Keys.Count > 0 ?
+                        Url.Action("ProductListGrid", "Product", rQueryForBack)
+                        : Url.Action("ProductListGrid", "Product"));
+    }
+    else if (ViewBag.PageName == "RoomProductList")
+    {
+        BackURL = (rQueryForBack.Keys.Count > 0 ?
+                        Url.Action("RoomProductList", "Product", rQueryForBack)
+                        : Url.Action("RoomProductList", "Product"));
+    }
+    else if (ViewBag.PageName == "RoomProductGrid")
+    {
+        BackURL = (rQueryForBack.Keys.Count > 0 ?
+                        Url.Action("RoomProductGrid", "Product", rQueryForBack)
+                        : Url.Action("RoomProductGrid", "Product"));
+    }
+    bool isAsinAddedToRoom = false;
+    if (ViewBag.isAsinAddedToRoom == true)
+    {
+        isAsinAddedToRoom = true;
+    }
+    bool IsAllowToInsertItem = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool IsAllowToInsertCart = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Cart, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    //Int64 SelectedABIndex = ViewBag.SelectedABIndex ?? 0;
+    //Int64 SelectedABValue = ViewBag.SelectedABValue ?? 0;
+    bool isDisplayBox = ViewBag.isDisplayBox ?? false;
+}
+<script src="~/Scripts/ABProduct.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css" rel="stylesheet" />
+
+<div id="divPagecontent">
+    <div class="userListingWrapper">
+        <div class="userListBlock">
+            <div id="Ctab" class="tabContener" style="width:99.5%; padding:0;">
+                <div class="page-wrapper details-page">
+                    @if (BackURL != null && BackURL != "")
+                    {
+                    <div class="clearfix">
+                        <div class="backBtn">
+                            <span class="backArrow">&lsaquo;</span> <a id="aBacktoList" href="@BackURL">@ResABProducts.Back</a>
+                        </div>
+                    </div>
+                    }
+                    <main class="maincontent">
+                        @if (Model != null)
+                        {
+                            double OfferPrice = 0;
+                            double ListPrice = 0;
+                            double DiscountPrice = 0;
+                            double DiscountPercentage = 0;
+                            decimal RatePercentage = 0;
+                            string meanFeedbackRating = "";
+                            string starRating = "";
+                            string BrandName = "";
+                            string SoldByNote = "";
+                            if (Model.includedDataTypes != null)
+                            {
+                                if (Model.includedDataTypes.OFFERS != null && Model.includedDataTypes.OFFERS.Count > 0)
+                                {
+                                    OFFER FirstOFFER = new OFFER();
+                                    FirstOFFER = Model.includedDataTypes.OFFERS.FirstOrDefault();
+
+                                    if (FirstOFFER.price != null && FirstOFFER.price.value != null)
+                                    {
+                                        OfferPrice = FirstOFFER.price.value.amount;
+                                    }
+                                    if (FirstOFFER.listPrice != null && FirstOFFER.listPrice.value != null)
+                                    {
+                                        ListPrice = FirstOFFER.listPrice.value.amount;
+                                    }
+                                    if (ListPrice > OfferPrice)
+                                    {
+                                        DiscountPrice = Convert.ToDouble(String.Format("{0:0.00}", (ListPrice - OfferPrice)));
+                                        if (DiscountPrice > 0)
+                                        {
+                                            DiscountPercentage = Math.Round((DiscountPrice / ListPrice) * 100);
+                                        }
+                                    }
+
+                                    if (FirstOFFER.merchant.meanFeedbackRating != null
+                                       && Convert.ToDecimal(FirstOFFER.merchant.meanFeedbackRating) > 0)
+                                    {
+                                        RatePercentage = ((Convert.ToDecimal(FirstOFFER.merchant.meanFeedbackRating) / 5) * 100);
+                                        meanFeedbackRating = Convert.ToString(String.Format("{0:0.0}", FirstOFFER.merchant.meanFeedbackRating));
+                                    }
+                                    if (FirstOFFER.merchant.totalFeedbackCount != null
+                                       && Convert.ToInt64(FirstOFFER.merchant.totalFeedbackCount) > 0)
+                                    {
+                                        starRating = Convert.ToString(FirstOFFER.merchant.totalFeedbackCount);
+                                    }
+                                    if (FirstOFFER.fulfillmentType == "AMAZON_FULFILLMENT")
+                                    {
+                                        SoldByNote = ResABProducts.SoldBy + " " + FirstOFFER.merchant.name + " " + ResABProducts.Fulfilledbyamazon;
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(FirstOFFER.merchant.name))
+                                    {
+                                        SoldByNote = ResABProducts.SoldBy + " " + FirstOFFER.merchant.name;
+                                    }
+                                }
+                            }
+
+                            if (Model.byLine != null && Model.byLine.Count > 0)
+                            {
+                                ByLine bylines = new ByLine();
+                                bylines = Model.byLine.Where(y => y.roles.Contains("Brand")).FirstOrDefault();
+                                if (bylines != null && !string.IsNullOrWhiteSpace(bylines.name))
+                                {
+                                    BrandName = bylines.name;
+                                }
+                            }
+
+                            <div class="product-details">
+                                <div class="row d-flex flex-nowrap">
+                                    <div class="product-img d-flex">
+                                        <div class="main-product">
+                                            <div id='lens'></div>
+                                            <div id='slideshow-items-container'>
+                                                @if (Model.includedDataTypes != null && Model.includedDataTypes.IMAGES != null && Model.includedDataTypes.IMAGES.Count > 0)
+                                                {
+                                                    int i = 0;
+                                                    foreach (IMAGE abImage in Model.includedDataTypes.IMAGES)
+                                                    {
+                                                        if (i == 0)
+                                                        {
+                                                            <img class='slideshow-items active' alt="@abImage.altText" src="@abImage.large.url?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&q=80">
+                                                        }
+                                                        else
+                                                        {
+                                                            <img class='slideshow-items' alt="@abImage.altText" src="@abImage.large.url?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&q=80">
+                                                        }
+                                                        i++;
+                                                    }
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="thumbnail-product">
+                                            <div id='result'></div>
+                                            <div class='row thumbnails-left'>
+                                                @if (Model.includedDataTypes != null && Model.includedDataTypes.IMAGES != null && Model.includedDataTypes.IMAGES.Count > 0)
+                                                {
+                                                    int i = 0;
+                                                    foreach (IMAGE abImage in Model.includedDataTypes.IMAGES)
+                                                    {
+                                                        if (i == 0)
+                                                        {
+                                                            <div class="slideshow-thumbnails active item"><img alt="@abImage.altText" src="@abImage.thumbnail.url?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&q=80"></div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <div class="slideshow-thumbnails item"><img alt="@abImage.altText" src="@abImage.thumbnail.url?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&q=80"></div>
+                                                        }
+                                                        i++;
+                                                    }
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="product-full-desc">
+                                        <div class="product-desc">
+                                            <div id="productTitle">@Model.title</div>
+                                            @if (!string.IsNullOrWhiteSpace(BrandName))
+                                            {
+                                                <div class="brandName">
+                                                    <a href="#">@ResABProducts.Brand : @BrandName</a>
+                                                </div>
+                                            }
+                                            @if (RatePercentage > 0)
+                                            {
+                                                <div class="rating-result d-flex flex-row">
+                                                    <div class="rating-box">
+                                                        <div class="rating ratingShow" style="width:@(RatePercentage)%"></div>
+                                                    </div>
+                                                    <span class="ratingLink">@starRating @ResABProducts.ratings</span>
+                                                    <div class="ratingShowBlock">
+                                                        <div class="rating-box">
+                                                            <div class="rating" style="width:@(RatePercentage)%"></div>
+                                                        </div>
+                                                        <div class="ratingView">@meanFeedbackRating @ResABProducts.ratingsoutFive</div>
+                                                        <div class="ratingStatus">@starRating @ResABProducts.globalratings</div>
+                                                    </div>
+                                                    @*<a href="#" title=""><img src="../Content/images/rating.png" alt="rating"></a> <a href="#" class="ratingLink">1,953 ratings | 2 answered questions</a>*@
+                                                </div>
+                                            }
+                                            <div class="amazonChoice" style="display:none;">
+                                                <img src="../Content/images/amazon-choice.png" alt="Amazon Choice" /> for <span><a href="#" class="amazonChoiceLink">"XYZ"</a></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="desc-middle">
+                                            <div class="price-box inner-price">
+                                                @if (ListPrice > 0 && DiscountPercentage > 1)
+                                                {
+                                                    <div class="price-list">
+                                                        <p class="label-price">@ResABProducts.ListPrice :</p><div class="price-symbol">@ViewBag.RegionCurrencySymbol</div><sup class="price-fraction">@String.Format("{0:0.00}", ListPrice) @*<img src="/Content/images/sponsor-icon.png">*@</sup>
+                                                        @*<a class="a-link-normal" href="#">Details</a>*@
+                                                    </div>
+                                                }
+                                                <div class="details-price">
+                                                    @if (OfferPrice > 0)
+                                                    {
+                                                        <div class="original-price">
+                                                            <p class="label-price">@ResABProducts.Price : </p> <sup class="price-symbol">@ViewBag.RegionCurrencySymbol</sup><span class="main-price">@String.Format("{0:0.00}", OfferPrice)</span>@*<span class="and-sign">&amp;</span><a href="#" class="a-popover">FREE Returns <i class="a-icon a-icon-popover"></i></a>*@
+                                                            <div class="primeDelivery" style="display:none"><img src="../Content/images/amazon-prime.png" alt="Amazon Prime" />One-Day</div>
+                                                        </div>
+                                                    }
+                                                    @if (DiscountPercentage > 1)
+                                                    {
+                                                        <div class="discount-price">
+                                                            <p class="label-price">@ResABProducts.YouSave : </p> <sup class="price-symbol">@ViewBag.RegionCurrencySymbol</sup><span>@String.Format("{0:0.00}", DiscountPrice) (@DiscountPercentage%)</span>
+                                                        </div>
+                                                    }
+                                                    @if (ListPrice <= 0 && OfferPrice <= 0)
+                                                    {
+                                                        <span class="unAvailable">@ResABProducts.CurrentlyUnavailable</span>
+                                                    }
+                                                </div>
+
+                                            </div>
+                                            <div style="display:none" class="gift-card"><a href="#" title="">Apply now and get a $10 Amazon Gift Card upon approval of the Amazon Store Card, or see if you pre-qualify with no impact to your credit bureau score.</a></div>
+                                            <ul>
+                                                @foreach (var keyValuePair in Model.productOverview)
+                                                {
+                                                    <li><strong>@keyValuePair.Key</strong><span>@keyValuePair.Value</span></li>
+                                                }
+                                            </ul>
+                                        </div>
+                                        @if (Model.productVariations != null
+                                        && Model.productVariations.dimensions != null
+                                        && Model.productVariations.dimensions.Count > 0
+                                        && Model.productVariations.variations != null
+                                        && Model.productVariations.variations.Count > 0)
+                                        {
+                                            if (isDisplayBox == true)
+                                            {
+                                                <div class="sizeSelectBox">
+                                                    @foreach (Dimension dimensions in Model.productVariations.dimensions)
+                                                    {
+                                                        if (dimensions.dimensionValues.Count > 1)
+                                                        {
+                                                            List<Variation> lstVariationForSelected = new List<Variation>();
+                                                            lstVariationForSelected = Model.productVariations.variations.Where(x => x.asin == Model.asin).ToList();
+
+                                                            List<VariationValue> lstVariationValueForSelected = new List<VariationValue>();
+                                                            lstVariationValueForSelected = lstVariationForSelected.SelectMany(x => x.variationValues).ToList();
+
+                                                            Int64 dimensionsIndex = dimensions.index;
+                                                            string displayStringToShow = string.Empty;
+                                                            <div class="sizeTitle">
+                                                                <span class="sizeText">@dimensions.displayString : </span>
+
+                                                                @*@if (dimensions.index == SelectedABIndex)
+                                                                    {
+                                                                        <div class="sizeList">
+                                                                            @(dimensions.dimensionValues.Where(x => x.index == SelectedABValue).FirstOrDefault() != null
+                                                                        ? dimensions.dimensionValues.Where(x => x.index == SelectedABValue).FirstOrDefault().displayString : "")
+                                                                        </div>
+                                                                    }
+                                                                    else
+                                                                    {*@
+                                                                <div class="sizeList">
+
+                                                                    @*Model.productVariations.variations.Where(t => t.asin == Model.asin).SelectMany(x => x.variationValues).Where(y => y.index == dimensions.index);*@
+
+                                                                    @(dimensions.dimensionValues.Where(x => x.index == Model.productVariations.variations.Where(t => t.asin == Model.asin).SelectMany(y => y.variationValues).Where(z => z.index == dimensions.index).FirstOrDefault().value).FirstOrDefault() != null
+                                                ? dimensions.dimensionValues.Where(x => x.index == Model.productVariations.variations.Where(t => t.asin == Model.asin).SelectMany(y => y.variationValues).Where(z => z.index == dimensions.index).FirstOrDefault().value).FirstOrDefault().displayString : "")
+                                                                </div>
+                                                                @*}*@
+                                                            </div>
+                                                            <ul class="sizeBoxList">
+                                                                @foreach (DimensionValue dimensionsValue in dimensions.dimensionValues)
+                                                                {
+                                                                    Int64 dimensionsValueIndex = dimensionsValue.index;
+                                                                    Variation variation = new Variation();
+                                                                    variation = Model.productVariations.variations.Where(x => x.variationValues.Any(y => y.index == dimensions.index && y.value == dimensionsValue.index)).FirstOrDefault();
+
+                                                                    List<Variation> lstallVariationForActive = new List<Variation>();
+                                                                    List<VariationValue> needtoSelectVariationValue = new List<VariationValue>();
+                                                                    lstallVariationForActive = Model.productVariations.variations.ToList();
+
+                                                                    List<VariationValue> needtoSelect = new List<VariationValue>();
+                                                                    List<Variation> lstallVariation = new List<Variation>();
+                                                                    lstallVariation = Model.productVariations.variations.Where(x => x.variationValues.Any(y => y.index == dimensions.index && y.value == dimensionsValue.index)).ToList();
+
+                                                                    List<VariationValue> lstSelectedVariationValue = new List<VariationValue>();
+                                                                    lstSelectedVariationValue = lstVariationForSelected.SelectMany(x => x.variationValues).ToList();
+
+                                                                    needtoSelect = lstallVariation.SelectMany(x => x.variationValues).Where(y => lstSelectedVariationValue.Any(z => z.index == y.index && z.value == y.value
+                                                                                        //&& z.index == dimensions.index && z.value == dimensionsValue.index
+                                                                                        )).ToList();
+
+                                                                    needtoSelectVariationValue = lstallVariationForActive.Where(t => t.asin == Model.asin).SelectMany(x => x.variationValues).ToList(); //.Where(z => z.index == SelectedABIndex && z.value ==SelectedABValue).ToList();
+
+                                                                    //needtoSelect = lstSelectedVariationValue.Where(x => x.index == dimensions.index && x.value == dimensionsValue.index).ToList();
+                                                                    if (variation != null)
+                                                                    {
+                                                                        //VariationValue variationValues = new VariationValue();
+                                                                        //variationValues = variation.variationValues.FirstOrDefault();
+
+                                                                        //DimensionValue dimensionValue = new DimensionValue();
+                                                                        //dimensionValue = Model.productVariations.dimensions.FirstOrDefault().dimensionValues.Where(x => x.index == variationvalue.value).FirstOrDefault();
+
+                                                                        string displayPriceString = ViewBag.RegionCurrencySymbol + "0";
+                                                                        if (Model.variationWithPrice != null && Model.variationWithPrice.Count > 0)
+                                                                        {
+                                                                            VariationWithPrice objVariationWithPrice = new VariationWithPrice();
+                                                                            objVariationWithPrice = Model.variationWithPrice.Where(x => x.asin == variation.asin).FirstOrDefault();
+                                                                            if (objVariationWithPrice != null)
+                                                                            {
+                                                                                displayPriceString = (objVariationWithPrice.variationPrice.currencyCode ?? ViewBag.RegionCurrencySymbol) + (objVariationWithPrice.variationPrice.amount);
+                                                                            }
+                                                                        }
+                                                                        if (!rQuery.ContainsKey("asin"))
+                                                                        {
+                                                                            rQuery.Add("asin", variation.asin);
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            rQuery["asin"] = variation.asin;
+                                                                        }
+                                                                        if (Model.productVariations.dimensions.Count > 1)
+                                                                        {
+                                                                            //if (needtoSelect.Count > 0)
+                                                                            //{
+                                                                            //if (needtoSelect.Where(x => x.index == dimensions.index
+                                                                            //    && x.value == dimensionsValue.index).Count() > 0)
+                                                                            //{
+                                                                            if (needtoSelectVariationValue.Where(x => x.index == dimensions.index
+                                                                                && x.value == dimensionsValue.index).Count() > 0)
+                                                                            {
+                                                                                <li>
+                                                                                    <a href="@Url.Action("ProductEdit", "Product", rQuery)" class="active">
+                                                                                        <div class="selectSizeBox">
+                                                                                            <p class="sizeDescription">@dimensionsValue.displayString</p>
+                                                                                            <div class="sizePrice">@displayPriceString</div>
+                                                                                        </div>
+                                                                                    </a>
+                                                                                </li>
+
+                                                                            }
+                                                                            else if (needtoSelect.Where(x => x.index == dimensions.index
+                                                                            && x.value == dimensionsValue.index).Count() > 0)
+                                                                            {
+                                                                                <li>
+                                                                                    <a href="@Url.Action("ProductEdit", "Product", rQuery)">
+                                                                                        <div class="selectSizeBox">
+                                                                                            <p class="sizeDescription">@dimensionsValue.displayString</p>
+                                                                                            <div class="sizePrice">@displayPriceString</div>
+                                                                                        </div>
+                                                                                    </a>
+                                                                                </li>
+                                                                            }
+                                                                            else if (needtoSelect.Count <= 0)
+                                                                            {
+                                                                                <li style="background-color:lightgray">
+                                                                                    <a href="@Url.Action("ProductEdit", "Product",rQuery)">
+                                                                                        <div class="selectSizeBox">
+                                                                                            <p class="sizeDescription">@dimensionsValue.displayString</p>
+                                                                                            <div class="sizePrice">@displayPriceString</div>
+                                                                                        </div>
+                                                                                    </a>
+                                                                                </li>
+                                                                            }
+                                                                            else
+                                                                            {
+                                                                                <li>
+                                                                                    <a href="@Url.Action("ProductEdit", "Product",rQuery)">
+                                                                                        <div class="selectSizeBox">
+                                                                                            <p class="sizeDescription">@dimensionsValue.displayString</p>
+                                                                                            <div class="sizePrice">@displayPriceString</div>
+                                                                                        </div>
+                                                                                    </a>
+                                                                                </li>
+                                                                            }
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            if (needtoSelectVariationValue.Where(x => x.index == dimensions.index
+                                                                                && x.value == dimensionsValue.index).Count() > 0)
+                                                                            {
+                                                                                <li>
+                                                                                    <a href="@Url.Action("ProductEdit", "Product",rQuery)" class="active">
+                                                                                        <div class="selectSizeBox">
+                                                                                            <p class="sizeDescription">@dimensionsValue.displayString</p>
+                                                                                            <div class="sizePrice">@displayPriceString</div>
+                                                                                        </div>
+                                                                                    </a>
+                                                                                </li>
+
+                                                                            }
+                                                                            else
+                                                                            {
+                                                                                <li>
+                                                                                    <a href="@Url.Action("ProductEdit", "Product", rQuery)">
+                                                                                        <div class="selectSizeBox">
+                                                                                            <p class="sizeDescription">@dimensionsValue.displayString</p>
+                                                                                            <div class="sizePrice">@displayPriceString</div>
+                                                                                        </div>
+                                                                                    </a>
+                                                                                </li>
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            </ul>
+                                                        }
+                                                    }
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="sizeTitle">
+                                                    <span class="sizeText">@Model.productVariations.dimensions.FirstOrDefault().displayString : </span>
+                                                </div>
+
+                                                <select id="drpproductVariations" onchange="LoadDetailPageAsinWise()">
+                                                    @foreach (Dimension dimensions in Model.productVariations.dimensions)
+                                                    {
+                                                        foreach (DimensionValue dimensionsValue in dimensions.dimensionValues)
+                                                        {
+                                                            Variation objVariation = new Variation();
+                                                            objVariation = Model.productVariations.variations.Where(y => y.variationValues.Any(x => x.index == dimensions.index
+                                                                                                                               && x.value == dimensionsValue.index)).FirstOrDefault();
+                                                            if (objVariation != null && objVariation.asin == Model.asin)
+                                                            {
+                                                                <option value="@objVariation.asin" selected="selected">@dimensionsValue.displayString</option>
+                                                            }
+                                                            else
+                                                            {
+                                                                <option value="@objVariation.asin">@dimensionsValue.displayString</option>
+                                                            }
+                                                        }
+                                                    }
+                                                </select>
+                                            }
+                                        }
+                                        <div class="features">
+                                            @if (Model.features.Count > 0)
+                                            {
+                                                <h3 class="feature-title">@ResABProducts.Aboutthisitem</h3>
+                                                <ul>
+                                                    @for (int i = 0; i < Model.features.Count; i++)
+                                                    {
+                                                        <li>@Model.features[i]</li>
+                                                    }
+                                                </ul>
+                                            }
+                                        </div>
+                                        @if (Model.productDetails != null && Model.productDetails.Count > 0)
+                                        {
+                                            <div class="features">
+                                                <h3 class="feature-title">@ResABProducts.ProductSpecifications</h3>
+                                                <table class="detailDesc">
+                                                    @foreach (KeyValuePair<string, Dictionary<string, string>> productDetails in Model.productDetails)
+                                                    {
+
+                                                        foreach (KeyValuePair<string, string> productDetailsKeys in productDetails.Value)
+                                                        {
+                                                            if (!string.IsNullOrWhiteSpace(productDetailsKeys.Key))
+                                                            {
+                                                                <tr>
+                                                                    <td>@productDetailsKeys.Key</td>
+                                                                    <td>@productDetailsKeys.Value</td>
+                                                                </tr>
+
+                                                            }
+                                                        }
+                                                    }
+                                                </table>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="addCartBlockRight">
+                                        <div class="cartBlockWrap">
+                                            <div class="cartBoxPrice">
+                                                @if (@OfferPrice > 0)
+                                                {
+                                                    <div class="price-box inner-price clearfix fullWidth">
+                                                        <div class="original-price">
+                                                            <sup class="price-symbol">@ViewBag.RegionCurrencySymbol</sup><span class="main-price">@OfferPrice</span>
+                                                        </div>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <span class="unAvailable">@ResABProducts.CurrentlyUnavailable</span>
+                                                }
+                                            </div>
+                                            <div class="cartBoxNotShip" style="display:none">
+                                                This item cannot be shipped to your selected delivery location. Please choose a different delivery location.
+                                            </div>
+                                            @if (Model.includedDataTypes.OFFERS != null && Model.includedDataTypes.OFFERS.Count > 0)
+                                            {
+                                                if (!string.IsNullOrWhiteSpace(Model.includedDataTypes.OFFERS[0].deliveryInformation))
+                                                {
+                                                    <div class="deliveryStatus">
+                                                        <strong>@Model.includedDataTypes.OFFERS[0].deliveryInformation</strong>
+                                                    </div>
+                                                }
+                                                if (!string.IsNullOrWhiteSpace(Model.includedDataTypes.OFFERS[0].availability))
+                                                {
+                                                    <div class="cartBoxStock">
+                                                        @Model.includedDataTypes.OFFERS[0].availability
+                                                    </div>
+                                                }
+                                            }
+                                        <div class="add-cart">
+                                            @if (isAsinAddedToRoom == false && !string.IsNullOrEmpty(Model.asin) && !string.IsNullOrWhiteSpace(Model.asin) && IsAllowToInsertItem)
+                                            {
+                                                <a href="#" title="@ResABProducts.addtoroom" id="aItemAddToRoom" data-asin="@Model.asin" onclick="AddtoRoom('@Model.asin','@ProductToItemCallFor.AddToItem',false)">@ResABProducts.addtoroom</a>
+                                            }
+                                            @if (!string.IsNullOrEmpty(Model.asin) && !string.IsNullOrWhiteSpace(Model.asin) && IsAllowToInsertCart)
+                                            {
+                                                if (isAsinAddedToRoom == true)
+                                                {
+                                                    <a href="#" title="@ResABProducts.addtocart" id="aItemAddToCart" onclick="AddtoRoom('@Model.asin', '@ProductToItemCallFor.AddToCart',false)" class="addCart">@ResABProducts.addtocart</a>
+                                                }
+                                                else if (IsAllowToInsertItem == true)
+                                                {
+                                                    <a href="#" title="@ResABProducts.addtocart" id="aItemAddToCart" onclick="AddtoRoom('@Model.asin', '@ProductToItemCallFor.AddToCart',false)" class="addCart">@ResABProducts.addtocart</a>
+                                                }
+                                            }
+
+                                        </div>
+                                            <div style="display:none" class="secureTransaction">
+                                                <a href="#">Secure Transactions </a>
+                                            </div>
+                                            <div class="tabular-container">
+                                                <ul>
+                                                    <li style="display:none;"><span>Ships from</span><strong>Amazon.com</strong></li>
+                                                    <li><span>@SoldByNote</span></li>
+                                                </ul>
+                                            </div>
+                                            <div style="display:none" class="returnpolicy">
+                                                <span>Return policy:</span><a href="#" title="">Eligible for Return, Refund or Replacement within 30 days of receipt</a>
+                                            </div>
+                                        </div>
+                                        @if (Model.offerCount > 0 && Model.offers.Count > 0)
+                                        {
+                                            double price = 0;
+                                            string deliveryInformation = "";
+                                            string ProductCondition = "";
+                                            Offer LowestOffer = new Offer();
+                                            LowestOffer = Model.offers.OrderBy(x => x.price.value.amount).FirstOrDefault();
+                                            price = LowestOffer.price.value.amount;
+                                            deliveryInformation = LowestOffer.deliveryInformation;
+                                            double featuredofferprice = 0;
+                                            if (Model.featuredOffer != null)
+                                            {
+                                                featuredofferprice = Model.featuredOffer.price.value.amount;
+                                            }
+                                            if (featuredofferprice > 0 && featuredofferprice < price)
+                                            {
+                                                price = featuredofferprice;
+                                                deliveryInformation = Model.featuredOffer.deliveryInformation;
+                                            }
+
+
+                                            if (Model.offers.Count > 0)
+                                            {
+                                                if ((Model.offers.Where(x => x.productCondition.ToLower() == "NEW".ToLower()).Count() > 0
+                                                    || Model.featuredOffer != null && Model.featuredOffer.productCondition.ToLower() == "NEW".ToLower())
+                                                    && (Model.offers.Where(x => x.productCondition.ToLower() == "USED".ToLower()).Count() > 0)
+                                                    || Model.featuredOffer != null && Model.featuredOffer.productCondition.ToLower() == "USED".ToLower())
+                                                {
+                                                    ProductCondition = ResABProducts.ProductConditionNewandOld;
+                                                }
+                                                else if ((Model.offers.Where(x => x.productCondition.ToLower() == "NEW".ToLower()).Count() > 0
+                                                        || Model.featuredOffer != null && Model.featuredOffer.productCondition.ToLower() == "NEW".ToLower())
+                                                     && (Model.offers.Where(x => x.productCondition.ToLower() == "USED.ToLower()").Count() <= 0)
+                                                        || Model.featuredOffer != null && Model.featuredOffer.productCondition.ToLower() == "USED".ToLower())
+                                                {
+                                                    ProductCondition = ResABProducts.ProductConditionNew;
+                                                }
+                                                else if ((Model.offers.Where(x => x.productCondition.ToLower() == "NEW".ToLower()).Count() <= 0
+                                                        || Model.featuredOffer != null && Model.featuredOffer.productCondition.ToLower() == "NEW".ToLower())
+                                                     && (Model.offers.Where(x => x.productCondition.ToLower() == "USED".ToLower()).Count() > 0)
+                                                        || Model.featuredOffer != null && Model.featuredOffer.productCondition.ToLower() == "USED".ToLower())
+                                                {
+                                                    ProductCondition = ResABProducts.ProductConditionOld;
+                                                }
+                                            }
+                                            string displayPrice = ViewBag.RegionCurrencySymbol + price;
+                                            if (price <= 0)
+                                            {
+                                                displayPrice = @ResABProducts.CurrentlyUnavailable;
+                                            }
+                                            <div class="cartBlockWrap">
+                                                <div class="ShowProductOffers rightBoxFreeShip" onclick="ShowProductOffer('@Model.asin')">@ProductCondition (@Model.offerCount) @ResABProducts.from <br /> <span class="pricefreeship"> @displayPrice  &amp; <strong>@deliveryInformation</strong></span></div>
+                                            </div>
+                                            @*<div class="cartBlockWrap">*@
+                                                if (Model.offers != null && Model.offers.Count > 1)
+                                                {
+                                                    int iOfferCount = 0;
+                                                    List<Offer> lstLowestOffer = new List<Offer>();
+
+                                                    if (Model.featuredOffer != null)
+                                                    {
+                                                        //double FeaturedPrice = (Model.featuredOffer.listPrice.value != null
+                                                        //                      ? (Model.featuredOffer.listPrice.value.amount - (Model.featuredOffer.price != null ? Model.featuredOffer.price.value.amount : 0))
+                                                        //                    : (Model.featuredOffer.price != null ? Model.featuredOffer.price.value.amount : 0)) ;
+                                                        double FeaturedPrice = (Model.featuredOffer.price != null ? Model.featuredOffer.price.value.amount : ((Model.featuredOffer.listPrice != null ? Model.featuredOffer.listPrice.value.amount : 0)));
+                                                        lstLowestOffer = Model.offers.Where(y => ((y.price.value != null
+                                                                                ? (y.price.value.amount) : (y.listPrice.value != null ? y.listPrice.value.amount : 0)))
+                                                                                 >= FeaturedPrice)
+                                                                                            .OrderBy(x => (x.price.value != null ? x.price.value.amount : 0)).Take(3).ToList();
+                                                    }
+                                                    else
+                                                    {
+                                                        lstLowestOffer = Model.offers.Where(y => (y.price.value != null ? y.price.value.amount : 0) > 0).OrderBy(x => (x.price.value != null ? x.price.value.amount : 0)).Take(3).ToList();
+                                                    }
+                                                    if (lstLowestOffer != null && lstLowestOffer.Count > 0)
+                                                    {
+                                                        <div class="cartBlockWrap" id="divSellerInfo">
+                                                        <h3>@ResABProducts.OtherSellersonAmazon</h3>
+                                                        <div class="priceShipSeparater"></div>
+                                                        @foreach (Offer selleroffer in lstLowestOffer)
+                                                        {
+                                                            decimal SellerRatePercentage = 0;
+                                                            string SellermeanFeedbackRating = "";
+                                                            string SellerstarRating = "";
+                                                            if (selleroffer.merchant.meanFeedbackRating != null
+                                                                && Convert.ToDecimal(selleroffer.merchant.meanFeedbackRating) > 0)
+                                                            {
+                                                                SellerRatePercentage = ((Convert.ToDecimal(selleroffer.merchant.meanFeedbackRating) / 5) * 100);
+                                                                SellermeanFeedbackRating = Convert.ToString(String.Format("{0:0.0}", selleroffer.merchant.meanFeedbackRating));
+                                                            }
+                                                            if (selleroffer.merchant.totalFeedbackCount != null
+                                                               && Convert.ToInt64(selleroffer.merchant.totalFeedbackCount) > 0)
+                                                            {
+                                                                SellerstarRating = Convert.ToString(selleroffer.merchant.totalFeedbackCount);
+                                                            }
+                                                            iOfferCount++;
+                                                            <div class="showsellerRatings">
+                                                                <div id="divSellerOffers" class="ShowProductOffers">
+                                                                    <span class="pricefreeship"> @ViewBag.RegionCurrencySymbol @String.Format("{0:0.00}", selleroffer.price.value.amount)  &amp; <strong>@selleroffer.deliveryInformation</strong></span><br />@ResABProducts.SoldBy @selleroffer.merchant.name
+                                                                    @if (SellerRatePercentage > 0)
+                                                                    {
+                                                                        <div class="rating-result d-flex flex-row">
+                                                                            <div class="ratingShowBlock">
+                                                                                <div>@ResABProducts.SoldBy: @selleroffer.merchant.name</div>
+                                                                                <div class="rating-box">
+                                                                                    <div class="rating" style="width:@(SellerRatePercentage)%"></div>
+                                                                                </div>
+                                                                                <div class="ratingStatus">(@SellerstarRating @ResABProducts.ratings)</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    }
+                                                                </div>
+                                                                
+                                                                @if (iOfferCount < lstLowestOffer.Count)
+                                                                {
+                                                                    <div class="priceShipSeparater"></div>
+                                                                }                                                                
+                                                            </div>
+                                                        }
+                                                        </div>
+                                                    }
+                                                }
+                                            @*</div>*@
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </main>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="AddToItemOrCartQtyPopUp"></div>
+</div>
+<div id="divProductOffer">
+</div>
+<script type="text/javascript">
+    var LblProductQuantityPopUpTitle = "@ResABProducts.ProductQuantityPopUpTitle";
+    $(document).ready(function () {
+
+        $('.slideshow-thumbnails').hover(function () { changeSlide($(this)); });
+
+        $(document).mousemove(function (e) {
+            if ($('.slideshow-items.active').length > 0) {
+                var x = e.clientX; var y = e.clientY;
+
+                var x = e.clientX; var y = e.clientY;
+
+                var imgx1 = $('.slideshow-items.active').offset().left;
+                var imgx2 = $('.slideshow-items.active').outerWidth() + imgx1;
+                var imgy1 = $('.slideshow-items.active').offset().top;
+                var imgy2 = $('.slideshow-items.active').outerHeight() + imgy1;
+
+                if (x > imgx1 && x < imgx2 && y > imgy1 && y < imgy2) {
+                    $('#lens').show(); $('#result').show();
+                    imageZoom($('.slideshow-items.active'), $('#result'), $('#lens'));
+                } else {
+                    $('#lens').hide(); $('#result').hide();
+                }
+            }
+        });
+    });
+    function LoadDetailPageAsinWise() {
+        var AsinValue = $("#drpproductVariations option:selected").val();
+        if (AsinValue != null && AsinValue != "") {
+            var searchParams = window.location.search.substring(1).split("&");
+            for (var i = 0; i < searchParams.length; i++) {
+                if (searchParams[i].indexOf("asin" + '=') > -1) {
+                    searchParams[i] = "asin" + "=" + AsinValue;
+                    break;
+                }
+            }
+            window.location.href = window.location.href.split("?")[0] + "?" + searchParams.join("&");
+        }
+    }
+    function imageZoom(img, result, lens) {
+
+        result.width(img.innerWidth()); result.height(img.innerHeight());
+        lens.width(img.innerWidth() / 2); lens.height(img.innerHeight() / 2);
+
+        result.offset({ top: img.offset().top, left: img.offset().left + img.outerWidth() + 10 });
+
+        var cx = img.innerWidth() / lens.innerWidth(); var cy = img.innerHeight() / lens.innerHeight();
+
+        result.css('backgroundImage', 'url(' + img.attr('src') + ')');
+        result.css('backgroundSize', img.width() * cx + 'px ' + img.height() * cy + 'px');
+
+        lens.mousemove(function (e) { moveLens(e); });
+        img.mousemove(function (e) { moveLens(e); });
+        lens.on('touchmove', function () { moveLens(); })
+        img.on('touchmove', function () { moveLens(); })
+
+        function moveLens(e) {
+            var x = e.clientX - lens.outerWidth() / 2;
+            var y = e.clientY - lens.outerHeight() / 2;
+            if (x > img.outerWidth() + img.offset().left - lens.outerWidth()) { x = img.outerWidth() + img.offset().left - lens.outerWidth(); }
+            if (x < img.offset().left) { x = img.offset().left; }
+            if (y > img.outerHeight() + img.offset().top - lens.outerHeight()) { y = img.outerHeight() + img.offset().top - lens.outerHeight(); }
+            if (y < img.offset().top) { y = img.offset().top; }
+            lens.offset({ top: y, left: x });
+            result.css('backgroundPosition', '-' + (x - img.offset().left) * cx + 'px -' + (y - img.offset().top) * cy + 'px');
+        }
+    }
+
+
+    function changeSlide(elm) {
+        $('.slideshow-items').removeClass('active');
+        $('.slideshow-items').eq(elm.index()).addClass('active');
+        $('.slideshow-thumbnails').removeClass('active');
+        $('.slideshow-thumbnails').eq(elm.index()).addClass('active');
+    }
+
+</script>
+<script type="text/javascript">
+    $(document).ready(function () {
+
+        // ratting popup
+        $(".ratingShow").mouseenter(function (e) {
+            $(".ratingShowBlock").show();
+        }).mouseleave(function (e) {
+            setTimeout(function () {
+                $(".ratingShowBlock").hide();
+            }, 5000);
+            $(".ratingShowBlock").mouseenter(function (e) {
+                $(".ratingShowBlock").show();
+                return false;
+            });
+        });
+        $(".ratingShowBlock").mouseleave(function (e) {
+            $(".ratingShowBlock").hide();
+        });
+
+        $("div#divSellerInfo #divSellerOffers").each(function (index, obj) {
+            $(obj).mouseenter(function (e) {
+                $("div#divSellerInfo .ratingShowBlock").hide();
+                $(obj).find(".ratingShowBlock").show();
+            }).mouseleave(function (e) {
+                setTimeout(function () {
+                    $(obj).find(".ratingShowBlock").hide();
+                }, 5000);
+                $(obj).find(".ratingShowBlock").mouseenter(function (e) {
+                    $(obj).find(".ratingShowBlock").show();
+                    return false;
+                });
+            });
+
+            $(obj).find(".ratingShowBlock").mouseleave(function (e) {
+                $(obj).find(".ratingShowBlock").hide();
+            });
+        });
+
+    });
+</script>

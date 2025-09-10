@@ -1,0 +1,681 @@
+﻿@model eTurns.DTO.CompanyMasterDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    string CharCodeList = eTurnsWeb.Helper.CommonUtility.GetNotAllowCharList();
+
+    //System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    string ValidatePhoneNumber = eTurns.DTO.SiteSettingHelper.ValidatePhoneNumber; // Settinfile.Element("ValidatePhoneNumber").Value;
+    string CommonFileExtension = eTurns.DTO.SiteSettingHelper.CommonAllowedFileExtension;
+}
+
+    @{
+        bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.CompanyMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+        bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.CompanyMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    }
+    <script type='text/javascript' src="@Url.Content("~/Scripts/ajaxfileupload.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+    @using (Ajax.BeginForm("CompanySave", "Master", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmCompany" }))
+    { 
+        
+        @Html.AntiForgeryToken()
+        <div class="userHead">
+        @Html.ValidationSummary(true)
+
+        @if (Model.ID != 0)
+        {
+        <div class="infoBlock">
+            <ul>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.CreatedByName)
+                    </label>
+                    : <span>@(Model.CreatedByName)</span> </li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.Created)
+                    </label>
+                    : <span>@(Model.CreatedDate)</span> </li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.UpdatedByName)
+                    </label>
+                    : <span>@(Model.UpdatedByName)</span> </li>
+                <li style="border: none">
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.Updated)
+                    </label>
+                    : <span>@(Model.UpdatedDate)</span> </li>
+            </ul>
+        </div>
+        }
+
+
+        <div class="editorForm">
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Name)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @*@Html.EditorFor(model => model.Name)*@
+                        @Html.TextBoxFor(model => model.Name, new { @class = "text-box single-line", onkeypress = "return NotAllowCharacter(event);", ondrop = "return false;", onblur = "return NotAllowedSpecialCharacters(this);" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Name)</span>
+                        @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                        @Html.HiddenFor(model => model.GUID)
+                        @Html.HiddenFor(model => model.Created)
+                        @Html.HiddenFor(model => model.Updated)
+                        @Html.HiddenFor(model => model.CreatedBy)
+                        @Html.HiddenFor(model => model.LastUpdatedBy)
+                        @Html.HiddenFor(model => model.CreatedByName)
+                        @Html.HiddenFor(model => model.UpdatedByName)
+                        @Html.HiddenFor(model => model.EnterPriseId, new { id = "hdnEnterpriseId" })
+                        <input type="hidden" id="hdPhoneRegex" />
+                    </div>
+
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.CompanyNumber)
+                    </div>
+                    <div class="editor-field">
+                        @Html.EditorFor(model => model.CompanyNumber, new { htmlAttributes = new { @maxlength = "255" } })
+                        @Html.ValidationMessageFor(model => model.CompanyNumber)
+                    </div>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Address)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextAreaFor(model => model.Address, new { @class = "text-area", onkeyup = "textCounter(this,'lblCounter',255);", maxlength = 255 })<span style="vertical-align: bottom;">
+                            <span>@eTurns.DTO.Resources.ResMessage.NumberofCharactersLeft:</span>&nbsp;<label id="lblCounter">255</label>
+                        </span>
+                        @Html.ValidationMessageFor(model => model.Address)
+                    </div>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.City)
+                    </div>
+                    <div class="editor-field">
+                        @Html.EditorFor(model => model.City, new { htmlAttributes = new { @maxlength = "127" } })
+                        @Html.ValidationMessageFor(model => model.City)
+                    </div>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.State)
+                    </div>
+                    <div class="editor-field">
+                        @Html.EditorFor(model => model.State, new { htmlAttributes = new { @maxlength = "255" } })
+                        @Html.ValidationMessageFor(model => model.State)
+                    </div>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.PostalCode)
+                    </div>
+                    <div class="editor-field">
+                        @Html.EditorFor(model => model.PostalCode, new { htmlAttributes = new { @maxlength = "20" } })
+                        @Html.ValidationMessageFor(model => model.PostalCode)
+                    </div>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Country)
+                    </div>
+                    <div class="editor-field">
+                        @*@Html.DropDownListFor(model => model.Country, new SelectList(ViewBag.CountryList, "CountryName", "CountryName", Model.Country), new { @class = "selectBox" })*@
+                        @*@Html.EditorFor(model => model.Country)*@
+                        <span style="position:relative">
+                            <input type="hidden" value="false" id="hdnIsLoadMoreCountry" />
+                            @Html.TextBoxFor(model => model.Country, new { @class = "selectBox", maxlength = 127 })
+                            <a id="lnkShowAllOptionsCR" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;font-size:19px;background-color:#fff;" class="ShowAllOptionsBinCR"><img src="/Content/images/arrow_down_black.png" alt="select" /></a>
+                        </span>
+                        @Html.ValidationMessageFor(model => model.Country)
+                    </div>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.ContactPhone)
+                    </div>
+                    <div class="editor-field">
+                        @Html.EditorFor(model => model.ContactPhone,new { htmlAttributes = new { @maxlength = "20" } })
+                        @Html.ValidationMessageFor(model => model.ContactPhone)
+                    </div>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.ContactEmail)
+                    </div>
+                    <div class="editor-field">
+                        @Html.EditorFor(model => model.ContactEmail, new { htmlAttributes = new { @maxlength = "255" } })
+                        @Html.ValidationMessageFor(model => model.ContactEmail)
+                    </div>
+                    @*<div class="editor-label">
+            @Html.LabelFor(model => model.IsActive)
+        </div>*@
+
+                    @*@if (Model.IsActive && Model.ID > 0)
+        {
+            <input type="checkbox" checked="checked" disabled="disabled" />
+            @Html.HiddenFor(model => model.IsActive)
+        }
+        else
+        {
+            @Html.CheckBoxFor(model => model.IsActive)
+        }
+            @Html.ValidationMessageFor(model => model.IsActive)
+                    *@
+                    @*<div class="editor-field">*@
+                    @Html.HiddenFor(model => model.IsActive)
+                    @*</div>*@
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.IsIncludeCommonBOM)
+                    </div>
+                    <div class="editor-field">
+                        @Html.CheckBoxFor(model => model.IsIncludeCommonBOM, new { @onchange = "UpdateIncludeCommonBOM(this);" })
+
+                        <input type="button" value="Maintain Common BOM" id="btnIncludeCommonBOM" class="CreateBtn"
+                               style="float: none; margin-left: 80px;" />
+                        @Html.ValidationMessageFor(model => model.IsIncludeCommonBOM)
+                    </div>
+                </li>
+                @Html.Partial("UDFLayout", new eTurns.DTO.ResCompany())
+                <h4>
+                    @eTurns.DTO.ResItemMaster.ImagePath
+                </h4>
+                <ul>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CompanyLogo)@*<em> *</em>*@
+                        </div>
+                        <div class="editor-field">
+                            <a href="javascript:void(null);" onclick="DeleteCompanyImage('@Model.GUID');" title="Delete Image" id="btnDeleteImage" name="btnDeleteImage">
+                                     <img src="~/Content/images/delete.png" />
+                            </a> 
+                            <input name="CompanyLogo" id="CompanyLogo" type="file" />
+                            <div style="float: left;">
+                                @if (!string.IsNullOrEmpty(Model.CompanyLogo))
+                                {
+                                    <img id="previewHolder" style="width:120px;height:120px;" src="@( "/Uploads/CompanyLogos/" + Model.ID + "/" + Model.CompanyLogo)">
+                                    <input type="hidden" value="@( "/Uploads/CompanyLogos/" + Model.ID + "/" + Model.CompanyLogo)" id="currentpath" />
+                                }
+                                else
+                                {
+                                    <img id="previewHolder" style="width:120px;height:120px;" alt="No Image" src="~/Content/images/no-image.jpg" />
+                                    <input type="hidden" value="~/Content/images/no-image.jpg" id="currentpath" />  
+                                }
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="BtnBlockform">
+                        <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+                        @if ((Model.IsDeleted ?? false) == false)
+                        {
+                            if (isInsert == true && Model.ID == 0)
+                            {
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                            }
+                            else if (isUpdate == true)
+                            {
+
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                            }
+                        }
+                    </div>
+                </li>
+            </ul>
+        </div>
+        </div>
+    }
+
+<div id="loading">
+</div>
+@Html.Partial("_RequiredMessages")
+@*@if (false)
+{
+    <script src="../../Scripts/jquery-1.9.1-vsdoc.js" type="text/javascript"></script>
+}*@
+<script type="text/javascript">
+    $("form").submit(function (e) {
+        $.validator.unobtrusive.parse("#frmCompany");
+        if ($(this).valid()) {
+            rememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        }
+
+        if ('@ValidatePhoneNumber' != "" && ('@ValidatePhoneNumber' == "YES" || '@ValidatePhoneNumber' == "yes")) {
+            if ($("#ContactPhone").val() != "" && $("#Country").val() != "" && $("#hdPhoneRegex").val() != "") {
+                var regexpattern = new RegExp($("#hdPhoneRegex").val());
+                var inputVal = $("#ContactPhone").val();
+                if (!regexpattern.test(inputVal)) {
+                    showNotificationDialog();
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    $("#spanGlobalMessage").html("@ResCommon.InvalidPhoneValue");
+                    $("#ContactPhone").focus();
+                    return false;
+                }
+            }
+            else {
+                if ($("#ContactPhone").val() != "" && $("#hdPhoneRegex").val() != "") {
+                    var regexpattern = new RegExp($("#hdPhoneRegex").val());
+                    var inputVal = $("#ContactPhone").val();
+                    if (!regexpattern.test(inputVal)) {
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#spanGlobalMessage").html("@ResCommon.InvalidPhoneValue");
+                        $("#ContactPhone").focus();
+                        return false;
+                    }
+                }
+            }
+        }
+
+        e.preventDefault();
+    });
+    var charCode = '@CharCodeList';
+
+    $(document).ready(function () {
+        var GetCountryURL = '@Url.Action("GetCountryList", "Master")';
+        $(".editorForm").on('focus', "input[type='text'][name='Country']", function (e) {
+            var objCurtxt = $(this);
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: GetCountryURL,
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        data: {
+                            featureClass: "P",
+                            style: "full",
+                            maxRows: 1000,
+                            NameStartWith: request.term
+                        },
+                        success: function (data) {
+                            response($.map(data, function (item) {
+                                return {
+                                    label: item.CountryName,
+                                    value: item.CountryName,
+                                    selval: item.ID
+                                }
+                            }));
+                        },
+                        error: function (err) {}
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+
+                    //                    $(objCurtxt).parent().parent().find("input[type='hidden'][name='hdnStagingBinName']").val(ui.item.label);
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                    $(objCurtxt).trigger("change");
+                },
+                change: function (event, ui) {
+                    //                    $(objCurtxt).parent().parent().find("input[type='hidden'][name='hdnStagingBinName']").val($(objCurtxt).val());
+                }
+            });
+        });
+
+        var intNotAllowededCode = charCode.split(',');
+        if (intNotAllowededCode != null && intNotAllowededCode.length > 0) {
+            for (i = 0; i < intNotAllowededCode.length; i++) {
+                specialKeys.push(parseInt(intNotAllowededCode[i])); //Backspace
+            }
+        }
+    });
+</script>
+<script type="text/javascript">
+
+
+    var CommonFileExtension = '@CommonFileExtension';
+    var MsgInvalidFileSelected = '@ResWorkOrder.MsgInvalidFileSelected';
+    var MsgvalidFileList = '@ResWorkOrder.MsgvalidFileList';
+
+    function onSuccess(response) {
+        IsRefreshGrid = true;
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+        var companyLogo = $("#CompanyLogo").val();
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            clearControls('frmCompany');
+            $("#Name").focus();
+        }
+        else if (idValue == 0) {
+
+            $("#Name").focus();
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+
+                setDefaultUDFValues($("#hdnPageName").val(), '@Model.ID');
+                if (companyLogo != "") {
+                    ajaxFileUpload(response.retDto.ID);
+                }
+                else {
+                    window.location.reload();
+                }
+                clearControls('frmCompany');
+            }
+
+            //FillTopCompanies();
+
+        }
+        else if (idValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                return false;
+            }
+            //            else {
+            //                SwitchTextTab(0, 'CompanyCreate', 'frmCompany');
+            //            }
+            if (companyLogo != "") {
+                ajaxFileUpload(response.retDto.ID);
+            }
+            else {
+                window.location.reload();
+            }
+            clearControls('frmCompany');
+        }
+
+        //        return false;
+    }
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        clearControls('frmCompany');
+    }
+    function ajaxFileUpload(retid) {
+        //starting setting some animation when the ajax starts and completes
+
+        $("#loading")
+		.ajaxStart(function () {
+
+		})
+		.ajaxComplete(function () {
+		    setTimeout(function () { window.location.reload(); }, 1000)
+
+		});
+
+        /*
+        prepareing ajax file upload
+        url: the url of script file handling the uploaded files
+        fileElementId: the file type of input element id and it will be the index of  $_FILES Array()
+        dataType: it support json, xml
+        secureuri:use secure protocol
+        success: call back function when the ajax complete
+        error: callback function when the ajax failed
+
+        */
+
+        $.ajaxFileUpload
+		(
+			{
+			    url: '/api/fileupload/PostCompanyFile/' + retid,
+			    type: "POST",
+			    secureuri: false,
+			    fileElementId: 'CompanyLogo',
+			    success: function (data, status) {
+			        SwitchTextTab(0, 'CompanyCreate', 'frmCompany');
+			    },
+			    error: function (data, status, e) {
+			        SwitchTextTab(0, 'CompanyCreate', 'frmCompany');
+			    }
+			}
+		)
+
+        return false;
+
+    }
+    function OnUpload(eid) {
+        var files = $("#CompanyLogo").get(0).files;
+
+        if (files.length > 0) {
+            if (window.FormData !== undefined) {
+                var data = new FormData();
+                for (i = 0; i < files.length; i++) {
+                    data.append("file" + i, files[i]);
+                }
+                var request = $.ajax({
+                    url: "/api/fileupload/CompanyLogoUpload/" + eid,
+                    type: "POST",
+                    data: data,
+                    contentType: false,
+                    processData: false
+                });
+
+                request.done(function (msg) {
+                    $("#log").html(msg);
+                });
+
+                request.fail(function (jqXHR, textStatus) {
+                    alert("Request failed: " + textStatus);
+                });
+
+            }
+            else {
+                alert("This browser doesn't support HTML5 multiple file uploads!");
+            }
+        }
+    }
+
+    $(document).ready(function () {
+        $('form').areYouSure();
+        GetPhoneRegex();
+
+        $('.ShowAllOptionsBinCR').click(function () {
+            $(this).siblings('#Country').trigger("focus");
+            $(this).siblings("#Country").autocomplete("search", " ");
+        });
+        var CompanyImagePath = '@Model.CompanyLogo';
+        $("#btnDeleteImage").hide();
+        if (CompanyImagePath != undefined && CompanyImagePath != null && CompanyImagePath != '') {
+                $("#btnDeleteImage").show();
+        }
+
+        if ('@Model.IsDeleted' == '@Boolean.TrueString') {
+            disableControls('frmCompany');
+        }
+        if ('@Model.IsIncludeCommonBOM' == '@Boolean.TrueString') {
+            $('#btnIncludeCommonBOM').css('visibility', 'visible');
+        }
+        else {
+            $('#btnIncludeCommonBOM').css('visibility', 'hidden');
+        }
+        $("#CompanyLogo").change(function () {
+            readURL1(this);
+        });
+        $('#btnCancel').click(function (e) {
+            //if (IsRefreshGrid)
+                $('#NarroSearchClear').click();
+            SwitchTextTab(0, 'CompanyCreate', 'frmCompany');
+            if (oTable !== undefined && oTable != null) {
+                oTable.fnDraw();
+            }
+        });
+        $('#btnIncludeCommonBOM').click(function (e) {
+            location.href = '@Url.Action("BOMItemList", "BOM")';
+
+        });
+        checkRememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+
+         function GetPhoneRegex() {
+           // if ($("#Country").val() != "") {
+                $.ajax({
+                    url: '@Url.Action("PhoneNumberRegexFromCountry", "Master")',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: {
+                        CountryName: $("#Country").val()
+                    },
+                    success: function (Message) {
+                        if (Message.Regex != "")
+                            $("#hdPhoneRegex").val(Message.Regex);
+                        else
+                            $("#hdPhoneRegex").val("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{0,13})[-. )]*(\d{3})[-. ]*(\d{0,13})(?: *x(\d+))?\s*$");
+                    },
+                    error: function (err) {
+                        $("#hdPhoneRegex").val("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{0,13})[-. )]*(\d{3})[-. ]*(\d{0,13})(?: *x(\d+))?\s*$");
+                    }
+                });
+            //}
+            //else {
+            //    $("#hdPhoneRegex").val("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{0,13})[-. )]*(\d{3})[-. ]*(\d{0,13})(?: *x(\d+))?\s*$");
+            //}
+        }
+
+        $("#Country").change(function () {
+            GetPhoneRegex();
+        });
+
+    });
+
+    function UpdateIncludeCommonBOM(obj) {
+        var CompanyId = '@Model.ID';
+        CheckBoxStatus = obj.checked;
+        var checkStatus = true;
+        if (CompanyId > 0) {
+            @*$.ajax({
+                url: '@Url.Content("~/Master/UpdateCommonBOM")',
+                data: { 'CompanyId': CompanyId, 'Status': CheckBoxStatus },
+                dataType: 'json',
+                type: 'POST',
+                async: false,
+                success: function (response) {
+                    if (response.Status != 'ok' && response.Status != '') {
+                        if (CheckBoxStatus == true) {
+
+                        }
+                        else {
+
+                            showNotificationDialog();
+                            $("#spanGlobalMessage").text(response.Status);
+                            obj.checked = true;
+                            checkStatus = false;
+                        }
+                    }
+
+                }
+            });*@
+            if (checkStatus == true) {
+                $.ajax({
+                    url: '@Url.Content("~/Master/UpdateIncludeCommonBOM")',
+                    data: { 'CompanyId': CompanyId, 'Status': CheckBoxStatus },
+                    dataType: 'json',
+                    type: 'POST',
+                    async: false,
+                    success: function (response) {
+                        if (response.Status == 'ok') {
+                            if (CheckBoxStatus == true) {
+
+                                $('#btnIncludeCommonBOM').css('visibility', 'visible');
+                            }
+                            else {
+                                $('#btnIncludeCommonBOM').css('visibility', 'hidden');
+                            }
+                        }
+                        else if (response.status = 'Fail') {
+                            alert('@ResCommon.ErrorInProcess');
+                        }
+                    }
+                });
+            }
+        }
+
+
+
+    }
+    //$('#CompanyLogo').live('change', function (e) {
+    //    var ImageType = $('#CompanyLogo')[0].files[0].type;
+    //    if (ImageType.indexOf("jpg") < 0 && ImageType.indexOf("gif") < 0
+    //     && ImageType.indexOf("png") < 0 && ImageType.indexOf("jpeg") < 0 && ImageType.indexOf("svg") < 0
+    //     ) {
+    //        $('#CompanyLogo').val("");
+    //        return false;
+    //    }
+    //    else {
+    //        return true;
+    //    }
+    //});
+    function DeleteCompanyImage(CompanyGUID) {
+
+        $.ajax({
+            url: '/Master/DeleteCompanyImage',
+            data: { 'CompanyGUID': CompanyGUID },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                if (response.status == 'ok') {
+
+                    $('#previewHolder').attr('src', '/Content/images/no-image.jpg');
+                    $("input#currentpath").val('/Content/images/no-image.jpg');
+                    $("input#CompanyLogo").val('');
+                    $("#btnDeleteImage").hide();
+                    CompanyImagePath = '';
+                }
+                else {
+                    Status = 'Error';
+                    alert("Error");
+                }
+            }
+        });
+    }
+    function readURL1(input) {
+        if (input.files && input.files[0]) {
+            try {
+
+                var validExtension = CommonFileExtension.split(',');
+                var strValidationMessage = "";
+                var fileExt = input.files[0].name;
+                fileExt = fileExt.substring(fileExt.lastIndexOf('.'));
+                if (validExtension.indexOf(fileExt.toLowerCase()) <= -1) {
+                    strValidationMessage = strValidationMessage + input.files[0].name + " " + MsgInvalidFileSelected;
+                }
+                if (strValidationMessage != "") {
+                    alert(strValidationMessage + MsgvalidFileList.replace("{0}", validExtension.toString()));
+                    $('#previewHolder').attr('src', '/Content/images/no-image.jpg');
+                    $("input#currentpath").val('/Content/images/no-image.jpg');
+                    $("input#CompanyLogo").val('');
+                    $("#btnDeleteImage").hide();
+                    CompanyImagePath = '';
+                    return false;
+                }
+
+                var isError = false;
+                var objFile = input.files[0];
+
+                for (var n = 0; n < specialKeys.length; n++) {
+                    if (objFile.name.toString().lastIndexOf(String.fromCharCode(specialKeys[n])) >= 0) {
+                        isError = true;
+                        break;
+                    }
+                }
+                if (isError == true) {
+                    showNotificationDialog();
+                    //alert("Please select correct file name.");
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    $("#spanGlobalMessage").html('@ResCommon.ValidFileName');
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+
+                    $("input#CompanyLogo").val('');
+                }
+                else {
+                    var vreader = new FileReader();
+                    vreader.onload = function (e) {
+                            $('#previewHolder').attr('src', e.target.result);
+                            $("#btnDeleteImage").show();
+                    }
+
+                    vreader.readAsDataURL(input.files[0]);
+
+                }
+
+            }
+            catch (ex) {
+            }
+        }
+    }
+</script>

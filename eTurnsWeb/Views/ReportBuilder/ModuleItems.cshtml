@@ -1,0 +1,317 @@
+﻿@model ReportPerameters
+@{
+    string ModuleName = Convert.ToString(Model.ModuleName);
+
+    if (ModuleName == "eVMIPollH")
+    {
+        ModuleName = "SensorBinsPollH";
+    }
+    else if (ModuleName == "eVMI")
+    {
+        ModuleName = "SensorBins";
+    }
+    else if (ModuleName == "eVMI_ManualCount")
+    {
+        ModuleName = "SensorBins_ManualCount";
+    }
+
+}
+@if (!string.IsNullOrWhiteSpace(ModuleName))
+{
+    <li>
+        <div class="editor-label" style="width: 100%; float: left; height: 20px;">
+            &nbsp;
+        </div>
+    </li>
+    <li>
+        <div class="editor-label">
+            @Html.Label(ModuleName, new { @id = "lblModuleLabel" })
+        </div>
+        <div class="editor-field">
+            <select style="width: 200px; min-height: 250px;" name="lstModuleItem" multiple="multiple"
+                    id="lstModuleItem"></select>
+            @if (ModuleName.ToLower() != "inventorydailyhistorywithdaterange")
+            {
+                <input type="checkbox" id="chkCheckAllItem" /> @Html.Label(@ResCommon.SelectAll, new { @id = "lblSelectAllItems" })
+            }
+        </div>
+    </li>
+    <script type="text/javascript">
+
+        function FillDashboardParmForPDP(roomID)
+        {
+            $.ajax({
+                type: "POST",
+                url: "/ReportBuilder/GetDashboardParmList",
+                data: JSON.stringify({ 'SelectedRoomID': roomID }),
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                async: false,
+                success: function (message) {
+                    if (message.Status == true)
+                    {
+                        if(message.RptParameters != "")
+                        {
+                            if ($('#txtAUDayOfUsageToSample') != null && $('#txtAUDayOfUsageToSample') != undefined && $('#txtAUDayOfUsageToSample').length > 0) {
+                                $('#txtAUDayOfUsageToSample').val(message.RptParameters.MinMaxDayOfUsageToSample);
+                                $('#txtAUDayOfUsageToSample').removeAttr('disabled');
+                                $('#txtAUDayOfUsageToSample').removeClass('disableBack');
+                            }
+                            if ($('#ddlAUMeasureMethod') != null && $('#ddlAUMeasureMethod') != undefined && $('#ddlAUMeasureMethod').length > 0) {
+                                $('#ddlAUMeasureMethod').find('option[value="' + message.RptParameters.MinMaxMeasureMethod + '"]').attr('selected', 'selected');
+                                $('#ddlAUMeasureMethod').removeAttr('disabled');
+                                $('#ddlAUMeasureMethod').removeClass('disableBack');
+                            }
+                            if ($('#txtMinMaxDayOfAverage') != null && $('#txtMinMaxDayOfAverage') != undefined && $('#txtMinMaxDayOfAverage').length > 0) {
+                                $('#txtMinMaxDayOfAverage').val(message.RptParameters.MinMaxDayOfAverage);
+                                $('#txtMinMaxDayOfAverage').removeAttr('disabled');
+                                $('#txtMinMaxDayOfAverage').removeClass('disableBack');
+                            }
+                            if ($('#txtMinMaxMinNumberOfTimesMax') != null && $('#txtMinMaxMinNumberOfTimesMax') != undefined && $('#txtMinMaxMinNumberOfTimesMax').length > 0) {
+                                $('#txtMinMaxMinNumberOfTimesMax').val(message.RptParameters.MinMaxMinNumberOfTimesMax);
+                                $('#txtMinMaxMinNumberOfTimesMax').removeAttr('disabled');
+                                $('#txtMinMaxMinNumberOfTimesMax').removeClass('disableBack');
+                            }
+                            if ($('#txtQuantumStartDate') != null && $('#txtQuantumStartDate') != undefined && $('#txtQuantumStartDate').length > 0) {
+                                $('#txtQuantumStartDate').val(message.RptParameters.QuantumStartDate);
+                            }
+                            if ($('#txtQuantumEndDate') != null && $('#txtQuantumEndDate') != undefined && $('#txtQuantumEndDate').length > 0) {
+                                $('#txtQuantumEndDate').val(message.RptParameters.QuantumEndDate);
+                            }
+                        }
+                    }
+                },
+                error: function (message) {
+
+                }
+            });
+        }
+
+        function FillModuleItem() {
+            var StrStatusType = getSelectedID('ddlModuleItem');
+            var CompanyIDs = getSelectedID('ddlRCompany');
+            var RoomIDs = getSelectedID('ddlRRoom');
+            var FilterDateOn = $('#ddlFilterDateOn').val();
+            var Startdate = $('#txtStartDate').val();
+            var Enddate = $('#txtEndDate').val();
+            var Starttime = $('#StartTime').val();
+            var Endtime = $('#EndTime').val();
+            var ModuleName = $('#ModuleName').val();
+            var StrItemType = getSelectedID('ddlModuleItemTypes');
+            var reportID = $('#lstReports').val();
+            var onlyExpItems = '';
+            var ExpiredItem = '';
+            var ItemExpiredDays = '';
+            var ItemApproveDays = '';
+            var ProjectExpirationDate = $('#txtProjectExpirationDate').val();
+            var countAppliedFilter = '';
+            var usageTypeFilter = '';
+            var isAllowZeroPullUsage = false;
+            var Includestockedouttools = '';
+
+            var OutStockDateCreatedearlierThan = null;
+            var OutStockDateActiveLaterThan = null;
+            if ($('#txtOutStockDateCreatedearlierThan').length > 0) {
+                OutStockDateCreatedearlierThan = $('#txtOutStockDateCreatedearlierThan').val();
+            }
+
+            if ($('#txtOutStockDateActiveLaterThan').length > 0) {
+                OutStockDateActiveLaterThan = $('#txtOutStockDateActiveLaterThan').val();
+            }
+
+            var ItemIsActive = null;
+            if ($('#ddlItemStatus') != null && $('#ddlItemStatus') != undefined && $('#ddlItemStatus').length > 0) {
+                var ItemIsActive = getSelectedID('ddlItemStatus');
+                if (ItemIsActive != null && ItemIsActive != undefined && ItemIsActive != '')
+                    ItemIsActive = ItemIsActive;
+                else {
+                    var mulitlength = $('.ui-multiselect-menu [type="checkbox"][id^="ui-multiselect-ddlItemStatus-option"]').length;
+                    if (mulitlength <= 0 && $('#ddlItemStatus').val() != null
+                        && ($('#ddlItemStatus').val() == "0"
+                            || $('#ddlItemStatus').val() == "1")) {
+                        ItemIsActive = '' + $('#ddlItemStatus').val() + '';
+                    }
+                    else {
+                        ItmIsActive = null;
+                    }
+                }
+            }
+
+            if ($('#chkOnlyExpirationItems').length > 0) {
+                if ($('#chkOnlyExpirationItems').attr('checked') == "checked") {
+                    onlyExpItems = 'Yes';
+                }
+            }
+
+            if ($('#chkincludestockedouttools').length > 0) {
+                if ($('#chkincludestockedouttools').attr('checked') == "checked") {
+                    Includestockedouttools = 'Yes';
+                }
+            }
+
+            var qohFilt = '';
+            if ($('#ddlFilterQOH').length > 0) {
+                qohFilt = getSelectedID('ddlFilterQOH');
+            }
+
+            var range = "";
+            if ($('#ddlReportRange') !== undefined && $('#ddlReportRange') != null) {
+                range = $('#ddlReportRange').val();
+            }
+
+            var QuantityType = "";
+            if ($('#ddlQuantityType') != null && $('#ddlQuantityType') != undefined && $('#ddlQuantityType').length > 0) {
+                var QuantityType = getSelectedID('ddlQuantityType');
+                if (QuantityType != null && QuantityType != undefined && QuantityType != '')
+                    QuantityType = QuantityType;
+                else
+                    QuantityType = "";
+            }
+            if ($('#chkIncludeNormalPull').length > 0 && $('#chkIncludeNormalPull').attr('checked') == "checked") {
+                if (QuantityType != null && QuantityType != undefined && QuantityType != '' && QuantityType != ',')
+                    QuantityType = QuantityType + ",ALLPULL";
+                else
+                    QuantityType = "ALLPULL";
+            }
+
+            var StrWOStatusType = "";
+            if (("#ddlWOStatus").length > 0) {
+                StrWOStatusType = getSelectedID('ddlWOStatus');
+            }
+
+            if ($('#chkOnlyExpiredItems').length > 0) {
+                if ($('#chkOnlyExpiredItems').attr('checked') == "checked") {
+                    ExpiredItem = 'Yes';
+                }
+            }
+            if (ProjectExpirationDate == '') {
+                if ($('#txtItemsExpired').length > 0) {
+                    ItemExpiredDays = $('#txtItemsExpired').val();
+                }
+                if ($('#txtItemsExpired').length > 0) {
+                    ItemApproveDays = $('#txtItemsApproved').val();
+                }
+
+            }
+            if ($('#chkOnlyAvailQty').length > 0) {
+                if ($('#chkOnlyAvailQty').attr('checked') == "checked") {
+                    qohFilt = 'HasQty';
+                }
+            }
+
+            if ($('#ddlAppliedFilter') != null && $('#ddlAppliedFilter') != undefined && $('#ddlAppliedFilter').length > 0) {
+                countAppliedFilter = $('#ddlAppliedFilter').val();
+            }
+
+            if ($('#ddlUsageType') != null && $('#ddlUsageType') != undefined && $('#ddlUsageType').length > 0) {
+                usageTypeFilter = $('#ddlUsageType').val();
+            }
+
+            if ($('#chkAllowItemWithZeroPullUsage').length > 0) {
+                if ($('#chkAllowItemWithZeroPullUsage').attr('checked') == "checked") {
+                    isAllowZeroPullUsage = true;
+                }
+            }
+
+            var AUDayOfUsageToSample = null;
+            var AUMeasureMethod = null;
+            var MinMaxDayOfAverage = null;
+            var MinMaxMinNumberOfTimesMax = null;
+            if ($('#txtAUDayOfUsageToSample') != null && $('#txtAUDayOfUsageToSample') != undefined && $('#txtAUDayOfUsageToSample').length > 0) {
+                AUDayOfUsageToSample = $('#txtAUDayOfUsageToSample').val();
+            }
+            if ($('#ddlAUMeasureMethod') != null && $('#ddlAUMeasureMethod') != undefined && $('#ddlAUMeasureMethod').length > 0) {
+                AUMeasureMethod = $('#ddlAUMeasureMethod').val();
+            }
+            if ($('#txtMinMaxDayOfAverage') != null && $('#txtMinMaxDayOfAverage') != undefined && $('#txtMinMaxDayOfAverage').length > 0) {
+                MinMaxDayOfAverage = $('#txtMinMaxDayOfAverage').val();
+            }
+            if ($('#txtMinMaxMinNumberOfTimesMax') != null && $('#txtMinMaxMinNumberOfTimesMax') != undefined && $('#txtMinMaxMinNumberOfTimesMax').length > 0) {
+                MinMaxMinNumberOfTimesMax = $('#txtMinMaxMinNumberOfTimesMax').val();
+            }
+
+
+            var SelectedCartType = null;
+            if ($('#ddlCartType') != null && $('#ddlCartType') != undefined && $('#ddlCartType').length > 0) {
+                var CartType = getSelectedID('ddlCartType');
+                if (CartType != null && CartType != undefined && CartType != '' && CartType != ','  )
+                    SelectedCartType = CartType;
+                else
+                    SelectedCartType = null;
+            }
+            var Days = null;
+            if ($('#txtReturnItemCandidatesDays').length > 0) {
+                Days = $('#txtReturnItemCandidatesDays').val();
+                if ($('#txtReturnItemCandidatesDays').val() == '') {
+                    $('#txtReturnItemCandidatesDays').val("90");
+                    Days = $('#txtReturnItemCandidatesDays').val();
+                }
+            }
+
+
+            var itemtypefilter = null;
+            if ($('#ddlItemTypeFilter') != null && $('#ddlItemTypeFilter') != undefined && $('#ddlItemTypeFilter').length > 0) {
+                itemtypefilter = getSelectedID('ddlItemTypeFilter');
+                if (itemtypefilter != null && itemtypefilter != undefined && itemtypefilter != '')
+                    itemtypefilter = itemtypefilter;
+                else
+                    itemtypefilter = null;
+            }
+            var ExcludeZeroOrdQty = null;
+            if ($('#chkExcludeZeroOrdQty') != null
+                && $('#chkExcludeZeroOrdQty') != undefined
+                && $('#chkExcludeZeroOrdQty').length > 0) {
+                if ($('#chkExcludeZeroOrdQty').attr('checked') == "checked") {
+                    ExcludeZeroOrdQty = true;
+                }
+            }
+
+            var AllCheckedOutTools = null;
+            if ($('#chkAllCheckedOutTools') != null
+                && $('#chkAllCheckedOutTools') != undefined
+                && $('#chkAllCheckedOutTools').length > 0) {
+                if ($('#chkAllCheckedOutTools').attr('checked') == "checked") {
+                    AllCheckedOutTools = true;
+                }
+            }
+            $.ajax({
+                type: "POST",
+                url: "/ReportBuilder/GetModuleItem",
+                data: JSON.stringify({ 'CompanyID': CompanyIDs, 'RoomID': RoomIDs, 'startDate': Startdate, 'endDate': Enddate, 'StrStatusType': StrStatusType, 'ModuleName': ModuleName, 'StrItemType': StrItemType, 'ReportID': reportID, "ReportRange": range, 'QOHFilter': qohFilt, 'OnlyExirationItems': onlyExpItems, 'Starttime': Starttime, 'Endtime': Endtime, 'QuantityType': QuantityType, 'ExpiredItem': ExpiredItem, 'ItemExpiredDays': ItemExpiredDays, 'ItemApproveDays': ItemApproveDays, 'ProjectExpirationDate': ProjectExpirationDate, 'CountAppliedFilter': countAppliedFilter, 'FilterDateOn': FilterDateOn, 'ItemIsActive': ItemIsActive, 'DateCreatedEarlier': OutStockDateCreatedearlierThan, 'DateActiveLater': OutStockDateActiveLaterThan, 'UsageType': usageTypeFilter, 'AUDayOfUsageToSample': AUDayOfUsageToSample, 'AUMeasureMethod': AUMeasureMethod, 'MinMaxDayOfAverage': MinMaxDayOfAverage, 'MinMaxMinNumberOfTimesMax': MinMaxMinNumberOfTimesMax, "StrWOStatusType": StrWOStatusType, "SelectedCartType": SelectedCartType, "Includestockedouttools": Includestockedouttools, "Days": Days, "ItemTypeFilter": itemtypefilter, "IsAllowZeroPullUsage": isAllowZeroPullUsage, "ExcludeZeroOrdQty": ExcludeZeroOrdQty, "AllCheckedOutTools": AllCheckedOutTools }),
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                async: false,
+                success: function (message) {
+                    var opt;
+                    $("#lstModuleItem").empty()
+                    $('#lstModuleItem').append(opt);
+                    if (message.KeyValList != null && message.KeyValList.length > 0) {
+                        for (var i = 0; i < message.KeyValList.length; i++) {
+                            if (message.KeyValList[i].value.length > 0 && message.KeyValList[i].key.length > 0) {
+                                opt = new Option(message.KeyValList[i].value, message.KeyValList[i].key);
+                                $('#lstModuleItem').append(opt);
+                            }
+                        }
+                    }
+                    if (typeof ($("#lblModuleLabel")) != "undefined"
+                        && $("#lblModuleLabel").length > 0
+                        && ModuleName == "MoveMaterial") {
+                        if ($('#ddlReportRange') !== undefined && $('#ddlReportRange') != null) {
+                            $("#lblModuleLabel").text($('#ddlReportRange option:selected').text());
+                        }
+                    }
+                },
+                error: function (message) {
+
+                }
+            });
+
+        }
+        $(document).ready(function () {
+            FillModuleItem();
+        });
+
+
+
+    </script>
+}

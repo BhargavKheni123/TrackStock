@@ -1,0 +1,328 @@
+﻿@model IEnumerable<eTurns.DTO.SchedulerDTO>
+@{
+    //ViewBag.Title = eTurns.DTO.ResQuickList.PageTitle;
+    ViewBag.Title = "Schedule List";
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DisplaySaveButton = false, DisplayUDFButton = false, DisplaySettings = true, DisplayColumnSetupButton = true };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ScheduleListMaster" };
+    bool isInsert = true; //eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.QuickListPermission, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    Session["IsInsert"] = "";
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script type="text/javascript">
+        var oTable;
+        var IsRefreshGrid = false;
+        var IsDeletePopupOpen = false;
+        var SelectedHistoryRecordID = '';
+        var AllowDeletePopup = true;
+        var objColumns = {};
+        $(document).ready(function () {
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            LoadTabs();
+            var gaiSelected = [];
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "200%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[0, "desc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+
+                    if ($(aData.IsDeleted).text() == 'Yes' && $(aData.IsArchived).text() == 'Yes')
+                        nRow.className = "GridDeleatedArchivedRow";
+                    else if ($(aData.IsDeleted).text() == 'Yes')
+                        nRow.className = "GridDeletedRow";
+                    else if ($(aData.IsArchived).text() == 'Yes')
+                        nRow.className = "GridArchivedRow";
+
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'ScheduleReportList' },
+                         "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = json;
+                        }
+                    });
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'ScheduleReportList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/ReportBuilder/GetScheduleReportList")',  
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+
+                    if (oSettings.aaSorting.length != 0) {
+                          var sortValue = "";
+                          for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                              if (sortValue.length > 0)
+                                  sortValue += ", "
+                              sortValue += arrCols[oSettings.aaSorting[i][0]] + ' ' + oSettings.aaSorting[i][1];
+                           
+                          }
+                        //alert(sortValue);
+                        aoData.push({ "name": "SortingField", "value": sortValue });
+                        //aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                    }
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        cache: false,
+                        "url": sSource,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable').highlight($("#global_filter").val());
+                            }
+                            
+                            if ($("#global_filter").val().length > 0) {
+                                if ($('#myDataTable').dataTable().fnGetData().length <= 0) {
+                                    //$('#cnfBarcodeAddmdl').modal();
+                                }
+                            }
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [
+			                { "mDataProp": "ScheduleID", "sClass": "read_only" },
+			                { "mDataProp": "ReportName", "sClass": "read_only" },
+                            { "mDataProp": "NextRunDate", "sClass": "read_only", "fnRender": function (obj, val) { return GetDateInFullFormat(val); } },
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                            { "mDataProp": "Created", "sClass": "read_only", "fnRender": function (obj, val) { return GetDateInFullFormat(val); } },
+		    ]
+            });
+
+            //This is Most important
+            jQuery("#btnDiv").click(function (e) {
+                var offset = $(this).offset();
+                var leftpx = (parseInt(e.clientX) + parseInt($(this).css("width").toString().replace("px", "")) + parseInt(15)) + 'px';
+                var toppx = (parseInt(e.clientY) + parseInt(5)) + 'px';
+                jQuery('#myDataTable_wrapper div.ColVis .ColVis_Button').click();
+                jQuery('.ColVis_collection').css("left", leftpx);
+                jQuery('.ColVis_collection').css("top", toppx);
+                e.preventDefault();
+
+            });
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+        });
+
+     
+
+        /* HISTORY related data deleated and archived START */
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+//        function HistoryTabClick() {
+//            GetHistoryData();
+//        }
+//        function GetHistoryData() {
+
+//            HistorySelected = fnGetSelected(oTable);
+//            if (HistorySelected !== undefined && HistorySelected.length === 1) {
+//                var QLGUID = $(HistorySelected).find('#QuickListGUID')[0].value;
+//                //if (SelectedHistoryRecordID != QLGUID) {
+//                SelectedHistoryRecordID = QLGUID;
+//                $('#DivLoading').show();
+//                $("#CTab").hide();
+//                $("#CtabCL").show();
+//                $('#CtabCL').load('/Master/QuickListHistory', function () { $('#DivLoading').hide(); });
+//                //}
+//            }
+//            else {
+//                $('#CtabCL').html('');
+//                $("#spanGlobalMessage").text("Kindly select single record to view history.");
+//                showNotificationDialog();
+//                return false;
+//            }
+//        }
+        /* HISTORY related data deleated and archived END */
+     
+    </script>
+}
+<script type="text/javascript">
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+         new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true)
+         ];
+    function callbacknew() { ShowNewTab('ScheduleReports', 'frmScheduleReports'); }
+    function callbackhistory() { fillQLNarrowSearchDiv(); AllowDeletePopup = true; } //HistoryTabClick(); }
+    function callbackCL() { HistoryTabClick(); }
+</script>
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResQuickList.PageHeader</h2>
+    @*<div class="Infoclass">
+        <a href="~/Uploads/HelpDoc/Quicklist.pdf" target="_blank">
+            <img src="~/Content/images/Info.png" alt="Help" /></a></div>*@
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'>
+        </ul>
+        <div id="CtabNew" class="tabContener">
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" /></a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @*@Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.QuickListPermission)*@
+            <div id="divNarrowSearch" style="float: left; padding: 0 5px 0 0; width: 18%;">
+                &nbsp;
+            </div>
+            <div class="userContent">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResSchedulerReportList.ReportName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResSchedulerReportList.NextRunDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                           @* @Html.RenderColumnsHeader("QuickListMaster", typeof(eTurns.DTO.ResSchedulerReportList))*@
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div id='CtabCL' class="tabContener">
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var _IsDeleted = false;
+
+    @*var objColumns = {
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.ID)': 0,
+        '@MvcHtmlString.Create(eTurns.DTO.ResSchedulerReportList.ReportName)': 1,
+        '@MvcHtmlString.Create(eTurns.DTO.ResSchedulerReportList.NextRunDate)': 2,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.CreatedBy)': 3,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.CreatedOn)': 4
+    };*@
+
+
+    function BlankSession(ID) {
+        //alert('call blankSession');
+        bIsFilter = false;
+        $.ajax({ url: '@Url.Content("~/QuickList/BlankSession")'
+                                    , type: 'GET'
+                                    , contentType: "application/json"
+                                    , success: function (result) {
+                                    },
+            error: function (msg) {
+            }
+        });
+    }
+
+    $(document).ready(function () {
+
+        if (typeof ($('#IsDeletedRecords')) != undefined)
+            _IsDeleted = $('#IsDeletedRecords').is(':checked');
+
+
+        fillQLNarrowSearchDiv();
+    });
+
+    function fillQLNarrowSearchDiv() {
+        $('#divNarrowSearch').html('&nbsp');
+        $.get('@Url.Action("GetScheduleReportNarrwSearchHTML")', function (data) { //_QuickListNarrowSearch  _ScheduleReportNarrowSearch
+            $('#divNarrowSearch').html(data);
+        });
+    }
+    isDirtyForm = false;
+
+    $('#IsDeletedRecords').live('click', function () {
+        fillQLNarrowSearchDiv();
+    });
+
+    $('#IsDeletedRecords').live('click', function () {
+        $('#myDataTable').dataTable().fnFilter($("#global_filter").val(), null, null, null)
+        callbackhistory();
+
+    });
+
+</script>
+<script type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>

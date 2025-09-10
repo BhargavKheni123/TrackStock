@@ -1,0 +1,452 @@
+﻿@model EnterPriseSQLScriptsDTO
+@{    
+    var settings = new GridHeaderSettings() { DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = false, dataViewType = DataViewType.None, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = false, ColumnSetupFor = "EnterpriceSQlScriptDetails" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "EnterPriseList" };
+}
+<div class="userListBlock">
+    <div id="tab7" class="tabContener" style="width: 99%">
+        <div class="searchWrapper">
+            <div class="searchBlock">
+                <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                <div class="searchinputB">
+                    <input type="text" class="searchinput" id="FilterSupplierCatalogItems" />
+                    <a href="javascript:void(0);" class="xclose">
+                        <img src="~/Content/images/x.png" alt="X" id="ClearFilterSupplierCatalogItems" /></a>
+                </div>
+            </div>
+        </div>
+        @Html.ItemModelGridTopHeader(settings)
+        <div class="userContent ">
+            <table id="CatalogItemDataTable" class="display">
+                <thead>
+                    <tr>
+                        <th>
+                            <input type="checkbox" id="chkSelectAll" />
+                        </th>
+                        <th>
+                            Is Success
+                        </th>
+                        <th>
+                            ID
+                        </th>
+                        <th>
+                            Enterprice name
+                        </th>
+                        <th>
+                            Database name
+                        </th>
+                        <th>
+                            Message
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <div class="editorForm">
+            <input type="button" value="Execuit" id="btnAddAll" class="CreateBtn" style="float: left;
+                margin-left: 15px; margin-top: 1px;" />
+            <input type="button" value="Close" id="btnModelCancle" class="CreateBtn" style="float: left;
+                margin-left: 5px; margin-top: 1px;" />
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var oTableItemModelEP;
+    var redImg = "/Content/images/redbutton.png";
+    var grnImg = "/Content/images/GreenButton.png";
+    var anOpen = [];
+    var EPSColumnObject = new Array();
+    EPSColumnObject.push({ "mDataProp": "null", "sClass": "read_only", "sDefaultContent": '', "fnRender": function (obj, val) {
+        if (obj.aData.IsExecuitedSuccessfully) {
+            return "<input type='checkbox' disabled='disabled' value='" + obj.aData.EnterpriseID + "' />";
+        } else {
+            return "<input type='checkbox' value='" + obj.aData.EnterpriseID + "' />";
+        }
+    }
+    });
+    EPSColumnObject.push({ "mDataProp": "IsExecuitedSuccessfully", "sClass": "read_only", "fnRender": function (obj, val) {
+        if (val) {
+            return "<a href='javascript:void(0);'><img alt='' src='" + grnImg + "' /></a>";
+        }
+        else {
+            return "<a href='javascript:void(0);' onclick='executeSingle(this);'><img alt='' src='" + redImg + "' /></a>";
+        }
+
+    }
+    });
+    EPSColumnObject.push({ "mDataProp": "EnterpriseID", "sClass": "read_only" });
+    EPSColumnObject.push({ "mDataProp": "EnterPriseName", "sClass": "read_only" });
+    EPSColumnObject.push({ "mDataProp": "EnterPriseDBName", "sClass": "read_only" });
+    EPSColumnObject.push({ "mDataProp": "ReturnResult", "sClass": "read_only" });
+
+
+
+    $(document).ready(function () {
+        FillEPSDList(false);
+        $('#DivLoading').hide();
+    });
+
+
+    function FillEPSDList(bDestroy) {
+        var gaiSelected = [];
+        oTableItemModelEP = $('#CatalogItemDataTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "bAutoWidth": false,
+            //            "sScrollX": "1200px",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[3, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'EnterpriceSQlScriptDetails' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = json;
+                    }
+                });
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'EnterpriceSQlScriptDetails' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Action("GetListEnterpriceWithStatusAJAX", "EnterpriseAdmin")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                //PostCount = PostCount + 1;
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting != null && oSettings.aaSorting.length != 0)
+                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+                aoData.push({ "name": "SqlScriptID", "value": '@Model.SQLScriptID' });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('#CatalogItemDataTable td').removeHighlight();
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+
+                        if ($("#FilterSupplierCatalogItems").val() != '') {
+                            $('#CatalogItemDataTable td').highlight($("#FilterSupplierCatalogItems").val());
+                        }
+
+                    }
+                })
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+            },
+            "aoColumns": EPSColumnObject
+
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+
+    }
+
+
+    function fnFilterGlobalSC() {
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#FilterSupplierCatalogItems") != 'undefined' && ($("#FilterSupplierCatalogItems").val().length > 2 || $("#FilterSupplierCatalogItems").val().length == 0)) {
+            clearNarrowSearchFilterIM();
+            var searchtext = $("#FilterSupplierCatalogItems").val().replace(/'/g, "''");
+            $('#CatalogItemDataTable').dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+        }
+        else {
+            $('#CatalogItemDataTable td').removeHighlight();
+            $('#CatalogItemDataTable td').highlight($("#FilterSupplierCatalogItems").val());
+        }
+    }
+    var timeoutsc;
+    $('#FilterSupplierCatalogItems').bind('textchange', function () {
+        clearTimeout(timeoutsc);
+        var self = this;
+        timeoutsc = setTimeout(function () {
+            fnFilterGlobalSC();
+        }, 200);
+    });
+
+    $("#btnAddAll").click(function () {
+        if ($("#CatalogItemDataTable").find("tbody tr").find("input[type='checkbox']:checked").length > 0) {
+            var epids = "";
+            $("#CatalogItemDataTable").find("tbody tr").find("input[type='checkbox']:checked").each(function () {
+                epids = epids + $(this).val() + ",";
+            });
+
+            if (epids != "") {
+                $.ajax({
+                    type: "POST",
+                    url: '@Url.Action("RunScriptOnEnterprice", "EnterpriseAdmin")',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: "{SqlScriptId:'@Model.SQLScriptID', epids:'" + epids + "'}",
+                    success: function (retdt) {
+                        $('div#target').css("z-index", 100000);
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        $("#spanGlobalMessage").html(retdt.Message);
+                        if (retdt.Status == "ok") {
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        }
+                        else if (retdt.Status == 'norights') {
+                            window.location.href = '../../Master/roomlist';
+                        }
+                        else {
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            
+                        }
+                        oTableItemModelEP.fnDraw();
+                    },
+                    error: function (err) {
+                        alert("There is some Error");
+                    }
+                });
+            }
+        }
+        else {
+            alert("Select atleast one enterprise");
+        }
+    });
+
+
+    $("#ClearFilterSupplierCatalogItems").click(ClearFilterSC);
+
+    function ClearFilterSC() {
+        //Check length first        
+        if ($("#FilterSupplierCatalogItems").val().length > 0) {
+            $("#FilterSupplierCatalogItems").val('');
+            $('#CatalogItemDataTable').dataTable().fnFilter(
+                            $("#FilterSupplierCatalogItems").val(),
+                            null,
+                            null,
+                            null
+                        );
+        }
+        $("#FilterSupplierCatalogItems").focus();
+        return false;
+    }
+
+    $('#PageNumberIM').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#GobtnIM").click();
+            return false;
+        }
+    });
+
+    $("#GobtnIM").click(function () {
+        var pval = $('#PageNumberIM').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+
+        if (pval == 0)
+            return;
+
+        oTableItemModelEP.fnPageChange(Number(pval - 1));
+        $('#PageNumberIM').val('');
+    });
+
+    //$('#CatalogItemDataTable td.control input[type="button"]').click(function () {
+
+
+
+
+    $("#btnModelCancle").click(function () {
+        $("#EnterpriceList").dialog("close");
+    });
+
+    // used for refresh the grid manually...
+    $('#refreshGridIM').live('click', function () {
+        if ($("#divRefreshBlockIM").css("display").toUpperCase() == 'BLOCK')
+            $("#divRefreshBlockIM").toggle();
+
+        oTableItemModelEP.fnDraw();
+        //fillItemMaster(false);
+
+    });
+
+
+    //**************************** Not used Code *************************//
+
+    $("#reordersettingIM").click(function () {
+        $("#divRefreshBlockIM").toggle();
+    });
+
+    $("#ColumnSortableModalIM").dialog({
+        autoOpen: false,
+        modal: true,
+        width: 500,
+        title: '@eTurns.DTO.Resources.ResCommon.ReorderColumnPopupHeader',
+        draggable: false,
+        resizable: false,
+        open: function () {
+
+            GenerateColumnSortableIM();
+            $("#ColumnSortableIM").sortable({ axis: "y", containment: "parent" });
+        }
+    });
+
+    $("#ColumnOrderSetupIM").click(function () {
+        $("#ColumnSortableModalIM").dialog("open");
+
+        return false;
+    });
+    function GenerateColumnSortableIM() {
+        $('#ColumnSortableIM li').each(function (index) {
+            $(this).remove();
+        });
+
+        for (i = 0, iLen = oTableItemModelEP.fnSettings().aoColumns.length; i < iLen; i++) {
+            var oColumn = oTableItemModelEP.fnSettings().aoColumns[i];
+            var li = document.createElement('li');
+            li.id = GetColumnIndex1(oColumn.sTitle.trim());
+            li.className = 'ui-state-default';
+            li.innerHTML = oColumn.sTitle.trim();
+            if (oColumn.bVisible) {
+                li.innerHTML = '<input type="checkbox" class="checkBox" checked="checked" id="' + GetColumnIndex1(oColumn.sTitle.trim()) + '_" />' + oColumn.sTitle.trim();
+            }
+            else
+                li.innerHTML = '<input type="checkbox" class="checkBox" id="' + GetColumnIndex1(oColumn.sTitle.trim()) + '_" />' + oColumn.sTitle.trim();
+            $('#ColumnSortableIM').append(li);
+        }
+    }
+
+    function executeSingle(curobj) {
+        
+        var aPos = oTableItemModelEP.fnGetPosition($(curobj).parent()[0]);
+        var aData = oTableItemModelEP.fnGetData(aPos[0]);
+        var epids = aData.EnterpriseID;
+        if (epids != "") {
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("RunScriptOnEnterprice", "EnterpriseAdmin")',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: "{SqlScriptId:'@Model.SQLScriptID', epids:'" + epids + "'}",
+                success: function (retdt) {
+                    $('div#target').css("z-index", 100000);
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $("#spanGlobalMessage").html(retdt.Message);
+                    if (retdt.Status == "ok") {
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                    }
+                    else if (retdt.Status == 'norights') {
+                        window.location.href = '../../Master/roomlist';
+                    }
+                    else {
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        
+                    }
+                    oTableItemModelEP.fnDraw();
+                },
+                error: function (err) {
+                    alert("There is some Error");
+                }
+            });
+        }
+        else {
+            alert("Select atleast one enterprise");
+        }
+    }
+
+    function UpdateColumnOrderIM(_ListName) {
+
+        if ($("#divRefreshBlockIM").css("display").toUpperCase() == 'BLOCK')
+            $("#divRefreshBlockIM").toggle();
+
+        var _Order = $('#ColumnSortableIM').sortable("toArray");
+        var __Order = _Order.toString().split(",");
+        for (var i = 0; i < __Order.length; i++) {
+            __Order[i] = parseInt(__Order[i], 10);
+        }
+
+        oTableItemModelEP.fnSettings().oLoadedState.ColReorder = __Order;
+
+        var _abVisCols = [];
+        for (i = 0, iLen = oTableItemModelEP.fnSettings().aoColumns.length; i < iLen; i++) {
+            var checked = $("#" + i + "_").is(":checked");
+            _abVisCols.push(checked);
+        }
+        oTableItemModelEP.fnSettings().oLoadedState.abVisCols = _abVisCols;
+
+        $.ajax({
+            "url": '@Url.Content("~/Master/SaveGridState")',
+            data: { Data: JSON.stringify(oTableItemModelEP.fnSettings().oLoadedState), ListName: _ListName },
+            "dataType": "json",
+            cache: false,
+            "async": false,
+            "success": function (json) {
+                o = json;
+                oTableItemModelEP.fnDraw();
+                $('.ui-dialog-titlebar-close').click();
+            }
+        });
+    }
+
+    
+
+    
+   
+</script>

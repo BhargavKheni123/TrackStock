@@ -1,0 +1,1 @@
+C:\Windows\Microsoft.NET\Framework\v4.0.30319\InstallUtil -u "D:\Projects\eTurns\Trunk\eTurns.TrackStock\eTurns.RedisCache_Remove\bin\Debug\eTurns.RedisCache_Remove.exe"

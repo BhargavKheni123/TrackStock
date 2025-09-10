@@ -1,0 +1,238 @@
+﻿@model eTurns.DTO.ScriptTemplate
+@{
+    ViewBag.Title = "ScriptTemplates";
+
+}
+
+<style>
+    div.userListBlock1 {
+        float: left;
+        width: 100%;
+        background: transparent none repeat scroll 0 0;
+        border: 0 none;
+        font-size: 100%;
+        margin: 0;
+        outline: 0 none;
+        padding: 0;
+        vertical-align: baseline;
+        font-family: "Calibri",Arial,Helvetica,sans-serif;
+        height: 500px;
+    }
+
+    div#test_wrapper {
+        margin-top: 43px !important;
+    }
+</style>
+@using (Html.BeginForm("ScriptTemplates", "EnterpriseAdmin", FormMethod.Post, new AjaxOptions { HttpMethod = "Post" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="userListingWrapper">
+        <h2>
+            Script Templates
+        </h2>
+        <div class="userListBlock1">
+            <div id="Ctab" class="tabContener" style="display: block;">
+                <div>
+
+
+
+                    <div style="float:left;">
+                        <span>Enter Prise List</span>
+                        @Html.DropDownListFor(model => model.EnterPriceDB, new SelectList(((List<EnterpriseDTO>)ViewBag.EnterPriseList).OrderBy(t => t.Name), "enterpriseDBName", "Name", "0"), "", new { @class = "selectBox" })
+                    </div>
+                    <ul id="NarrowUL" style="width:1000px;float:left;">
+                        <li style="width:200px;">
+                            <select id="ntfcNotificationType" multiple="multiple" name="example-basic" size="5" style=" height: 0px;">
+                            </select>
+                    </li>
+                        <li style="float: left;">
+                            Table list to select column List
+                            <select id="TableNames"  name="TableNames"></select>
+                        </li>
+                        <li style="float: left;">
+                            Column List
+                            <select id="ColumnNames" name="ColumnNames"></select>
+                        </li>
+                    </ul>
+                    <h3> @(Model.Message)</h3>
+                    <br />
+                    <div style="clear:both">
+                        
+                        @Html.TextAreaFor(model => model.Script, new { @class = "text-box", style = "width:1000px; height:150px; float:left; font-size:15px;" })
+
+                        @Html.CheckBoxFor(model => model.IsUpdateDeleteQuery, new { @class = "check-box", style = "float:left;" })
+
+                        <input type="submit" id="Submit Query" style="float:left;" runat="server" onclick="return confirm('Are You sure want to proceed?')"
+                               value="Submit Query" />
+                    </div>
+                </div>
+                <br />
+                <br />
+                <div>
+                    @if (ViewBag.ResultList != null)
+                    {
+                        <div class="userContent " style="width: 100%; margin: 0px; overflow: scroll; height: 400px;">
+                            <div id="myDataTable_wrapper" class="dataTables_wrapper" role="grid">
+                                <div class="top">
+                                    <div class="">
+                                        <table style="width: 100%; overflow: scroll;" id="test" class="display">
+                                            <thead>
+                                                <tr style=" border: 1px solid green;">
+                                                    @foreach (var col in Model.ColumnList)
+                                                    {
+                                                        <th style=" ">
+                                                            @col
+                                                        </th>
+                                                    }
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var Value in ViewBag.ResultList)
+                                                {
+                                                    int @i = 0;
+                                                    <tr style=" border: 1px solid green;">
+                                                        @foreach (var col in Model.ColumnList)
+                                                        {
+                                                            <td style=" ">
+                                                                @Value[i]
+                                                            </td>
+                                                            i = i + 1;
+                                                        }
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+        </div>
+    </div>
+}
+<script>
+    $(document).ready(function () {
+
+        if ('@ViewBag.ResultList' != "") {
+
+            $("#test").DataTable({ "sPaginationType": "full_numbers" });
+
+        }
+        if ($("#EnterPriceDB").val() != "") {
+            var currentDB = $("#EnterPriceDB").val();
+            $.ajax({
+                'url': '/EnterpriseAdmin/GetTable',
+                data: { currentDB: currentDB },
+                success: function (response) {
+                    var s = '';
+                    $.each(response.DDData, function (ValData, ValCount) {
+
+                        s += '<option value="' + ValData + '">' + ValData + '</option>';
+                    });
+                    $("#ntfcNotificationType").empty();
+                    $("#ntfcNotificationType").multiselect('destroy');
+                    $("#ntfcNotificationType").multiselectfilter('destroy');
+                    $("#ntfcNotificationType").html(s);
+                    $("#ntfcNotificationType").multiselect
+                         (
+                             {
+                             }
+             )
+                .bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) { }).multiselectfilter();
+                    $("ul.ui-multiselect-checkboxes li label input").click(function () {
+
+                        if ($(this).attr("aria-selected")) {
+                            if ($(this).attr("aria-selected") != "true") {
+                                var query = $('textarea#Script').val();
+                                query += " [" + $(this).parents("label").children("span").html() + "] ";
+                                $('textarea#Script').val(query);
+                            }
+                        }
+                        else {
+                            var query = $('textarea#Script').val();
+                            query += " [" + $(this).parents("label").children("span").html() + "] ";
+                            $('textarea#Script').val(query);
+                        }
+                    });
+                    $("a.ui-multiselect-all").click(function () {
+                        $("ul.ui-multiselect-checkboxes li label span").each(function () {
+                            var query = $('textarea#Script').val();
+                            query += " [" + $(this).html() + "] ";
+                            $('textarea#Script').val(query);
+                        });
+                    })
+                }
+            });
+        }
+        $("#EnterPriceDB").change(function () {
+            var currentDB = $(this).val();
+            $.ajax({
+                'url': '/EnterpriseAdmin/GetTable',
+                data: { currentDB: currentDB },
+                success: function (response) {
+                    var s = '';
+                    s += '<option value="">---Select---</option>';
+                    $.each(response.DDData, function (ValData, ValCount) {
+
+                        s += '<option value="' + ValData + '">' + ValData + '</option>';
+                    });
+                    $("select#TableNames").append(s);
+                    $("#ntfcNotificationType").empty();
+                    $("#ntfcNotificationType").multiselect('destroy');
+                    $("#ntfcNotificationType").multiselectfilter('destroy');
+                    $("#ntfcNotificationType").html(s);
+                    $("#ntfcNotificationType").multiselect
+                         (
+                             {
+                             }
+             )
+                .bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) { }).multiselectfilter();
+                    $("ul.ui-multiselect-checkboxes li label input").click(function () {
+
+                        if ($(this).attr("aria-selected")) {
+                            if ($(this).attr("aria-selected") != "true") {
+                                var query = $('textarea#Script').val();
+                                query += " [" + $(this).parents("label").children("span").html() + "] ";
+                                $('textarea#Script').val(query);
+                            }
+                        }
+                        else {
+                            var query = $('textarea#Script').val();
+                            query += " [" + $(this).parents("label").children("span").html() + "] ";
+                            $('textarea#Script').val(query);
+                        }
+                    });
+                    $("a.ui-multiselect-all").click(function () {
+                        $("ul.ui-multiselect-checkboxes li label span").each(function () {
+                            var query = $('textarea#Script').val();
+                            query += " [" + $(this).html() + "] ";
+                            $('textarea#Script').val(query);
+                        });
+                    })
+                }
+            });
+        });
+        $("#TableNames").change(function () {
+            var currentTable = $(this).val();
+            var currentDB = $("#EnterPriceDB").val();
+            $.ajax({
+                'url': '/EnterpriseAdmin/GetColumn',
+                data: { "TableName": currentTable, currentDB: currentDB },
+                success: function (response) {
+                    var s = '';
+                    s += '<option value="">---Select---</option>';
+                    $.each(response.DDData, function (ValData, ValCount) {
+
+                        s += '<option value="' + ValData + '">' + ValData + '</option>';
+                    });
+                    $("select#ColumnNames").append(s);
+                    
+                }
+            });
+        });
+    });
+
+</script>

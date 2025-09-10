@@ -1,0 +1,279 @@
+﻿@model eTurns.DTO.ToolsMaintenanceDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+}
+
+
+@{
+    List<SelectListItem> lstItems = new List<SelectListItem>();
+    lstItems.Add(new SelectListItem() { Text = "", Value = "0" });
+    lstItems.Add(new SelectListItem() { Text = "Mileage", Value = Convert.ToString((int)MaintenanceScheduleType.Mileage) });
+    lstItems.Add(new SelectListItem() { Text = "Operation Hours", Value = Convert.ToString((int)MaintenanceScheduleType.OperationalHours) });
+
+
+    bool isUpdate;
+    bool isInsert;
+    if (ViewBag.ViewOnly == true)
+    {
+        isUpdate = false;
+        isInsert = false;
+    }
+    else
+    {
+        isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Assets, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+        isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Assets, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    }
+}
+
+@using (Ajax.BeginForm("OdometerSave", "Assets", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmOdometer" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="userHead">
+        <div>
+            <span style="font-size: larger; font-style: inherit; color: Navy;">
+                @if (ViewBag.ToolAssetName != null)
+                {
+                    @(Convert.ToString(ViewBag.ToolAssetName) + " " + eTurns.DTO.Resources.ResCommon.UpdateMilesHours)
+                }
+            </span>
+            <hr />
+            <br />
+        </div>
+        @Html.ValidationSummary(true)
+
+        @if (Model.ID != 0)
+        {
+            <div class="infoBlock">
+                <ul>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.RoomName)
+                        </label>
+                        : <span>@(Model.RoomName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Created)
+                        </label>
+                        : <span>@(Model.CreatedDate)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.CreatedByName)
+                        </label>
+                        : <span>@(Model.CreatedByName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Updated)
+                        </label>
+                        : <span>@(Model.UpdatedDate)</span>
+                    </li>
+                    <li style="border: none">
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.UpdatedByName)
+                        </label>
+                        : <span>@(Model.UpdatedByName)</span>
+                    </li>
+                </ul>
+            </div>
+        }
+
+        <div class="editorForm">
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.TrackngMeasurement)
+                    </div>
+                    <div class="editor-field">
+                        @Html.DropDownListFor(model => model.TrackngMeasurement, new SelectList(lstItems, "Value", "Text"), new { @class = "selectBox" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.TrackngMeasurement)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.MaintenanceDate)<em>*</em>
+                    </div>
+                    <div class="editor-field">
+                        <div class="divLabel">
+                            @Html.TextBoxFor(model => model.EntryDate, new { @class = "text-box", id = "txtEntryDate", @readonly = "readonly", @style = "background:white", maxlength = 128 })
+                            @*@Html.TextBoxFor(model => model.MaintenanceDatestr, "mm/dd/yyyy", new { @class = "text-box", id = "txtEntryDate", @readonly = "readonly", @style = "background:white", maxlength = 128, @Value = Model.MaintenanceDate == null ? "" : Model.MaintenanceDate.Value.ToString("MM/dd/yyyy") })
+                                <a id="anctxtEntryDate" title="" class="datePicker" style="cursor: pointer">
+                                    <img src="@Url.Content("~/Content/images/date-picker-icon.png")" alt="" title="" />
+                                </a>*@
+                        </div>
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.MaintenanceDate)</span>
+                        @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                        @Html.HiddenFor(model => model.GUID)
+                        @Html.HiddenFor(model => model.Created)
+                        @Html.HiddenFor(model => model.Updated)
+                        @Html.HiddenFor(model => model.CreatedBy)
+                        @Html.HiddenFor(model => model.LastUpdatedBy)
+                        @Html.HiddenFor(model => model.CompanyID)
+                        @Html.HiddenFor(model => model.Room)
+                        @Html.HiddenFor(model => model.RoomName)
+                        @Html.HiddenFor(model => model.CreatedByName)
+                        @Html.HiddenFor(model => model.UpdatedByName)
+                        @Html.HiddenFor(model => model.IsDeleted)
+                        @Html.HiddenFor(model => model.IsArchived)
+                        @Html.HiddenFor(model => model.AssetGUID)
+                        @Html.HiddenFor(model => model.ToolGUID)
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.TrackingMeasurementValue)<em>*</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.TrackingMeasurementValue, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @class = "numericinput text-box text-trackMeasurement" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.TrackingMeasurementValue)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="BtnBlockform">
+                        <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel2" class="CreateBtn" />
+                        @if (isInsert == true && Model.ID == 0)
+                        {
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                        }
+                        else if (isUpdate == true)
+                        {
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                        }
+                        else if (isUpdate == false && isInsert == false)
+                        {
+                            <script>
+                                //This is the case when archived or deleted record is being viewed..
+                                disableControls('frmTool');
+                            </script>
+                        }
+                    </div>
+                </li>
+            </ul>
+        </div>
+        @*<div class="editorForm padRightNone">
+                <ul>
+                    @Html.Partial("UDFLayout", new eTurns.DTO.ResToolsScheduler())
+                </ul>
+            </div>  *@
+    </div>
+}
+
+@Html.Partial("_RequiredMessages")
+<script type="text/javascript">
+    $("form").submit(function (e) {
+        $.validator.unobtrusive.parse("#frmOdometer");
+        if ($(this).valid()) {
+            rememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        }
+        e.preventDefault();
+    });
+
+    function onlyNumeric(event) {
+        var charCode = (event.which) ? event.which : event.keyCode
+        if (charCode > 31 && (charCode < 48 || charCode > 57 || code == 86))
+            return false;
+        return true;
+    }
+
+    function onSuccess(response) {
+
+        IsRefreshGrid = true;
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#txtEntryDate").val("");
+            $("#txtEntryDate").focus();
+        }
+        else if (idValue == 0) {
+            $("#txtEntryDate").val("");
+            $("#txtEntryDate").focus();
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+                clearControls('frmOdometer');
+                setDefaultUDFValues($("#hdnPageName").val(), '@Model.ID');
+            }
+
+        }
+        else if (idValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                $("#txtEntryDate").focus();
+            }
+            else {
+
+                clearControls('frmOdometer');
+            }
+        }
+        return false;
+    }
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        $("#txtEntryDate").focus();
+    }
+
+    $(document).ready(function () {
+        $('form').areYouSure();
+        $("#txtEntryDate").datepicker({ dateFormat: RoomDateJSFormat });
+
+        //$.ajaxSetup({
+        //    beforeSend: function (req) {
+        //        $('#DivLoading').show();
+        //    },
+        //    complete: function (req) {
+        //        $('#DivLoading').hide();
+        //    }
+        //});
+        $('#btnCancel2').click(function (e) {
+            //            if (IsRefreshGrid)
+            //                $('#NarroSearchClear').click();
+            SwitchTextTab(0, 'ScheduleCreate', 'frmScheduler');
+            if (oTable !== undefined && oTable != null) {
+                oTable.fnDraw();
+            }
+        });
+
+        checkRememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+        $(".text-trackMeasurement").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 0
+        });
+    });
+</script>
+
+@if (isUpdate != false && isInsert != false)
+{
+    <script>
+        $(document).ready(function () {
+            $('#anctxtEntryDate').click(function () {
+                $('#txtEntryDate').focus();
+            });
+        });
+    </script>
+}
+

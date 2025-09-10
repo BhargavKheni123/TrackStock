@@ -1,0 +1,647 @@
+@model InventoryCountDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    bool IsReportView = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Reports, eTurnsWeb.Helper.SessionHelper.PermissionType.View);
+
+}
+<script type="text/javascript" src="@Url.Content("~/Scripts/SiteScripts.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+<script type='text/javascript' src="@Url.Content("~/Scripts/jquery.watermark.js")"></script>
+@{
+    bool isUpdate;
+    bool isInsert;
+    if (ViewBag.ViewOnly == true)
+    {
+        isUpdate = false;
+        isInsert = false;
+    }
+    else
+    {
+        isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Count, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+        isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Count, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    }
+    if (Model != null && Model.ID > 0 && ((Model.IsArchived) || (Model.IsDeleted)))
+    {
+        isUpdate = false;
+        isInsert = false;
+    }
+    eTurns.DAL.RegionSettingDAL objRegionSettingDAL = new eTurns.DAL.RegionSettingDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+
+
+    //System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    string isNewPopup = eTurns.DTO.SiteSettingHelper.EnableNewCountPopup; // Settinfile.Element("EnableNewCountPopup").Value;
+    if (string.IsNullOrEmpty(isNewPopup))
+    {
+        isNewPopup = "No";
+    }
+    var TotalAppliedCount = 0;
+    eTurns.DAL.InventoryCountDAL objInventoryCountDAL = new eTurns.DAL.InventoryCountDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    if (Model.ID > 0)
+    {
+        TotalAppliedCount = objInventoryCountDAL.GetAppliedCountDetailscnt(Model.RoomId, Model.CompanyId, Model.GUID);
+    }
+    string commonControlType = "Textbox";
+    var objPOMaster = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetSinglePullPOPlain(eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.RoomID);
+
+    if (objPOMaster != null)
+    {
+        commonControlType = objPOMaster.UDFControlType;
+    }
+}
+@using (Ajax.BeginForm("SaveInventoryCount", "Inventory", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmInventoryCount" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="userHead">
+        @Html.ValidationSummary(true)
+        @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+        @Html.HiddenFor(model => model.GUID, new { id = "hiddenGUID" })
+        @if (Model.ID != 0)
+        {
+            <div class="infoBlock">
+                <ul>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.RoomName)
+                        </label>
+                        : <span>@(Model.RoomName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Created)
+                        </label>
+                        :@(Model.CreatedDate)
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.CreatedByName)
+                        </label>
+                        : <span>@(Model.CreatedByName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Updated)
+                        </label>
+                        :@(Model.UpdatedDate)
+                    </li>
+                    <li style="border: none;">
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.UpdatedByName)
+                        </label>
+                        : <span>@(Model.UpdatedByName)</span>
+                    </li>
+
+                    @if (IsReportView && !Model.IsDeleted && !Model.IsArchived)
+                    {
+                        <li style="border: none; text-align: right;">
+                            <a href="javascript:void(null);" id="aRptSingle">
+                                <img alt="" src="@Url.Content("~/Content/images/print.png")" title='@ResInventoryCount.ResPrintInventoryCount' />
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+        <div class="mainForm">
+            <div class="editorForm">
+                <ul>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CountName)<em>*</em>
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.CountName, new { @class = "text-box", maxlength = 256 })
+                            @Html.HiddenFor(model => model.IsOnlyFromItemUI)
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CountName)</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ReleaseNumber)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.ReleaseNumber, new { id = "txtReleaseNumber", @class = "text-box", @style = "background:white", maxlength = 255, @readonly = "readonly" })
+                            @Html.ValidationMessageFor(model => model.ReleaseNumber)
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CountItemDescription)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextAreaFor(model => model.CountItemDescription, new { id = "txtDescription", @class = "text-box", maxlength = 1024 })
+                            <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CountItemDescription)</span>
+                        </div>
+                    </li>
+                    <li style="border-right: none;">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CountDate)<em>*</em>
+                        </div>
+                        @if (Model != null && Model.CountType.ToLower() == "c")
+                        {
+                            @Html.TextBoxFor(model => model.CountDateDisplay, new { @disabled = "disabled", id = "txtCountDate", @class = "text-box", @readonly = "readonly", @style = "background:white", maxlength = 128 })
+                        }
+                        else
+                        {
+                            @Html.TextBoxFor(model => model.CountDateDisplay, new { @class = "text-box", id = "txtCountDate", @readonly = "readonly", @style = "background:white", maxlength = 128 })
+                        }
+                        @Html.HiddenFor(model => model.CountDate)
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CountDate)</span>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CountType)<em>*</em>
+                        </div>
+                        @if (Model.ID < 1 || TotalAppliedCount == 0)
+                        {
+                            <div class="editor-field">
+                                @Html.DropDownListFor(model => model.CountType, new SelectList(ViewBag.CountTypeBag, "Value", "Text", Model.CountType), "", new { @class = "selectBox", @id = "dlCountType" })
+                                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CountType)</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="editor-field">
+                                @Html.DropDownListFor(model => model.CountType, new SelectList(ViewBag.CountTypeBag, "Value", "Text", Model.CountType), "", new { @class = "selectBox", @id = "dlCountType", @disabled = "disabled" })
+                                @Html.HiddenFor(model => model.CountType)
+                                <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CountType)</span>
+                            </div>
+                        }
+                    </li>
+                    <li id="projectSpendLI">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ProjectSpendName)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.ProjectSpendGUID, new SelectList(ViewBag.ProjectBag, "GUID", "ProjectSpendName", Model.ProjectSpendGUID), "", new { @class = "selectBox", @id = "dlProjects" })
+                        </div>
+                    </li>
+                    <li id="pullOrdernumberLI">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.PullOrderNumber)
+                        </div>
+                        <div class="editor-field">
+
+                            @if (commonControlType == "Textbox")
+                            {
+                                @Html.TextBoxFor(model => model.PullOrderNumber,new { @class = "text-box", id = "PullOrderNumber"})
+                                @*<input type="text" id="PullOrderNumber" name="PullOrderNumber" class="text-boxinner" maxlength="128" style="width:35%;" />*@
+                            }
+                            else if (commonControlType == "Dropdown")
+                            {
+                                @Html.RenderArrayForPullOrderMaster("PullPoMaster",Model.PullOrderNumber)
+                            }
+                            else
+                            {
+                            <span style="position:relative">
+                                @Html.TextBoxFor(model => model.PullOrderNumber, new { @class = "text-boxinner AutoPullOrderNumber", id = "PullOrderNumber", maxlength = 128 , width = "35%"})
+                                @*<input type="text" id="PullOrderNumber" name="PullOrderNumber" class="text-boxinner AutoPullOrderNumber" maxlength="128" style="width:35%;" autocomplete="off" />*@
+                                <a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptionsOrderNumber">
+                                    <img src="/Content/images/arrow_down_black.png" alt="select" />
+                                </a>
+                            </span>
+                            }
+                            </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                        <div class="BtnBlockform">
+                            <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+                            @if (Model.IsClosed == false && ((isInsert == true && Model.ID == 0) || (isUpdate == true && Model.ID > 0) || Convert.ToString(Session["IsInsert"]) == "True"))
+                            {
+                                <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                            }
+                        </div>
+                    </li>
+                    @if (Model.ID > 0)
+                    {
+                        <li>
+                            <div class="BtnBlockform">
+                                @if (Model != null && Model.CountType.ToLower() != "c" && !Model.IsClosed)
+                                {
+                                    <input type="button" value="@eTurns.DTO.Resources.ResCommon.AddNew" id="btnAddNewItem" class="CreateBtn" style="float: left; margin-left: 20px;" />
+                                }
+                                else
+                                {
+                                    <input type="button" value="@ResInventoryCount.UncloseInventoryCount" id="bntUnclosedCountOnlyInEditPage" class="CreateBtn" />
+                                }
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </div>
+            <div class="editorForm padRightNone">
+                <ul>
+                    @Html.Partial("UDFLayout", new eTurns.DTO.ResInventoryCount())
+                </ul>
+            </div>
+        </div>
+    </div>
+    if (Model != null && Model.ID > 0)
+    {
+        <div id="InventoryCountLineItems">
+            @Html.Partial("CountLineItemsNew", Model)
+        </div>
+    }
+
+
+
+
+}
+@if (Model != null && Model.ID > 0)
+{
+    <div id="ItemModel">
+    </div>
+    <div id="LocationDetails">
+    </div>
+    <div class="dialog" id="project-spend-limit-basic-modal-content" style="display: none;">
+        <div class="inner">
+            <p class="text" id="PSPlimit" style="text-align: left; padding-left: 10px;">
+                <b>Some of the Item(s) is(are) not able to Pull(s) Due to following reasons.</b><br />
+                <b style="color: Olive;">1) Quantity to Pull is Mandatory.</b>
+                <br />
+                <b style="color: Olive;">2) Inventory Location are Mandatory.</b>
+                <br />
+                <b style="color: Olive;">3) Labour Item Required Hours to Pull.</b>
+                <br />
+                <b style="color: Olive;">4) Quantity Not available for Selected Inventory Location.</b>
+                <br />
+                <b style="color: Yellow;">
+                    5) Some Item(s) have reach Project spend Limit,
+                    <br />
+                    do you want to create new requisition for the same ?
+                </b>
+                <br />
+                <b style="color: Red;">6) Searver error occured!!</b><br />
+                <b style="color: Green;">7) Pulled Successfully.</b>
+            </p>
+            <a href="JavaScript:void{}" id="btnModelYesPSLimit" class="yes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="#" class="no" onclick="closeModalPSLimit()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </div>
+    </div>
+
+}
+<div class="dialog" id="IcUnCloseOnlyEditConfirm" style="display: none;">
+    <div class="inner">
+        <p class="text" id="msgClosedCount">
+            @eTurns.DTO.ResInventoryCount.IsClosed
+        </p>
+        <a href="JavaScript:void{}" id="btnModelUnCloseOnlyEditYesClose" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="#" class="no" onclick="closeModal();">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+
+@Html.Partial("_RequiredMessages")
+@*@if (false)
+    {
+        <script src="../../Scripts/jquery-1.9.1-vsdoc.js" type="text/javascript"></script>
+    }*@
+<script type="text/javascript">
+    var CountGUID = '@Model.GUID'
+    //#region [Document ready]
+
+    $("form").submit(function (e) {
+        $.validator.unobtrusive.parse("#frmInventoryCount");
+        if ($(this).valid()) {
+            rememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        }
+        e.preventDefault();
+    });
+
+    $(document).ready(function () {
+        window.location.hash = '';
+        var ModelID = '@Model.ID';
+        $('form').areYouSure();
+        @*if ('@Model.ID' == 0 && $("#dlCountType").val() != 'A') {
+            $("#dlCountType").val('A');
+        }*@
+
+        if ('@Model.IsClosed' == 'True') {
+            $('#saveRows').hide();
+        }
+
+        if ($("#dlCountType").val() == 'A') {
+            $("#projectSpendLI").hide();
+            $("#pullOrdernumberLI").hide();
+        }
+        else {
+            $("#projectSpendLI").show();
+            $("#pullOrdernumberLI").show();
+        }
+
+        $('#dlCountType').change(function () {
+            if ($(this).val() == 'A') {
+                $("#projectSpendLI").hide();
+                $("#pullOrdernumberLI").hide();
+
+                $("#txtPullOrderNumberCommon").removeAttr("disabled");
+                if ($("#TDPullOrderNumber a#lnkShowAllOptions") != undefined && $("#TDPullOrderNumber a#lnkShowAllOptions").length > 0) {
+                    $("#TDPullOrderNumber a#lnkShowAllOptions").removeAttr("disabled");
+                    $("#TDPullOrderNumber a#lnkShowAllOptions").off('click').on('click', function () {
+                        $(this).siblings('.AutoPullOrderNumber').trigger("focus");
+                        $(this).siblings(".AutoPullOrderNumber").autocomplete("search", " ");
+                    });
+                }
+                $("#txtPullOrderNumberCommon").css("background-color", "White");
+                var LineItemDataTable = 'CountLineItem' + '@Model.ID';
+                //Inline items
+                if ($("#" + LineItemDataTable).length > 0) {
+                    if ($("#" + LineItemDataTable).find("#txtPullOrderNumber").length > 0) {
+                        $("#" + LineItemDataTable).find("#txtPullOrderNumber").removeAttr("disabled");
+                        $("#" + LineItemDataTable).find("#txtPullOrderNumber").css("background-color", "White");
+                        $("#" + LineItemDataTable).find("a#lnkShowAllOptions").off('click');
+                        $("#" + LineItemDataTable).find("a#lnkShowAllOptions").on("click", function () {
+                            $(this).siblings('.AutoPullOrderNumber').trigger("focus");
+                            $(this).siblings(".AutoPullOrderNumber").autocomplete("search", " ");
+                        });
+                    }
+                }
+            }
+            else {
+                $("#projectSpendLI").show();
+                $("#pullOrdernumberLI").show();
+                $("#pullOrdernumberLI #PullOrderNumber").trigger("change");
+            }
+        });
+
+        checkRememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+
+        $('#pullOrdernumberLI').on('focus', "input.AutoPullOrderNumber", function (e) {
+            var ajaxURL = '/Pull/GetPullOrderNumberForNewPullGrid';
+            var tr = $(this).parent().parent().parent();
+            //var itmGuid = _NewConsumePull.getItemDataFromRow($(tr)).spnItemGUID; //$(tr).find('#spnItemGUID').text();
+
+            var $this = $(this);
+
+            _AutoCompleteWrapper.init($this
+                , ajaxURL
+                , function (request) {
+                    var obj = JSON.stringify({ 'NameStartWith': request.term });
+                    return obj;
+                },
+                function (data) {
+                    return $.map(data, function (Items) {
+                        return {
+                            label: Items.Value,
+                            value: Items.Value
+                        }
+                    })
+                }
+                , function (curVal, selectedItem) {
+                    //        $(this).val(ui.item.value);
+                    $("#pullOrdernumberLI #PullOrderNumber").trigger("change");
+                }
+                , function (selectedItem) {
+
+                }
+                , true, true);
+
+
+        });
+
+        $('.ShowAllOptionsOrderNumber').off("click");
+        $('.ShowAllOptionsOrderNumber').on("click", function () {
+            $(this).siblings('.AutoPullOrderNumber').trigger("focus");
+            $(this).siblings(".AutoPullOrderNumber").autocomplete("search", " ");
+        });
+        
+        $("#pullOrdernumberLI #PullOrderNumber").width("35%");
+
+       
+    });
+    $("#txtCountDate").datepicker({ dateFormat: RoomDateJSFormat });
+    jQuery(function () {
+
+        $("#LocationDetails").dialog({
+            autoOpen: false,
+            show: "blind",
+            hide: "explode",
+            height: 700,
+            title: "Item Locations",
+            width: 900,
+            modal: true,
+            close: function () {
+                IsRefreshGrid = true;
+                $('#DivLoading').hide();
+                $("#LocationDetails").empty();
+                $("#LocationDetails").html("");
+                //                $('#LocationDetails').html("");
+            }
+        });
+        //        $("#CountDate").datepicker(
+        //        {
+        //            changeMonth: true,
+        //            changeYear: true,
+        //            minDate: 0,
+        //            maxDate: "+1Y",
+        //            dateFormat: "mm/dd/yy"
+        //        });
+
+        if ('@Model.ID' > 0) {
+            SelectedHistoryRecordID = '@Model.ID';
+        }
+
+        $("#frmInventoryCount").submit(function (e) {
+            $.validator.unobtrusive.parse("#frmInventoryCount");
+            if ($(this).valid()) {
+                rememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+            }
+            e.preventDefault();
+        });
+
+        $("#btnCancel").click(function (e) {
+            SwitchTextTab(0, 'InventoryCountCreate', 'frmInventoryCount');
+            if (oTable !== undefined && oTable != null) {
+                oTable.fnDraw();
+            }
+            //$('#NarroSearchClear').click();
+        });
+
+        $('#btnAddNewItem').click(function () {
+            return OpenItemPopup();
+        });
+
+        $("#ItemModel").dialog({
+            autoOpen: false, modal: true, draggable: true, resizable: true, width: '82%', height: 710, title: '@ResInventoryCount.InventoryCountHeader',
+            open: function () {
+                $('#DivLoading').show();
+                var strUrl = $(this).data("url");
+                $.get(strUrl, function (data) {
+                    $("#ItemModel").html(data);
+                });
+            },
+            close: function () {
+                $("#ItemModel").empty();
+                $("#ItemModel").html("");
+                refressCountLineItems();
+            }
+        });
+
+        if ('@Model.ID' > 0) {
+            //// need to call below block in case of New Item saved and open POPUP Item ... START
+            if (NeedToOpenItemPopupNow) {
+                NeedToOpenItemPopupNow = false;
+                setTimeout("OpenItemPopup()", 3000);
+                return false;
+            }
+            //// need to call below block in case of New Item saved and open POPUP Item ... END
+        }
+    });
+
+    //#endregion
+
+    //#region [Page functions]
+    function OpenItemPopup() {
+        ClearVariables();
+        var strUrl = '';
+        if ('@isNewPopup' == 'No') {
+            strUrl = '@Url.Action("LoadItemMasterModelIC")';
+        }
+        else {
+            strUrl = '@Url.Action("LoadItemMasterModelICNew")';
+        }
+        strUrl = strUrl + '?ParentId=@Model.ID';
+        strUrl = strUrl + '&ParentGuid=' + '@Model.GUID.ToString()';
+        $('#ItemModel').data({ "url": strUrl }).dialog('open');
+        if ($("input#global_filter").length > 0) {
+            $("input#global_filter").focus();
+            setTimeout(function () {
+                $("input#global_filter").focus();
+            }, 600);
+        }
+        if ($("input.searchinput").length > 0) {
+            $("input.searchinput").focus();
+            setTimeout(function () {
+                $("input.searchinput").focus();
+            }, 600);
+
+        }
+        //return false;
+    }
+    function refressCountLineItems() {
+
+        $('#DivLoading').show();
+        $('#InventoryCountLineItems').empty();
+        $("#InventoryCountLineItems").html("");
+        var url = '@Url.Action("GetCountLineItemspartial", "Inventory")'; // + '?orderID=' + OrderID;
+        $.get(url, { 'CountGUID': CountGUID }, function (data) {
+            $('#InventoryCountLineItems').html(data);
+            $('#DivLoading').hide();
+        });
+    }
+
+    function onSuccess(response) {
+
+        var retstat;
+        IsRefreshGrid = true;
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+        if (idValue < 1 || idValue == "") {
+            retstat = response.Status;
+            switch (retstat) {
+                case "fail":
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    break;
+                case "duplicate":
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    break;
+                case "CannotChangeCountType":
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    break;
+                case "ok":
+                    //if (typeof ("SaveAllClick"))
+                    if (typeof SaveAllClick != "undefined") {
+                        SaveAllClick();
+                    }
+
+                    if (oTable !== undefined && oTable != null) {
+                        oTable.fnDraw();
+                        //                        RefressFilterIC("InventoryCount");
+                    }
+                    NeedToOpenItemPopupNow = true;
+                    ShowEditTabGUID("InventoryCountEdit?IcGuid=" + response.UpdatedDTO.GUID, "frmInventoryCount");
+                    break;
+            }
+        }
+        else if (idValue > 0) {
+            retstat = response.Status;
+            switch (retstat) {
+                case "fail":
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    break;
+                case "duplicate":
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    break;
+                case "CannotChangeCountType":
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    break;
+                case "ok":
+                    if (oTable !== undefined && oTable != null) {
+                        oTable.fnDraw();
+                        //                        RefressFilterIC("InventoryCount");
+                    }
+                    //                    TabItemClickedEditMatStag("MaterialStagingEdit/" + response.UpdatedDTO.ID, "frmMaterialStaging");
+                    break;
+            }
+        }
+    }
+
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#txtStagingName").focus();
+    }
+
+    $('#aRptSingle').on('click', function () {
+        ReportExecutionSingleRecord('InventoryCount', '@Model.GUID');
+    });
+
+    _Common.addRequiredSign();
+
+
+    $('#bntUnclosedCountOnlyInEditPage').off('click');
+    $('#bntUnclosedCountOnlyInEditPage').click(function () {
+        $("#msgClosedCount").text('@ResInventoryCount.UncloseInventoryCount');
+        $('#IcUnCloseOnlyEditConfirm').modal();
+    });
+
+    $("#btnModelUnCloseOnlyEditYesClose").click(function () {
+        var idValue = $("#hiddenID").val();
+        if (idValue >0) {
+            $.ajax({
+                url: 'UnclosedInventoryCount',
+                'type': 'Post',
+                'data': { ids: idValue},
+                'dataType': 'json',
+                'success': function (result) {
+                    if (result.Status) {
+                        ShowEditTabGUID("InventoryCountEdit?IcGuid=" + CountGUID, "frmInventoryCount");
+                        //oTable.fnStandingRedraw();
+                    }
+                    else {
+                        alert(result.Message);
+                    }
+                    closeModal();
+                },
+                'error': function (xhr) {
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    $("#spanGlobalMessage").html('@ResCommon.ErrorInProcess');
+                    showNotificationDialog();
+                    //alert('@ResCommon.ErrorInProcess');
+                }
+
+            });
+        }
+    });
+</script>

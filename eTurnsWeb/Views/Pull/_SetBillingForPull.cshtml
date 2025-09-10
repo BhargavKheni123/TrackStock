@@ -1,0 +1,177 @@
+@model IList<eTurns.DTO.PullMasterViewDTO>
+@{
+    ViewBag.Title = eTurns.DTO.ResPullMaster.PageTitle;
+
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.PullMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.PullMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    bool isPullUDF = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetNonDeletedUDFCountByUDFTableName("PullMaster", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID) > 0;
+
+
+
+}
+
+@using (Ajax.BeginForm("SetBillingForPullMaster", "Pull", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSetBillingForPullMasterSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmSetBillingForPull" }))
+{
+    @Html.AntiForgeryToken()
+    if (Model.Count > 0)
+    {
+    <input class="text-boxinner common-pullordernumber" type="text" style="width:100px;" />
+    <input type="submit" value="@ResCommon.BtnSendPulls" id="btnSaveBillingForPullMaster" class="CreateBtn"
+        style="float: right; margin: 0.5% 5.5% 0.2% 0;" />
+    }
+    <table id="MyDataTablePullMaster" class="display">
+        <thead>
+            <tr>
+                            <th>
+                                @eTurns.DTO.ResPullMaster.Billing
+                                <input type="checkbox" class="send-pulls" value="" />
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResPullMaster.PullOrderNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResPullMaster.PullCredit
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResPullMaster.PulledQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResLocation.Location
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResProjectMaster.ProjectSpendName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                @if (isPullUDF)
+                {
+                    @Html.RenderColumnsHeader("PullMaster", typeof(eTurns.DTO.ResPullMaster))
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @for (int i = 0; i < Model.Count; i++)
+            {
+            <tr>
+                    @Html.HiddenFor(modelItem => Model[i].ID, new { @id = "hdnID" })
+                    @Html.HiddenFor(modelItem => Model[i].ItemGUID)
+                @Html.HiddenFor(modelItem => Model[i].ItemNumber)
+                    @Html.HiddenFor(modelItem => Model[i].GUID)
+                    @Html.HiddenFor(modelItem => Model[i].Room)
+                    @Html.HiddenFor(modelItem => Model[i].CompanyID)
+                    <td>
+                        @Html.CheckBox("[" + i + "].Billing", Model[i].Billing.GetValueOrDefault(true), new { @class = "send-pull", @style = "width:80px;", @id = "chkBilling" })
+                    </td>
+                    <td>
+                        @Html.TextBoxFor(modelItem => Model[i].PullOrderNumber, new { @class = "text-boxinner pullordernumber", @style = "width:80px;", @id = "txtPullOrderNumber" })
+                    </td>
+                    <td>
+                        @Model[i].PullCredit
+                    </td>
+                    <td>
+                        @Model[i].PoolQuantity
+                    </td>
+                    <td>
+                        @Model[i].BinNumber
+                    </td>
+                    <td>
+                        @Model[i].ProjectSpendName
+                    </td>
+                    <td>
+                        @Model[i].ItemNumber
+                    </td>
+                @if (isPullUDF)
+                {
+                    @Html.RenderColumnsArrayEditableObjectForDOMWithValueCombineQLWithName("PullMaster", Model[i], i.ToString())
+                }
+            </tr>
+            }
+        </tbody>
+    </table>
+
+}
+
+<script type="text/javascript">
+
+    function onSetBillingForPullMasterSuccess(response) {
+        if (response.Status == 'OK') {
+            $("#spanGlobalMessage").html(response.Message);
+            $('div#target').fadeToggle();
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+            $('#DivLoading').hide();
+            $('#PopupSetBilling').dialog('close');
+        }
+        else if (response.Status == "fail") {
+            var failstring = '';
+            $.each(response.itemList, function (i, val) {
+                failstring += val + "</br>";
+            });
+
+            $('#DivLoading').show();
+            $('#BillInfoDialog').find("#BillMSG").html("<b style='color:red'>"+'@ResPullMaster.MsgBelowError'+"</b></br>" + failstring);
+            closeBillInfoModel();
+            $('#BillInfoDialog').modal();
+
+            
+
+            //$("#spanGlobalMessage").text(response.Message);
+            //$('div#target').fadeToggle();
+            //$("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            //$("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            
+        }
+        else {
+
+            alert("Not saved, error occured");
+            $('#DivLoading').hide();
+        }
+    }
+
+    function onFailure(message) {
+        alert("ooops... error occured...");
+    }
+
+
+    function closeBillInfoModel() {
+        $('#DivLoading').hide();
+        $.modal.impl.close();
+    }
+
+    function closeFromOk() {
+        $('#DivLoading').hide();
+        $.modal.impl.close();
+    }
+
+    $(document).ready(function () {
+        $("#MyDataTablePullMaster").dataTable({
+            "bPaginate": false,
+            "bFilter": false
+        });
+        $(".send-pulls:checkbox").on("click", function () {
+            var all = $(this);
+            $('input:checkbox.send-pull').each(function () {
+                $(this).prop("checked", all.prop("checked"));
+            });
+        });
+
+        $(".common-pullordernumber").on('keyup', function () {
+            var commonVal = $(this).val();
+            if (commonVal != '') {
+                $('input:text.pullordernumber').each(function () {
+                    $(this).val(commonVal);
+                });
+            }
+        });
+
+        $(".send-pulls:checkbox").prop("checked", "checked");
+
+        UDFfillEditableOptionsForGridTrnsAndOrd();
+
+    });
+
+</script>

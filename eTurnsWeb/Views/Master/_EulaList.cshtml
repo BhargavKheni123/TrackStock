@@ -1,0 +1,233 @@
+﻿@model List<eTurns.DTO.EulaMasterDTO>
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = false, DisplayColumnSetupButton = false, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, DataTableName = "EulaItems" };
+        string eulaFilePath="/Uploads/EulaFiles/";
+}
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%;  min-height: 300px;">
+            <div style="float: left; width: 99%; margin: 5px">
+                @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Orders)
+            </div>
+            <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="EulaListTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResEulaMaster.EulaName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResEulaMaster.EulaDescription
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResEulaMaster.EulaFileName
+                            </th>
+                            <th>
+                               @eTurns.DTO.ResEulaMaster.UpdatedDate
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Count > 0)
+                        {
+                            
+                            foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        
+                                    </td>
+                                    <td>
+                                        @item.ID
+                                        
+                                    </td>
+                                    <td>
+                                        @item.EulaName
+                                    </td>
+                                    <td>
+                                        @item.EulaDescription
+                                    </td>
+                                    <td>
+                                        <a id="aEditLink" href="@Url.Action("Get", "Consume", new {path=$"{eulaFilePath}/{@item.EulaFileName}"})" target="_blank">@item.EulaFileName</a>
+                                        <input type="hidden" id="hdnID" value="@item.ID">
+                                    </td>
+                                    <td>
+                                        @item.UpdatedOnDate
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+
+    var oTableEulaItems;
+    var bIsFilter = false;
+    $(document).ready(function () {
+        $('form').areYouSure();
+        var gaiSelected = [];
+        oTableEulaItems = $('#EulaListTable').dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "95%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[1, "desc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries',
+                "sLoadingRecords": '@eTurns.DTO.Resources.ResMessage.MsgLoading'
+            },
+            //"aoColumns": [
+            //        { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' },
+            //        null,
+            //        null,
+            //        null,
+            //        null,
+            //        null,
+            //],
+            aoColumnDefs: [
+                { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '', aTargets: [0] }
+            ],
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                return nRow;
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+             //   if (!bIsFilter) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'EulaList' },
+                        "async": true,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = json;
+                        }
+                    });
+               // }
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'EulaList' },
+                    "async": true,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            }
+        });
+        //var searchtext = $("#txtItemFilter").val().replace(/'/g, "''");
+        //if (typeof (searchtext) != 'undefined' && (searchtext.length > 2 || searchtext.length == 0)) {
+        //  //  $('#EulaListTable').removeHighlight();
+        //  //  $('#EulaListTable').highlight();
+        //    $('#EulaListTable').dataTable().fnFilter(searchtext, null, null, null)
+        //}
+        //else {
+        //    $('#EulaListTable').removeHighlight();
+        //    $('#EulaListTable').highlight($("#global_filter").val());
+        //}
+        $('.DTTT_container').css('z-index', '-1');
+        $('#btnblock').css({ 'margin-right': '45px' });
+
+        $.fn.dataTableExt.afnSortData['dom-text'] = function (oSettings, iColumn) {
+            var aData = [];
+            $('td:eq(' + iColumn + ') input', oSettings.oApi._fnGetTrNodes(oSettings)).each(function () {
+                aData.push(this.value);
+            });
+            return aData;
+        }
+    });
+    $('#EulaListTable tbody tr').live('tap click', function (e) {
+        if ($(e.target).is('a') == true) {
+          //  e.stopPropagation();
+        } else {
+            $(this).toggleClass('row_selected');
+        }
+    });
+
+    //$('#EulaListTable tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+
+
+
+    $('#deleteRows1').click(function () {
+        var anSelected = fnGetSelected(oTableEulaItems);
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+        }
+
+    });
+
+    $("#btnModelYesInnerGrid").live("click", function () {
+        var anSelected = fnGetSelected(oTableEulaItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+        if (anSelected.length > 0) {
+
+            $.ajax({
+                "url": "/Master/DeleteEulaRecords",
+                contentType: "application/json",
+                dataType: "json",
+                type: "POST",
+                data: JSON.stringify({ 'IDs': stringIDs }),
+                success: function (response) {
+                    if (response.IsSuccess) {
+                        for (var i = 0; i < anSelected.length; i++) {
+                            oTableEulaItems.fnDeleteRow(anSelected[i]);
+                        }
+                        if (anSelected.length > 0) {
+                            $("#spanGlobalMessage").html("@ResCommon.RecordDeletedSuccessfully".replace("{0}","(" + anSelected.length + ")"));
+                        }
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        fillEulaGrid();
+                    }
+                },
+                error: function (response) {
+                }
+            });
+            $.modal.impl.close();
+        }
+    });
+
+
+
+
+</script>

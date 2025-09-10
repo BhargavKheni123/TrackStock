@@ -1,0 +1,1235 @@
+@model eTurns.DTO.ToolAssetOrderMasterDTO
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = false, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, DataTableName = "OrderLineItem" + Model.ID };
+    string priceformate = "N" + eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits;
+    bool isApprove = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolAssetOrderApproval, eTurnsWeb.Helper.SessionHelper.PermissionType.Approval);
+    // bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+    bool isOrderDetailsUDF = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetNonDeletedUDFCountByUDFTableName("ToolAssetOrderDetails", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID) > 0;
+    List<LocationMasterDTO> lstBinMaster;
+    string CurrencySymbol = "";
+    if (eTurnsWeb.Helper.SessionHelper.CurrencySymbol != null
+        && !string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.CurrencySymbol))
+    {
+        CurrencySymbol = eTurnsWeb.Helper.SessionHelper.CurrencySymbol;
+    }
+    //---------------------------------Calculate Total---------------------------------
+    //
+    int? PriseSelectionOption = 0;
+    string TotalCost = "0.00";
+
+
+    if (Model.OrderListItem.Count > 0)
+    {
+        double? T = null;
+        T = Model.OrderListItem.Sum(x => (x.ApprovedQuantity.GetValueOrDefault(0) > 0 ? x.ApprovedQuantity : (x.RequestedQuantity.GetValueOrDefault(0) > 0 ? x.RequestedQuantity : 0)) * ((x.ToolCost == null ? 0 : x.ToolCost)));
+
+
+        if (T != null)
+        {
+            TotalCost = ((double)T).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+        }
+    }
+}
+<script type="text/javascript">
+    $(document).ready(function () {
+        $('#spnTotalOrderCost').html('@CurrencySymbol' + ' ' + '@TotalCost');
+
+            $('#lblOrderTotalSellPrice').hide();
+            $('#lblOrderTotalCost').show();
+
+
+        
+            $('#liOrderCostInfo').show();
+      
+    });
+</script>
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="InnerItem_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_QLItem_filter" />
+                        </a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Orders)
+            <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="OrderLineItem@(Model.ID)" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResToolMaster.ToolName
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResToolMaster.Serial
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResAssetMaster.AssetName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResToolAssetOrder.Bin
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResOrder.RequestedQuantity
+                            </th>
+
+                            <th class="NotHide">
+                                @eTurns.DTO.ResOrder.ApprovedQuantity
+                            </th>
+
+                            <th>
+                                @eTurns.DTO.ResOrder.RequiredDate
+                            </th>
+
+
+                            <th>
+                                @eTurns.DTO.ResOrder.ReceivedQuantity
+                            </th>
+
+                            <th>
+                                @eTurns.DTO.ResToolMaster.Quantity
+                            </th>
+                            <th>
+                                EDI SENT
+                            </th>
+                            @*<th>
+            @eTurns.DTO.ResItemMaster.PackingQuantity
+        </th>*@
+
+                            <th>
+                                @eTurns.DTO.ResOrder.PackSlipNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.ASNNumber
+                            </th>
+
+
+                            <th class="NotSortable">
+                                @ResOrder.Comment
+                            </th>
+
+                            <th>
+                                @ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @ResCommon.LastUpdatedBy
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @ResCommon.ReceivedOnWeb
+                            </th>
+                            <th>
+                                @ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @ResCommon.ReceivedOn
+                            </th>
+                            @if (isOrderDetailsUDF)
+                            {
+                                @Html.RenderColumnsHeader("ToolAssetOrderDetails", typeof(eTurns.DTO.ResOrderDetails))
+                            }
+
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.OrderListItem != null && Model.OrderListItem.Count > 0)
+                        {
+
+                            int trid = 0;
+                            foreach (var item in Model.OrderListItem)
+                            {
+                                lstBinMaster = new List<LocationMasterDTO>();
+                                lstBinMaster.Add(new LocationMasterDTO() { Location = item.ToolLocationName ?? string.Empty });
+                                string strBack = "";
+                                if (item.IsCloseTool.GetValueOrDefault(false))
+                                {
+                                    strBack = "background-color:LightGray;height: 35px;";
+                                }
+                                else
+                                {
+                                    strBack = "";
+                                }
+                        <tr style='@strBack'>
+                            <td></td>
+                            <td>
+                                @if (item.ID > 0)
+                                {
+                                    @item.ID.ToString()
+                                }
+                            </td>
+                            <td class="read_only control center NotHide">
+                                @item.ToolName
+                                <input id="hdnID" type="hidden" value="@item.ID" />
+                                <input id="hdnDetailGUID" type="hidden" value="@item.GUID" />
+                                <input id="hdnTempDetailsGUID" type="hidden" value="@item.tempDetailsGUID" />
+                                <input id="hdnToolGUID" type="hidden" value="@item.ToolGUID" />
+                                <input id="hdnOrderGUID" type="hidden" value="@item.ToolAssetOrderGUID" />
+                                <input id="hdnToolName" type="hidden" value="@item.ToolName" />
+                                <input id="hdnRequiredDate" type="hidden" value="@item.RequiredDateStr" />
+                                <input id="hdnUDF1" type="hidden" value="@item.UDF1" />
+                                <input id="hdnUDF2" type="hidden" value="@item.UDF2" />
+                                <input id="hdnUDF3" type="hidden" value="@item.UDF3" />
+                                <input id="hdnUDF4" type="hidden" value="@item.UDF4" />
+                                <input id="hdnUDF5" type="hidden" value="@item.UDF5" />
+                                <input id="hdnToolSRTrack" type="hidden" value="@item.IsSerialDateCode.ToString()" />
+
+                            </td>
+                            <td class="read_only control center NotHide">
+                                @item.Serial
+                            </td>
+                            <td class="read_only control center NotHide">
+                                @item.AssetName
+                            </td>
+                            <td>
+                                <span style="display:none">@item.ToolLocationName</span>
+                                 
+                                    @if (HasOnTheFlyEntryRight)
+                                    {
+                                        <span style='position:relative'>
+                                            @Html.TextBox("txtToolLocation", item.ToolLocationName, new { id = "txtToolLocation", @class = "OrdDetailAuto text-boxinner", @style = "width:90px;" })
+                                            <a id='lnkShowAllOptions' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptions">
+                                                <img src='/Content/images/arrow_down_black.png' alt='select' />
+                                            </a>
+                                            <input type="hidden" value="false" id="hdnIsLoadMoreLocations" />
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span style='position:relative'>
+                                            @Html.DropDownList("slctToolLocation", new SelectList(lstBinMaster, "Location", "Location", item.ToolLocationName), new { @class = "selectBox" })
+                                            <input type="hidden" name="txtBinNumber" id="txtBinNumber" value="@item.ToolLocationName" />
+                                        </span>
+                                    }
+                                 
+                            </td>
+                            <td>
+                                <span style="display:none">@item.RequestedQuantity.GetValueOrDefault(0)</span>
+
+                                @Html.TextBox("txtQty", item.RequestedQuantity.GetValueOrDefault(0), new { @style = "width:93%;", @maxlength = "10", @class = "numericinput text-boxinner" })
+
+                            </td>
+                            <td>
+                                <span style="display:none">@item.ApprovedQuantity.GetValueOrDefault(0)</span>
+
+                                @Html.TextBox("txtApprQty", item.ApprovedQuantity.GetValueOrDefault(0), new { @style = "width:93%;", @maxlength = "10", @class = "numericinput text-boxinner clsApprQty", @readonly = "readonly" })
+
+                            </td>
+                            <td>
+                                <span style="display:none">@(item.RequiredDate == null ? "" : ((DateTime)item.RequiredDate).ToString("yyyyMMdd"))</span>
+                                <input type='text' style="width:93%;background:white;" readonly="readonly" class='hasDatePicker text-box' value='@item.RequiredDateStr' id='hiddenDatePicker@(item.ID)_@(trid)' />
+                            </td>
+                            <td class="numericalign">
+                                <label id="qtyTempReceivedQuantity_@trid">@item.ReceivedQuantity</label>
+                            </td>
+                            <td class="numericalign">
+                                <label id="qtyTempOnHandQuantity_@trid">@item.ToolQuantity</label>
+                            </td>
+
+                            <td>
+                                @if (item.IsEDISent.GetValueOrDefault(false) == true)
+                                {
+                                    @Html.Label("True");
+                                    <input id="hdnIsEDISent" type="hidden" value="True" />
+                                }
+                                else
+                                {
+                                    @Html.Label("False");
+                                    <input id="hdnIsEDISent" type="hidden" value="False" />
+                                }
+                            </td>
+                            <td>
+                                @item.ODPackSlipNumbers
+                            </td>
+                            <td>
+                                @item.ASNNumber
+                            </td>
+
+                            <td>
+                                @if (Model.OrderStatus != (int)OrderStatus.Closed)
+                                {
+                                    <textarea id="Comment" name="Comment" style="background:white !important;width:80% !important;" rows="3" cols="20" class="text-box" maxlength="2000">@item.Comment</textarea>
+                                }
+                                else
+                                {
+                                    <textarea id="Comment" disabled="disabled" readonly="readonly" name="Comment" style="width:80% !important;" rows="3" cols="20" class="text-box" maxlength="2000">@item.Comment</textarea>
+                                }
+                            </td>
+
+                            @*13*@
+                            <td>
+                                @(item.CreatedByName)
+                            </td>
+                            <td>
+                                @(item.CreatedDate)
+                            </td>
+                            <td>
+                                @(item.UpdatedByName)
+                            </td>
+                            <td>
+                                @(item.UpdatedDate)
+                            </td>
+                            <td>
+                                @(item.AddedFrom)
+                            </td>
+                            <td>
+                                @(item.ReceivedOnDateWeb)
+                            </td>
+                            <td>
+                                @(item.EditedFrom)
+                            </td>
+                            <td>
+                                @(item.ReceivedOnDate)
+                            </td>
+
+
+                            @if (isOrderDetailsUDF)
+                            {
+                                @Html.RenderColumnsArrayEditableObjectForDOM("ToolAssetOrderDetails", controlIDPostfix: "ToolAssetOrderDetails")
+
+                            }
+
+                        </tr>
+                                trid += 1;
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var OrdID = '@Model.ID';
+    var OrdStatus = '@Model.OrderStatus';
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var oTableOrderLineItems;
+    var bIsFilter = false;
+    var objOrdDtlGridColumns = {};
+
+    $(document).ready(function () {
+
+        $('form').areYouSure();
+        //objColumns = GetGridHeaderColumnsObject('OrderLineItem' + OrdID);
+        objOrdDtlGridColumns = GetGridChildGridColumnsObject('OrderLineItem' + OrdID);
+        $('.ShowAllOptions').click(function () {
+            $(this).siblings('.OrdDetailAuto').trigger("focus");
+            $(this).siblings(".OrdDetailAuto").autocomplete("search", " ");
+        });
+
+        UDFfillEditableOptionsForGrid();
+        var tableName = $('table[id^=OrderLineItem]').attr("id");
+        var rowno = 0;
+        $('#' + tableName + ' tr').each(function () {
+
+            var qtyTempReceivedQuantity = $('#qtyTempReceivedQuantity_' + rowno).text();
+            if (qtyTempReceivedQuantity != "" && qtyTempReceivedQuantity != NaN)
+                $('#qtyTempReceivedQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempReceivedQuantity), 2));
+            else
+                $('#qtyTempReceivedQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+            var txtQty = $("#txtQty").val();
+            if (txtQty != "" && txtQty != NaN) {
+                $("#txtQty").val(FormatedCostQtyValues(txtQty, 2));
+            }
+            else
+                $("#txtQty").val(FormatedCostQtyValues(0, 2));
+            var txtApprQty = $("#txtApprQty").val();
+
+            if (txtApprQty != "" && txtApprQty != NaN) {
+                $("#txtApprQty").val(FormatedCostQtyValues(txtApprQty, 2));
+            }
+            else
+                $("#txtApprQty").val(FormatedCostQtyValues(0, 2));
+            var qtyTempOnHandQuantity = $('#qtyTempOnHandQuantity_' + rowno).text();
+            if (qtyTempOnHandQuantity != "" && qtyTempOnHandQuantity != NaN)
+                $('#qtyTempOnHandQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempOnHandQuantity), 2));
+            else
+                $('#qtyTempOnHandQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempStagedQuantity = $('#qtyTempStagedQuantity_' + rowno).text();
+            if (qtyTempStagedQuantity != "" && qtyTempStagedQuantity != NaN)
+                $('#qtyTempStagedQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempStagedQuantity), 2));
+            else
+                $('#qtyTempStagedQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var CostTempCost = $('#CostTempCost_' + rowno).text();
+            if (CostTempCost != "" && CostTempCost != NaN)
+                $('#CostTempCost_' + rowno).text(FormatedCostQtyValues(parseFloat(CostTempCost), 1));
+            else
+                $('#CostTempCost_' + rowno).text(FormatedCostQtyValues(0, 1));
+
+            var qtyTempOnOrderQuantity = $('#qtyTempOnOrderQuantity_' + rowno).text();
+
+            if (qtyTempOnOrderQuantity != "" && qtyTempOnOrderQuantity != NaN)
+                $('#qtyTempOnOrderQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempOnOrderQuantity), 2));
+            else
+                $('#qtyTempOnOrderQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempInTransitQuantity = $('#qtyTempInTransitQuantity_' + rowno).text();
+            if (qtyTempInTransitQuantity != "" && qtyTempInTransitQuantity != NaN)
+                $('#qtyTempInTransitQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempInTransitQuantity), 2));
+            else
+                $('#qtyTempInTransitQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempMinimumQuantity = $('#qtyTempMinimumQuantity_' + rowno).text();
+            if (qtyTempMinimumQuantity != "" && qtyTempMinimumQuantity != NaN)
+                $('#qtyTempMinimumQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempMinimumQuantity), 2));
+            else
+                $('#qtyTempMinimumQuantity').text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempMaximumQuantity = $('#qtyTempMaximumQuantity_' + rowno).text();
+            if (qtyTempMaximumQuantity != "" && qtyTempMaximumQuantity != NaN)
+                $('#qtyTempMaximumQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempMaximumQuantity), 2));
+            else
+                $('#qtyTempMaximumQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var costTempSellPrice = $('#costTempSellPrice_' + rowno).text();
+            if (costTempSellPrice != "" && costTempSellPrice != NaN)
+                $('#costTempSellPrice_' + rowno).text(FormatedCostQtyValues(parseFloat(costTempSellPrice), 1));
+            else
+                $('#costTempSellPrice_' + rowno).text(FormatedCostQtyValues(0, 1));
+
+            //            var qtyTempPackingQuantity = $('#qtyTempPackingQuantity_' + rowno).text();
+            //            if (qtyTempPackingQuantity != "" && qtyTempPackingQuantity != NaN)
+            //                $('#qtyTempPackingQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempPackingQuantity), 2));
+            //            else
+            //                $('#qtyTempPackingQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempDefaultReorderQuantity = $('#qtyTempDefaultReorderQuantity_' + rowno).text();
+            if (qtyTempDefaultReorderQuantity != "" && qtyTempDefaultReorderQuantity != NaN)
+                $('#qtyTempDefaultReorderQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempDefaultReorderQuantity), 2));
+            else
+                $('#qtyTempDefaultReorderQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            rowno += 1;
+        });
+
+        var gaiSelected = [];
+
+        //----------------------------------------------------
+        //
+        $('#OrderLineItem' + OrdID + ' tr').each(function () {
+            var UDF1 = '';
+            var UDF2 = '';
+            var UDF3 = '';
+            var UDF4 = '';
+            var UDF5 = '';
+            if ($(this).find("input#hdnUDF1").val() != '') {
+                UDF1 = $(this).find("input#hdnUDF1").val();
+            }
+            if ($(this).find("input#hdnUDF2").val() != '') {
+                UDF2 = $(this).find("input#hdnUDF2").val();
+            }
+            if ($(this).find("input#hdnUDF3").val() != '') {
+                UDF3 = $(this).find("input#hdnUDF3").val();
+            }
+            if ($(this).find("input#hdnUDF4").val() != '') {
+                UDF4 = $(this).find("input#hdnUDF4").val();
+            }
+            if ($(this).find("input#hdnUDF5").val() != '') {
+                UDF5 = $(this).find("input#hdnUDF5").val();
+            }
+
+            if (UDF1 != '') {
+                $(this).find('#hdnSpnUDF1').text(UDF1);
+            }
+            if (UDF2 != '') {
+                $(this).find('#hdnSpnUDF2').text(UDF2);
+            }
+            if (UDF3 != '') {
+                $(this).find('#hdnSpnUDF3').text(UDF3);
+            }
+            if (UDF4 != '') {
+                $(this).find('#hdnSpnUDF4').text(UDF4);
+            }
+            if (UDF5 != '') {
+                $(this).find('#hdnSpnUDF5').text(UDF5);
+            }
+        });
+
+        //----------------------------------------------------
+        //
+        oTableOrderLineItems = $('#OrderLineItem' + OrdID).DataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "150%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            "oColVis": {
+            },
+            //"aaSorting": [],
+            "aaSorting": [[1, "desc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                if ('@isApprove' === "True") {
+                    $(nRow).find("input.clsApprQty").removeAttr("readonly");
+                }
+                if ('@Model.IsRecordNotEditable' != 'True') {
+                    $(nRow).find('input.hasDatePicker').blur(function () { }).datepicker({
+                        dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+                        changeMonth: true,
+                        changeYear: true,
+                        clearText: 'Clear', onClose: function () { this.focus(); }
+                    });
+                }
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                return nRow;
+            },
+            "aoColumnDefs": [
+		        { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '', aTargets: [0] }
+            ],
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                //   if (!bIsFilter) {
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'OrderLineItemList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = json;
+                    }
+                });
+                //  }
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'OrderLineItemList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "fnInitComplete": function () {
+                //if (parseInt($("#ddlOrderStatus").val()) < parseInt("@((int)OrderStatus.Approved)")) {
+                //    $(".clsApprQty").attr("readonly", "readonly");
+                //    $(".clsApprQty").val("0");
+                //}
+                $('.ColVis').detach().appendTo(".setting-arrow");
+
+            }
+        //, "aoColumns": ColumnObject
+
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+
+        $('#btnblock').css({ 'margin-right': '45px' });
+        $('#spnNoOfItems').text('@Model.NoOfLineItems.GetValueOrDefault(0)');
+        $('#spnTotalCost').html('@CurrencySymbol' + ' ' + '@Model.OrderCost.GetValueOrDefault(0).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture)');
+
+        $(".clsApprQty").attr("readonly", "readonly");
+
+        if ('@isApprove' === "True") {
+            $(".clsApprQty").removeAttr("readonly");
+        }
+
+        $('#OrderLineItem' + OrdID).on('focus', "input.OrdDetailAuto", function (e) {
+
+            var ajaxURL = '/Master/GetToolLocationAutoComplete';
+            var itmGuid = $(this).parent().parent().parent().find('#hdnToolGUID').val();
+            var stagingName = $('#txtStagingName').val();
+            var includeQty = false;
+            var tr = $(this).parent().parent().parent();
+
+            if ('@Model.OrderType' === '2') {
+                includeQty = true;
+            }
+            var hdnIsLoadMoreLocations = $(tr).find("#hdnIsLoadMoreLocations").val();
+            $(this).autocomplete("destroy");
+
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'ToolGuid': itmGuid,   'IncludeQty': includeQty, 'NameStartWith': request.term, 'IsLoadMoreLocations': hdnIsLoadMoreLocations }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    if (ui.item.value == MoreLocation) {
+                        $(tr).find("#hdnIsLoadMoreLocations").val("true");
+                        $(this).trigger("focus");
+                        $(this).autocomplete("search", " ");
+                        return false;
+                    }
+                    else {
+                        $(this).val(ui.item.value);
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                    $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                    $('ul.ui-autocomplete').css('max-height', '300px');
+                    $('ul.ui-autocomplete').css('z-index', '99999');
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                }
+            }).bind("focus", function () {
+                $(this).autocomplete("search", " ");
+                //$(objTxtselector).autocomplete("search", $(objTxtselector).val());
+            });
+        });
+        $('#OrderLineItem' + OrdID + ' tr').each(function () {
+            var UDF1 = '';
+            var UDF2 = '';
+            var UDF3 = '';
+            var UDF4 = '';
+            var UDF5 = '';
+            if ($(this).find("input#hdnUDF1").val() != '') {
+                UDF1 = $(this).find("input#hdnUDF1").val();
+            }
+
+            if ($(this).find("input#hdnUDF2").val() != '') {
+                UDF2 = $(this).find("input#hdnUDF2").val();
+            }
+            if ($(this).find("input#hdnUDF3").val() != '') {
+                UDF3 = $(this).find("input#hdnUDF3").val();
+            }
+            if ($(this).find("input#hdnUDF4").val() != '') {
+                UDF4 = $(this).find("input#hdnUDF4").val();
+            }
+            if ($(this).find("input#hdnUDF5").val() != '') {
+                UDF5 = $(this).find("input#hdnUDF5").val();
+            }
+            if (UDF1 != '') {
+                $(this).find("input#UDF1ToolAssetOrderDetails").val(UDF1);
+                $(this).find("select#UDF1ToolAssetOrderDetails option").filter(function () {
+                    return this.text == UDF1;
+                }).attr('selected', true);
+            }
+            if (UDF2 != '') {
+                $(this).find("input#UDF2ToolAssetOrderDetails").val(UDF2);
+                $(this).find("select#UDF2ToolAssetOrderDetails option").filter(function () {
+                    return this.text == UDF2;
+                }).attr('selected', true);
+            }
+            if (UDF3 != '') {
+                $(this).find("input#UDF3ToolAssetOrderDetails").val(UDF3);
+                $(this).find("select#UDF3ToolAssetOrderDetails option").filter(function () {
+                    return this.text == UDF3;
+                }).attr('selected', true);
+            } if (UDF4 != '') {
+                $(this).find("input#UDF4ToolAssetOrderDetails").val(UDF4);
+                $(this).find("select#UDF4ToolAssetOrderDetails option").filter(function () {
+                    return this.text == UDF4;
+                }).attr('selected', true);
+            } if (UDF5 != '') {
+                $(this).find("input#UDF5ToolAssetOrderDetails").val(UDF5);
+                $(this).find("select#UDF5ToolAssetOrderDetails option").filter(function () {
+                    return this.text == UDF5;
+                }).attr('selected', true);
+            }
+        });
+
+        //oTableOrderLineItems.rows().invalidate().draw();
+    });
+
+
+    function CheckUnSavedItemBeforCancel() {
+
+        var IsReturn = true;
+        $('#OrderLineItem' + '@Model.ID' + ' tbody tr').each(function (i) {
+            var tr = $(this);
+            var id = $(tr).find('#hdnID').val();
+            if (id == '' || id == '0') {
+                $('#divOrdCancelUnsaveItemInfoDialog').modal();
+                IsReturn = false;
+                return;
+            }
+        });
+
+        return IsReturn;
+    }
+
+    $(".text-boxPriceFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+    });
+    $(".text-boxQuantityFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+    });
+    //$(".text-boxQuantityFormatSR").priceFormat({
+    //    prefix: '',
+    //    thousandsSeparator: '',
+    //    centsLimit: 0
+    //});
+
+    $('input.txtSRQtyFormat').on('keypress', function (evt) {
+        var keyCode = [evt.keyCode || evt.which];
+
+        if (keyCode == 8 || keyCode == 13 || keyCode == 9)
+            return true;
+        if (keyCode > 57 || keyCode < 48)
+            return false;
+        else
+            return true;
+    });
+
+
+
+    if ('@Model.OrderStatus' >= '@((int)OrderStatus.Transmitted)')
+        $('#deleteRows1').attr('style', 'display:none');
+
+    if ('@Model.IsRecordNotEditable' == 'True') {
+        $('select', '#OrderLineItem' + OrdID)
+        .attr('disabled', 'disabled');
+
+        $(':input[type=text], textarea', '#OrderLineItem' + OrdID)
+        .attr('readonly', 'readonly');
+
+        $('#saveRows').attr('style', 'display:none');
+        $('#deleteRows1').attr('style', 'display:none');
+
+    }
+    else {
+        //        $('#OrderLineItem' + OrdID).delegate(".myDatePicker", "focusin", function () {
+        //            $(this).datepicker({ dateFormat: 'm/d/yy' });
+        //        });
+        @*$('#OrderLineItem' + OrdID).find('input.hasDatePicker').blur(function () { }).datepicker({
+                                dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+                                changeMonth: true,
+                                changeYear: true,
+                                clearText: 'Clear', onClose: function () { this.focus(); }
+                            });*@
+
+    }
+
+
+    $('#OrderLineItem' + OrdID + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+    var lastChecked1;
+    var starttrvalue1 = "";
+    $('#OrderLineItem' + OrdID + ' tbody tr').live('tap click', function (e) {
+        //$(this).toggleClass('row_selected');
+        //return false;
+
+        if ($(e.target).hasClass("control") == true || e.target.nodeName.toLowerCase() == "img" || e.target.type == "checkbox" || e.target.type == "radio" || e.target.type == "text" || e.target.type == "button" || $(e.target).is('a') == true || $(e.target).is('span') == true
+            || $(e.target).hasClass("selectBox")
+        ) {
+            e.stopPropagation();
+        }
+        else {
+            if (lastChecked1 !== undefined && lastChecked1 != null && !lastChecked1) {
+                lastChecked1 = this;
+            }
+
+            if (e.shiftKey) {
+                var start = $('#OrderLineItem' + OrdID + ' tbody tr').index(this);
+                var end = $('#OrderLineItem' + OrdID + ' tbody tr').index(lastChecked1);
+
+                var stringval1 = readCookieforshift("selectstartindex");
+                if (stringval1 != null) {
+                    var endindex = $(this).closest('tr').attr('id');
+                    createCookieforshift("selectendindex", endindex, 1);
+                    if ($("#hdnPageName").val() !== undefined) {
+                        var pagename = '';
+                        pagename = $("#hdnPageName").val();
+                        GetOnlyIdsForPassPagesForshift(pagename, true);
+                    }
+                }
+
+                for (i = Math.min(start, end); i <= Math.max(start, end); i++) {
+                    if (!$('#OrderLineItem' + OrdID + ' tbody tr').eq(i).hasClass('row_selected')) {
+                        $('#OrderLineItem' + OrdID + ' tbody tr').eq(i).addClass("row_selected");
+                    }
+                }
+                if (window.getSelection) {
+                    if (window.getSelection().empty) {  // Chrome
+                        window.getSelection().empty();
+                    } else if (window.getSelection().removeAllRanges) {  // Firefox
+                        window.getSelection().removeAllRanges();
+                    }
+                } else if (document.selection) {  // IE?
+                    document.selection.empty();
+                }
+            } else if ((e.metaKey || e.ctrlKey)) {
+                $(this).toggleClass('row_selected');
+            } else {
+                $(this).toggleClass('row_selected');
+
+
+                if ($(this).hasClass('row_selected')) {
+                    (starttrvalue1 == "") ? starttrvalue1 = $(this).closest('tr').attr('id') : starttrvalue1 = starttrvalue1 + "," + $(this).closest('tr').attr('id');
+                    createCookieforshift("selectstartindex", starttrvalue1, 1);
+                } else {
+
+                    var stringval = readCookieforshift("selectstartindex");
+                    if (stringval != "undefined") {
+                        if (stringval != null) {
+                            var tmp = stringval.split(',');
+                            var index = tmp.indexOf($(this).closest('tr').attr('id'));
+                            if (index !== -1) {
+                                tmp.splice(index, 1);
+                                stringval = tmp.join(',');
+                                createCookieforshift("selectstartindex", stringval, 1);
+                            }
+                        }
+                    }
+
+                }
+            }
+
+            lastChecked1 = this;
+        }
+
+    });
+
+    $('#deleteRows1').click(function () {
+        var anSelected = fnGetSelected(oTableOrderLineItems);
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+        }
+
+    });
+
+    $("#btnModelYesInnerGrid").live("click", function () {
+        var anSelected = fnGetSelected(oTableOrderLineItems);
+        var stringIDs = "";
+        var arrItems = new Array();
+
+        for (var i = 0; i < anSelected.length; i++) {
+            //stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+            var ordDtlID = $(anSelected[i]).find("#hdnID").val();
+            var ordTempDtlsGUID = $(anSelected[i]).find("#hdnTempDetailsGUID").val();
+            var ordDtlGUID = $(anSelected[i]).find("#hdnDetailGUID").val();
+            var itemGuid = $(anSelected[i]).find("#hdnItemGUID").val();
+            var ordGuid = $(anSelected[i]).find("#hdnOrderGUID").val();
+            arrItems.push({ 'ID': ordDtlID, 'GUID': ordDtlGUID, 'ItemGUID': itemGuid, 'OrderGUID': ordGuid, 'tempDetailsGUID': ordTempDtlsGUID, 'ToolGUID': itemGuid, 'AssetGUID': itemGuid  });
+        }
+        if (anSelected.length > 0) {
+            $.ajax({
+                'url': '/ToolAssetOrder/OrderLineItemsDelete',
+                // data: { ids: stringIDs },
+                data: JSON.stringify({ 'objDeletedItems': arrItems, 'OrderID': OrdID }),
+                dataType: 'json',
+                type: 'POST',
+                contentType: "application/json",
+                async: false,
+                cache: false,
+                success: function (response) {
+                    $("#spanGlobalMessage").html(response.Message);
+                    showNotificationDialog();
+                    if (response.Status == "ok") {
+                        for (var i = 0; i < anSelected.length; i++) {
+                            $('#OrderLineItem' + OrdID).dataTable().fnDeleteRow(anSelected[i]);
+
+                            if (response.OrderItems.length > 0) {
+                                $('#spnNoOfItems').text(response.OrderItems);
+                            }
+                            if (response.Ordercost.length > 0) {
+                                //$('#spnTotalCost').text(response.Ordercost);
+                                $('#spnTotalOrderCost').text(response.Ordercost);
+                            }
+                        }
+                    }
+                },
+                error: function (response) {
+                }
+            });
+            $.modal.impl.close();
+        }
+    });
+
+
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+
+        $('#OrderLineItem' + OrdID).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+    /* global search function */
+    function fnFilterOrderLineItem() {
+        bIsFilter = true;
+        var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+        $('#OrderLineItem' + OrdID).dataTable().fnFilter(searchtext, null, false, false);
+        $('#OrderLineItem' + OrdID + ' td').removeHighlight();
+        if (searchtext.length > 0)
+            $('#OrderLineItem' + OrdID + ' td').highlight($("#InnerItem_filter").val());
+    }
+
+    $("#InnerItem_filter").on("keyup", function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        var index = $.inArray(code, NotAllowedCharCodes);
+        if (index >= 0) return false;
+        fnFilterOrderLineItem();
+    });
+
+    $("#InnerItem_filter").on("keydown", function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            fnFilterOrderLineItem();
+        }
+    });
+
+
+    $("#clear_QLItem_filter").click(function () {
+        $("#InnerItem_filter").val('');
+        fnFilterOrderLineItem();
+        $("#InnerItem_filter").focus();
+        return false;
+    });
+
+    $('#saveRows').live("click", function () {
+        var msg = UpdateLineItemGrid(-1, '');
+        if (msg.Status == "ok") {
+            showNotificationDialog();
+            $("#spanGlobalMessage").html(msg.Message);
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+        }
+        else if (msg.Status == 'No') {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html('@ResCommon.NoChanges');
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+        }
+        else {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html(msg.Message);
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        }
+
+    });
+
+    function UpdateLineItemGrid(StagingID, CustomerAddressLength) {
+
+        var arrItems = new Array();
+        $('#DivLoading').show();
+        var ItemNodes = $('#OrderLineItem' + OrdID).dataTable().fnGetNodes();
+        if (ItemNodes.length <= 0) {
+            SaveLineItemsGrid(arrItems);
+            return { 'Status': 'ok', 'Message': '@ResMessage.SaveMessage' };
+        }
+
+        if (StagingID == "0") {
+
+            for (var i = 0; i < ItemNodes.length; i++) {
+                var ID = $(ItemNodes[i]).find('#hdnID').val();
+                //var RequiredDate_New = $(ItemNodes[i]).find('#hiddenDatePicker' + ID).val();
+                var RequiredDate_New = $(ItemNodes[i]).find('input.hasDatePicker' + ID).val();
+                var Qty = $(ItemNodes[i]).find('#txtQty').val();
+                if ((typeof (RequiredDate_New) == "undefined" || (typeof (RequiredDate_New) == undefined))) {
+                    RequiredDate_New = $(ItemNodes[i]).find('#hdnRequiredDate').val();
+                    if ((typeof (RequiredDate_New) == "" || (typeof (RequiredDate_New) == "undefined" || (typeof (RequiredDate_New) == undefined)))) {
+                        // alert("Please select Required Date");
+                        var obj = { 'Status': "fail", 'Message': "Please select Required Date" };
+                        return obj;
+                    }
+                }
+
+                if (isNaN(Qty) === true || parseFloat(Qty) <= 0) {
+                    var obj = { 'Status': "fail", 'Message': "Required quantity must be greater than zero" };
+                    return obj;
+                }
+            }
+        }
+        for (var i = 0; i < ItemNodes.length; i++) {
+             
+            var Qty = $(ItemNodes[i]).find('#txtQty').val();
+            var ApprQty = $(ItemNodes[i]).find('#txtApprQty').val();
+            var ID = $(ItemNodes[i]).find('#hdnID').val();
+            var ToolGUID = $(ItemNodes[i]).find('#hdnToolGUID').val();
+            var OrderGUID = $(ItemNodes[i]).find('#hdnOrderGUID').val();
+            var vtempDetailsGUID = $(ItemNodes[i]).find('#hdnTempDetailsGUID').val();
+            //var RequiredDate = $(ItemNodes[i]).find('#hiddenDatePicker' + ID).val();
+            var RequiredDate = $(ItemNodes[i]).find('input.hasDatePicker').val();
+            if ((typeof (RequiredDate) == "undefined" || (typeof (RequiredDate) == undefined))) {
+                RequiredDate = $(ItemNodes[i]).find('#hdnRequiredDate').val();
+            }
+            var IsEDISent = $(ItemNodes[i]).find('#hdnIsEDISent').val();
+            var Comment = $(ItemNodes[i]).find('#Comment').val();
+
+            if (IsEDISent == "True") {
+                IsEDISent = true;
+            }
+            else {
+                IsEDISent = false;
+            }
+            var vUDF1 = '';
+            var vUDF2 = '';
+            var vUDF3 = '';
+            var vUDF4 = '';
+            var vUDF5 = '';
+            var ToolLocationName = $(ItemNodes[i]).find('#txtToolLocation').val();
+            if ($(ItemNodes[i]).find('#UDF1ToolAssetOrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF1ToolAssetOrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF1ToolAssetOrderDetails option:selected').text() != undefined) {
+                    vUDF1 = $(ItemNodes[i]).find('#UDF1ToolAssetOrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF1ToolAssetOrderDetails').val() != undefined) {
+                        vUDF1 = $(ItemNodes[i]).find('#UDF1ToolAssetOrderDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF2ToolAssetOrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF2ToolAssetOrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF2ToolAssetOrderDetails option:selected').text() != undefined) {
+                    vUDF2 = $(ItemNodes[i]).find('#UDF2ToolAssetOrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF2ToolAssetOrderDetails').val() != undefined) {
+                        vUDF2 = $(ItemNodes[i]).find('#UDF2ToolAssetOrderDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF3ToolAssetOrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF3ToolAssetOrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF3ToolAssetOrderDetails option:selected').text() != undefined) {
+                    vUDF3 = $(ItemNodes[i]).find('#UDF3ToolAssetOrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF3ToolAssetOrderDetails').val() != undefined) {
+                        vUDF3 = $(ItemNodes[i]).find('#UDF3ToolAssetOrderDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF4ToolAssetOrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF4ToolAssetOrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF4ToolAssetOrderDetails option:selected').text() != undefined) {
+                    vUDF4 = $(ItemNodes[i]).find('#UDF4ToolAssetOrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF4ToolAssetOrderDetails').val() != undefined) {
+                        vUDF4 = $(ItemNodes[i]).find('#UDF4ToolAssetOrderDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF5ToolAssetOrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF5ToolAssetOrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF5ToolAssetOrderDetails option:selected').text() != undefined) {
+                    vUDF5 = $(ItemNodes[i]).find('#UDF5ToolAssetOrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF5ToolAssetOrderDetails').val() != undefined) {
+                        vUDF5 = $(ItemNodes[i]).find('#UDF5ToolAssetOrderDetails').val();
+                    }
+                }
+            }
+            var binName = $(ItemNodes[i]).find('#txtBinNumber').val();
+            
+            if ($(ItemNodes[i]).find("#slctToolLocation") != undefined && $(ItemNodes[i]).find("#slctToolLocation").length > 0) {
+                binName=  $(ItemNodes[i]).find("#slctToolLocation").val();
+            }
+
+            if (isNaN(Qty) === false && parseFloat(Qty) > 0) {
+                var data = {
+                    "ID": ID
+                , "ToolGUID": ToolGUID
+                , "ToolAssetOrderGUID": OrderGUID
+                , "tempDetailsGUID": vtempDetailsGUID
+                , "RequestedQuantity": Qty
+                , "ApprovedQuantity": ApprQty
+                , "BinName": binName
+                , "RequiredDateStr": RequiredDate
+                , "IsEDISent": IsEDISent
+                    , "Comment": Comment
+                    , "ToolLocationName": ToolLocationName
+                    , "UDF1": vUDF1
+                    , "UDF2": vUDF2
+                    , "UDF3": vUDF3
+                    , "UDF4": vUDF4
+                    , "UDF5": vUDF5
+                };
+                arrItems.push(data);
+
+            }
+        }
+        return SaveLineItemsGrid(arrItems);
+    }
+
+    function SaveLineItemsGrid(arrItems) {
+
+        var status = "No";
+        var message = "@ResCommon.NoChanges"
+        //if (arrItems.length > 0) {
+
+        var newArray = new Array();
+        var mainArray = new Array();
+        for (var i = 0; i < arrItems.length; i++) {
+            if (newArray.length < 250) {
+                newArray.push(arrItems[i]);
+            }
+            else {
+                mainArray.push(newArray);
+                newArray = null;
+                newArray = new Array();
+                newArray.push(arrItems[i]);
+            }
+        }
+        if (newArray.length > 0) {
+            mainArray.push(newArray);
+        }
+
+        $('#DivLoading').show();
+        if (mainArray.length > 0) {
+
+
+            for (var k = 0; k < mainArray.length; k++) {
+                $('#DivLoading').show();
+                $.ajax({
+                    url: '@Url.Content("~/ToolAssetOrder/AddUpdateDeleteOrderItemsToOrder")',
+                    data: JSON.stringify({ 'arrDetails': mainArray[k], 'OrderID': OrdID }),
+                    dataType: 'json',
+                    type: 'POST',
+                    contentType: "application/json",
+                    async: false,
+                    cache: false,
+                    success: function (response) {
+                        if (response.Status == "ok") {
+                              if (k == (mainArray.length - 1)) {
+                                $.ajax({
+                                    url: '@Url.Content("~/ToolAssetOrder/SetOrderMail")',
+                                    data: JSON.stringify({ 'OrderID': OrdID }),
+                                    dataType: 'json',
+                                    type: 'POST',
+                                    contentType: "application/json",
+                                    async: false,
+                                    cache: false,
+                                    success: function (resp) {
+                                        CallThisFunctionFromModel('success');
+                                        status = response.Status;
+                                        message = response.Message;
+                                        $('#DivLoading').hide();
+                                    },
+                                    error: function (exh) {
+                                        $('#DivLoading').hide();
+                                    }
+                                });
+                            }
+                        }
+                        else {
+                            $('#DivLoading').hide();
+                        }
+                    },
+                    error: function (exh) {
+                        alert(exh.status + ' ' + exh.statusText);
+                        $('#DivLoading').hide();
+                    }
+                });
+            }
+        }
+        else {
+
+            $('#DivLoading').show();
+            $.ajax({
+                url: '@Url.Content("~/ToolAssetOrder/AddUpdateDeleteOrderItemsToOrder")',
+                data: JSON.stringify({ 'arrDetails': null, 'OrderID': OrdID }),
+                dataType: 'json',
+                type: 'POST',
+                contentType: "application/json",
+                async: false,
+                cache: false,
+                success: function (response) {
+                    if (response.Status == "ok") {
+                        CallThisFunctionFromModel('success');
+                        status = response.Status;
+                        message = response.Message;
+                        $('#DivLoading').hide();
+                    }
+                    else {
+                        status = response.Status;
+                        message = response.Message;
+                        $('#DivLoading').hide();
+                    }
+                },
+                error: function (exh) {
+                    alert(exh.status + ' ' + exh.statusText);
+                    $('#DivLoading').hide();
+                }
+            });
+
+        }
+
+        var obj = { 'Status': status, 'Message': message };
+        $('#DivLoading').hide();
+        return obj;
+    }
+
+
+
+</script>

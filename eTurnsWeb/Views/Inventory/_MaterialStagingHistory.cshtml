@@ -1,0 +1,260 @@
+@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{    
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplayDeleteButton = false, DataTableName = "HistoryTable", ColumnSetupFor = "MaterialStagingChangeLog" };
+}
+<script type="text/javascript">
+    var oHistoryTable;
+    var historyDTName = 'HistoryTable';
+        $(document).ready(function () {
+            var gaiSelected = [];
+            oHistoryTable = $('#HistoryTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "bAutoWidth": true,
+            "sDom": 'R<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "sScrollX": "100%",
+            //"aaSorting": [[1, "asc"]],
+            "oColReorder": {},
+            "bSort": false,
+            "sPaginationType": "full_numbers",
+            "sAjaxSource": '@Url.Content("~/Master/GetHistoryDataGUID")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                aoData.push({ "name": "PageType", "value": "MaterialStaging" });
+                aoData.push({ "name": "PageID", "value": SelectedHistoryRecordID });
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback
+                })
+                },
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries',
+                    "sZeroRecords": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable'
+             },
+            "fnInitComplete": function () {
+                     compareHistoryRows(this);
+            },
+                "aoColumns": [
+                            //{ "mDataProp": "HinstoryID", "sClass": "read_only" },
+                            { "mDataProp": "Action", "sClass": "read_only" },
+			                //{ "mDataProp": "ID", "sClass": "read_only" },
+			                { "mDataProp": "StagingName", "sClass": "read_only", "sDefaultContent": '',
+                              "fnRender": function (obj, val) {
+                                 //return "<a id='lnkEditMs_" + obj.aData.ID + "' onclick='BlankSession(); return TabItemClickedEditMatStag(&quot;MaterialStagingEdit/" + obj.aData.ID + "&quot;,&quot;frmMaterialStaging&quot;)' href='JavaScript:void(0);'>" + val + "</a><input type='hidden' name='hdnUniqueID' value='" + obj.aData.ID + "' />";
+                                 return "<a onclick='return openModel(" + obj.aData.HinstoryID + ")' href='JavaScript:void(0);'>" + val + "</a>";
+                                 }
+                            },
+                             { "mDataProp": "WhatWhereAction", "sClass": "read_only" },
+			                { "mDataProp": "Description", "sClass": "read_only" },
+			                { "mDataProp": "BinName", "sClass": "read_only" },
+                            { "mDataProp": "Created", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.CreatedDate;
+			                    }
+			                },
+			                { "mDataProp": "Updated", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.UpdatedDate;
+			                    }
+			                },
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                            { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                            { "mDataProp": "RoomName", "sClass": "read_only" },
+                            { "mDataProp": "AddedFrom", "sClass": "read_only" },
+                            { "mDataProp": "EditedFrom", "sClass": "read_only" },
+                            { "mDataProp": "ReceivedOn", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+                                     return obj.aData.ReceivedOnDate;
+
+			                    }
+			                },
+			                { "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+                                   return obj.aData.ReceivedOnDateWeb;
+			                    }
+			                }
+//                            { "mDataProp": "ReceivedOnDate", "sClass": "read_only" },
+//                            { "mDataProp": "ReceivedOnDateWeb", "sClass": "read_only" }
+                            @Html.RenderColumnsArray("MaterialStaging")
+		    ]
+            });
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+            $("#HistoryText").keyup(function (e) {
+                var code = (e.keyCode ? e.keyCode : e.which);
+                if (code == 13) {
+                }
+                else {
+                    fnFilterMSHistory();
+                }
+            });
+
+            //Keydown event is required to handle ENTER KEY to work in IE
+            $("#HistoryText").keydown(function (e) {
+                var code = (e.keyCode ? e.keyCode : e.which);
+                if (code == 13) {
+                    fnFilterMSHistory();
+                }
+            });
+
+            $("#HistoryClear").click(function () {
+                $("#HistoryText").val('');
+                fnFilterMSHistory();
+                $("#HistoryText").focus();
+                return false;
+            });
+
+            var timeoutscheduler;
+            $(document).on('propertychange input', "#HistoryText", function () {
+                clearTimeout(timeoutscheduler);
+                timeoutscheduler = setTimeout(function () {
+                    if (SearchPattern == 2 || SearchPattern == "2") {
+                        fnFilterMSHistory();
+                    }
+                    else {
+                        $('#HistoryText').unbind("keypress");
+                        $('#HistoryText').keypress(function (event) {
+                            var keycode = (event.keyCode ? event.keyCode : event.which);
+                            if (keycode == 13) {
+                                fnFilterMSHistory();
+                            }
+                        });
+                        if ($("#HistoryText").val().length == 0) {
+                            setTimeout(function () { fnFilterMSHistory(); }, 200);
+                        }
+                    }
+                }, 500);
+            });
+        _Common.setGloblaSearch('HistoryText', 'HistoryTable');
+        });
+
+    function fnFilterMSHistory() {
+        //set filter only if more than 2 characters are pressed
+        //if (typeof $("#HistoryText") != 'undefined' && ($("#HistoryText").val().length > 2 || $("#HistoryText").val().length == 0)) {
+        if (typeof $("#HistoryText") != 'undefined') {
+            var searchtext = $("#HistoryText").val().replace(/'/g, "''");
+
+            $('#' + historyDTName + ' td').removeHighlight();
+
+            $('#' + historyDTName).dataTable().fnFilter(
+                searchtext,
+                null,
+                null,
+                null
+            );
+
+            if (searchtext.length > 0)
+                $('#' + historyDTName + ' td').highlight($("#HistoryText").val());
+        }
+    }
+
+</script>
+<div class="searchWrapper">
+    <div class="searchBlock">
+        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+        <div class="searchinputB">
+            <input type="text" class="searchinput" id="HistoryText" />
+            <a href="javascript:void(0);" class="xclose">
+                <img src="~/Content/images/x.png" alt="X" id="HistoryClear" /></a>
+        </div>
+    </div>
+</div>
+@Html.GridTopHeaderForHistory(settings)
+<div style="margin: 0 0.4% 1%">
+    <table id="HistoryTable" class="display">
+        <thead>
+            <tr>
+                @*<th>
+                    @eTurns.DTO.Resources.ResCommon.HistoryID
+                </th>*@
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.HistoryAction
+                </th>
+                @*<th>
+                    @eTurns.DTO.Resources.ResCommon.ID
+                </th>*@
+                <th>
+                    @eTurns.DTO.ResMaterialStaging.StagingName
+                </th>
+                <th>
+                    @eTurns.DTO.ResMaterialStaging.FromWhere
+                </th>
+                <th>
+                    @eTurns.DTO.ResMaterialStaging.Description
+                </th>
+                <th>
+                    @eTurns.DTO.ResMaterialStaging.BinName
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.CreatedOn
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.CreatedBy
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.RoomName
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.AddedFrom
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.EditedFrom
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                </th>
+                @Html.RenderColumnsHeader("MaterialStaging", typeof(eTurns.DTO.ResMaterialStaging))
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</div>
+<div id="divWOLineItemHistory">
+</div>
+<script type="text/javascript">
+    $(document).ready(function () {
+        $("#divWOLineItemHistory").dialog({
+            autoOpen: false,
+            modal: true,
+            draggable: true,
+            resizable: true,
+            width: '95%',
+            height: 720,
+            title: '@eTurns.DTO.Resources.ResLayout.Materialstaging @eTurns.DTO.Resources.ResCommon.History',
+            open: function () {
+                $('#DivLoading').show();
+                $("#divWOLineItemHistory").empty();
+                $.get('MaterialStagingHistoryView', { ID: $(this).data("cid") }, function (data) {
+                    $("#divWOLineItemHistory").html(data);
+                });
+            },
+            close: function () {
+                $("#divWOLineItemHistory").empty();
+            }
+        });
+    });
+    function openModel(id) {
+        $('#divWOLineItemHistory').data("cid", id).dialog('open')
+        return false;
+    }
+</script>

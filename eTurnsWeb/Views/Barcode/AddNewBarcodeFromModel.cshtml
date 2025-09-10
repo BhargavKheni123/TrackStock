@@ -1,0 +1,194 @@
+﻿<div class="userListBlock">
+    <div id="Ctab" class="tabContener" style="min-height: 540px; width: 99%;">
+        <div style="float: left; width: 99%; margin: 10px;">
+            Modules:&nbsp;&nbsp; @Html.DropDownList("ddlModuleList", new SelectList(ViewBag.ModuleMasterList, "GUID", "ModuleName"), new { @class = "selectBox", @style = "width:120px" })
+        </div>
+        <div class="searchWrapper">
+            <div class="searchBlock">
+                <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                <div class="searchinputB">
+                    <input type="text" class="searchinput" id="txtItemFilter" />
+                    <a href="javascript:void(0);" class="xclose">
+                        <img src="~/Content/images/x.png" alt="X" id="imgClearItemFilter" /></a>
+                </div>
+            </div>
+        </div>
+        <div class="userHead" id="divSearchedItem" style="display: none">
+            <div style="width: 60%; float: left; margin: 10px;">
+                <ul>
+                    <li>
+                        <label for="RoomName">
+                            Scan New Barcode:&nbsp;
+                        </label>
+                        <input type="text" id="txtNewBarcode" style="width: 200px; background: white;" value=""
+                            class="text-box" />
+                        &nbsp;&nbsp;&nbsp;<input type="button" id="btnAddNewBarCode" style="float: none;
+                            margin: 0px;" class="CreateBtn" value="Add" />
+                    </li>
+                </ul>
+            </div>
+            <div class="infoBlock" style="width: 59%; float: left; margin: 10px 0px;">
+                <ul>
+                    <li>
+                        <label for="RoomName">
+                            Item Number
+                        </label>
+                        : <span id="ItemText"></span></li>
+                    <li>
+                        <label for="RoomName">
+                            ID
+                        </label>
+                        : <span id="spnItemID"></span></li>
+                    <li style="display: none;">
+                        <label for="RoomName">
+                            ItemGuid
+                        </label>
+                        : <span id="spnItemGuid"></span></li>
+                </ul>
+            </div>
+            <div id="BarCodeList" style="float: left; width: 80%;">
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var IsTableUpdated = false;
+    $('#btnAddNewBarCode').click(function () {
+
+        var moduleguid = $("#ddlModuleList").val();
+        var barcodetext = $("#txtNewBarcode").val(); //.replace(/'/g, "''");
+        var ItemGuid = $('#spnItemGuid').text();
+        var moduleName = $("#ddlModuleList option:selected").text();
+        var binGuid = $("body").find("#AutoCompleteBinGUID").val();
+        if (barcodetext.length > 0 && ItemGuid.length > 0) {
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("InserNewBarcode")',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify({ 'ModuleGuid': moduleguid, 'ItemGuid': ItemGuid, "BarcopdeString": barcodetext, "strModuleName": moduleName }),
+                success: function (response) {
+                    if (response.IsSuccess) {
+                        $("#txtNewBarcode").val('')
+                        fillBarcodeGrid();
+                        $('#txtItemFilter').focus();
+                        $('#txtItemFilter').select();
+
+//                        if (!IsTableUpdated)
+//                            $('#myDataTable').dataTable().fnDraw();
+
+                        IsTableUpdated = true;
+                    }
+                    else {
+                        alert(response.Massage);
+                    }
+                },
+                error: function (err) {
+                    alert("There is some Error");
+                }
+            });
+        }
+        else {
+            alert("Please enter barcode and select Item to add new barcode.");
+        }
+    });
+
+    $(document).ready(function () {
+        $("#ddlModuleList option").filter(function () {
+            return $(this).text() === "Item Master";
+        }).prop('selected', true);
+
+        $('#ddlModuleList').change(function () {
+            $('#divSearchedItem').css('display', 'none');
+        });
+
+        $('#txtNewBarcode').val('@ViewBag.BarcodeText');
+        $('#txtItemFilter').focus();
+        IsTableUpdated = false;
+    });
+
+    function fillBarcodeGrid() {
+        $('#DivLoading').show();
+        $("#txtItemFilter").val().replace(/'/g, "''")
+        $.post('@Url.Content("../Barcode/GetBarcodeListByModuleID")', { "ModuleGuid": $("#ddlModuleList").val(), "ItemGuid": $("#spnItemGuid").text(), "Binguid": $("body").find("#AutoCompleteBinGUID").val() }, function (data) {
+            $("#BarCodeList").html(data);
+            $('#DivLoading').hide();
+        });
+    }
+
+    /* global search function */
+    function fnFilter() {
+        $('#DivLoading').show();
+        
+        var searchtext = $("#txtItemFilter").val().replace(/'/g, "''");
+        var moduleguid = $("#ddlModuleList").val();
+        var moduleText = $("#ddlModuleList option:selected").text();
+
+        $.ajax({
+            type: "POST",
+            url: '@Url.Action("../Barcode/GetItemDetailByModuleID")',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify({ 'ModuleGuid': moduleguid, 'ModuleName': moduleText, "SearchText": searchtext }),
+            success: function (response) {
+                if (response.IsSuccess) {
+                    $('#divSearchedItem').css('display', '');
+                    $('#ItemText').text(response.RetrunDTO.ItemText);
+                    $('#spnItemID').text(response.RetrunDTO.itemID);
+                    $('#spnItemGuid').text(response.RetrunDTO.ItemGuid);
+                    $('#DivLoading').hide();
+                    $('#txtNewBarcode').focus();
+                    fillBarcodeGrid();
+                }
+                else {
+                    $('#divSearchedItem').css('display', 'none');
+                    $('#ItemText').text('');
+                    $('#spnItemID').text('');
+                    $('#spnItemGuid').text('');
+                    $('#DivLoading').hide();
+                    $("#txtNewBarcode").val('')
+                }
+            },
+            error: function (err) {
+                alert("There is some Error");
+                $('#DivLoading').hide();
+            }
+        });
+    }
+
+    $('#txtNewBarcode').keyup(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13 && $('#txtNewBarcode').val().length > 0) {
+            $('#btnAddNewBarCode').click();
+        }
+    });
+    $(".searchBlock").on({
+        keyup: function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            var index = $.inArray(code, NotAllowedCharCodes);
+            if (index >= 0) return false;
+            if (code == 13) {
+                fnFilter();
+            }
+        }
+
+    }, "#txtItemFilter");
+
+
+    $("#imgClearItemFilter").click(function () {
+        $("#txtItemFilter").val('');
+        $('#divSearchedItem').css('display', 'none');
+        $('#ItemText').text('');
+        $('#spnItemID').text('');
+        $('#spnItemGuid').text('');
+        $("#txtNewBarcode").val('')
+        fillBarcodeGrid();
+
+        $("#txtItemFilter").focus();
+        return false;
+    });
+
+    
+
+</script>

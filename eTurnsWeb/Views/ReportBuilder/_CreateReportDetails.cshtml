@@ -1,0 +1,625 @@
+@model eTurns.DTO.ReportMasterDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+}
+@{
+    bool isUpdate;
+    bool isInsert;
+    if (ViewBag.ViewOnly == true)
+    {
+        isUpdate = false;
+        isInsert = false;
+    }
+    else
+    {
+        isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Reports, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+        isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Reports, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    }
+
+    List<ReportMasterDTO> lstReports = new List<ReportMasterDTO>();
+    lstReports = new eTurns.DAL.ReportMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetAllBaseReport(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, false, false).ToList();
+
+    List<TransactionEventMasterDTO> lstEventMaster = new List<TransactionEventMasterDTO>();
+    
+        lstEventMaster = new eTurns.DAL.ReportMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetTransactionEventDetailByItemType(Model.ID,Model.EmailTemplateID,Model.ItemType).ToList();
+    
+}
+
+
+@using (Ajax.BeginForm("ReportSave", "ReportBuilder", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onReportSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmReport" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="userHead">
+        @Html.ValidationSummary(true)
+        @if (Model.ID != 0 || Model.EmailTemplateID != 0) 
+        {
+        <div class="infoBlock">
+            <ul>
+                @*<li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.RoomName)
+                    </label>
+                    : <span>@(Model.RoomName)</span>
+                </li>*@
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.CreatedOn)
+                    </label>
+                    : <span>@(Model.CreatedDate)</span>
+                </li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.CreatedByName)
+                    </label>
+                    : <span>@(Model.CreatedByName)</span>
+                </li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.UpdatedON)
+                    </label>
+                    : <span>@(Model.UpdatedDate)</span>
+                </li>
+                <li style="border: none">
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.UpdatedByName)
+                    </label>
+                    : <span>@(Model.UpdatedByName)</span>
+                </li>
+            </ul>
+        </div>
+        }
+
+        <div id="ExpandedContent">
+            <ul>
+                <li>
+                    <div class="editorForm" id="onlyEditable">
+                        <ul>
+                            <li>
+                                <div class="editor-label">
+
+                                </div>
+                                <div class="editor-field">
+
+
+                                    @Html.HiddenFor(model => model.ID, new { id = "hiddenReportID" })
+                                    @Html.HiddenFor(model => model.CreatedOn)
+                                    @Html.HiddenFor(model => model.UpdatedON)
+                                    @Html.HiddenFor(model => model.CreatedBy)
+                                    @Html.HiddenFor(model => model.UpdatedBy)
+                                    @Html.HiddenFor(model => model.CompanyID)
+                                    @Html.HiddenFor(model => model.RoomID)
+                                    @Html.HiddenFor(model => model.RoomName)
+                                    @Html.HiddenFor(model => model.CreatedByName)
+                                    @Html.HiddenFor(model => model.UpdatedByName)
+                                    @Html.HiddenFor(model => model.IsDeleted)
+                                    @Html.HiddenFor(model => model.AlertConfigID)
+                                    @Html.HiddenFor(model => model.EmailTemplateID)
+                                    @Html.HiddenFor(model => model.ItemType)
+                                    @Html.HiddenFor(model => model.IsArchived)
+                                    <input type="hidden" value="@Model.AllowedIMMActions" id="hdnEventCode" name="AllowedIMMActions" />
+                                    <input type="hidden" value="@Model.AllowedAttahmentReports" id="hdnReportIds" name="AllowedAttahmentReports" />
+
+                                </div>
+                            </li>
+                            @if (Model.ItemType == "EmailTemplate")
+                            {
+                                <li>
+                                    <div class="editor-label">
+                                        @*@Html.LabelFor(model => model.EmailTemplateName)*@
+                                    </div>
+                                    <div class="editor-field">
+                                        <h2>@Model.AlertResourceName</h2>
+                                    </div>
+                                </li>
+                            }
+                            else if (Model.ItemType == "Report")
+                            {
+                                <li>
+                                    <div class="editor-label">
+                                        @*@Html.LabelFor(model => model.EmailTemplateName)*@
+                                    </div>
+                                    <div class="editor-field">
+                                        @{
+                                            string reportName = (Model.ParentID > 0) ? Model.ReportResourceName + " - ("+ ResReportMaster.ParentReport + " - " + Model.ParentReportName + ")" : Model.ReportResourceName;
+                                        }
+                                        <h2>@reportName </h2>
+                                    </div>
+                                </li>
+                            }
+                            <li class="clear">&nbsp;</li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowedIMMActions)
+
+                                </div>
+                                <div class="editor-field rightEdit">
+                                    @Html.DropDownList("ddlAllowedIMMActions", new SelectList((IEnumerable<eTurns.DTO.TransactionEventMasterDTO>)lstEventMaster, "EventCode", "EventName"), new { id = "ddlAllowedIMMActions", @class = "text-box", multiple = "multiple" })
+                                </div>
+                            </li>
+
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowScheduleIMM)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.AllowScheduleIMM, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowScheduleHourly)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.AllowScheduleHourly, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowScheduleDaily)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.AllowScheduleDaily, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowScheduleWeekly)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.AllowScheduleWeekly, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowScheduleMonthly)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.AllowScheduleMonthly, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowDataSelectFirstOfMonth)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.AllowDataSelectFirstOfMonth, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowDataSelectSinceLastReportFilter)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.AllowDataSelectSinceLastReportFilter, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowDataSinceFilter)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.AllowDataSinceFilter, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowSupplierFilter)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.AllowSupplierFilter, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowPDFAttachment)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.AllowPDFAttachment, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowExcelAttachment)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.AllowExcelAttachment, new { @class = "check-box" })
+                                </div>
+                            </li>
+
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowAttachmentSelection)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.AllowAttachmentSelection, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowedAttahmentReports)
+
+                                </div>
+                                <div class="editor-field rightEdit">
+                                    @Html.DropDownList("ddlAllowedAttahmentReports", new SelectList((IEnumerable<eTurns.DTO.ReportMasterDTO>)lstReports, "ID", "ReportResourceName"), new { id = "ddlAllowedAttahmentReports", @class = "text-box", multiple = "multiple" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.AllowRangeDataSelect)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.AllowRangeDataSelect, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.IsSupplierRequired)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.IsSupplierRequired, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.IsDateRangeRequired)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.CheckBoxFor(model => model.IsDateRangeRequired, new { @class = "check-box" })
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    &nbsp;
+                                </div>
+                                <div class="BtnBlockform">
+                                    <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnReportCancel" class="CreateBtn" />
+                                    @if (Model.ParentID == 0 || Model.ItemType == "EmailTemplate")
+                                    {
+                                        if (eTurnsWeb.Helper.SessionHelper.UserType == 1 && eTurnsWeb.Helper.SessionHelper.RoleID < 0)
+                                        {
+                                            if (isInsert == true && Model.ID == 0)
+                                            {
+                                                <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                                            }
+                                            else if (isUpdate == true)
+                                            {
+                                                <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                                            }
+                                            else if (isUpdate == false && isInsert == false)
+                                            {
+                                                <script>
+                                                    //This is the case when archived or deleted record is being viewed..
+                                                    disableControls('frmReport');
+                                                    $('#btnReportCancel').removeAttr('disabled');
+                                                </script>
+                                            }
+                                        }
+                                    }
+
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    @if (Model.ItemType == "Report")
+                    {
+                        <div class="editorForm padRightNone">
+                            <ul>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.ReportName)</div><div class="editor-field">@Model.ReportResourceName</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.ReportFileName)</div><div class="editor-field">@Model.ReportFileName</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.ReportType)</div><div class="editor-field">@Model.ReportType</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.IsBaseReport)</div><div class="editor-field">@Model.IsBaseReport</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.ParentID)</div><div class="editor-field">@Model.ParentID</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.SortColumns)</div><div class="editor-field">@Model.SortColumns</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.SubReportFileName)</div><div class="editor-field">@Model.SubReportFileName</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.IsPrivate)</div><div class="editor-field">@Model.IsPrivate</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.PrivateUserID)</div><div class="editor-field">@Model.PrivateUserID</div></li>
+                                
+                                <li><div class="editor-label">@Html.LabelFor(model => model.MasterReportResFile)</div><div class="editor-field">@Model.MasterReportResFile</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.SubReportResFile)</div><div class="editor-field">@Model.SubReportResFile</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.IsIncludeDateRange)</div><div class="editor-field">@Model.IsIncludeDateRange</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.IsIncludeTotal)</div><div class="editor-field">@Model.IsIncludeTotal</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.IsIncludeSubTotal)</div><div class="editor-field">@Model.IsIncludeSubTotal</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.IsIncludeGrandTotal)</div><div class="editor-field">@Model.IsIncludeGrandTotal</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.IsIncludeGroup)</div><div class="editor-field">@Model.IsIncludeGroup</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.GroupName)</div><div class="editor-field">@Model.GroupName</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.Days)</div><div class="editor-field">@Model.Days</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.FromDate)</div><div class="editor-field">@Model.FromDate</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.ToDate)</div><div class="editor-field">@Model.ToDate</div></li>
+                                
+                                <li><div class="editor-label">@Html.LabelFor(model => model.ToEmailAddress)</div><div class="editor-field">@Model.ToEmailAddress</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.ModuleName)</div><div class="editor-field">@Model.ModuleName</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.ISEnterpriseReport)</div><div class="editor-field">@Model.ISEnterpriseReport</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.SetAsDefaultPrintReport)</div><div class="editor-field">@Model.SetAsDefaultPrintReport</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.IsIncludeTax1)</div><div class="editor-field">@Model.IsIncludeTax1</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.IsIncludeTax2)</div><div class="editor-field">@Model.IsIncludeTax2</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.IsNotEditable)</div><div class="editor-field">@Model.IsNotEditable</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.IsDefaultReport)</div><div class="editor-field">@Model.IsDefaultReport</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.HideHeader)</div><div class="editor-field">@Model.HideHeader</div></li>
+                                <li><div class="editor-label">@Html.LabelFor(model => model.ShowSignature)</div><div class="editor-field">@Model.ShowSignature</div></li>
+                            </ul>
+                        </div>
+                    }
+
+
+
+                </li>
+            </ul>
+        </div>
+
+        
+
+
+    </div>
+}
+
+@Html.Partial("_RequiredMessages")
+
+<script language="javascript" type="text/javascript">
+
+    var AllowedAttahmentReportsValues = '';
+    var AllowedIMMActionsValues = '';
+
+
+
+
+    function onReportSuccess(response) {
+        IsRefreshGrid = true;
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idReportValue = $("#hiddenReportID").val();
+
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#txtReportNameNew").val("");
+            $("#txtReportNameNew").focus();
+        }
+        else if (idReportValue == 0) {
+
+            $("#txtReportNameNew").focus();
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+
+                    clearControls('frmReport');
+
+                          }
+        }
+        else if (idReportValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                $("#txtReportNameNew").val("");
+                $("#txtReportNameNew").focus();
+            }
+            else {
+                clearControls('frmReport');
+                SwitchTextTab(0, 'ReportCreate', 'frmReport');
+            }
+        }
+    }
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        $("#txtReportNameNew").focus();
+    }
+
+    $(document).ready(function () {
+
+
+
+        $('form').areYouSure({ 'message': MsgLostChangesConfirmation });
+        $('#btnReportCancel').click(function (e) {
+
+                SwitchTextTab(0, 'ReportCreate', 'frmReport');
+                if (oTable !== undefined && oTable != null && $("#global_filter").val() == '') {
+                    oTable.fnDraw();
+                    $('#NarroSearchClear').click();
+                }
+
+        });
+
+        bindReportMultiSelect();
+        bindEventMultiSelect();
+
+        var ReportList = $("input#hdnReportIds").val().split(',');
+        AllowedAttahmentReportsValues = $("input#hdnReportIds").val();
+        var valArr = Array();
+        for (var i = 0; i < ReportList.length; i++) {
+            valArr.push(ReportList[i]);
+        }
+        var size = valArr.length;
+
+        for (var i = 0; i < size; i++) {
+            $("#ddlAllowedAttahmentReports").multiselect("widget").find(":checkbox").each(function () {
+                var cid = $(this).attr("value");
+                if (cid == valArr[i]) {
+                    $(this).attr("checked", "checked");
+                }
+
+            });
+            $("#ddlAllowedAttahmentReports option").each(function () {
+                var cid = $(this).attr("value");
+                if (cid == valArr[i]) {
+                    $(this).attr("selected", 1);
+                }
+            });
+        }
+
+        $("#ddlAllowedAttahmentReports").multiselect({
+            checkAllText: "@Html.Raw(eTurns.DTO.Resources.ResNarrowSearch.Check)",
+            uncheckAllText: "@Html.Raw(eTurns.DTO.Resources.ResNarrowSearch.UnCheck)",
+            noneSelectedText: lblReport, selectedList: 5,
+            selectedText: function (numChecked, numTotal, checkedItems) {
+                return lblReport + ' ' + numChecked + ' ' + selected;
+            }
+        });
+
+        var EventList = $("input#hdnEventCode").val().split(',');
+        AllowedIMMActionsValues = $("input#hdnEventCode").val();
+
+        var valArr = Array();
+        for (var i = 0; i < EventList.length; i++) {
+            valArr.push(EventList[i]);
+        }
+        var size = valArr.length;
+        for (var i = 0; i < size; i++) {
+            $("#ddlAllowedIMMActions").multiselect("widget").find(":checkbox").each(function () {
+                var cid = $(this).attr("value");
+                if (cid == valArr[i]) {
+                    $(this).attr("checked", "checked");
+                }
+
+            });
+            $("#ddlAllowedIMMActions option").each(function () {
+                var cid = $(this).attr("value");
+                if (cid == valArr[i]) {
+                    $(this).attr("selected", 1);
+                }
+            });
+        }
+
+        $("#ddlAllowedIMMActions").multiselect({
+            checkAllText: "@Html.Raw(eTurns.DTO.Resources.ResNarrowSearch.Check)",
+            uncheckAllText: "@Html.Raw(eTurns.DTO.Resources.ResNarrowSearch.UnCheck)",
+            noneSelectedText: lblEvent, selectedList: 5,
+            selectedText: function (numChecked, numTotal, checkedItems) {
+                return lblEvent + ' ' + numChecked + ' ' + selected;
+            }
+        });
+
+        $("#onlyEditable select").each(function () {
+            if ('@Model.ParentID' != '0' && '@Model.ItemType' == "Report") {
+                $(this).attr("disabled", "disabled");
+            }
+            else {
+                $(this).removeAttr("disabled", "disabled");
+            }
+        });
+
+        $("#onlyEditable input:text").each(function () {
+            if ('@Model.ParentID' != '0' && '@Model.ItemType' == "Report") {
+                $(this).attr("disabled", "disabled");
+            }
+            else {
+                $(this).removeAttr("disabled", "disabled");
+            }
+        });
+
+        $("#onlyEditable input:checkbox").each(function () {
+            if ('@Model.ParentID' != '0' && '@Model.ItemType' == "Report") {
+                $(this).attr("disabled", "disabled");
+            }
+            else {
+                $(this).removeAttr("disabled", "disabled");
+            }
+        });
+
+        @*$("#onlyEditable button").each(function () {
+            if ('@Model.ParentID' != '0' && '@Model.ItemType' == "Report" && this.id != "btnReportCancel") {
+                $(this).attr("disabled", "disabled");
+            }
+            else {
+                $(this).removeAttr("disabled", "disabled");
+            }
+        });*@
+
+
+
+        $("form").submit(function (e) {
+
+            $('#hdnReportIds').val(AllowedAttahmentReportsValues);
+            $('#hdnEventCode').val(AllowedIMMActionsValues);
+
+            //  alert($('#hdnReportIds').val());
+
+            $.validator.unobtrusive.parse("#frmReport");
+
+            e.preventDefault();
+            //$('#NarroSearchClear').click();
+        });
+
+
+    });
+
+    function bindMultiSelectAndSetValue() {
+
+    }
+
+    function bindReportMultiSelect() {
+
+        $("#ddlAllowedAttahmentReports").multiselect
+        (
+            {
+                checkAllText: "@Html.Raw(eTurns.DTO.Resources.ResNarrowSearch.Check)",
+                uncheckAllText: "@Html.Raw(eTurns.DTO.Resources.ResNarrowSearch.UnCheck)",
+                noneSelectedText: lblReport, selectedList: 5,
+                selectedText: function (numChecked, numTotal, checkedItems) {
+                    return lblReport + ' ' + numChecked + ' ' + selected;
+                }
+            },
+            {
+                checkAll: function (ui) {
+                    //$("#ddlAllowedAttahmentReportsCollapse").html('');
+                    for (var i = 0; i <= ui.target.length - 1; i++) {
+                        //if ($("#ddlAllowedAttahmentReportsCollapse").text().indexOf(ui.target[i].text) == -1) {
+                        //    $("#ddlAllowedAttahmentReportsCollapse").append("<span>" + ui.target[i].text + "</span>");
+                        //}
+                    }
+                    //$("#ddlAllowedAttahmentReportsCollapse").show();
+                }
+            }
+        )
+        .bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+
+            AllowedAttahmentReportsValues = $.map($(this).multiselect("getChecked"), function (input) {
+
+                return input.value;
+            })
+          //  alert(AllowedAttahmentReportsValues);
+
+
+        }).multiselectfilter({ label: Filter, placeholder: Enterkeywords });
+    }
+
+
+    function bindEventMultiSelect() {
+        $("#ddlAllowedIMMActions").multiselect
+        (
+            {
+                checkAllText: "@Html.Raw(eTurns.DTO.Resources.ResNarrowSearch.Check)",
+                uncheckAllText: "@Html.Raw(eTurns.DTO.Resources.ResNarrowSearch.UnCheck)",
+                noneSelectedText: lblEvent, selectedList: 5,
+                selectedText: function (numChecked, numTotal, checkedItems) {
+                    return lblEvent + ' ' + numChecked + ' ' + selected;
+                }
+            },
+            {
+                checkAll: function (ui) {
+                    //$("#ddlAllowedIMMActionsCollapse").html('');
+                    for (var i = 0; i <= ui.target.length - 1; i++) {
+                        //if ($("#ddlAllowedIMMActionsCollapse").text().indexOf(ui.target[i].text) == -1) {
+                        //    $("#ddlAllowedIMMActionsCollapse").append("<span>" + ui.target[i].text + "</span>");
+                        //}
+                    }
+                    //$("#ddlAllowedIMMActionsCollapse").show();
+                }
+            }
+        )
+        .bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+
+            AllowedIMMActionsValues = $.map($(this).multiselect("getChecked"), function (input) {
+
+                return input.value;
+            })
+
+            //  alert(AllowedIMMActionsValues);
+
+
+        }).multiselectfilter({ label: Filter, placeholder: Enterkeywords });
+    }
+</script>

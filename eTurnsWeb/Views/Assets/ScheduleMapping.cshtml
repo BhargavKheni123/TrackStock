@@ -1,0 +1,519 @@
+﻿@{
+
+    ViewBag.Title = eTurns.DTO.ResToolsSchedulerMapping.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.Both, ShowSelectAll = true, DataTableName = "myDataTable", DisplayUDFButton = true, UDFSetupFor = "ToolScheduleMapping&UDFHeader=" + @eTurns.DTO.ResToolsSchedulerMapping.PageHeader, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "ToolScheduleMappingList", DisplayDeleteButton = true };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ToolScheduleMapping" };
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AssetToolSchedulerMapping, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AssetToolSchedulerMapping, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    string SchedularMappingPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/SchedularMapping.pdf", DateTime.Now.Ticks);
+    //HelpDocumentMasterDTO objHelpDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentMaster("SchedularMapping");
+    //string SchedularMappingBasicVideo = "";
+    //if (objHelpDTO != null)
+    //{
+    //    SchedularMappingBasicVideo = objHelpDTO.ModuleVideoPath.Replace("../Uploads/HelpVideo/", "");
+    //}
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("SchedularMapping", (int)HelpDocType.Module);
+}
+<script type="text/javascript" src="@Url.Content("~/Scripts/DynemicDataTable.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+    <script language="javascript" type="text/javascript">
+        var oTable;
+        var IsRefreshGrid = false;
+        var SelectedHistoryRecordID = 0;
+        var deleteURL = "/Assets/DeleteMappingRecords";
+        var sImageUrl = "/Content/images/";
+        var anOpen = [];
+        var IsDeletePopupOpen = true;
+        var AllowDeletePopup = true;
+        var ItemName = '';
+        var ItemUniqueID = '';
+        var objColumns = {};
+
+
+        $(document).ready(function () {
+            var gaiSelected = [];
+            LoadTabs();
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "100%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[1, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable', //+ "&nbsp; This barcode text is not assing to any item.<br>Would you like to assing it?<br><a id='aBarcodeYes'href='javascript:void(0)' onclick='javascript:return OpenItemInPopup(this);' >Yes</a> ",
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    if (aData.IsDeleted == true && aData.IsArchived == true)
+                        //  nRow.className = "GridDeleatedArchivedRow";
+                        $(nRow).css('background-color', '#B9BCBF');
+                    else if (aData.IsDeleted == true)
+                        // nRow.className = "GridDeletedRow";
+                        $(nRow).css('background-color', '#FFCCCC');
+                    else if (aData.IsArchived == true)
+                        //  nRow.className = "GridArchivedRow";
+                        $(nRow).css('background-color', '#CCFFCC');
+
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    oData.oSearch.sSearch = "";
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'ToolScheduleMappingList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = json;
+                        }
+                    });
+
+
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'ToolScheduleMappingList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+
+                    });
+
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Assets/ToolScheduleMappingListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    //PostCount = PostCount + 1;
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    // alert(oSettings.aaSorting);
+                    if (oSettings.aaSorting.length != 0) {
+                        aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                        //   alert(oSettings.aaSorting[0][3]);
+                    }
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        cache: false,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable').highlight($("#global_filter").val());
+                            }
+                            CallShowHideData();
+                            if ($('#global_filter').val().length > 0) {
+
+                            }
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [
+                             //{
+                             //    "mDataProp": "ID",
+                             //    "sClass": "read_only",
+                             //    "sDefaultContent": '',
+                             //    "bSortable": true,
+                             //    "bSearchable": false,
+                             //    "fnRender": function (obj, val) {
+                             //        return "<a id='aEditLink' onclick='return ShowEditTabGUID(&quot;MappingEdit?MappingGUID=" + obj.aData.GUID.toString() + "&quot;,&quot;frmMapping&quot;)' href='JavaScript:void(0);'>" + obj.aData.ID + "</a>" + " <input type='hidden' id='MappingGUID' value='" + obj.aData.GUID.toString() + "' />";
+                             //    }
+                             //},
+                             { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' },
+                            {
+                                "mDataProp": "SchedulerForName", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return obj.aData.SchedulerForName + " <input type='hidden' id='MappingGUID' value='" + obj.aData.GUID.toString() + "' />";
+                                }
+                            },
+
+                            { "mDataProp": "ToolName", "sClass": "read_only" },
+                            { "mDataProp": "AssetName", "sClass": "read_only" },
+                            { "mDataProp": "SchedulerName", "sClass": "read_only" },
+			                { "mDataProp": "Created", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.CreatedDate; } },
+			                { "mDataProp": "Updated", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.UpdatedDate; } },
+                            { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                            { "mDataProp": "Serial", "sClass": "read_only" }
+                            @Html.RenderColumnsArray("toolschedulemapping")
+
+                ]
+            });
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+
+
+            var QueryStringParam1 = getParameterByName('fromdashboard');
+            var QueryStringParam2 = getParameterByName('ItemGUID');
+            if (QueryStringParam1 == 'yes' && QueryStringParam2 != '') {
+                ShowEditTabGUID("ItemEdit?ItemGUID=" + QueryStringParam2, "frmItem");
+            }
+
+            function getParameterByName(name) {
+                name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+                var regexS = "[\\?&]" + name + "=([^&#]*)";
+                var regex = new RegExp(regexS);
+                var results = regex.exec(window.location.search);
+                if (results == null)
+                    return "";
+                else
+                    return decodeURIComponent(results[1].replace(/\+/g, " "));
+            }
+
+
+            /*Functions used for nasted data binding START*/
+            $("#myDataTable").on("click", "td.control img", function (event) {
+
+                var nTr = this.parentNode.parentNode;
+                var i = $.inArray(nTr, anOpen);
+
+                if (i === -1) {
+
+                    $('img', this.parentNode).attr('src', sImageUrl + "drildown_close.jpg");
+                    oTable.fnOpen(nTr, fnFormatDetails(oTable, nTr), '');
+                    anOpen.push(nTr);
+                }
+                else {
+                    $('img', this.parentNode).attr('src', sImageUrl + "drildown_open.jpg");
+                    oTable.fnClose(nTr);
+                    anOpen.splice(i, 1);
+                }
+            });
+
+
+
+
+
+        });
+
+
+
+        /* HISTORY related data deleated and archived START */
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+        function HistoryTabClick() {
+            GetHistoryData();
+        }
+        function GetHistoryData() {
+
+            HistorySelected = fnGetSelected(oTable);
+            if (HistorySelected != undefined && HistorySelected.length == 1) {
+                var ITGUID = $(HistorySelected).find('#ItemGUID')[0].value;
+                SelectedHistoryRecordID = ITGUID;
+                $('#DivLoading').show();
+                $("#CTab").hide();
+                $("#CtabCL").show();
+                //$('#CtabCL').load('/Master/ItemHistory', function () { $('#DivLoading').hide(); });
+                // $('#CtabCL').load('/Inventory/ItemHistory?ItemGUID=' + ITGUID + '', function () { $('#DivLoading').hide(); });
+            }
+            else {
+                $('#CtabCL').html('');
+                $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                return false;
+            }
+        }
+    </script>
+}
+<script type="text/javascript">
+    var isTabClick = false;
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true)
+         ////new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true)
+    ];
+    function callbacknew()
+    {
+        window.location.hash = '#new';
+        ShowNewTab('ScheduleMappingCreate', 'frmMapping');
+    }
+    function callbackhistory() { window.location.hash = '#list'; } //HistoryTabClick(); }
+    function callbackCL() { HistoryTabClick(); }
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                RefreshNarrowSearch();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+        }
+
+    }
+
+    function RefreshNarrowSearch() {
+        var _IsArchived = false;
+        var _IsDeleted = false;
+
+        if (typeof ($('#IsArchivedRecords')) != undefined)
+            _IsArchived = $('#IsArchivedRecords').is(':checked');
+
+        if (typeof ($('#IsDeletedRecords')) != undefined)
+            _IsDeleted = $('#IsDeletedRecords').is(':checked');
+
+        $("select[name='udflist']").each(function (index) {
+            var elememtID = this.getAttribute('id');
+            if (typeof ($("#" + elememtID).multiselect("getChecked").length) != undefined && $("#" + elememtID).multiselect("getChecked").length > 0) {
+                var UDFUniqueID = this.getAttribute('UID');
+                $('#' + UDFUniqueID + 'Collapse').html('');
+                $('#' + UDFUniqueID + 'Collapse').hide();
+            }
+        });
+
+        GetScheduleNarrowSearches('ToolScheduleMapping', _IsArchived, _IsDeleted);
+        GetNarroHTMLForUDF('toolschedulemapping', '@eTurnsWeb.Helper.SessionHelper.CompanyID', '@eTurnsWeb.Helper.SessionHelper.RoomID', _IsArchived, _IsDeleted, RequisitionCurrentTab);
+
+    }
+
+
+    $(document).ready(function () {
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+    });
+</script>
+<div id="ItemQty">
+</div>
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResToolsSchedulerMapping.PageHeader
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener">
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Assets)
+            @*@Html.Partial("NarrowSearchLayout", modelCommon)*@
+            @{ Html.RenderPartial("NarrowSearchSchedulemapping", modelCommon);}
+            <div class="userContent ">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>                            
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResToolsSchedulerMapping.SchedulerFor
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResToolMaster.ToolName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResAssetMaster.AssetName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResToolsSchedulerMapping.SchedulerName
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResToolMaster.Serial
+                            </th>
+                            @Html.RenderColumnsHeader("toolschedulemapping", typeof(eTurns.DTO.ResToolsSchedulerMapping))
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <button id="btnAddNewCompany" value="Ok" style="display: none">
+                    @ResCommon.AddNew
+                </button>
+                <button id="btnDeleteCompany" value="cancel" style="display: none">
+                    Delete Selected
+                </button>
+                <div id="processing_message" style="display: none" title="Processing">@eTurns.DTO.Resources.ResMessage.RequestProcessMessage</div>
+                @*START : QTY Legends*@
+                @Html.Partial("_QTYLegends")
+                @*END : QTY Legends*@
+            </div>
+        </div>
+        <div id='CtabCL' class="tabContener">
+        </div>
+    </div>
+</div>
+<div id="ItemModel">
+</div>
+<div id="divMoveMaterialModel">
+</div>
+<script type="text/javascript">
+    $(document).ready(function () {
+        $(".viewBlock").css("display", "none");
+
+
+    });
+
+
+
+    var objColumns = {
+        '@MvcHtmlString.Create(eTurns.DTO.ResToolsSchedulerMapping.Id)': 0,
+        '@MvcHtmlString.Create(eTurns.DTO.ResToolsSchedulerMapping.SchedulerFor)': 1,
+        '@MvcHtmlString.Create(eTurns.DTO.ResToolsSchedulerMapping.SchedulerType)': 2,
+        '@MvcHtmlString.Create(eTurns.DTO.ResToolsSchedulerMapping.Itemname)': 3,
+        '@MvcHtmlString.Create(eTurns.DTO.ResToolsSchedulerMapping.SchedulerName)': 4,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.CreatedOn)': 5,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.UpdatedOn)': 6,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.UpdatedBy)': 7,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.CreatedBy)': 8
+
+
+    };
+
+
+</script>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>

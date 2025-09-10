@@ -1,0 +1,1171 @@
+﻿@{
+    ViewBag.Title = eTurns.DTO.ResQuoteMaster.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowCloseButton = true, ShowSelectAll = true, DisplayUDFButton = true, UDFSetupFor = "QuoteMaster&UDFHeader=" + eTurns.DTO.ResQuoteMaster.PageHeader, DisplaySettings = true, DisplayColumnSetupButton = true, DisplayContextMenu = true, ColumnSetupFor = "QuoteMasterList", DisplayDeleteButton = true, DisplayArchiveButton = false };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "QuoteMaster", ListName = "QuoteMaster" };
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Quote, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Quote, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    bool isUncloseQuote = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowanquotetobeUnclose);
+    bool isApproveList = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowanquotetobeApproved);
+    bool isChangeQuote = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Allowanchangequote);
+
+    Session["IsInsert"] = "";
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    var sImageUrl = "/Content/images/";
+    string ModuleName = "Quote";
+    bool IsShowChangeLog = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Quote, eTurnsWeb.Helper.SessionHelper.PermissionType.ShowChangeLog);
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail(ModuleName, (int)HelpDocType.Module);
+}
+
+<style>
+    .paginationBlock {
+        float: left !important;
+        position: absolute !important;
+        right: 290px !important;
+        top: -4px !important;
+    }
+    .IteamBlock li {
+        width: 90% !important;
+    }
+</style>
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script type="text/javascript">
+        var oTable;
+        var IsRefreshGrid = false;
+        var deleteURL = "/Quote/DeleteQuoteMasterRecords";
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+        var SelectedTechnicianID = 0;
+        var HistorySelected;
+        var HistorySelectedID = 0;
+        var bIsFilter = false;
+        var anOpen = [];
+        var objColumns = {};
+        var SelectedHistoryRecordID = 0;
+        var RequisitionUniqueID = '';
+        RequisitionTabFilter = 'All';
+        var CurrentListTabID = 'tab5'
+        var msgSelectAtleaseOneQuoteRecord = '@eTurns.DTO.ResQuoteMaster.SelectAtleaseOneQuote';
+        var removedFileListName = [];
+        $(document).ready(function () {
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            LoadTabs();
+            var gaiSelected = [];
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "250%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[2, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    //if (!isNaN(parseInt(aData.ChangeOrderRevisionNo)) && parseInt(aData.ChangeOrderRevisionNo) > 0) {
+                    //    $(nRow).find('#imgPlusMinus').css('display', '');
+                    //}
+                    if (aData.IsDeleted == true)
+                        $(nRow).css('background-color', '#FFCCCC');
+
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    if (!bIsFilter)
+                    {
+                        oData.oSearch.sSearch = "";
+                        $.ajax({
+                            "url": '@Url.Content("~/Master/SaveGridState")',
+                            "type": "POST",
+                            data: { Data: JSON.stringify(oData), ListName: 'QuoteMasterList' },
+                            "async": true,
+                            cache: false,
+                            "dataType": "json",
+                            "success": function (json) {
+                                if (json.jsonData != '')
+                                    o = json;
+                            }
+                        });
+
+                   }
+                    bIsFilter = false;
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'QuoteMasterList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;
+                },
+
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Quote/QuoteMasterListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    if (oSettings.aaSorting.length != 0) {
+                        var sortValue = "";
+                        for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                            if (sortValue.length > 0)
+                                sortValue += ", "
+                            sortValue += arrCols[oSettings.aaSorting[i][0]] + ' ' + oSettings.aaSorting[i][1];
+
+                        }
+                        aoData.push({ "name": "SortingField", "value": sortValue });
+                    }
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        cache: false,
+                        "data": aoData,
+                        "headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function (result) {
+
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable').highlight($("#global_filter").val());
+                            }
+                            $("a#ColumnOrderSetup").off("click");
+                            $(document).on("click", "a#ColumnOrderSetup", function () {
+                                $("#ColumnSortableModal").dialog("open");
+                            });
+                            setCloseButton();
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                    $('#divQTYLegends').show(1000);
+                },
+                "fnDrawCallback": function () {
+                    showHideDeleteUndelete();
+                },
+                "aoColumns": [
+                    { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' },
+                    {
+                        "mDataProp": null,
+                        "bSortable": false,
+                        "sClass": "read_only control center",
+                        "sDefaultContent": '',
+                        "bSearchable": false,
+                        "fnRender": function (obj, val) {
+                            if (!isNaN(parseInt(obj.aData.ChangeQuoteRevisionNo)) && parseInt(obj.aData.ChangeQuoteRevisionNo) > 0) {
+                                return '<img  id="imgPlusMinus" src="' + sImageUrl + 'drildown_open.jpg' + '">';
+                            }
+                            else {
+                                return '';
+                            }
+                        }
+                    },
+                    { "mDataProp": "ID", "sClass": "read_only" },
+                    {
+                        "mDataProp": "QuoteNumber",
+                        "sClass": "read_only NotHide",
+                        "sDefaultContent": '',
+                        "bSortable": true,
+                        "bSearchable": false,
+                        "fnRender": function (obj, val) {
+                            return "<a name='editQuote' id='aEditlnk_" + obj.aData.ID + "' href='JavaScript:void(0);'>" + obj.aData.QuoteNumber + "</a>";
+
+                        }
+                    },
+                    { "mDataProp": "ReleaseNumber", "sClass": "read_only" },
+                    { "mDataProp": "Comment", "sClass": "read_only" },
+                    { "mDataProp": "RequiredDate", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.RequiredDateStr; } },
+                    {
+                        "mDataProp": "QuoteStatusChar", "sClass": "read_only NotHide", "fnRender": function (obj, val) {
+                            return "<span id='spnOrdStatus'>" + val + "</span>"
+                                + "<span id='spnIsNotEditable' style='display:none'>" + obj.aData.IsRecordNotEditable + "</span>"
+                                + "<span id='spnIsableToDelete' style='display:none'>" + obj.aData.IsAbleToDelete + "</span>"
+                                + "<span id='spnQuoteStatus' style='display:none'>" + obj.aData.QuoteStatus + "</span>"
+                                + "<span id='spnQuoteMasterID' style='display:none'>" + obj.aData.ID + "</span>"
+                                + "<span id='spnQuoteGUID' style='display:none'>" + obj.aData.GUID + "</span>"
+                                + "<span id='spnQuoteIsInReceive' style='display:none'>" + obj.aData.QuoteIsInReceive + "</span>"
+                                + "<span id='spnhdnIsDeleted' style='display:none'>" + obj.aData.IsDeleted + "</span>"
+                                + "<span id='spnhdnIsArchived' style='display:none'>" + obj.aData.IsArchived + "</span>"
+                                + "<span id='spnhdnNoOfItem' style='display:none'>" + obj.aData.NoOfLineItems + "</span>";
+                        }
+                    },
+                    { "mDataProp": "NoOfLineItems", "sClass": "read_only numericalign", "fnRender": function (obj, val) { return val; } },
+                    {
+                        "mDataProp": "QuoteCost", "sClass": "read_only numericalign isCost", //"fnRender": function (obj, val) { return val; }
+
+                        "fnRender": function (obj, val) {
+                            if (obj.aData.QuoteCost != null && obj.aData.QuoteCost != NaN)
+                                return "<span>" + FormatedCostQtyValues(obj.aData.QuoteCost, 1) + "</span>";
+                            else
+                                return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+
+                            //if (obj.aData.PriseSelectionOption != null && obj.aData.PriseSelectionOption == 1) {
+                            //    if (obj.aData.QuotePrice != null && obj.aData.QuotePrice != NaN)
+                            //        return "<span>" + FormatedCostQtyValues(obj.aData.QuotePrice, 1) + "</span>";
+                            //    else
+                            //        return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+                            //}
+                            //else if (obj.aData.PriseSelectionOption != null && obj.aData.PriseSelectionOption == 2) {
+                            //    if (obj.aData.QuoteCost != null && obj.aData.QuoteCost != NaN)
+                            //        return "<span>" + FormatedCostQtyValues(obj.aData.QuoteCost, 1) + "</span>";
+                            //    else
+                            //        return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+                            //}
+                            //else {
+                            //    return FormatedCostQtyValues(0, 1);
+                            //}
+                        }
+                    },
+                    { "mDataProp": "ChangeQuoteRevisionNo", "sClass": "read_only" },
+                    { "mDataProp": "Created", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.CreatedDate; } },
+                    { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                    { "mDataProp": "LastUpdated", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.UpdatedDate; } },
+                    { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                    { "mDataProp": "RoomName", "sClass": "read_only" },
+                    //{ "mDataProp": "IsArchived", "sClass": "read_only", "fnRender": function (obj, val) { return '<span id="spnIsArchived">' + GetBoolInFormat(obj, val) + '</span>'; } },
+                    //{ "mDataProp": "IsDeleted", "sClass": "read_only", "fnRender": function (obj, val) { return '<span id="spnIsDeleted">' + GetBoolInFormat(obj, val) + '</span>'; } },
+                    { "mDataProp": "AddedFrom", "sClass": "read_only" },
+                    { "mDataProp": "EditedFrom", "sClass": "read_only" },
+                    {
+                        "mDataProp": "ReceivedOn", "sClass": "read_only",
+                        "fnRender": function (obj, val) {
+                            return obj.aData.ReceivedOnDate;
+                        }
+                    },
+                    {
+                        "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+                        "fnRender": function (obj, val) {
+                            return obj.aData.ReceivedOnDateWeb;
+                        }
+                    },
+                    {
+                        "mDataProp": "QuoteSupplierNamesCSV", "sClass": "read_only", "sDefaultContent": '',
+                        "fnRender": function (obj, val) {
+                            return "<div class='comment more' style='word-break: break-all;' >" + val + "</div>";
+                        }
+                    }
+                    //{ "mDataProp": "QuoteSupplierNamesCSV", "sClass": "read_only" }
+                    @Html.RenderColumnsArray("QuoteMaster")
+                ]
+            });
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+            if ('@(isCost)' == '@(Boolean.FalseString)') {
+                HideColumnUsingClassName("myDataTable");
+            }
+
+            $('.DTTT_container').css('z-index', '-1');
+
+            if (window.location.hash.toLowerCase() == "#unsubmitted") {
+                $("#tab2").click();
+            }
+            else if (window.location.hash.toLowerCase() == "#submitted") {
+                $("#tab3").click();
+            }
+            else if (window.location.hash.toLowerCase() == "#approved") {
+                $("#tab4").click();
+            }
+
+            var QueryStringParam1 = getParameterByName('fromdashboard');
+            var QueryStringParam2 = getParameterByName('QuoteID');
+            if (QueryStringParam1 == 'yes' && QueryStringParam2 != '') {
+                ShowEditTab("QuoteEdit/" + QueryStringParam2, "frmQuote");
+            }
+
+            /* HISTORY related data deleated and archived END */
+
+            $('#myDataTable').on('tap click', 'a[id^="aEditlnk_"]', function () {
+                var linkid = $(this).attr('id');
+                if (linkid.toString().indexOf('aReceivelnk_') >= 0)
+                    return false;
+
+                $('#DivLoading').show();
+                BlankSession();
+
+                var quoteid = linkid.split('_')[1];
+                var tr = $(this).parent().parent();
+                $("#myDataTable").find("tbody tr").removeClass("row_selected");
+                $(tr).addClass('row_selected');
+
+                ShowEditTab('QuoteEdit/' + quoteid, 'frmQuote');
+                return false;
+            });
+
+            $('#actionCloseQuote').click(function () {
+
+            var anSelected = fnGetSelected(oTable);
+            var cntIDs = 0;
+            for (var i = 0; i <= anSelected.length - 1; i++) {
+                var aData = oTable.fnGetData(anSelected[i]);
+                if (parseInt(aData.QuoteStatus) != parseInt("@((int)QuoteStatus.Closed)")) {
+                    cntIDs = cntIDs + 1;
+                }
+
+            }
+            if (cntIDs > 0) {
+                $('#QuoteListCloseConfirm').modal();
+            }
+            else {
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon').text("Please select at least one un-closed quotes to perform the operation.");
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            }
+        });
+
+            $('#bntCloseQuoteListConfirmYes').click(function () {
+
+            $('#DivLoading').show();
+            var anSelected = fnGetSelected(oTable);
+            var stringIDs = "";
+            var cntIDs = 0;
+
+            if (anSelected.length !== 0) {
+                for (var i = 0; i <= anSelected.length - 1; i++) {
+                    var aData = oTable.fnGetData(anSelected[i]);
+                    if (parseInt(aData.QuoteStatus) != parseInt("@((int)QuoteStatus.Closed)")) {
+                        stringIDs = stringIDs + aData.ID + ",";
+                        cntIDs = cntIDs + 1;
+                    }
+                }
+
+                if (cntIDs > 0) {
+                    $.ajax({
+                        url: '@Url.Action("CloseQuotes", "Quote")',
+                        type: "POST",
+                        data: { Ids: stringIDs },
+                        success: function (responce) {
+                            if (responce.Status == "ok") {
+                                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon').text("Record(" + cntIDs + ") closed successfully.");
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                                oTable.fnDraw();
+                            }
+                            else {
+                                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon').text("There is some error to perform operation.");
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            }
+                            closeModalCloseQuoteListDialog();
+                        },
+                        error: function (err) {
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon').text(responce.Message);
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        }
+                    });
+                }
+                else {
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon').text("Please select at least one un-closed quotes to perform the operation.");
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    closeModalCloseQuoteListDialog();
+                    $('#DivLoading').hide();
+                }
+
+            }
+        });
+
+            var lastChecked;
+            $("#myDataTable").on("tap click", "tbody tr", function (e) {
+                
+                if (e.target.type == "checkbox" || e.target.type == "select" || e.target.type == "radio" || e.target.type == "button") {
+                    e.stopPropagation();
+                } else {
+                    if (IsDeleteItemPictureViewRecord)
+                        $(this).parent().parent().parent().parent().parent().toggleClass('row_selected');
+                    else {
+
+                        if (!lastChecked) {
+                            lastChecked = this;
+                        }
+                        if (e.shiftKey) {
+                            var start = $('#myDataTable tbody tr').index(this);
+                            var end = $('#myDataTable tbody tr').index(lastChecked);
+
+                            for (i = Math.min(start, end); i <= Math.max(start, end); i++) {
+                                if (!$('#myDataTable tbody tr').eq(i).hasClass('row_selected')) {
+                                    $('#myDataTable tbody tr').eq(i).addClass("row_selected");
+                                }
+                            }
+                            if (window.getSelection) {
+                                if (window.getSelection().empty) {  // Chrome
+                                    window.getSelection().empty();
+                                } else if (window.getSelection().removeAllRanges) {  // Firefox
+                                    window.getSelection().removeAllRanges();
+                                }
+                            } else if (document.selection) {  // IE?
+                                document.selection.empty();
+                            }
+                        } else if ((e.metaKey || e.ctrlKey)) {
+                            $(this).toggleClass('row_selected');
+                        } else {
+                            $(this).toggleClass('row_selected');
+                        }
+
+                        lastChecked = this;
+                    }
+                    setCurrentRow();
+                    ShowHideQuoteChangeLog();
+                    return false;
+                }
+            });
+
+        });
+
+        function ShowHideQuoteChangeLog() {
+            var $tab6 = $("#tab6");
+            if ($tab6.length <= 0) {
+                return false;
+            }
+
+            var anSelectedRows = fnGetSelected(oTable);
+            if (anSelectedRows != null) {
+                if (anSelectedRows.length == 1) {
+                    $tab6.show();
+                }
+                else {
+                    if (IsShowHistory) {
+                        $tab6.show();
+                        IsShowHistory = false;
+                    }
+                    else {
+                        $tab6.hide();
+                    }
+                }
+            }
+        }
+
+        function setCurrentRow() {
+           
+            var anSelectedRows = fnGetSelected(oTable);
+            $('#divEditQuoteLineItem').css('display', 'none');
+
+            if (anSelectedRows.length == 1) {
+                
+                var rawData = oTable.fnGetData(anSelectedRows[0]);
+                var qstatus = rawData.QuoteStatus; //$(anSelectedRows).find('#spnOrderStatus').text();
+                var isDeleted = rawData.IsDeleted // $(anSelectedRows).find('#spnIsDeleted').text();
+                var vNoOfItem = rawData.NoOfLineItems;  //$(anSelectedRows).find('#spnhdnNoOfItem').text();
+
+                if ((parseInt(qstatus) >= parseInt("@((int)QuoteStatus.Transmitted)") && parseInt(qstatus) <= parseInt("@((int)QuoteStatus.TransmittedInCompletePastDue)")) && isDeleted != 'Yes' ) {
+                    if (parseInt(qstatus) == parseInt("@((int)QuoteStatus.Transmitted)") && '@isChangeQuote' == 'True') {
+                        $("#btnChangeQuote").css('display', '');
+                        $('#btnChangeQuote').parent().css('right', '150px');
+                    }
+                }
+                else {
+                    $("#btnChangeQuote").css('display', 'none');
+                    $('#btnChangeQuote').parent().css('right', '208px');
+                    $("#btnChangeQuote").removeAttr("onclick");
+
+                    if (parseInt(qstatus) == parseInt("@((int)QuoteStatus.Closed)")) {
+                        $('#divEditQuoteLineItem').css('display', '');
+
+                        if (vNoOfItem > 0) {
+                            $("#bntEditQuoteLineItemsFromList").show();
+                        }
+                        else {
+                            $("#bntEditQuoteLineItemsFromList").hide();
+                        }
+                    }
+                }
+            }
+            else {
+                $("#btnChangeQuote").css('display', 'none');
+                $('#btnChangeQuote').parent().css('right', '208px');
+                $("#btnChangeQuote").removeAttr("onclick");
+            }
+        }
+
+        function setCloseButton() {
+            $('#divEditQuoteLineItem').css('display', 'none');
+        }
+
+        function getParameterByName(name) {
+            name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+            var regexS = "[\\?&]" + name + "=([^&#]*)";
+            var regex = new RegExp(regexS);
+            var results = regex.exec(window.location.search);
+            if (results == null)
+                return "";
+            else
+                return decodeURIComponent(results[1].replace(/\+/g, " "));
+        }
+
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+        function HistoryTabClick() {
+            GetHistoryData();
+        }
+        function GetHistoryData() {
+            showHideDeleteUndelete();
+            HistorySelected = fnGetSelected(oTable);
+
+            if (HistorySelected != undefined && HistorySelected.length == 1)
+            {
+                var rawData = oTable.fnGetData(HistorySelected[0]);
+
+                if (rawData != null && typeof (rawData) != "undefined" && rawData.ID != null && typeof (rawData.ID) != "undefined" && rawData.ID > 0)
+                {
+                    SelectedHistoryRecordID = rawData.ID;
+                }
+
+                $('#DivLoading').show();
+                $("#CTab").hide();
+                $("#CtabCL").show();
+                $('#CtabCL').load('QuoteMasterHistory', function () { $('#DivLoading').hide(); });
+            }
+            else {
+                $('#CtabCL').html('');
+                $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                return false;
+            }
+        }
+
+        function SwitchQuoteTab(action, frmName) {
+            isDirtyForm = false;
+            if (!dirtyCheck()) {
+                return false;
+            }
+            else {
+                removeDirtyclass();
+            }
+            if (HasInsertPermission == "False") {
+                $('#tab1').hide();
+            }
+            $('#tab1').find("#spnTabName").text(NewNameRes);
+            AllowDeletePopup = true;
+            $("#" + CurrentListTabID).click();
+            $('#CtabNew').hide();
+            if (IsRefreshGrid) {
+                IsRefreshGrid = false;
+                oTable.fnDraw();
+            }
+        }
+
+        function BlankSession(ID) {
+        $.ajax({
+            url: '@Url.Content("~/ProjectSpend/BlankSession")'
+                                    , type: 'GET'
+                                    , contentType: "application/json"
+                                    , success: function (result) {
+                                    },
+            error: function (msg) {
+            }
+        });
+    }
+        $(document).on('click', 'a#ancHideShowContent', function () {
+            if ($('#ExpandedContent').css('display') == 'none') {
+                $('#ExpandedContent').css('display', '');
+                $('#ancHideShowContent img').attr('src', '/Content/images/drildown_close.jpg');
+            }
+            else {
+                $('#ExpandedContent').css('display', 'none');
+                $('#ancHideShowContent img').attr('src', '/Content/images/drildown_open.jpg');
+            }
+        });
+
+        $('#deleteRows').click(function (e) {
+
+            if ($("body").hasClass('DTTT_Print')) {
+                return false;
+            }
+            //var deleteURL = "/Quote/DeleteQuoteMasterRecords";
+            var anSelectedQuotes = fnGetSelected(oTable);
+            var stringQuoteIDs = "";
+            if (anSelectedQuotes.length == 0) {
+                //$("#spanGlobalMessage").html("Only UnSubmitted / Submitted record(s) can be deleted.");
+                $("#spanGlobalMessage").html('@eTurns.DTO.ResQuoteMaster.SelectAtleaseOneQuote');
+                showNotificationDialog();
+                e.preventDefault();
+            }
+
+            for (var i = 0; i <= anSelectedQuotes.length - 1; i++) {
+                var rawData = oTable.fnGetData(anSelected[i]);
+                if (rawData != null && typeof (rawData) != "undefined" && rawData.IsAbleToDelete != null && typeof (rawData.IsAbleToDelete) != "undefined"
+                    && rawData.IsAbleToDelete == true)
+                {
+                    stringQuoteIDs += rawData.ID + ",";
+                }
+            }
+
+            if (stringQuoteIDs.length > 0) {
+                $('#basic-modal-content').modal();
+                IsDeletePopupOpen = true;
+            }
+            else
+            {
+                IsDeletePopupOpen = false;
+                $("#spanGlobalMessage").html('@eTurns.DTO.ResQuoteMaster.SelectAtleaseOneQuote');
+                showNotificationDialog();
+            }
+    });
+
+    </script>
+}
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResQuoteMaster.PageHeader
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <input type="hidden" id="hdnModuleName" name="hdnModuleName" value="Quote" />
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener" style="min-height: 1020px;">
+        </div>
+        <div id="Ctab" class="tabContener" style="min-height: 1020px;">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Quote)
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            <div class="userContent ">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Expand
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResQuoteMaster.QuoteNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResQuoteMaster.ReleaseNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResQuoteMaster.Comment
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResQuoteMaster.RequiredDate
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResQuoteMaster.QuoteStatus
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResQuoteMaster.NoOfLineItems
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResQuoteMaster.QuoteCost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResQuoteMaster.ChangeQuoteRevisionNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RoomName
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResQuoteMaster.Supplier
+                            </th>
+                            @Html.RenderColumnsHeader("QuoteMaster", typeof(eTurns.DTO.ResQuoteMaster))
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <br />
+                @if (isUncloseQuote)
+                {
+                    <div class="BtnBlockform" id="divEditQuoteLineItem" style="display: none">
+                        <input type="button" value="@eTurns.DTO.ResQuoteMaster.EditQuoteLineItems" id="bntEditQuoteLineItemsFromList" class="CreateBtn" />                    
+                        <input type="button" value="@ResQuoteMaster.UncloseQuote" id="btnUnclosedQuote" class="CreateBtn" />
+                    </div>
+                }
+                <div id="divQTYLegends" style="clear: both; width: 90%; margin-top: 10px; display: none">
+                    <div>
+                        U = @ResQuoteMaster.GetQuoteStatusText(QuoteStatus.UnSubmitted.ToString()), S = @ResQuoteMaster.GetQuoteStatusText(QuoteStatus.Submitted.ToString()), A = @ResQuoteMaster.GetQuoteStatusText(QuoteStatus.Approved.ToString()), T = @ResQuoteMaster.GetQuoteStatusText(QuoteStatus.Transmitted.ToString()), I = @ResQuoteMaster.GetQuoteStatusText(QuoteStatus.TransmittedIncomplete.ToString()),
+                        P = @ResQuoteMaster.GetQuoteStatusText(QuoteStatus.TransmittedInCompletePastDue.ToString()), C = @ResQuoteMaster.GetQuoteStatusText(QuoteStatus.Closed.ToString())
+                    </div>
+                </div>
+            </div>
+        </div>
+        <input type="button" id="btnSendPendingOrderMail" value="Send Mail" style="display: none"
+               class="CreateBtn" />
+        <input type="button" id="btnShowOrderReports" value="Show Order Report With Detail"
+               style="display: none" class="CreateBtn" />
+        <input type="button" id="btnUpdateOrderNumberForSorting" value="Update Order# Sorting"
+               style="display: none" class="CreateBtn" />
+        <div id="CtabCL" class="tabContener" style="min-height: 1020px;">
+        </div>
+    </div>
+
+</div>
+<div class="dialog" id="QuoteListCloseConfirm" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            Are you sure you want to close selected quote(s)?
+        </p>
+        <a href="JavaScript:void(0)" id="bntCloseQuoteListConfirmYes" class="yes yesornooryes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no" onclick="closeModalCloseQuoteListDialog();">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<script type="text/javascript">
+    var LastTab = '';
+    var isTabClick = false;
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab2', '@eTurns.DTO.Resources.ResCommon.Unsubmitted', 'callbackUnS();', true, true, 0, 'divUnsubmitted'),
+        new TabClass('tab3', '@eTurns.DTO.Resources.ResCommon.Approved', 'callbackAprv();', true, true, 0, 'divSubmittted'),
+        new TabClass('tab4', '@eTurns.DTO.ResQuoteMaster.ChangeQuote', 'callbackChangeQuote();', true, true, 0, 'divApproved'),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.History', 'callbackhistory();', true, true),
+
+    ];
+    if ('@IsShowChangeLog.ToString().ToUpper()' == 'TRUE') {
+        TabsArry.push(new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true));
+    }
+
+    function callbacknew() { window.location.hash = '#new'; ShowNewTab('QuoteCreate', 'frmQuote'); }
+    function callbackUnS()
+    {
+
+        RequisitionCurrentTab = 'Unsubmitted';
+        window.location.hash = '#Unsubmitted';
+        setHeader();
+        IsRefreshGrid = true;
+        IsNarrowSearchRefreshRequired = true;
+        QuoteNarrowFilterString = '';
+        FilterRecordsByStatus('Unsubmitted');
+        clearQuoteMasterNarrowSearchSelectionForTabClick();
+        CallQuoteMasterNarrowFunctions();
+        SetFocus();
+        CurrentListTabID = 'tab2';
+        showHideDeleteUndelete();
+    }
+
+    function callbackAprv()
+    {
+
+        RequisitionCurrentTab = 'Submitted';
+        window.location.hash = '#Submitted';
+        setHeader();
+        IsRefreshGrid = true;
+        IsNarrowSearchRefreshRequired = true;
+        QuoteNarrowFilterString = '';
+        FilterRecordsByStatus('Submitted');
+        clearQuoteMasterNarrowSearchSelectionForTabClick();//clearQuoteMasterNarrowSearchSelection();
+        CallNarrowfunctions();
+        CallQuoteMasterNarrowFunctions();
+        SetFocus();
+        CurrentListTabID = 'tab3';
+        showHideDeleteUndelete();
+    }
+
+    function callbackChangeQuote()
+    {
+
+        window.location.hash = '#ChangeQuote';
+        setHeader();
+        IsRefreshGrid = true;
+        IsNarrowSearchRefreshRequired = true;
+        QuoteNarrowFilterString = '';
+        FilterRecordsByStatus('ChangeQuote');
+        RequisitionCurrentTab = 'ChangeQuote';
+        clearQuoteMasterNarrowSearchSelectionForTabClick();//clearQuoteMasterNarrowSearchSelection();
+        CallNarrowfunctions();
+        CallQuoteMasterNarrowFunctions();
+        SetFocus();
+        CurrentListTabID = 'tab4';
+        showHideDeleteUndelete();
+    }
+
+    function callbackhistory()
+    {
+
+        LastTab = window.location.hash;
+        window.location.hash = '#list';
+        showHideDeleteUndelete();
+
+        if (LastTab != '#list' && LastTab != '') {
+            QuoteNarrowFilterString = "";
+        }
+        setHeader();
+        if (QuoteNarrowFilterString != '') {
+            IsRefreshGrid = false;
+            IsNarrowSearchRefreshRequired = false;
+        }
+        else {
+            IsRefreshGrid = true;
+            IsNarrowSearchRefreshRequired = true;
+            FilterRecordsByStatus('All');
+        }
+        RequisitionCurrentTab = 'All';
+
+        if (QuoteNarrowFilterString != '') {
+            IsRefreshGrid = false;
+            IsNarrowSearchRefreshRequired = false;
+            $('#myDataTable').dataTable().fnFilter(QuoteNarrowFilterString, null, null, null);
+        }
+        else {
+            IsRefreshGrid = true;
+            IsNarrowSearchRefreshRequired = true;
+            clearQuoteMasterNarrowSearchSelectionForTabClick();//clearQuoteMasterNarrowSearchSelection();
+            CallNarrowfunctions();
+            CallQuoteMasterNarrowFunctions();
+        }
+        CurrentListTabID = 'tab5';
+        SetFocus();
+    }
+
+    function showHideDeleteUndelete()
+    {
+
+        $('#deleteRows').css('display', '');
+        if ($('#IsDeletedRecords').is(':checked')) {
+            $('#undeleteRows').css('display', '');
+            $('#deleteRows').css('display', 'none');
+            $(".print").attr("style", "display:none");
+        }
+        else {
+            $('#undeleteRows').css('display', 'none');
+            $('#deleteRows').css('display', '');
+            $(".print").attr("style", "display:block");
+        }
+    }
+
+    function callbackCL()
+    {
+        window.location.hash = '';
+        setHeader();
+        IsRefreshGrid = true;
+        IsNarrowSearchRefreshRequired = true;
+        QuoteNarrowFilterString = '';
+        HistoryTabClick();
+        SetFocus();
+        CurrentListTabID = 'tab6';
+    }
+
+    function setHeader() {
+        $('.dataTables_length').attr('style', 'left:0;top:-35px !important');
+        $('.dataTables_paginate').attr('style', 'left: 145px;top:-24px !important');
+    }
+    function SetFocus() {
+        if ($("input#global_filter").length > 0) {
+            $("input#global_filter").focus();
+            setTimeout(function () {
+                $("input#global_filter").focus();
+            }, 600);
+        }
+        if ($("input.searchinput").length > 0) {
+            $("input.searchinput").focus();
+            setTimeout(function () {
+                $("input.searchinput").focus();
+            }, 600);
+
+        }
+    }
+    function FilterRecordsByStatus(StatusValue) {
+        var searchtext = StatusValue.replace(/'/g, "''");
+        if (StatusValue == 'All' && typeof (QuoteNarrowFilterString) != "undefined" && QuoteNarrowFilterString != null && QuoteNarrowFilterString != '') {
+            searchtext = QuoteNarrowFilterString;
+        }
+        RequisitionTabFilter = "[####]" + searchtext;
+        //var globalSearch = $("#global_filter").val().replace(/'/g, "''");
+        //if (globalSearch == '')
+        //    RequisitionTabFilter = "[####]" + searchtext;
+        //else {
+        //    RequisitionTabFilter = globalSearch + "[####]" + searchtext;
+        //}
+        bIsFilter = true;
+        $('#myDataTable').dataTable().fnFilter(
+                            RequisitionTabFilter,
+                            null,
+                            null,
+                            null
+                        );
+        SetReplenishRedCount();
+    }
+    function SetSize() {
+        if ($(".tabs").height() > 350) {
+            $('#Ctab').css("height", $(".tabs").height());
+            $('#CtabNew').css("height", $(".tabs").height());
+            $('#CtabCL').css("height", $(".tabs").height());
+        }
+    }
+
+    function SetTabView() {
+
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+            case "#unsubmitted":
+                $("#tab2").click();
+                break
+            case "#submitted":
+                $("#tab3").click();
+                break
+            case "#ChangeQuote":
+                $("#tab4").click();
+                break;
+        }
+        $('#deleteRows').css('display', '');
+        if ($('#IsDeletedRecords').is(':checked')) {
+            $('#undeleteRows').css('display', '');
+            $('#deleteRows').css('display', 'none');
+        }
+        else {
+            $('#undeleteRows').css('display', 'none');
+            $('#deleteRows').css('display', '');
+        }
+
+        if ($('#IsArchivedRecords').is(':checked')) {
+            $('#aUnArchiveRows').css('display', '');
+            $('#aArchiveRows').css('display', 'none');
+        }
+        else {
+            $('#aUnArchiveRows').css('display', 'none');
+            $('#aArchiveRows').css('display', '');
+        }
+
+        if ($('#IsDeletedRecords').is(':checked')
+            || $('#IsArchivedRecords').is(':checked')) {
+            $(".print").attr("style", "display:none");
+        }
+        else {
+            $(".print").attr("style", "display:block");
+        }
+        //if (tabname == "#closed") {
+        //    $('#deleteRows').css('display', 'none');
+        //    $('#undeleteRows').css('display', 'none');
+        //}
+    }
+
+    $('#bntEditQuoteLineItemsFromList').off('click');
+    $('#bntEditQuoteLineItemsFromList').on('click', function () {
+        ClickFrom = '';
+        var anSelectedRows = fnGetSelected(oTable);
+        if (anSelectedRows.length <= 0) {
+            alert('@ResQuoteMaster.MsgSelectClosedQuotes');
+            return false;
+        }
+        ////$('#divUnCloseOrderLineItemEdit').modal();
+        ////$('.simplemodal-close').css('display', 'none');
+        var rawData = oTable.fnGetData(anSelectedRows[0]);
+        var closdeQuoteId = rawData.ID
+        $('#divEditQuoteLineItem').css("display", "none");
+        ShowEditTab('QuoteEdit/' + closdeQuoteId + '?callfor=editQuoteItem', 'frmQuote');
+    });
+
+    $('#btnUnclosedQuote').off('click');
+    $('#btnUnclosedQuote').on('click', function () {
+        var anSelectedRows = fnGetSelected(oTable);
+        if (anSelectedRows.length == 1) {
+            /*
+            QuoteGUID = $(anSelectedRows[0]).find('#spnQuoteGUID').text();
+            $.ajax({
+                url: 'ToUnclosedQuote',
+                'type': 'Post',
+                'data': { 'QuoteGuid': QuoteGUID },
+                'dataType': 'json',
+                //'contentType': 'application/json',
+                'success': function (result) {
+                    if (result.Status) {
+                        oTable.fnStandingRedraw();
+                    }
+                    else {
+                        alert(result.Message);
+                    }
+                },
+                'error': function (xhr) {
+                    alert('ajaxError');
+                }
+
+            });
+            */
+            
+            var rawData = oTable.fnGetData(anSelectedRows[0]);
+            var closdeQuoteId = rawData.ID
+            ShowEditTab('QuoteEdit/' + closdeQuoteId + '?callfor=UnCloseQuote', 'frmQuote');
+        }
+    });
+
+    $(document).ready(function () {
+            var ShowEdittabonLoad = '@Request.Params["FromItem"]';
+            var QID = '@Request.Params["QID"]';;
+            //var qStatus = '@Request.Params["QuoteStatus"]';;
+
+            if (ShowEdittabonLoad == 'true' && QID != null && typeof (QID) != "undefined" && (parseInt(QID) || 0) > 0) {
+                ShowEditTab('QuoteEdit/' + QID, 'frmQuote');
+                //if (parseInt(oStatus) < 4)
+                //    ShowEditTab("OrderEdit/" + OID, "frmOrder");
+                //else {
+                //    LoadReceiveTab("OrderEdit/" + OID, "frmOrder")
+                //}
+            }
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+    });
+
+    function closeModalCloseQuoteListDialog() {
+        $.modal.impl.close();
+    }
+
+</script>

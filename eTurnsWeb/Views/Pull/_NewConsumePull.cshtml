@@ -1,0 +1,3522 @@
+@model eTurnsWeb.Models.ItemModelPerameter
+@using System.Linq;
+@{
+    var settings = new GridHeaderSettings() { DisplayContextMenu = true, DisplayPrintBlock = false, DisplayDeleteButton = false, dataViewType = DataViewType.None, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = true, ShowSelectAll = true, ColumnSetupFor = "ItemMasterModelList", ModuleName = "NewPull" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ItemMaster", ItemModelCallFromPageName = "NewPULL" };
+    if (Model.ModelHeader.ToLower().Contains("add items to order"))
+    {
+        modelCommon.Text = "Order";
+    }
+    else if (Model.ModelHeader.ToLower().Contains("add kit component to kit"))
+    {
+        modelCommon.Text = "Kit";
+    }
+    else
+    {
+        modelCommon.Text = "eTurns";
+    }
+    string ViewNewPullbuttons = Convert.ToString(System.Configuration.ConfigurationManager.AppSettings["ViewNewPullbuttons"]);
+    if (string.IsNullOrWhiteSpace(ViewNewPullbuttons))
+    {
+        ViewNewPullbuttons = "no";
+    }
+
+
+    bool ProjectSpendAvailable = false;
+    eTurns.DAL.ProjectMasterDAL objProjDAL = new eTurns.DAL.ProjectMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    ProjectSpendAvailable = objProjDAL.GetAllRecords(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, false, false).Count() > 0;
+    bool ProjectSpendVisible = false;
+    eTurns.DAL.RoomDAL objRoomDAL = new eTurns.DAL.RoomDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    ProjectSpendVisible = objRoomDAL.checkProjectSpendMandatorybyId(eTurnsWeb.Helper.SessionHelper.RoomID);
+
+
+    string UDF1Text = eTurnsWeb.Helper.ResourceUtils.GetResource("ResPullMaster", "UDF1", true);
+    string UDF2Text = eTurnsWeb.Helper.ResourceUtils.GetResource("ResPullMaster", "UDF2", true);
+    string UDF3Text = eTurnsWeb.Helper.ResourceUtils.GetResource("ResPullMaster", "UDF3", true);
+    string UDF4Text = eTurnsWeb.Helper.ResourceUtils.GetResource("ResPullMaster", "UDF4", true);
+    string UDF5Text = eTurnsWeb.Helper.ResourceUtils.GetResource("ResPullMaster", "UDF5", true);
+
+    bool UDF1IsRequired = Html.GetUdfIsRequiredStatus("PullMaster", "UDF1");
+    bool UDF2IsRequired = Html.GetUdfIsRequiredStatus("PullMaster", "UDF2");
+    bool UDF3IsRequired = Html.GetUdfIsRequiredStatus("PullMaster", "UDF3");
+    bool UDF4IsRequired = Html.GetUdfIsRequiredStatus("PullMaster", "UDF4");
+    bool UDF5IsRequired = Html.GetUdfIsRequiredStatus("PullMaster", "UDF5");
+
+
+    Int64 UDFSetUpCount = Html.GetUFDSetupCountTableWise("PullMaster");
+
+    objProjDAL = null;
+
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+
+    bool isPullUDF = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetAllRecords(eTurnsWeb.Helper.SessionHelper.CompanyID, "PullMaster", eTurnsWeb.Helper.SessionHelper.RoomID).Where(x => !x.IsDeleted && x.UDFControlType != null).Count() > 0;
+    string PullsPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Pulls.pdf", DateTime.Now.Ticks);
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+
+    eTurns.DAL.ProjectMasterDAL objDAL = null;
+    ProjectMasterDTO lstDTO = null;
+    Int64 RoomID = eTurnsWeb.Helper.SessionHelper.RoomID;
+    Int64 CompanyID = eTurnsWeb.Helper.SessionHelper.CompanyID;
+    objDAL = new eTurns.DAL.ProjectMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    lstDTO = objDAL.GetDefaultProjectSpendRecord(RoomID, CompanyID, false, false);
+    string ProjectSpendName = string.Empty;
+    Guid? ProjectSpendGuid = null;
+    if (lstDTO != null)
+    {
+        ProjectSpendName = lstDTO.ProjectSpendName;
+        ProjectSpendGuid = lstDTO.GUID;
+    }
+    else
+    {
+        ProjectSpendName = string.Empty;
+        ProjectSpendGuid = null;
+    }
+
+
+}
+<link rel="stylesheet" type="text/css" href="@Url.Content("~/Scripts/select2.css")" />
+<script type="text/javascript" src="@Url.Content("~/Scripts/select2.js")"></script>
+<script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js")"></script>
+<script language="javascript" type="text/javascript">
+    var NoofUDFCount = '@UDFSetUpCount';
+    var isCost = '@isCost';
+    var IsRefreshGrid = false;
+    var oTableItemModel = null;
+    var objColumns = {};
+    var oTable;
+    var ProjectSpendClass = "read_only";
+    var ProjectSpendVisible = false;
+    var isDeleteSrLotRow = false;
+    var PullItemQuantityUrl = '@Url.Action("PullItemQuantity", "Pull")';
+    var BoolTrueString = '@Boolean.TrueString';
+    var PullLotSrSelectionUrl = '@Url.Content("~/Pull/PullLotSrSelection")';
+    var ValidateSerialLotNumberUrl = '@Url.Action("ValidateSerialLotNumber", "Pull")';
+    var PullSerialsAndLotsUrl = '@Url.Action("PullSerialsAndLots", "Pull")';
+    var PullSerialsAndLotsNewUrl = '@Url.Action("PullSerialsAndLotsNew", "Pull")';
+    var vWorkOrderDetailGUID = '';
+    var UDF1Index = '';
+    var UDF2Index = '';
+    var UDF3Index = '';
+    var UDF4Index = '';
+    var UDF5Index = '';
+    var ProjectSpendNameSCR = '';
+    var ProjectSpendGuidSCR = '';
+    var PullItemListColumnsArr = new Array();
+
+    PullItemListColumnsArr.push({ mDataProp: null, sClass: "read_only control center NotHide RowNo", "bSortable": false, sDefaultContent: '' });
+    PullItemListColumnsArr.push({
+        "mDataProp": null,
+        "sClass": "read_only control center NotHide NotMovable",
+        "bSortable": false,
+        "sDefaultContent": '<img id="imgQty" src="' + sImageUrl + 'drildown_open.jpg' + '">'
+        , "fnRender": function (obj, val) {
+            if (obj.aData.QuickListGUID == null || obj.aData.QuickListGUID == '') {
+                if ($('#NewPullAction').val() == "Pull") {
+                    if ('@ViewNewPullbuttons' == 'no') {
+                        return "<input type='button' value='Pull' onclick='return AddSingleItemToPullList(this);enablePullbutton();' id='btnAdd' class='CreateBtn pullbutton' style='float: none;padding: 2px 6px;margin-left: 5px;' />" + "<span id='spnItemID' style='display:none'>" + obj.aData.ID + "</span>" + "<span id='spnItemGUID' style='display:none'>" + obj.aData.GUID + "</span><span id='spnOn_HandQuantity' style='display:none'>" + obj.aData.OnHandQuantity + "</span>" + "<span id='spnOrderItemType'  style='display:none'>" + obj.aData.ItemType + "</span>";
+                    }
+                    else {
+                        if (obj.aData.SerialNumberTracking == true || obj.aData.LotNumberTracking == true || obj.aData.DateCodeTracking == true) {
+                            return "<input type='button' value='Pull' onclick='return OpenPullPopup(this);' id='btnAdd' class='CreateBtn pullbutton' style='float: none;padding: 2px 6px;margin-left: 5px;' />" + "<span id='spnItemID' style='display:none'>" + obj.aData.ID + "</span>" + "<span id='spnItemGUID' style='display:none'>" + obj.aData.GUID + "</span><span id='spnOn_HandQuantity' style='display:none'>" + obj.aData.OnHandQuantity + "</span>" + "<span id='spnOrderItemType'  style='display:none'>" + obj.aData.ItemType + "</span>";
+                        }
+                        else {
+                            return "<input type='button' value='Pull' onclick='return AddSingleItemToPullList(this);enablePullbutton();' id='btnAdd' class='CreateBtn pullbutton' style='float: none;padding: 2px 6px;margin-left: 5px;' />" + "<span id='spnItemID' style='display:none'>" + obj.aData.ID + "</span>" + "<span id='spnItemGUID' style='display:none'>" + obj.aData.GUID + "</span><span id='spnOn_HandQuantity' style='display:none'>" + obj.aData.OnHandQuantity + "</span>" + "<span id='spnOrderItemType'  style='display:none'>" + obj.aData.ItemType + "</span>";
+                        }
+                    }
+                }
+                else if ($('#NewPullAction').val() == "Credit") {
+                    return "<input type='button' value='Credit' onclick='return CreditItems(this);' id='btnAdd' class='CreateBtn pullbutton' style='float: none;padding: 2px 6px;margin-left: 5px;' />" + "<span id='spnItemID' style='display:none'>" + obj.aData.ID + "</span>" + "<span id='spnItemGUID' style='display:none'>" + obj.aData.GUID + "</span><span id='spnOn_HandQuantity' style='display:none'>" + obj.aData.OnHandQuantity + "</span>" + "<span id='spnOrderItemType'  style='display:none'>" + obj.aData.ItemType + "</span>";
+                    // if (obj.aData.SerialNumberTracking == true || obj.aData.LotNumberTracking == true || obj.aData.DateCodeTracking == true) {
+                    //     return "<input type='button' value='Credit' onclick='return OpenCreditPopup(this);' id='btnAdd' class='CreateBtn pullbutton' style='float: none;padding: 2px 6px;margin-left: 5px;' />" + "<span id='spnItemID' style='display:none'>" + obj.aData.ID + "</span>" + "<span id='spnItemGUID' style='display:none'>" + obj.aData.GUID + "</span><span id='spnOn_HandQuantity' style='display:none'>" + obj.aData.OnHandQuantity + "</span>" + "<span id='spnOrderItemType'  style='display:none'>" + obj.aData.ItemType + "</span>";
+                    // }
+                    // else {
+                    //     return "<input type='button' value='Credit' onclick='return AddSingleItemToPullList(this);enablePullbutton();' id='btnAdd' class='CreateBtn pullbutton' style='float: none;padding: 2px 6px;margin-left: 5px;' />" + "<span id='spnItemID' style='display:none'>" + obj.aData.ID + "</span>" + "<span id='spnItemGUID' style='display:none'>" + obj.aData.GUID + "</span><span id='spnOn_HandQuantity' style='display:none'>" + obj.aData.OnHandQuantity + "</span>" + "<span id='spnOrderItemType'  style='display:none'>" + obj.aData.ItemType + "</span><span id='spnIsConsignment'  style='display:none'>" + obj.aData.Consignment + "</span>";
+                    // }
+                }
+                else if ($('#NewPullAction').val() == "CreditMS")
+                    return "<input type='button' value='Credit MS'  onclick='return AddSingleItemToPullList(this);enablePullbutton();' id='btnAdd' class='CreateBtn pullbutton' style='float: none;padding: 2px 6px;margin-left: 5px;' />" + "<span id='spnItemID' style='display:none'>" + obj.aData.ID + "</span>" + "<span id='spnItemGUID' style='display:none'>" + obj.aData.GUID + "</span><span id='spnOn_HandQuantity' style='display:none'>" + obj.aData.OnHandQuantity + "</span>" + "<span id='spnOrderItemType'  style='display:none'>" + obj.aData.ItemType + "</span>";
+                else
+                    return "";
+            }
+            else {
+                if ($('#NewPullAction').val() == "Pull") {
+                    return "<input type='button' value='Pull' onclick='return LoadQuickListData(this);enablePullbutton();' id='btnLoad' class='CreateBtn pullbutton' style='float: none;padding: 2px 6px;margin-left: 5px;' />" + "<span id='spnQuickListGUID'  style='display:none'>" + obj.aData.QuickListGUID + "</span>" + "<span id='spnOrderItemType'  style='display:none'>" + obj.aData.ItemType + "</span>";;
+                }
+                else if ($('#NewPullAction').val() == "Credit") {
+                    //return "<input type='button' value='Credit' onclick='return LoadQuickListData(this);enablePullbutton();' id='btnAdd' class='CreateBtn pullbutton' style='float: none;padding: 2px 6px;margin-left: 5px;' />" + "<span id='spnQuickListGUID'  style='display:none'>" + obj.aData.QuickListGUID + "</span>"+ "<span id='spnOrderItemType'  style='display:none'>" + obj.aData.ItemType + "</span>";
+                    return "<input type='button' value='Credit' onclick='return CreditItems(this);' id='btnAdd' class='CreateBtn pullbutton' style='float: none;padding: 2px 6px;margin-left: 5px;' />" + "<span id='spnQuickListGUID'  style='display:none'>" + obj.aData.QuickListGUID + "</span>" + "<span id='spnOrderItemType'  style='display:none'>" + obj.aData.ItemType + "</span>";
+                }
+                else if ($('#NewPullAction').val() == "CreditMS") {
+                    return "<input type='button' value='Credit MS' onclick='return LoadQuickListData(this);enablePullbutton();' id='btnLoad' class='CreateBtn pullbutton' style='float: none;padding: 2px 6px;margin-left: 5px;' />" + "<span id='spnQuickListGUID'  style='display:none'>" + obj.aData.QuickListGUID + "</span>" + "<span id='spnOrderItemType'  style='display:none'>" + obj.aData.ItemType + "</span>";;
+                }
+                else
+                    return "";
+            }
+        }
+    });
+    PullItemListColumnsArr.push({ "mDataProp": "ID", "sClass": "read_only" },
+                            {
+                                "mDataProp": null,
+                                "bSortable": false,
+                                "sClass": "read_only control center NotHide",
+                                "sDefaultContent": '<img id="imgQty" src="' + sImageUrl + 'drildown_open.jpg' + '">',
+                                "fnRender": function (obj, val) {
+
+                                    if ($('#NewPullAction').val() == "Credit" || $('#NewPullAction').val() == "CreditMS") {
+
+                                        if (obj.aData.QLCreditQuantity != null) {
+                                            var QuantityToCredit = 0;
+                                            if (QuickListPULLQty > 0)
+                                                QuantityToCredit = obj.aData.QLCreditQuantity * QuickListPULLQty;
+                                            else
+                                                QuantityToCredit = obj.aData.QLCreditQuantity;
+                                            return "<input maxlength='10' type='text' value='" + QuantityToCredit + "' class='text-boxinner text-boxQuantityFormatSR numericalign' id='txtQty' style='width:60px;' />";
+                                        }
+                                        else {
+                                            return "<input maxlength='10' type='text' value='0' class='text-boxinner text-boxQuantityFormatSR numericalign' id='txtQty' style='width:60px;' />";
+                                        }
+                                    }
+                                    else {
+                                        if (obj.aData.QuickListGUID == null || obj.aData.QuickListGUID == '') {
+                                            var vStrReturn = "";
+                                            if (obj.aData.SerialNumberTracking == true) {
+                                                var DefaultPullQTy = obj.aData.DefaultPullQuantity;
+                                                if (DefaultPullQTy != null) {
+                                                    if (isNaN(DefaultPullQTy)) {
+                                                        DefaultPullQTy = DefaultPullQTy.replace("<span>", "");
+                                                        DefaultPullQTy = DefaultPullQTy.replace("</span>", "");
+                                                    }
+                                                    vStrReturn = "<input maxlength='10' type='text' value='" + DefaultPullQTy + "' class='text-boxinner text-boxQuantityFormatSR numericalign' id='txtQty' style='width:60px;' />" + "<span id='spnDefaultPullQuantity'  style='display:none'>" + parseFloat(DefaultPullQTy).toFixed(0) + "</span>";
+                                                }
+                                                else {
+                                                    vStrReturn = "<input maxlength='10' type='text' value='' class='text-boxinner text-boxQuantityFormatSR numericalign' id='txtQty' style='width:60px;' />";
+                                                }
+                                            }
+                                            else {
+                                                var DefaultPullQTy = obj.aData.DefaultPullQuantity;
+                                                if (DefaultPullQTy != null) {
+                                                    if (isNaN(DefaultPullQTy)) {
+                                                        DefaultPullQTy = DefaultPullQTy.replace("<span>", "");
+                                                        DefaultPullQTy = DefaultPullQTy.replace("</span>", "");
+                                                    }
+                                                    //vStrReturn = "<input maxlength='10' type='text' value='" + obj.aData.DefaultPullQuantity + "' class='text-boxinner numericinput numericalign' id='txtQty' style='width:60px;' />" + "<span id='spnDefaultPullQuantity'  style='display:none'>" + parseFloat(obj.aData.DefaultPullQuantity).toFixed(parseInt($('#hdQuantitycentsLimit').val(), 10)) + "</span>";
+                                                    vStrReturn = "<input maxlength='10' type='text' value='" + DefaultPullQTy + "' class='text-boxinner numericinput numericalign' id='txtQty' style='width:60px;' />" + "<span id='spnDefaultPullQuantity'  style='display:none'>" + parseFloat(DefaultPullQTy) + "</span>";
+                                                }
+                                                else {
+                                                    vStrReturn = "<input maxlength='10' type='text' value='' class='text-boxinner numericinput numericalign' id='txtQty' style='width:60px;' />";
+                                                }
+                                            }
+                                            vStrReturn = vStrReturn + "<input id='hdnPullQtyScanOverride'  type='hidden' value='" + obj.aData.PullQtyScanOverride + "' />";
+                                            return vStrReturn;
+                                        }
+                                        else
+                                            return "<input maxlength='10' type='text' value='' class='text-boxinner numericalign' id='txtQty' onkeypress = 'return onlyNumeric(event);' style='width:60px;' />";
+                                    }
+                                }
+                            });
+    PullItemListColumnsArr.push({
+        "mDataProp": "ImagePath",
+        "sClass": "read_only",
+        "sDefaultContent": '',
+        "bSortable": true,
+        "bSearchable": false,
+        "bVisible": false,
+        "fnRender": function (obj, val) {
+
+            if ((obj.aData.ImagePath != '' && obj.aData.ImagePath != null) || (obj.aData.ItemImageExternalURL != '' && obj.aData.ItemImageExternalURL != null)) {
+
+                if (obj.aData.ImageType != '' && obj.aData.ImageType != null && obj.aData.ImageType == 'ImagePath' && obj.aData.ImagePath != '' && obj.aData.ImagePath != null) {
+                    var path = '@eTurnsWeb.Helper.SessionHelper.CompanyID.ToString()';
+                    return '<img style="cursor:pointer;"  alt="' + (obj.aData.ItemNumber) + '" id="ItemImageBox" width="120px" height="120px" src="' + "/Uploads/InventoryPhoto/" + path + "/" + obj.aData.ImagePath + '">';
+                }
+                else if (obj.aData.ImageType != '' && obj.aData.ImageType != null && obj.aData.ImageType == "ExternalImage" && obj.aData.ItemImageExternalURL != '' && obj.aData.ItemImageExternalURL != null) {
+                    return '<img style="cursor:pointer;"  alt="' + (obj.aData.ItemNumber) + '" id="ItemImageBox" width="120px" height="120px" src="' + obj.aData.ItemImageExternalURL + '">';
+                }
+                else {
+                    return "<img src='../Content/images/no-image.jpg' />";
+                }
+            }
+            else {
+                return "<img src='../Content/images/no-image.jpg' />";
+            }
+
+        }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "ItemNumber",
+        "sClass": "read_only NotHide",
+        "sDefaultContent": '',
+        "bSortable": true,
+        "bSearchable": false
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": 'DefaultLocationName',
+        "sClass": "read_only NotHide",
+        "bSortable": true,
+        "bSearchable": false,
+        "sDefaultContent": '',
+        "fnRender": function (obj, val) {
+            if (obj.aData.QuickListGUID == null || obj.aData.QuickListGUID == '') {
+                if ($('#NewPullAction').val() == "Credit" || $('#NewPullAction').val() == "CreditMS") {
+
+                    var strReturn = '<span style="position:relative">';
+                    if ('@HasOnTheFlyEntryRight' == "False") {
+                        strReturn = strReturn + '<input type="hidden" value="" id="hdnIsLoadMoreLocations" /><input type="text" id="txtBinNumber" class="text-boxinner AutoCreditBins" style = "width:93%;" value="' + obj.aData.DefaultLocationName + '" />';
+                    }
+                    else {
+                        strReturn = strReturn + '<input type="hidden" value="false" id="hdnIsLoadMoreLocations" /><input type="text" id="txtBinNumber" class="text-boxinner AutoCreditBins" style = "width:93%;" value="' + obj.aData.DefaultLocationName + '" />';
+                    }
+
+                    var binID = obj.aData.DefaultLocation;
+                    if (isNaN(parseInt(binID)) || parseInt(binID) <= 0)
+                        binID = '';
+
+                    strReturn = strReturn + ' <input type="hidden" id="BinID" value="' + binID + '" />';
+                    strReturn = strReturn + ' <a id="lnkShowAllOptionsCR" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptionsBinCR" ><img src="/Content/images/arrow_down_black.png" alt="select" /></a></span>';
+                    return strReturn
+                }
+                else {
+                    var vDefaultLocationName = '';
+                    if (obj.aData.ItemType != 4) {
+                        vDefaultLocationName = obj.aData.DefaultLocationName;
+                    }
+
+                    var strReturn = '<span style="position:relative"><input type="text" id="txtBinNumber" class="text-boxinner AutoPullBins bin-input-readonly" style = "width:93%;" value="' + vDefaultLocationName + '" />';
+                    var binID = obj.aData.DefaultLocation;
+                    if (isNaN(parseInt(binID)) || parseInt(binID) <= 0)
+                        binID = '';
+
+                    strReturn = strReturn + ' <input type="hidden" id="BinID" value="' + binID + '" />';
+                    strReturn = strReturn + ' <a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptionsBin" ><img src="/Content/images/arrow_down_black.png" alt="select" /></a></span>';
+                    return strReturn
+                }
+            }
+            else {
+                return "";
+            }
+        }
+    });
+    PullItemListColumnsArr.push(@(Html.RenderColumnsArrayForPullPO("PullPoMaster", FixedName: "txtPullOrderNumber", PrependComma:false)));
+    PullItemListColumnsArr.push({
+        "mDataProp": null,
+        "sClass": ProjectSpendClass,
+        "bSortable": false,
+        "bSearchable": false,
+        "bVisible": true,
+        "sDefaultContent": '',
+        "fnRender": function (obj, val) {
+
+            if (obj.aData.QuickListGUID == null || obj.aData.QuickListGUID == '') {
+
+                //if (obj.aData.ItemType != 4) {
+                if (obj.aData.IsDefaultProjectSpend == false || (!ProjectSpendVisible)) {
+                    if (ProjectSpendNameSCR == '') {
+                        //var strReturn = '<span style="position:relative"><input type="text" id="txtProjectSpent" class="text-boxinner AutoPullProjectSpents" style = "width:93%;" value="" />';
+                        //strReturn = strReturn + ' <input type="hidden" id="ProjectID" value="" />';
+                        //strReturn = strReturn + ' <a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptions" ><img src="/Content/images/arrow_down_black.png" alt="select" /></a></span>';
+                        var strReturn = ' <select id="txtProjectSpent_' + obj.aData.ID + '" class="text-boxinner Select2ClassProjectSpend"> </select>';
+                        strReturn = strReturn + ' <input type="hidden" id="ProjectID" value="" />';
+                    }
+                    else {
+                        //var strReturn = '<span style="position:relative"><input type="text" id="txtProjectSpent" class="text-boxinner" disabled="disabled" readonly="readonly" style = "width:93%;" value="'+ ProjectSpendNameSCR+'" />';
+                        //strReturn = strReturn + ' <input type="hidden" id="ProjectID" value="' + ProjectSpendGuidSCR + '" />';
+                        var strReturn = ' <select id="txtProjectSpent_' + obj.aData.ID + '" class="text-boxinner Select2ClassProjectSpend"> </select>';
+                        strReturn = strReturn + ' <input type="hidden" id="ProjectID" value="' + ProjectSpendGuidSCR + '" />';
+
+                    }
+                }
+                else {
+                    var strReturn = '<span style="position:relative"><input type="text" disabled="disabled" id="txtProjectSpent" class="text-boxinner AutoPullProjectSpents" style = "width:93%;" value="' + obj.aData.DefaultProjectSpend + '" />';
+                    strReturn = strReturn + ' <input type="hidden" id="ProjectID" value="' + obj.aData.DefaultProjectSpendGuid + '" />';
+                    strReturn = strReturn + ' <a id="lnkShowAllOptions" href="javascript:void(0);" disabled="disabled" style="position:absolute; right:5px; top:0px;" class="ShowAllOptions" ><img src="/Content/images/arrow_down_black.png" alt="select" /></a></span>';
+                }
+                return strReturn
+                //}
+            }
+            return "";
+        }
+    });
+    PullItemListColumnsArr.push({ "mDataProp": "ManufacturerNumber", "sClass": "read_only" });
+    PullItemListColumnsArr.push({ "mDataProp": "ManufacturerName", "sClass": "read_only" });
+    PullItemListColumnsArr.push({ "mDataProp": "SupplierPartNo", "sClass": "read_only" });
+    PullItemListColumnsArr.push({ "mDataProp": "SupplierName", "sClass": "read_only" });
+    PullItemListColumnsArr.push({ "mDataProp": "UPC", "sClass": "read_only" });
+    PullItemListColumnsArr.push({ "mDataProp": "UNSPSC", "sClass": "read_only" });
+    PullItemListColumnsArr.push({ "mDataProp": "Description", "sClass": "read_only" });
+    PullItemListColumnsArr.push({
+        "mDataProp": "LongDescription", "sClass": "read_only", "sDefaultContent": '',
+        "fnRender": function (obj, val) {
+            return "<div class='comment more'>" + val + "</div>";
+        }
+    });
+    PullItemListColumnsArr.push({ "mDataProp": "CostUOMName", "sClass": "read_only" });
+    PullItemListColumnsArr.push({
+        "mDataProp": "DefaultReorderQuantity", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.DefaultReorderQuantity != null && obj.aData.DefaultReorderQuantity != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.DefaultReorderQuantity, 2) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+        }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "DefaultPullQuantity", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.DefaultPullQuantity != null && obj.aData.DefaultPullQuantity != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.DefaultPullQuantity, 2) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+        }
+    });
+    if ('@isCost' == 'True') {
+        PullItemListColumnsArr.push({
+            "mDataProp": "Cost", "sClass": "read_only numericalign isCost",
+            "fnRender": function (obj, val) {
+                
+                    if (obj.aData.Cost != null && obj.aData.Cost != NaN)
+                        return "<span>" + FormatedCostQtyValues(obj.aData.Cost, 1) + "</span>";
+                    else
+                        return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+                
+            }
+        });
+        PullItemListColumnsArr.push({
+            "mDataProp": "Markup", "sClass": "read_only numericalign isCost", "fnRender": function (obj, val) {
+               
+                    return obj.aData.Markup;
+                
+            }
+        });
+        PullItemListColumnsArr.push({
+            "mDataProp": "SellPrice", "sClass": "read_only numericalign isCost",
+            "fnRender": function (obj, val) {
+                 
+                    if (obj.aData.SellPrice != null && obj.aData.SellPrice != NaN)
+                        return "<span>" + FormatedCostQtyValues(obj.aData.SellPrice, 1) + "</span>";
+                    else
+                        return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+                
+            }
+        });
+        PullItemListColumnsArr.push({
+            "mDataProp": "ExtendedCost", "sClass": "read_only numericalign isCost",
+            "fnRender": function (obj, val) {
+                
+                    if (obj.aData.ExtendedCost != null && obj.aData.ExtendedCost != NaN)
+                        return "<span>" + FormatedCostQtyValues(obj.aData.ExtendedCost, 1) + "</span>";
+                    else
+                        return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+                
+            }
+        });
+    }
+
+    PullItemListColumnsArr.push({ "mDataProp": "LeadTimeInDays", "sClass": "read_only" });
+    PullItemListColumnsArr.push({
+        "mDataProp": "Trend", "sClass": "read_only"
+                            , "fnRender": function (obj, val) {
+                                return GetBoolInFormat(obj, val);
+                            }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "Taxable", "sClass": "read_only"
+                            , "fnRender": function (obj, val) {
+                                return GetBoolInFormat(obj, val);
+                            }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "Consignment", "sClass": "read_only"
+                                , "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "StagedQuantity", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.StagedQuantity != null && obj.aData.StagedQuantity != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.StagedQuantity, 2) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+        }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "InTransitquantity", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.InTransitquantity != null && obj.aData.InTransitquantity != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.InTransitquantity, 2) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+        }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "OnOrderQuantity", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.OnOrderQuantity != null && obj.aData.OnOrderQuantity != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.OnOrderQuantity, 2) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+        }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "OnTransferQuantity", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.OnTransferQuantity != null && obj.aData.OnTransferQuantity != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.OnTransferQuantity, 2) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+        }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "SuggestedOrderQuantity", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.SuggestedOrderQuantity != null && obj.aData.SuggestedOrderQuantity != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.SuggestedOrderQuantity, 2) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+        }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "RequisitionedQuantity", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.RequisitionedQuantity != null && obj.aData.RequisitionedQuantity != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.RequisitionedQuantity, 2) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+        }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "AverageUsage", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.AverageUsage != null && obj.aData.AverageUsage != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.AverageUsage, 4) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 4) + "</span>";
+        }
+
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "Turns", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.Turns != null && obj.aData.Turns != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.Turns, 4) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 4) + "</span>";
+        }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "OnHandQuantity", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.OnHandQuantity != null && obj.aData.OnHandQuantity != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.OnHandQuantity, 2) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+        }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "CriticalQuantity", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.CriticalQuantity != null && obj.aData.CriticalQuantity != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.CriticalQuantity, 2) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+        }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "MinimumQuantity", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.MinimumQuantity != null && obj.aData.MinimumQuantity != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.MinimumQuantity, 2) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+        }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "MaximumQuantity", "sClass": "read_only numericalign",
+        "fnRender": function (obj, val) {
+            if (obj.aData.MaximumQuantity != null && obj.aData.MaximumQuantity != NaN)
+                return "<span>" + FormatedCostQtyValues(obj.aData.MaximumQuantity, 2) + "</span>";
+            else
+                return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+        }
+    });
+    PullItemListColumnsArr.push({ "mDataProp": "WeightPerPiece", "sClass": "read_only numericalign" });
+    PullItemListColumnsArr.push({ "mDataProp": "ItemUniqueNumber", "sClass": "read_only" });
+    PullItemListColumnsArr.push({
+        "mDataProp": "IsTransfer", "sClass": "read_only"
+                            , "fnRender": function (obj, val) {
+                                return GetBoolInFormat(obj, val);
+                            }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "IsPurchase", "sClass": "read_only"
+                            , "fnRender": function (obj, val) {
+                                return GetBoolInFormat(obj, val);
+                            }
+    });
+    PullItemListColumnsArr.push({ "mDataProp": "InventoryClassification", "sClass": "read_only" });
+    PullItemListColumnsArr.push({
+        "mDataProp": "SerialNumberTracking", "sClass": "read_only"
+                            , "fnRender": function (obj, val) {
+                                return GetBoolInFormat(obj, val);
+                            }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "LotNumberTracking", "sClass": "read_only"
+                            , "fnRender": function (obj, val) {
+                                return GetBoolInFormat(obj, val);
+                            }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "DateCodeTracking", "sClass": "read_only"
+                            , "fnRender": function (obj, val) {
+                                return GetBoolInFormat(obj, val);
+                            }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "ItemType", "sClass": "read_only"
+                                    , "fnRender": function (obj, val) {
+                                        if (val == 1)
+                                            return "Item";
+                                        else if (val == 2)
+                                            return "Quick List";
+                                        else if (val == 3)
+                                            return "Kit";
+                                        else if (val == 4)
+                                            return "Labor";
+                                        else
+                                            return "";
+                                    }
+    });
+    PullItemListColumnsArr.push({ "mDataProp": "IsLotSerialExpiryCost", "sClass": "read_only" });
+    PullItemListColumnsArr.push({ "mDataProp": "RoomName", "sClass": "read_only" });
+    PullItemListColumnsArr.push({
+        "mDataProp": "Created", "sClass": "read_only",
+        "fnRender": function (obj, val) {
+            //return GetDateInFullFormat(val);
+            return obj.aData.CreatedDate;
+        }
+    });
+    PullItemListColumnsArr.push({
+        "mDataProp": "Updated", "sClass": "read_only",
+        "fnRender": function (obj, val) {
+            //return GetDateInFullFormat(val);
+            return obj.aData.UpdatedDate;
+        }
+    });
+    PullItemListColumnsArr.push({ "mDataProp": "UpdatedByName", "sClass": "read_only" });
+    PullItemListColumnsArr.push({ "mDataProp": "CreatedByName", "sClass": "read_only" });
+    PullItemListColumnsArr.push({ "mDataProp": "CategoryName", "sClass": "read_only" });
+    PullItemListColumnsArr.push({ "mDataProp": "Unit", "sClass": "read_only" });
+    PullItemListColumnsArr.push({ "mDataProp": "GLAccount", "sClass": "read_only" });
+    PullItemListColumnsArr.push(@(Html.RenderColumnsArray("ItemMaster", false, "Item")));
+    PullItemListColumnsArr.push(@(Html.RenderColumnsArrayEditableObject("PullMaster", PrependComma: false)));
+    
+    $("#ColumnOrderSetupIM").live('click', function () {
+        $("#divReorderPopup").dialog('open');
+        return false;
+    });
+    //callbacknew();
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callPullNew();', true, true),
+                    new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.History', 'callbackhistory();', true, true)];
+
+    $(document).ready(function () {
+        function initializeSelect2(selectElementObj) {
+            //debugger;
+            $(selectElementObj).select2({
+                tags: true,
+                tokenSeparators: [','],
+                allowClear: true,
+                minimumResultsForSearch: 3,
+                placeholder: 'Please Select Supplier',
+                ajax: {
+                    url: "/Pull/GetProjectSpentListForNewPULLNew",
+                    dataType: 'json',
+                    type: "POST",
+                    delay: 300,
+                    processResults: function (data) {
+                        return {
+                            results: $.map(data, function (item) {
+
+                                return {
+                                    text: item.Key,
+                                    //slug: item.Text,
+                                    id: item.GUID
+                                }
+                            }),
+                            pagination: {
+                                more: true
+                            }
+                        }
+                    }
+                },
+                createTag: function (params) {
+                    var term = $.trim(params.term);
+                    if (term === '') {
+                        return null;
+                    }
+
+
+                    return {
+                        id: term,
+                        text: term
+                    };
+                },
+            });
+        }
+
+        //objColumns = GetGridHeaderColumnsObject('ItemModeDataTable');
+        if ('@(ProjectSpendVisible)' == "True") {
+            ProjectSpendClass = "read_only NotHide";
+        }
+
+        if ('@string.IsNullOrWhiteSpace(ProjectSpendName)') {
+            ProjectSpendNameSCR = '@ProjectSpendName';
+            ProjectSpendGuidSCR = '@ProjectSpendGuid';
+        }
+        if ('@(ProjectSpendVisible)' == "True") {
+            ProjectSpendVisible = true;
+        }
+
+        objColumns = GetGridHeaderColumnsObject('ItemModeDataTable', 'New Pull Columns', 'NewPullItemMaster', 'callbacknewFromReorder()');
+
+        LoadTabs();
+        $('#tab1').addClass('selected');
+        $('#tab5').removeClass('selected');
+
+        var gaiSelected = [];
+
+        oTableItemModel = $('#ItemModeDataTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            //"bAutoWidth": false,
+            "sScrollX": "350%",
+            //"sScrollX": "8000px",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[2, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                var Selectele = $(nRow).find("select.Select2ClassProjectSpend");
+
+                initializeSelect2(Selectele);
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                return nRow;
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+
+                oData.oSearch.sSearch = "";
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'NewPullItemMaster' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = json;
+
+                    }
+                });
+            },
+            "fnStateLoad": function (oSettings) {
+                debugger;
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'NewPullItemMaster' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+
+                        //var ColreOrder = o.ColReorder.toString().split(',');
+                        if (json.jsonData != '') {
+                            var InvisibleUDF = 0;
+
+                            var PullOrderNumberIndex = objColumns['Pull Order Number'];
+                            if (o.abVisCols[PullOrderNumberIndex] == false) {
+                                //$('#THPullOrderNumber').hide();
+                                //$('#TDPullOrderNumber').hide();
+                                $('#THPullOrderNumber').html('');
+                                $('#TDPullOrderNumber').html('');
+                                InvisibleUDF++;
+                            }
+
+                            var ProjectSpendNameIndex = objColumns['@eTurns.DTO.ResProjectMaster.ProjectSpendName'];
+                            if ('@(ProjectSpendVisible)' == "True") {
+                                o.abVisCols[ProjectSpendNameIndex] = true;
+                            }
+                            else if (o.abVisCols[ProjectSpendNameIndex] == false) {
+                                //$('#THProjectSpendName').hide();
+                                //$('#TDProjectSpendName').hide();
+                                $('#THProjectSpendName').html('');
+                                $('#TDProjectSpendName').html('');
+                                InvisibleUDF++;
+                            }
+
+                            UDF1Index = objColumns['@UDF1Text'];
+                            if (UDF1Index != null && UDF1Index != undefined) {
+                                if ('@UDF1IsRequired' == 'True') {
+                                    o.abVisCols[UDF1Index] = true;
+                                }
+                                else if (o.abVisCols[UDF1Index] == false) {
+                                    @*$("th:contains('@UDF1Text')").hide();
+                                    $('#UDF1PullCommon').closest('td').hide();*@
+                                    $("#tblPullCommonUDF th:contains('@UDF1Text')").html('');
+                                    $('#UDF1PullCommon').closest('td').html('');
+                                    InvisibleUDF++;
+                                }
+                            }
+                            else
+                                InvisibleUDF++;
+
+                            UDF2Index = objColumns['@UDF2Text'];
+                            if (UDF2Index != null && UDF2Index != undefined) {
+                                if ('@UDF2IsRequired' == 'True') {
+                                    o.abVisCols[UDF2Index] = true;
+                                }
+                                else if (o.abVisCols[UDF2Index] == false) {
+                                    @*$("th:contains('@UDF2Text')").hide();
+                                    $('#UDF2PullCommon').closest('td').hide();*@
+                                    $("#tblPullCommonUDF th:contains('@UDF2Text')").html('');
+                                    $('#UDF2PullCommon').closest('td').html('');
+                                    InvisibleUDF++;
+                                }
+                            }
+                            else
+                                InvisibleUDF++;
+
+                            UDF3Index = objColumns['@UDF3Text'];
+                            if (UDF3Index != null && UDF3Index != undefined) {
+                                if ('@UDF3IsRequired' == 'True') {
+                                    o.abVisCols[UDF3Index] = true;
+                                }
+                                else if (o.abVisCols[UDF3Index] == false) {
+                                    @*$("th:contains('@UDF3Text')").hide();
+                                    $('#UDF3PullCommon').closest('td').hide();*@
+                                    $("#tblPullCommonUDF th:contains('@UDF3Text')").html('');
+                                    $('#UDF3PullCommon').closest('td').html('');
+                                    InvisibleUDF++;
+                                }
+                            }
+                            else
+                                InvisibleUDF++;
+
+                            UDF4Index = objColumns['@UDF4Text'];
+                            if (UDF4Index != null && UDF4Index != undefined) {
+                                if ('@UDF4IsRequired' == 'True') {
+                                    o.abVisCols[UDF4Index] = true;
+                                }
+                                else if (o.abVisCols[UDF4Index] == false) {
+                                    @*$("th:contains('@UDF4Text')").hide();
+                                    $('#UDF4PullCommon').closest('td').hide();*@
+                                    $("#tblPullCommonUDF th:contains('@UDF4Text')").html('');
+                                    $('#UDF4PullCommon').closest('td').html('');
+                                    InvisibleUDF++;
+                                }
+                            }
+                            else
+                                InvisibleUDF++;
+
+                            UDF5Index = objColumns['@UDF5Text'];
+                            if (UDF5Index != null && UDF5Index != undefined) {
+                                if ('@UDF5IsRequired' == 'True') {
+                                    o.abVisCols[UDF5Index] = true;
+                                }
+                                else if (o.abVisCols[UDF5Index] == false) {
+                                    @*$("th:contains('@UDF5Text')").hide();
+                                    $('#UDF5PullCommon').closest('td').hide();*@
+                                    $("#tblPullCommonUDF th:contains('@UDF5Text')").html('');
+                                    $('#UDF5PullCommon').closest('td').html('');
+                                    InvisibleUDF++;
+                                }
+                            }
+                            else
+                                InvisibleUDF++;
+
+                            //----------------------------
+                            //
+                            setTimeout(function () {
+                                if (InvisibleUDF == 7) {
+                                    $('#tblPullCommonUDF').hide();
+                                    $('.dataTables_length').attr('style', 'left:0;top:-35px !important');
+                                    $('.dataTables_paginate').attr('style', 'left: 145px;top:-24px !important');
+                                }
+                                else {
+                                    $('.dataTables_length').attr('style', 'left:0;top:-82px !important');
+                                    $('.dataTables_paginate').attr('style', 'left: 145px;top:-72px !important');
+                                }
+                            }, 500);
+                        }
+                    }
+                });
+
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Content(Model.AjaxURLToFillItemGrid)', //'@Url.Content("~/Inventory/ItemMasterListAjax")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                //PostCount = PostCount + 1;
+
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting != null && oSettings.aaSorting.length != 0) {
+                    var sortValue = "";
+                    for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                        if (sortValue.length > 0)
+                            sortValue += ", "
+                        sortValue += arrCols[oSettings.aaSorting[i][0]] + ' ' + oSettings.aaSorting[i][1];
+                    }
+                    aoData.push({ "name": "SortingField", "value": sortValue });
+                }
+                    //                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                aoData.push({ "name": "ActionFilter", "value": $('#NewPullAction').val() });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('#ItemModeDataTable td').removeHighlight();
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+
+                        if ($("#ItemModel_filter").val() != '') {
+                            $('#ItemModeDataTable td').highlight($("#ItemModel_filter").val());
+                        }
+
+                        //$("input[type='radio']").filter('[value=pull]').attr('checked', 'checked');
+
+                        CallShowHideData();
+
+                        $(".text-boxQuantityFormat").priceFormat({
+                            prefix: '',
+                            thousandsSeparator: '',
+                            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+                        });
+
+                        $(".text-boxQuantityFormatSR").priceFormat({
+                            prefix: '',
+                            thousandsSeparator: '',
+                            centsLimit: 0
+                        });
+
+                        UDFfillEditableOptionsForGrid();
+
+                        $('.ShowAllOptions').click(function () {
+                            $(this).siblings('.AutoPullProjectSpents').trigger("focus");
+                            $(this).siblings(".AutoPullProjectSpents").autocomplete("search", " ");
+                        });
+
+                        $('.ShowAllOptionsBin').click(function () {
+                            $(this).siblings('.AutoPullBins').trigger("focus");
+                            $(this).siblings(".AutoPullBins").autocomplete("search", " ");
+                        });
+
+                        $('.ShowAllOptionsBinCR').click(function () {
+                            $(this).siblings('.AutoCreditBins').trigger("focus");
+                            $(this).siblings(".AutoCreditBins").autocomplete("search", " ");
+                        });
+
+                        $('.ShowAllOptionsOrderNumber').click(function () {
+
+                            $(this).siblings('.AutoPullOrderNumber').trigger("focus");
+                            $(this).siblings(".AutoPullOrderNumber").autocomplete("search", " ");
+                        });
+
+                        $('.bin-input-readonly').keypress(function () {
+                            return false;
+                        });
+
+                        if ('@HasOnTheFlyEntryRight' == "False") {
+                            $('.AutoCreditBins').keypress(function () {
+                                return false;
+                            });
+                        }
+                    }
+                })
+            },
+            "fnInitComplete": function () {
+
+                $('.ColVis').detach().appendTo(".setting-arrow");
+                $('#divQTYLegends').show(1000);
+
+            },
+            "aoColumns": PullItemListColumnsArr,
+            "fnDrawCallback": function () {
+                SetPullValuesAfterBarcodeSearch();
+            }
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+
+        if ('@isCost' == '@Boolean.FalseString') {
+
+            HideColumnUsingClassName("ItemModeDataTable");
+        }
+
+        if ('@TempData["WorkOrderGUID"]' != "")
+            $('.DTTT_container').hide();
+        if (window.location.href.toString().toLowerCase().indexOf("newpull") > 0) {
+            TabEnableDisable("#tab1", false);
+            TabEnableDisable("#tab5", true);
+            $("#tab1").removeClass("unselected").addClass("selected");
+            $("#tab5").removeClass("selected").addClass("unselected");
+        }
+        else if (window.location.href.toString().toLowerCase().indexOf("pullmasterlist") > 0) {
+            TabEnableDisable("#tab1", true);
+            TabEnableDisable("#tab5", false);
+            $("#tab5").removeClass("unselected").addClass("selected");
+            $("#tab1").removeClass("selected").addClass("unselected");
+        }
+
+    });
+
+    function callbacknew() {
+        return false;
+    }
+
+    function callbacknewFromReorder() {
+        $('#DivLoading').show();
+        window.location = '@Url.Content("~/Pull/NewPull")';
+    }
+
+    function callbackhistory() {
+        window.location = '@Url.Content("~/Pull/PullMasterList")';
+    }
+
+</script>
+<script type='text/javascript' src="@Url.Content("~/Scripts/PageScripts/PullCommon.js")"></script>
+@*@if (isPullUDF)
+    {*@
+@*<style type="text/css">
+        .dataTables_length {
+            top: -82px;
+        }
+
+        .dataTables_paginate {
+            top: -72px;
+        }
+
+        .td-udfs {
+            padding: 3px;
+        }
+    </style>*@
+@*}*@
+<div class="userListingWrapper">
+    <h2>
+        New Consume Pull
+    </h2>
+    <div class="Infoclass">
+        <a href="@PullsPDFURL" target="_blank">
+            <img src="~/Content/images/Info.png" alt="Help" />
+        </a>
+    </div>
+    <div class="userListBlock">
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener">
+            New Consume Pull
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock" style="margin: -1px auto; width: 500px;">
+                    <span class="label" style="color: #FFFFFF; float: left; font-size: 14px; font-weight: bold;
+                        line-height: 22px; padding: 2px 5px 0 0;">
+                        @eTurns.DTO.Resources.ResCommon.Search
+                    </span>
+                    <div class="searchinputB" style="float: left; position: relative; width: 415px;">
+                        <input type="text" class="searchinput" id="ItemModel_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_QLItemModel_filter" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @Html.ItemModelGridTopHeaderWithContextMenu(settings)
+            @Html.Partial("NarrowSearchForItemModel", modelCommon)
+            <div class="userContent ">
+                @*@if (isPullUDF)
+                    {*@
+                <table style="margin-bottom: 1px; margin-top: 1px;" id="tblPullCommonUDF">
+                    <thead>
+                        <tr>
+                            <th>
+                            </th>
+                            <th id="THPullOrderNumber">Pull Order Number</th>
+                            <th id="THProjectSpendName">@eTurns.DTO.ResProjectMaster.ProjectSpendName</th>
+                            @Html.RenderColumnsHeader("PullMaster", typeof(eTurns.DTO.ResPullMaster))
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="td-udfs">
+                                <b style="font-size: 13px;">&nbsp;&nbsp;&nbsp;Use this</b>
+                                <input type="checkbox" id="chkUsePullCommonUDF" />
+                            </td>
+                            <td id="TDPullOrderNumber" class="td-udfs">
+                                <span style="position:relative">
+                                    <input type="text" id="txtPullOrderNumberCommon" class="text-boxinner AutoPullOrderNumber" maxlength="128" style="width:93%;" autocomplete="off" />
+                                    <a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptionsOrderNumber">
+                                        <img src="/Content/images/arrow_down_black.png" alt="select" />
+                                    </a>
+                                </span>
+                            </td>
+                            <td id="TDProjectSpendName">
+                                <span style="position:relative">
+                                    @if (string.IsNullOrWhiteSpace(ProjectSpendName))
+                                    {
+                                        <input type="text" id="txtProjectSpentCommon" class="text-boxinner AutoPullProjectSpents" style="width:120px;" value="" />
+                                        <input type="hidden" id="ProjectIDCommon" value="" />
+                                        <a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptions">
+                                            <img src="/Content/images/arrow_down_black.png" alt="select" />
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <input type="text" id="txtProjectSpentCommon" class="text-boxinner" disabled="disabled" readonly="readonly" style="width:120px;" value="@ProjectSpendName" />
+                                        <input type="hidden" id="ProjectIDCommon" value="@ProjectSpendGuid" />
+                                    }
+                                </span>
+                            </td>
+                            @Html.RenderColumnsArrayEditableObjectForDOM("PullMaster", controlIDPostfix: "PullCommon")
+                        </tr>
+                    </tbody>
+                </table>
+                @*}*@
+                <table id="ItemModeDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th class="NotSortable NotHide NotMovable">
+                                @eTurns.DTO.ResItemMaster.PullButton
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th class="NotSortable NotHide" id="colQtyToPull">
+                                Qty to Pull
+                            </th>
+                            <th>
+                                Image
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th class="NotHide">
+                                Location
+                            </th>
+                            <th class="NotHide">
+                                Pull Order Number
+                            </th>
+                            <th class="NotSortable NotHide">
+                                @eTurns.DTO.ResProjectMaster.ProjectSpendName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ManufacturerNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ManufacturerName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SupplierPartNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Supplier
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.UPC
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.UNSPSC
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LongDescription
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.CostUOMName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DefaultReorderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DefaultPullQuantity
+                            </th>
+                            @if (isCost)
+                            {
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.Cost
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.Markup
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.SellPrice
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.ExtendedCost
+                                </th>
+                            }
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LeadTimeInDays
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Trend
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Taxable
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Consignment
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.StagedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.InTransitquantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnOrderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnTransferQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SuggestedOrderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.RequisitionedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.AverageUsage
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Turns
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnHandQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.CriticalQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MinimumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MaximumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.WeightPerPiece
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemUniqueNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsTransfer
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsPurchase
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.InventoryClassification
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SerialNumberTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LotNumberTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DateCodeTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemType
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsLotSerialExpiryCost
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RoomName
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResCategoryMaster.Category
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResUnitMaster.Unit
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResGLAccount.GLAccount
+                            </th>
+                            @Html.RenderColumnsHeader("ItemMaster", typeof(eTurns.DTO.ResItemMaster), "Item")
+                            @Html.RenderColumnsHeader("PullMaster", typeof(eTurns.DTO.ResPullMaster))
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div style="clear: both; width: 90%; margin-top: 10px;">
+                    @if (ViewNewPullbuttons == "no")
+                    {
+                        <input type="button" value="Pull ALL" id="btnPullAll" class="CreateBtn" style="float: left;" />
+                    }
+                    else
+                    {
+                        <input type="button" value="@eTurns.DTO.ResPullMaster.PullAllButton" id="btnPullAllNewFlow" class="CreateBtn"
+                               style="float: left;" />
+                    }
+                    <input type="button" value="Pull QL" id="btnPullAllQL" class="CreateBtn" style="float: left;
+                        display: none;" />
+                    <input type="button" value="Credit All" id="btnCreditAll" class="CreateBtn" style="float: left;
+                        display: none" />
+                </div>
+                <div id="processing_message" style="display: none" title="Processing">@eTurns.DTO.Resources.ResMessage.RequestProcessMessage</div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="LocationDetails">
+</div>
+<div id="DivPullSelection">
+</div>
+<div id="divPreCreditInfo">
+</div>
+<div class="dialog" id="dlgNoSelectErrorMsg" style="display: none; width: 500px;">
+    <div class="inner" style="width: 500px;">
+        <p class="text" id="NoSelectErrMessage" style="text-align: left; padding-left: 10px;">
+            <b>First select items</b><br />
+            <br />
+        </p>
+        <p id="NsOkbtn" class="text" style="text-align: center; padding-left: 10px;">
+            <a href="#" class="no" onclick="closeModalNoSelectModel()">
+                <img src="~/Content/images/yes.png" alt="ok" />Ok
+            </a>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="dlgCommonErrorMsg" style="display: none; width: 600px;">
+    <div class="inner" style="width: 600px; max-height: 300px; overflow: scroll;">
+        <p class="text" id="pErrMessage" style="text-align: left; padding-left: 10px;">
+        </p>
+        <p id="pOkbtn" class="text" style="text-align: center; padding-left: 10px; display: none;">
+            <a href="#" class="no" onclick="closeModalPSLimit()">
+                <img src="~/Content/images/yes.png" alt="ok" />Ok
+            </a>
+        </p>
+        <p id="pYesNobtn" class="text" style="text-align: center; padding-left: 10px; display: none;">
+            <a href="JavaScript:void{}" id="btnYesForPS" class="yes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="#" class="no" onclick="closeModalPSLimit()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="project-spend-limit-basic-modal-content" style="display: none;
+    width: 600px;">
+    <div class="inner" style="width: 600px;">
+        <p class="text" id="PSPlimit" style="text-align: left; padding-left: 10px;">
+            <b>Some of the Item(s) is(are) not able to Pull(s) Due to following reasons.</b><br />
+            <b style="color: Olive;">1) Quantity to Pull is Mandatory.</b>
+            <br />
+            <b style="color: Olive;">2) Inventory Location are Mandatory.</b>
+            <br />
+            <b style="color: Olive;">3) Labour Item Required Hours to Pull.</b>
+            <br />
+            <b style="color: Olive;">4) Quantity Not available for Selected Inventory Location.</b>
+            <br />
+            <b style="color: Yellow;">
+                5) Some Item(s) have reach Project spend Limit,
+                <br />
+                do you want to create new requisition for the same ?
+            </b>
+            <br />
+            <b style="color: Red;">6) Searver error occured!!</b><br />
+            <b style="color: Green;">7) Pulled Successfully.</b><br />
+            <b style="color: Olive;">8) Project Spend is Mandatory at room level.</b>
+        </p>
+        <a href="JavaScript:void{}" id="btnModelYesPSLimit" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="#" class="no" onclick="closeModalPSLimit()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<div class="dialog" id="GlobalModalProcessing" style="display: none;">
+    <div class="inner">
+        <p class="text" id="GloablMSGWait" style="text-align: left; padding-left: 10px;">
+            <b style="color: Red;">Kindly wait, pull transaction is going on..... </b>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="divCreditProcessing" style="display: none;">
+    <div class="inner">
+        <p class="text" id="pCreditWait" style="text-align: left; padding-left: 10px;">
+            <b style="color: Red;">Credit transaction is going on..... </b>
+        </p>
+        <p class="text" id="pCreditWaitImg" style="text-align: center; padding-left: 10px;">
+            <img src="@Url.Content("~/Content/images/ajax.gif")" alt="loding" />
+        </p>
+    </div>
+</div>
+<div class="dialog" id="noramal-global-msg-no-Pull-Rights" style="display: none;">
+    <div class="inner">
+        <p class="text" id="GloablMSG" style="text-align: left; padding-left: 10px;">
+            <b>You do not have Pull rights in Pull, We are redirecting you to Requisition.</b>
+        </p>
+        <p class="text" style="text-align: center; padding-left: 10px;">
+            <a href="#" class="no" onclick="GoToRequisition();">
+                <img src="~/Content/images/yes.png" alt="ok" />Ok
+            </a>
+        </p>
+    </div>
+</div>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js")"></script>
+<script src="@Url.Content("~/Scripts/CreditPull.js")" type="text/javascript"></script>
+<script language="javascript" type="text/javascript">
+    $(document).ready(function () {
+
+        if ('@(ProjectSpendVisible)' == "True") {
+            ProjectSpendClass = "read_only NotHide";
+        }
+
+        if ('@(ProjectSpendVisible)' == "True") {
+            ProjectSpendVisible = true;
+        }
+
+
+
+        $("#btnPullAllNewFlow").click(function () {
+            if ($('#ItemModeDataTable tbody tr.row_selected').length <= 0) {
+                $('#dlgNoSelectErrorMsg').modal();
+            }
+            else {
+                var isSerialLot = false;
+                $('#ItemModeDataTable').find("tbody").find("tr.row_selected").each(function (index, tr) {
+                    var aPos = $('#ItemModeDataTable').dataTable().fnGetPosition($(tr)[0]);
+                    var aData = $('#ItemModeDataTable').dataTable().fnGetData(aPos);
+                    if (aData.SerialNumberTracking == "Yes" || aData.LotNumberTracking == "Yes" || aData.DateCodeTracking == "Yes") {
+                        isSerialLot = true;
+                    }
+                });
+
+                if (isSerialLot == true)
+                    OpenPullPopup($(this));
+                else {
+                    $('#GlobalModalProcessing').modal({
+                        escClose: false,
+                        close: false
+                    });
+                    setTimeout('AddSingleItemToPullList($("#btnPullAllNewFlow"))', 1000);
+                }
+            }
+        });
+
+        $('#btnPullAll').die('click');
+        $('#btnPullAllNewFlow').die('click');
+        $('#btnPullAllQL').die('click');
+
+        //        if (window.location.href.indexOf("Pull/PullMasterList") > 0) {
+        //            objColumns = GetGridHeaderColumnsObject('ItemModeDataTable', 'New Pull Columns', 'NewPullItemMaster', 'callbacknew()');
+        //        }
+        //        else {
+        //            objColumns = GetGridHeaderColumnsObject('ItemModeDataTable', 'New Pull Columns', 'NewPullItemMaster', 'callbacknewFromReorder()');
+        //        }
+
+        $('#NewPullAction').live('change', function () {
+
+            $('#ItemModeDataTable').dataTable().fnDraw();
+
+            if ($(this).val() == "Pull") {
+                $("#btnPullAll").show();
+                $("#btnCreditAll").hide();
+                $("#btnPullAllNewFlow").show();
+                $('#CtabNew').find('#actionSelectAll3').show();
+                if ($("#ItemTypeIM") != undefined && $("#ItemTypeIM").length > 0) {
+                    $("[name=multiselect_ItemTypeIM]").each(function () {
+                        $(this).parent().parent().show();
+                    });
+                }
+                document.getElementById('colQtyToPull').innerHTML = "Qty to Pull";
+            }
+            else {
+                $("#btnPullAll").hide();
+                $("#btnPullAllNewFlow").hide();
+                $("#btnCreditAll").show();
+                $('#CtabNew').find('#actionSelectAll3').hide();
+                if ($("#ItemTypeIM") != undefined && $("#ItemTypeIM").length > 0) {
+                    $("[name=multiselect_ItemTypeIM]").each(function () {
+                        if ($(this)[0].value > 2) {
+                            $(this).parent().parent().hide();
+                        }
+                    });
+                }
+                document.getElementById('colQtyToPull').innerHTML = "Qty to Credit";
+            }
+        });
+
+        var lastCheckedNewPull;
+        $("#ItemModeDataTable").on("tap click", "tbody tr", function (e) {
+            if (e.target.type == "checkbox" || e.target.type == "radio" || e.target.type == "text") {
+                e.stopPropagation();
+            }
+            else if (e.currentTarget.getElementsByTagName("input").btnLoad != undefined) {
+                e.stopPropagation();
+            }
+            else {
+                //$(this).toggleClass('row_selected');
+                if (!lastCheckedNewPull) {
+                    lastCheckedNewPull = this;
+                }
+
+                if (e.shiftKey) {
+                    var start = $('#ItemModeDataTable tbody tr').index(this);
+                    var end = $('#ItemModeDataTable tbody tr').index(lastCheckedNewPull);
+
+                    for (i = Math.min(start, end) ; i <= Math.max(start, end) ; i++) {
+                        if (!$('#ItemModeDataTable tbody tr').eq(i).hasClass('row_selected')) {
+                            $('#ItemModeDataTable tbody tr').eq(i).addClass("row_selected");
+                        }
+                    }
+                    if (window.getSelection) {
+                        if (window.getSelection().empty) {  // Chrome
+                            window.getSelection().empty();
+                        } else if (window.getSelection().removeAllRanges) {  // Firefox
+                            window.getSelection().removeAllRanges();
+                        }
+                    } else if (document.selection) {  // IE?
+                        document.selection.empty();
+                    }
+                } else if ((e.metaKey || e.ctrlKey)) {
+                    $(this).toggleClass('row_selected');
+                } else {
+                    $(this).toggleClass('row_selected');
+                }
+
+                lastCheckedNewPull = this;
+            }
+            return false;
+        });
+
+        $('input[type=radio]').live('change', function () {
+            var selection = $(this).val(); // credit or pull
+            if (selection == "credit")
+                $(this).parent().parent().find('#btnAdd').val('Credit');
+            else if (selection == "creditms")
+                $(this).parent().parent().find('#btnAdd').val('CreditMS');
+            else
+                $(this).parent().parent().find('#btnAdd').val('Pull');
+        });
+
+
+        $("#btnPullAll").live('click', function () {
+            $('#DivLoading').show();
+            if ($('#ItemModeDataTable tbody tr.row_selected').length <= 0) {
+                $('#dlgNoSelectErrorMsg').modal();
+            }
+            else {
+                $('#GlobalModalProcessing').modal();
+                setTimeout('AddSingleItemToPullList($("#btnPullAll"))', 1000);
+            }
+            $('#DivLoading').hide();
+        });
+
+        $("#btnPullAllQL").live('click', function () {
+            $('#GlobalModalProcessing').modal();
+            setTimeout('CheckValidPullData()', 1000);
+        });
+
+        $("#LocationDetails").dialog({
+            autoOpen: false,
+            show: "blind",
+            hide: "explode",
+            height: 700,
+            title: "Item Locations",
+            width: 900,
+            modal: true,
+            beforeClose: function () {
+                if (isDirtyForm) {
+                    if (confirm(SaveConfirmationMSG)) {
+                        //isDirtyForm = false;
+                        return false;
+                    }
+                    isDirtyForm = false;
+                }
+            },
+            close: function () {
+                IsRefreshGrid = true;
+                $('#DivLoading').hide();
+                $("#LocationDetails").empty();
+                $('#ItemModeDataTable').dataTable().fnStandingRedraw();
+            }
+        });
+
+
+        $("#project-spend-limit-basic-modal-content").on("click", "#btnModelYesPSLimit", function () {
+
+            //TabItemClicked('RequisitionCreate','frmRequisitionMaster');
+            var url = '@Url.Action("RequisitionList", "Consume")';
+            url = url + '?fromPull=' + 'yes'
+            window.location.href = url;
+        });
+        $("#dlgCommonErrorMsg").on("click", "#btnYesForPS", function () {
+            var url = '@Url.Action("RequisitionList", "Consume")';
+            url = url + '?fromPull=' + 'yes'
+            window.location.href = url;
+        });
+
+        $("#ColumnOrderSetup_Context1").click(function () {
+            //$("#ColumnSortableModalIM").dialog("open");
+            $('#ColumnOrderSetupIM').click();
+
+            return false;
+        });
+
+        $("#refreshGrid1").click(function () {
+            $('#ItemModeDataTable').dataTable().fnDraw();
+        });
+
+        $("#ItemModeDataTable").live('contextmenu', function (e) {
+            /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+            if ($("body").hasClass('DTTT_Print')) {
+                e.preventDefault();
+                return false;
+            }
+            /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+
+            if ($('#tab1')[0].className == "verticalText selected") {
+                var x = e.pageX - this.offsetLeft;
+                var y = e.pageY - this.offsetTop;
+                $('#divContextMenu1').css({ 'top': e.pageY, 'left': e.pageX }).fadeIn('slow');
+                e.preventDefault();
+            }
+        });
+
+        $('#ItemModeDataTable, #tblPullCommonUDF').on('focus', "input.AutoPullProjectSpents", function (e) {
+            var ajaxURL = '/Pull/GetProjectSpentListForNewPULL';
+            var tr = $(this).parent().parent().parent();
+            var itmGuid = $(tr).find('#spnItemGUID').text();
+            var stagName = '';
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $('#DivLoading').show()
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'NameStartWith': request.term }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            $('#DivLoading').hide()
+                            response($.map(data, function (Items) {
+
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key,
+                                    id: Items.GUID
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                            $('#DivLoading').hide();
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    $(this).val(ui.item.value);
+                    if ($.trim(ui.item.value).length > 0) {
+                        if ($(this).parent().find('#ProjectID') != undefined)
+                            $(this).parent().find('#ProjectID').val(ui.item.id);
+                        if ($(this).parent().find('#ProjectIDCommon') != undefined)
+                            $(this).parent().find('#ProjectIDCommon').val(ui.item.id);
+                    }
+                    else {
+                        $(this).parent().find('#ProjectID').val('');
+                        $(this).parent().find('#ProjectIDCommon').val('');
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                    if (ui.item != null && ui.item != undefined && $.trim(ui.item.id).length > 0) {
+                        if ($(this).parent().find('#ProjectID') != undefined)
+                            $(this).parent().find('#ProjectID').val(ui.item.id);
+                        if ($(this).parent().find('#ProjectIDCommon') != undefined)
+                            $(this).parent().find('#ProjectIDCommon').val(ui.item.id);
+                    }
+                    else {
+                        $(this).parent().find('#ProjectID').val('');
+                        $(this).parent().find('#ProjectIDCommon').val('');
+                    }
+                }
+            });
+        });
+
+
+        $('#ItemModeDataTable').on('focus', "input.AutoPullBins", function (e) {
+            var ajaxURL = '/Pull/GetItemLocationsForNewPullGrid';
+            var tr = $(this).parent().parent().parent();
+            var itmGuid = $(tr).find('#spnItemGUID').text();
+            var stagName = '';
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $('#DivLoading').show()
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'ItemGuid': itmGuid, 'NameStartWith': request.term }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            $('#DivLoading').hide()
+
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Value,
+                                    id: Items.ID
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                            $('#DivLoading').hide();
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    $(this).val(ui.item.value);
+                    if (ui.item != null && ui.item != undefined && $.trim(ui.item.id).length > 0 && $.trim(ui.item.value).length > 0) {
+                        $(this).parent().find('#BinID').val(ui.item.id);
+                    }
+                    else {
+                        $(this).parent().find('#BinID').val('');
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                    //                    if (ui.item != null && ui.item != undefined && $.trim(ui.item.id).length > 0) {
+                    //                        $(this).parent().find('#BinID').val(ui.item.id);
+                    //                    }
+                    //                    else {
+                    //                        $(this).parent().find('#BinID').val('');
+                    //                    }
+                }
+            });
+        });
+
+        $('#ItemModeDataTable').on('focus', "input.AutoCreditBins", function (e) {
+            var tr = $(this).parent().parent().parent();
+            var itmGuid = $(tr).find('#spnItemGUID').text();
+            var stagName = '';
+            var hdnIsLoadMoreLocations = $(tr).find("#hdnIsLoadMoreLocations").val();
+
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $('#DivLoading').show();
+                    var qtyRequired = false;
+
+                    $.ajax({
+                        url: '/Master/GetBinsOfItem',
+                        //type: 'POST',
+                        data: { 'StagingName': '', 'NameStartWith': request.term, 'ItemGUID': itmGuid, 'QtyRequired': qtyRequired, 'IsLoadMoreLocations': hdnIsLoadMoreLocations },
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            $('#DivLoading').hide();
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Key,
+                                    value: Items.Value,
+                                    selval: Items.Value
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                            $('#DivLoading').hide();
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+
+                    if (ui.item.selval == "More Locations") {
+                        $(tr).find("#hdnIsLoadMoreLocations").val("true");
+                        $(this).trigger("focus");
+                        $(this).autocomplete("search", " ");
+                        return false;
+                    }
+                    else {
+                        $(this).val(ui.item.value);
+                    }
+
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                    $(this).autocomplete('widget').css('z-index', 9000);
+                    $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                    $('ul.ui-autocomplete').css('max-height', '300px');
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                }
+            });
+        });
+
+        //$('#ItemModeDataTable, #tblPullCommonUDF').on('focus', "input.AutoPullOrderNumber", function (e) {
+        //    var ajaxURL = '/Pull/GetPullOrderNumberForNewPullGrid';
+        //    var tr = $(this).parent().parent().parent();
+        //    var itmGuid = $(tr).find('#spnItemGUID').text();
+
+        //    $(this).autocomplete({
+        //        source: function (request, response) {
+        //            $('#DivLoading').show()
+        //            $.ajax({
+        //                url: ajaxURL,
+        //                type: 'POST',
+        //                data: JSON.stringify({ 'NameStartWith': request.term }),
+        //                contentType: 'application/json',
+        //                dataType: 'json',
+        //                success: function (data) {
+        //                    $('#DivLoading').hide()
+
+        //                    response($.map(data, function (Items) {
+        //                        return {
+        //                            label: Items.Value,
+        //                            value: Items.Value
+        //                        }
+        //                    }));
+        //                },
+        //                error: function (err) {
+        //                    $('#DivLoading').hide();
+        //                }
+        //            });
+        //        },
+        //        autoFocus: false,
+        //        minLength: 1,
+        //        select: function (event, ui) {
+        //            $(this).val(ui.item.value);
+        //        },
+        //        open: function () {
+        //            $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+        //            $(this).autocomplete('widget').css('z-index', 9000);
+        //            $('ul.ui-autocomplete').css('overflow-y', 'auto');
+        //            $('ul.ui-autocomplete').css('max-height', '300px');
+        //        },
+        //        close: function () {
+        //            $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+        //        },
+        //        change: function (event, ui) {
+
+        //        }
+        //    });
+        //});
+
+
+
+    });
+
+    function closeModalNoSelectModel() {
+        $.modal.impl.close();
+    }
+
+    function closeModalPSLimit() {
+        $.modal.impl.close();
+        $('#ItemModeDataTable').dataTable().fnStandingRedraw();
+    }
+
+
+    function onlyNumeric(event) {
+        var charCode = (event.which) ? event.which : event.keyCode
+
+        if (charCode > 31 && (charCode < 48 || charCode > 57))
+            return false;
+
+        return true;
+
+    }
+    function fnFilterGlobalIM() {
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#ItemModel_filter") != 'undefined' && ($("#ItemModel_filter").val().length > 2 || $("#ItemModel_filter").val().length == 0)) {
+            FilterNCPGridDataFromGlobalFilter();
+        }
+        else {
+            $('#ItemModeDataTable td').removeHighlight();
+            $('#ItemModeDataTable td').highlight($("#ItemModel_filter").val());
+        }
+    }
+
+    function FilterNCPGridDataFromGlobalFilter() {
+        var searchtext = $("#ItemModel_filter").val().replace(/'/g, "''");
+        //$('#ItemModeDataTable').dataTable().fnFilter(
+        //                searchtext,
+        //                null,
+        //                null,
+        //                null
+        //            );
+        DoNarrowSearchIM();
+    }
+
+    var IsCtrl = false;
+    var IsV = false;
+    var IsC = false;
+
+    var timeoutsc2;
+    $(document).on('propertychange input', "#ItemModel_filter", function () {
+        clearTimeout(timeoutsc2);
+        var SearchControl = this;
+        timeoutsc2 = setTimeout(function () {
+            fnFilterGlobalIM();
+        }, 500);
+    });
+
+    $("#ItemModel_filter").keypress(function (e) {
+        if (e.which == 13 && $("#ItemModel_filter").val().length >= 2) {
+            FilterNCPGridDataFromGlobalFilter();
+        }
+    });
+
+    //-------------BARCODE SEARCH------------
+    //
+    BarcodeSearch_SearchTextBoxId = 'ItemModel_filter';
+    BindEventsForBarcodeScanning();
+    function ExecuteOnBarcodeSearch() {
+        fnFilterGlobalIM();
+    }
+
+    //$("#ItemModel_filter").keyup(function (e) {
+    //    var code = (e.keyCode ? e.keyCode : e.which);
+    //    console.log('KeyUp : ' + code.toString());
+    //});
+
+    //$("#ItemModel_filter").keydown(function (e) {
+    //    var code = (e.keyCode ? e.keyCode : e.which);
+    //    console.log('KeyDown : ' + code.toString());
+    //});
+
+    //$("#ItemModel_filter").keyup(function (e) {
+    //    var code = (e.keyCode ? e.keyCode : e.which);
+
+    //    if ((IsCtrl == true && IsV == true) || (IsCtrl == true && IsC == true) || code == 13 || code == 16 || code == 17 || code == 18 || code == 9)
+    //    { }
+    //    else {
+    //        SearchByBarcode(this);
+    //        fnFilterGlobalIM();
+    //    }
+
+    //    if (code == 17)
+    //        IsCtrl = false;
+
+    //    if (code == 86)
+    //        IsV = false;
+
+    //    if (code == 67)
+    //        IsC = false;
+    //});
+
+    //$("#ItemModel_filter").keydown(function (e) {
+    //    var code = (e.keyCode ? e.keyCode : e.which);
+
+    //    if (code == 17)
+    //        IsCtrl = true;
+
+    //    if (code == 86)
+    //        IsV = true;
+
+    //    if (code == 67)
+    //        IsC = true;
+
+    //    if (code == 13) {
+    //        var searchtext = $("#ItemModel_filter").val().replace(/'/g, "''");
+    //        //$('#ItemModeDataTable').dataTable().fnFilter(
+    //        //                searchtext,
+    //        //                null,
+    //        //                null,
+    //        //                null
+    //        //            );
+    //        DoNarrowSearchIM();
+    //        return false;
+    //    }
+    //});
+
+    //$(document).on('propertychange input', "#ItemModel_filter", function () {
+    //    fnFilterGlobalIM();
+    //    return false;
+    //});
+
+    $("#clear_QLItemModel_filter").click(funClearFilterIM);
+
+    function funClearFilterIM() {
+        //Check length first
+        if ($("#ItemModel_filter").val().length > 0) {
+            $("#ItemModel_filter").val('');
+            $('#ItemModeDataTable').dataTable().fnFilter(
+                            $("#ItemModel_filter").val(),
+                            null,
+                            null,
+                            null
+                        );
+        }
+        $("#ItemModel_filter").focus();
+        return false;
+    }
+
+    $('#PageNumberIM').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#GobtnIM").click();
+            return false;
+        }
+    });
+
+    $("#GobtnIM").click(function () {
+        var pval = $('#PageNumberIM').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+        $('#ItemModeDataTable').dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumberIM').val('');
+    });
+
+    // used for refresh the grid manually...
+    $('#refreshGridIM').live('click', function () {
+        if ($("#divRefreshBlockIM").css("display").toUpperCase() == 'BLOCK')
+            $("#divRefreshBlockIM").toggle();
+
+        $('#ItemModeDataTable').dataTable().fnDraw();
+        //fillItemMaster(false);
+
+    });
+    function diabledPullbutton() {
+        $("table#ItemModeDataTable tbody tr").each(function () {
+            $(this).children("td:first").children("input.pullbutton").prop('disabled', true);
+        });
+    }
+    function enablePullbutton() {
+        $("table#ItemModeDataTable tbody tr").each(function () {
+            $(this).children("td:first").children("input.pullbutton").prop('disabled', false);
+        });
+    }
+
+    function LoadQuickListData(OBJGridRow) {
+        diabledPullbutton();
+        var vsQuickListGUID = $(OBJGridRow).parent().parent().find('#spnQuickListGUID').text() == "" ? "" : $(OBJGridRow).parent().parent().find('#spnQuickListGUID').text();
+        QuickListPULLQty = parseInt($(OBJGridRow).parent().parent().find('#txtQty').val() == '' ? 0 : $(OBJGridRow).parent().parent().find('#txtQty').val());
+        if (QuickListPULLQty > 0) {
+            var searchText = "QLGuid=" + vsQuickListGUID + "#Qty=" + QuickListPULLQty.toString();
+            $('#ItemModeDataTable').dataTable().fnFilter(searchText, null, null, null);
+            IsQLLoaded = true;
+        }
+        else {
+            $('div#target').fadeToggle();
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            $("#spanGlobalMessage").text('Kindly add proper QL quantity.');
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            enablePullbutton();
+        }
+        return false;
+    }
+
+    $(oTableItemModel).ajaxSuccess(function () {
+        if (IsQLLoaded) {
+            //alert("IsQLLoaded");
+            IsQLLoaded = false;
+            setTimeout('CallForQLPull()', 1000);
+        }
+    });
+
+    function CallForQLPull() {
+        IsQLLoaded = false;
+        if ($('#ItemModeDataTable').dataTable().find("tbody tr")[0].cells.length > 1) {
+            $('#ItemModeDataTable').dataTable().find("tbody tr").removeClass("row_selected").addClass("row_selected");
+            $("#btnPullAllQL").click();
+        }
+    }
+
+    function LoadAllItemDataWithFilter() {
+        $('#ItemModeDataTable').dataTable().fnFilter(narrowSearch, null, null, null);
+    }
+
+    function LoadAllItemData() {
+        $('#ItemModeDataTable').dataTable().fnFilter("", null, null, null);
+    }
+
+    function CheckValidPullData() {
+
+        var IsGlobalErrorMsgShow = false;
+        var IsPSRedirectToReq = false;
+        var IsQLSuccessfullyDone = true;
+        var QLErrorMsg = '';
+        $('#ItemModeDataTable tbody tr.row_selected').each(function (i) {
+            if ($(this).attr('class').indexOf('row_selected') != -1) {
+                $(this).toggleClass('row_selected');
+                var RowObject = $(this);
+                var aPos = $('#ItemModeDataTable').dataTable().fnGetPosition($(this)[0]);
+                var aData = $('#ItemModeDataTable').dataTable().fnGetData(aPos);
+                var errorMsg = '';
+                var txxt = $(this).find('#txtQty');
+                var vBinID;
+                var vProjectID;
+                var itemType = $(this).find('#spnOrderItemType').text();
+                var txtQty = txxt.val();
+                if (itemType != '4') {
+                    vBinID = $(this).find('#BinID')[0].value == '' ? 0 : $(this).find('#BinID')[0].value;
+
+                    if ($("#chkUsePullCommonUDF").is(":checked")) {
+                        if ($('#ProjectIDCommon') != undefined)
+                            vProjectID = $('#ProjectIDCommon').val() == "" ? "" : $('#ProjectIDCommon').val();
+                        else
+                            vProjectID = "";
+                    }
+                    else {
+                        if ($(this).find('#ProjectID')[0] != undefined)
+                            vProjectID = $(this).find('#ProjectID')[0].value == "" ? "" : $(this).find('#ProjectID')[0].value;
+                        else
+                            vProjectID = "";
+                    }
+
+                    //vProjectID = $(this).find('#ProjectID')[0].value == "" ? "" : $(this).find('#ProjectID')[0].value;
+
+                    if (!(!isNaN(parseFloat(txtQty)) && parseFloat(txtQty) > 0)) {
+                        errorMsg += "<b style='color:Olive;'>" + aData.ItemNumber + ": Qty to Pull is Mandatory.</b></br>";
+                        IsGlobalErrorMsgShow = true;
+                        IsQLSuccessfullyDone = false;
+                    }
+
+                    if (!(!isNaN(parseInt(vBinID)) && parseFloat(vBinID) > 0)) {
+                        errorMsg += "<b style='color:Olive;'>" + aData.ItemNumber + ": Inventory Location are Mandatory.</b></br>";
+                        IsGlobalErrorMsgShow = true;
+                        IsQLSuccessfullyDone = false;
+                    }
+                }
+                else {
+                    if (!(!isNaN(parseFloat(txtQty)) && parseFloat(txtQty) > 0)) {
+                        errorMsg += "<b style='color:Olive;'>" + aData.ItemNumber + ": Labour Item Required Hours to Pull.</b></br>";
+                        IsGlobalErrorMsgShow = true;
+                        IsQLSuccessfullyDone = false;
+                    }
+
+                    vBinID = 0;
+                    vProjectID = '';
+                }
+
+                if (errorMsg.length <= 0) {
+                    var vItemID = $(this).find('#spnItemID').text();
+                    var vItemGUID = $(this).find('#spnItemGUID').text();
+                    var vspnOn_HandQuantity = $(this).find('#spnOn_HandQuantity').text() == "" ? 0 : $(this).find('#spnOn_HandQuantity').text();
+                    var vPullCreditText = "pull"; //$(obj)[0].value;//$(obj).parent().parent().find('input[name=colors'+vItemID+']:checked')[0].value;
+                    var VspnDefaultPullQuantity = $(this).find('#spnDefaultPullQuantity').text() == "" ? 0 : $(this).find('#spnDefaultPullQuantity').text();
+                    var vUDF1 = ''; var vUDF2 = ''; var vUDF3 = ''; var vUDF4 = ''; var vUDF5 = '';
+                    var vUDF1PullCommon = ''; var vUDF2PullCommon = ''; var vUDF3PullCommon = ''; var vUDF4PullCommon = ''; var vUDF5PullCommon = '';
+
+                    if ($("#UDF1PullCommon") != null) {
+                        if ($("#UDF1PullCommon").attr("class") == 'selectBox') {
+                            vUDF1PullCommon = $("#UDF1PullCommon option:selected").text();
+                        }
+                        else {
+                            vUDF1PullCommon = $("#UDF1PullCommon").val();
+                        }
+                    }
+
+                    if ($("#UDF2PullCommon") != null) {
+                        if ($("#UDF2PullCommon").attr("class") == 'selectBox') {
+                            vUDF2PullCommon = $("#UDF2PullCommon option:selected").text();
+                        }
+                        else {
+                            vUDF2PullCommon = $("#UDF2PullCommon").val();
+                        }
+                    }
+
+                    if ($("#UDF3PullCommon") != null) {
+                        if ($("#UDF3PullCommon").attr("class") == 'selectBox') {
+                            vUDF3PullCommon = $("#UDF3PullCommon option:selected").text();
+                        }
+                        else {
+                            vUDF3PullCommon = $("#UDF3PullCommon").val();
+                        }
+                    }
+
+                    if ($("#UDF4PullCommon") != null) {
+                        if ($("#UDF4PullCommon").attr("class") == 'selectBox') {
+                            vUDF4PullCommon = $("#UDF4PullCommon option:selected").text();
+                        }
+                        else {
+                            vUDF4PullCommon = $("#UDF4PullCommon").val();
+                        }
+                    }
+
+                    if ($("#UDF5PullCommon") != null) {
+                        if ($("#UDF5PullCommon").attr("class") == 'selectBox') {
+                            vUDF5PullCommon = $("#UDF5PullCommon option:selected").text();
+                        }
+                        else {
+                            vUDF5PullCommon = $("#UDF5PullCommon").val();
+                        }
+                    }
+
+                    if ($(this).find('#UDF1') != null) {
+                        if ($(this).find('#UDF1').attr("class") == 'selectBox') {
+                            vUDF1 = $(this).find('#UDF1 option:selected').text();
+                        }
+                        else {
+                            vUDF1 = $(this).find('#UDF1').val();
+                        }
+                    }
+
+                    if ($(this).find('#UDF2') != null) {
+                        if ($(this).find('#UDF2').attr("class") == 'selectBox') {
+                            vUDF2 = $(this).parent().find('#UDF2 option:selected').text();
+                        }
+                        else {
+                            vUDF2 = $(this).find('#UDF2').val();
+                        }
+                    }
+
+                    if ($(this).find('#UDF3') != null) {
+                        if ($(this).find('#UDF3').attr("class") == 'selectBox') {
+                            vUDF3 = $(this).find('#UDF3 option:selected').text();
+                        }
+                        else {
+                            vUDF3 = $(this).find('#UDF3').val();
+                        }
+                    }
+
+                    if ($(this).find('#UDF4') != null) {
+                        if ($(this).find('#UDF4').attr("class") == 'selectBox') {
+                            vUDF4 = $(this).find('#UDF4 option:selected').text();
+                        }
+                        else {
+                            vUDF4 = $(this).find('#UDF4').val();
+                        }
+                    }
+
+                    if ($(this).find('#UDF5') != null) {
+                        if ($(this).find('#UDF5').attr("class") == 'selectBox') {
+                            vUDF5 = $(this).find('#UDF5 option:selected').text();
+                        }
+                        else {
+                            vUDF5 = $(this).find('#UDF5').val();
+                        }
+                    }
+
+                    if ($("#chkUsePullCommonUDF").is(":checked")) {
+                        vUDF1 = vUDF1PullCommon;
+                        vUDF2 = vUDF2PullCommon;
+                        vUDF3 = vUDF3PullCommon;
+                        vUDF4 = vUDF4PullCommon;
+                        vUDF5 = vUDF5PullCommon;
+                    }
+
+                    ///////////////////////////////////// UPDATE PULL DATA CALL//////////////////////////////////////////START
+                    $.ajax({
+                        "url": '@Url.Content("~/Pull/CheckValidPullData")',
+                        //data: { ID: 0, ItemGUID: vItemGUID, ProjectGUID: vProjectID, BinID: vBinID, PullCreditQuantity: (txtQty * QuickListPULLQty), PullCredit: vPullCreditText, TempPullQTY: (txtQty * QuickListPULLQty), UDF1: vUDF1, UDF2: vUDF2, UDF3: vUDF3, UDF4: vUDF4, UDF5: vUDF5, RequisitionDetailID: "", WorkOrderDetailGUID: '@TempData["WorkOrderGUID"]' },
+                        data: { ID: 0, ItemGUID: vItemGUID, ProjectGUID: vProjectID, BinID: vBinID, PullCreditQuantity: (txtQty), PullCredit: vPullCreditText, TempPullQTY: (txtQty), UDF1: vUDF1, UDF2: vUDF2, UDF3: vUDF3, UDF4: vUDF4, UDF5: vUDF5, RequisitionDetailID: "", WorkOrderDetailGUID: '@TempData["WorkOrderGUID"]' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        success: function (response) {
+                            $('#DivLoading').hide();
+                            if (response.Status == "ok") {
+                                if (response.LocationMSG != "") {
+                                    if (response.PSLimitExceed) {
+                                        IsPSRedirectToReq = true;
+                                        IsGlobalErrorMsgShow = true;
+                                        IsQLSuccessfullyDone = false;
+                                        errorMsg += "<b style='color:Olive'>" + aData.ItemNumber + ": " + response.LocationMSG + " " + "do you want to create new requisition for the same ?</b><br>"
+                                        //return true;
+                                    }
+                                    else {
+                                        IsPSRedirectToReq = false;
+                                        IsGlobalErrorMsgShow = true;
+                                        IsQLSuccessfullyDone = false;
+                                        errorMsg += "<b style='color:Olive'>" + aData.ItemNumber + ": " + response.LocationMSG + "</b><br>"
+                                        //return true;
+                                    }
+                                }
+                            }
+                            else {
+                                IsPSRedirectToReq = false;
+                                IsGlobalErrorMsgShow = true;
+                                IsQLSuccessfullyDone = false;
+                                errorMsg += "<b style='color:Olive'>" + aData.ItemNumber + ": " + response.Message + "</b><br>"
+                                //return true;
+                            }
+                            txxt.val(VspnDefaultPullQuantity);
+                        },
+                        error: function (response) {
+                            IsPSRedirectToReq = false;
+                            IsGlobalErrorMsgShow = true;
+                            IsQLSuccessfullyDone = false;
+                            errorMsg += "<b style='color:Olive'>" + aData.ItemNumber + ": " + response.Message + "</b><br>"
+                            //return true;
+                        }
+                    });
+                    ///////////////////////////////////// UPDATE PULL DATA CALL//////////////////////////////////////////END
+                }
+            }
+            QLErrorMsg += errorMsg;
+        });
+        if (IsPSRedirectToReq) {
+            $.modal.impl.close();
+            //$('#project-spend-limit-basic-modal-content').modal();
+            QLErrorMsg = "<b>Some of the Item(s) is(are) not able to Pull(s) Due to following reasons.</b><br /><br />" + QLErrorMsg;
+            $('#dlgCommonErrorMsg').find("#pOkbtn").css('display', 'none');
+            $('#dlgCommonErrorMsg').find("#pYesNobtn").css('display', '');
+            $('#dlgCommonErrorMsg').find("#pErrMessage").html(QLErrorMsg);
+            $('#dlgCommonErrorMsg').modal()
+        }
+        else if (IsGlobalErrorMsgShow) {
+            $.modal.impl.close();
+            //$('#noramal-global-msg-QL-basic-modal-content').modal();
+            QLErrorMsg = "<b>Some of the Item(s) is(are) not able to Pull(s) Due to following reasons.</b><br /><br />" + QLErrorMsg;
+            $('#dlgCommonErrorMsg').find("#pOkbtn").css('display', '');
+            $('#dlgCommonErrorMsg').find("#pYesNobtn").css('display', 'none');
+            $('#dlgCommonErrorMsg').find("#pErrMessage").html(QLErrorMsg);
+            $('#dlgCommonErrorMsg').modal()
+        }
+        else {
+            $('#ItemModeDataTable').dataTable().find("tbody tr").removeClass("row_selected").addClass("row_selected");
+            setTimeout('AddSingleItemToPullList($("#btnPullAllQL"))', 1000);
+        }
+    }
+
+    function AddSingleItemToPullList(obj) {
+
+        diabledPullbutton();
+
+        if ($(obj)[0].value == undefined)
+            return false;
+        var ProjectSpendName;
+        $('#DivLoading').show();
+
+        if ($(obj)[0].value == 'Pull QL') {
+
+            var IsGlobalErrorMsgShow = false;
+            var IsPSRedirectToReq = false;
+            var IsQLSuccessfullyDone = true;
+            var errGBLMsg = '';
+            $('#ItemModeDataTable tbody tr').each(function (i) {
+
+                if ($(this).attr('class').indexOf('row_selected') != -1) {
+                    $(this).toggleClass('row_selected');
+                    var RowObject = $(this);
+                    var aPos = $('#ItemModeDataTable').dataTable().fnGetPosition($(this)[0]);
+                    var aData = $('#ItemModeDataTable').dataTable().fnGetData(aPos);
+                    var errorMsg = '';
+
+                    var txxt = $(this).find('#txtQty');
+
+                    var vBinID;
+                    var vProjectID;
+
+                    var itemType = $(this).find('#spnOrderItemType').text();
+                    var txtQty = txxt.val();
+
+                    if (itemType != '4') {
+                        vBinID = $(this).find('#BinID')[0].value == '' ? 0 : $(this).find('#BinID')[0].value;
+
+                        if ($("#chkUsePullCommonUDF").is(":checked")) {
+                            if ($('#ProjectIDCommon') != undefined)
+                                vProjectID = $('#ProjectIDCommon').val() == "" ? "" : $('#ProjectIDCommon').val();
+                            else
+                                vProjectID = "";
+                            if ($('#txtProjectSpentCommon').val() != '') {
+                                ProjectSpendName = $('#txtProjectSpentCommon').val();
+                            }
+                        }
+                        else {
+                            if ($(this).find('select[id*="txtProjectSpent"]') != undefined)
+                                vProjectID = $(this).find('select[id*="txtProjectSpent"]').val() == "" ? "" : $(this).find('select[id*="txtProjectSpent"]').val();
+                            else
+                                vProjectID = "";
+                            if ($(this).find('select[id^=txtProjectSpent] :selected').text() != '') {
+                                ProjectSpendName = $(this).find('select[id^=txtProjectSpent] :selected').text();
+                            }
+                        }
+
+                        //vProjectID = $(this).find('#ProjectID')[0].value == "" ? "" : $(this).find('#ProjectID')[0].value;
+
+                        if (!(!isNaN(parseFloat(txtQty)) && parseFloat(txtQty) > 0)) {
+                            $(this).css('background-color', 'Olive');
+                            IsGlobalErrorMsgShow = true;
+                            errorMsg += "<b style='color:Olive;'>" + aData.ItemNumber + ": Qty to Pull is Mandatory.</b><br/>"
+                        }
+
+                        if (!(!isNaN(parseInt(vBinID)) && parseInt(vBinID) > 0)) {
+                            $(this).css('background-color', 'Olive');
+                            IsGlobalErrorMsgShow = true;
+                            errorMsg += "<b style='color:Olive;'>" + aData.ItemNumber + ": Inventory Location are Mandatory.</b><br/>"
+                        }
+
+
+                    }
+                    else {
+
+                        if (!(!isNaN(parseFloat(txtQty)) && parseFloat(txtQty) > 0)) {
+                            $(this).css('background-color', 'Olive');
+                            IsGlobalErrorMsgShow = true;
+                            errorMsg += "<b style='color:Olive;'>" + aData.ItemNumber + ": Labour Item Required Hours to Pull.</b><br/>"
+                        }
+                        vBinID = 0;
+                        vProjectID = '';
+                        ProjectSpendName = '';
+                    }
+
+
+                    if (errorMsg.length <= 0) {
+                        var vItemID = $(this).find('#spnItemID').text();
+                        var vItemGUID = $(this).find('#spnItemGUID').text();
+                        var vspnOn_HandQuantity = $(this).find('#spnOn_HandQuantity').text() == "" ? 0 : $(this).find('#spnOn_HandQuantity').text();
+                        var vPullCreditText = "pull"; //$(obj)[0].value;//$(obj).parent().parent().find('input[name=colors'+vItemID+']:checked')[0].value;
+                        var VspnDefaultPullQuantity = $(this).find('#spnDefaultPullQuantity').text() == "" ? 0 : $(this).find('#spnDefaultPullQuantity').text();
+                        var vUDF1 = ''; var vUDF2 = ''; var vUDF3 = ''; var vUDF4 = ''; var vUDF5 = '';
+                        var vUDF1PullCommon = ''; var vUDF2PullCommon = ''; var vUDF3PullCommon = ''; var vUDF4PullCommon = ''; var vUDF5PullCommon = '';
+
+                        //var vPullOrderNumber = "";
+                        //if ($(this).find('#txtPullOrderNumber') != null) {
+                        //    vPullOrderNumber = $(this).find('#txtPullOrderNumber').val();
+                        //}
+                        var vPullOrderNumber = "";
+
+                        if ($("#chkUsePullCommonUDF").is(":checked")) {
+                            if ($('#txtPullOrderNumberCommon') != null) {
+                                if ($('#txtPullOrderNumberCommon').attr("class") == 'selectBox') {
+                                    vPullOrderNumber = $('#txtPullOrderNumberCommon option:selected').text();
+                                }
+                                else {
+                                    vPullOrderNumber = $('#txtPullOrderNumberCommon').val();
+                                }
+                            }
+                        }
+                        else {
+                            if ($(this).find('#txtPullOrderNumber') != null) {
+                                if ($(this).find('#txtPullOrderNumber').attr("class") == 'selectBox') {
+                                    vPullOrderNumber = $(this).find('#txtPullOrderNumber option:selected').text();
+                                }
+                                else {
+                                    vPullOrderNumber = $(this).find('#txtPullOrderNumber').val();
+                                }
+                            }
+                        }
+
+                        if ($("#UDF1PullCommon") != null) {
+                            if ($("#UDF1PullCommon").attr("class") == 'selectBox') {
+                                vUDF1PullCommon = $("#UDF1PullCommon option:selected").text();
+                            }
+                            else {
+                                vUDF1PullCommon = $("#UDF1PullCommon").val();
+                            }
+                        }
+
+                        if ($("#UDF2PullCommon") != null) {
+                            if ($("#UDF2PullCommon").attr("class") == 'selectBox') {
+                                vUDF2PullCommon = $("#UDF2PullCommon option:selected").text();
+                            }
+                            else {
+                                vUDF2PullCommon = $("#UDF2PullCommon").val();
+                            }
+                        }
+
+                        if ($("#UDF3PullCommon") != null) {
+                            if ($("#UDF3PullCommon").attr("class") == 'selectBox') {
+                                vUDF3PullCommon = $("#UDF3PullCommon option:selected").text();
+                            }
+                            else {
+                                vUDF3PullCommon = $("#UDF3PullCommon").val();
+                            }
+                        }
+
+                        if ($("#UDF4PullCommon") != null) {
+                            if ($("#UDF4PullCommon").attr("class") == 'selectBox') {
+                                vUDF4PullCommon = $("#UDF4PullCommon option:selected").text();
+                            }
+                            else {
+                                vUDF4PullCommon = $("#UDF4PullCommon").val();
+                            }
+                        }
+
+                        if ($("#UDF5PullCommon") != null) {
+                            if ($("#UDF5PullCommon").attr("class") == 'selectBox') {
+                                vUDF5PullCommon = $("#UDF5PullCommon option:selected").text();
+                            }
+                            else {
+                                vUDF5PullCommon = $("#UDF5PullCommon").val();
+                            }
+                        }
+
+                        if ($(this).find('#UDF1') != null) {
+                            if ($(this).find('#UDF1').attr("class") == 'selectBox') {
+                                vUDF1 = $(this).find('#UDF1 option:selected').text();
+                            }
+                            else {
+                                vUDF1 = $(this).find('#UDF1').val();
+                            }
+                        }
+
+                        if ($(this).find('#UDF2') != null) {
+                            if ($(this).find('#UDF2').attr("class") == 'selectBox') {
+                                vUDF2 = $(this).parent().find('#UDF2 option:selected').text();
+                            }
+                            else {
+                                vUDF2 = $(this).find('#UDF2').val();
+                            }
+                        }
+
+                        if ($(this).find('#UDF3') != null) {
+                            if ($(this).find('#UDF3').attr("class") == 'selectBox') {
+                                vUDF3 = $(this).find('#UDF3 option:selected').text();
+                            }
+                            else {
+                                vUDF3 = $(this).find('#UDF3').val();
+                            }
+                        }
+
+                        if ($(this).find('#UDF4') != null) {
+                            if ($(this).find('#UDF4').attr("class") == 'selectBox') {
+                                vUDF4 = $(this).find('#UDF4 option:selected').text();
+                            }
+                            else {
+                                vUDF4 = $(this).find('#UDF4').val();
+                            }
+                        }
+
+                        if ($(this).find('#UDF5') != null) {
+                            if ($(this).find('#UDF5').attr("class") == 'selectBox') {
+                                vUDF5 = $(this).find('#UDF5 option:selected').text();
+                            }
+                            else {
+                                vUDF5 = $(this).find('#UDF5').val();
+                            }
+                        }
+
+                        if ($("#chkUsePullCommonUDF").is(":checked")) {
+                            vUDF1 = vUDF1PullCommon;
+                            vUDF2 = vUDF2PullCommon;
+                            vUDF3 = vUDF3PullCommon;
+                            vUDF4 = vUDF4PullCommon;
+                            vUDF5 = vUDF5PullCommon;
+                        }
+
+                        $('#DivLoading').show();
+                        if (vProjectID == ProjectSpendName || vProjectID == null) {
+                            vProjectID = '';
+                        }
+                        ///////////////////////////////////// UPDATE PULL DATA CALL//////////////////////////////////////////START
+                        $.ajax({
+                            "url": '@Url.Content("~/Pull/UpdatePullData")',
+                            //data: { ID: 0, ItemGUID: vItemGUID, ProjectGUID: vProjectID, BinID: vBinID, PullCreditQuantity: (txtQty * QuickListPULLQty), PullCredit: vPullCreditText, TempPullQTY: (txtQty * QuickListPULLQty), UDF1: vUDF1, UDF2: vUDF2, UDF3: vUDF3, UDF4: vUDF4, UDF5: vUDF5, RequisitionDetailID: "", WorkOrderDetailGUID: '@TempData["WorkOrderGUID"]', ProjectSpendName: ProjectSpendName },
+                            data: { ID: 0, ItemGUID: vItemGUID, ProjectGUID: vProjectID, BinID: vBinID, PullCreditQuantity: (txtQty), PullCredit: vPullCreditText, TempPullQTY: (txtQty), UDF1: vUDF1, UDF2: vUDF2, UDF3: vUDF3, UDF4: vUDF4, UDF5: vUDF5, RequisitionDetailID: "", WorkOrderDetailGUID: '@TempData["WorkOrderGUID"]', ProjectSpendName: ProjectSpendName, PullOrderNumber: vPullOrderNumber },
+                            "async": false,
+                            cache: false,
+                            "dataType": "json",
+                            success: function (response) {
+
+                                $('#DivLoading').hide();
+                                if (response.Status == "ok") {
+                                    if (response.LocationMSG != "") {
+                                        if (response.PSLimitExceed) {
+                                            $(RowObject).css('background-color', 'Yellow');
+                                            IsPSRedirectToReq = true;
+                                            IsGlobalErrorMsgShow = true;
+                                            IsQLSuccessfullyDone = false;
+                                            errorMsg += "<b style='color:Olive'>" + aData.ItemNumber + ": " + response.LocationMSG + " " + "do you want to create new requisition for the same ?</b><br>"
+                                        }
+                                        else {
+                                            $(RowObject).css('background-color', 'Olive');
+                                            //IsPSRedirectToReq = false;
+                                            IsGlobalErrorMsgShow = true;
+                                            IsQLSuccessfullyDone = false;
+                                            errorMsg += "<b style='color:Olive'>" + aData.ItemNumber + ": " + response.LocationMSG + "</b><br>"
+                                        }
+                                    }
+                                    else {
+
+                                        UDFInsertNewForGrid(RowObject);
+                                        $(RowObject).css('background-color', 'Green');
+                                        errorMsg += "<b style='color:Green'>" + aData.ItemNumber + ": " + response.Message + "</b><br>"
+                                    }
+                                }
+                                else {
+                                    $(RowObject).css('background-color', 'Red');
+                                    IsPSRedirectToReq = false;
+                                    IsGlobalErrorMsgShow = true;
+                                    IsQLSuccessfullyDone = false;
+                                    errorMsg += "<b style='color:Red'>" + aData.ItemNumber + ": " + response.Message + "</b><br>"
+                                }
+                                txxt.val(VspnDefaultPullQuantity);
+                            },
+                            error: function (response) {
+
+                                $(RowObject).css('background-color', 'Red');
+                                IsPSRedirectToReq = false;
+                                IsGlobalErrorMsgShow = true;
+                                IsQLSuccessfullyDone = false;
+                                errorMsg += "<b style='color:Red'>" + aData.ItemNumber + ": Unexpected error occurred.</b><br>"
+                            }
+                        });
+                        ///////////////////////////////////// UPDATE PULL DATA CALL//////////////////////////////////////////END
+                    }
+
+                    //////////////////////////////////////END//////////////////////////////////////
+                }
+                errGBLMsg += errorMsg;
+            });
+
+            $('#DivLoading').show();
+            if (IsQLSuccessfullyDone) {
+                $.modal.impl.close();
+                $('#DivLoading').hide();
+                LoadAllItemDataWithFilter();
+            }
+            else if (IsPSRedirectToReq) {
+                $.modal.impl.close();
+                errGBLMsg = "<b>Some of the Item(s) is(are) not able to Pull(s) Due to following reasons.</b><br /><br />" + errGBLMsg;
+                $('#DivLoading').hide();
+                $('#dlgCommonErrorMsg').find("#pOkbtn").css('display', 'none');
+                $('#dlgCommonErrorMsg').find("#pYesNobtn").css('display', '');
+                $('#dlgCommonErrorMsg').find("#pErrMessage").html(errGBLMsg);
+                $('#dlgCommonErrorMsg').modal()
+            }
+            else if (IsGlobalErrorMsgShow) {
+                $.modal.impl.close();
+                $('#DivLoading').hide();
+                errGBLMsg = "<b>Some of the Item(s) is(are) not able to Pull(s) Due to following reasons.</b><br /><br />" + errGBLMsg;
+                $('#dlgCommonErrorMsg').find("#pOkbtn").css('display', '');
+                $('#dlgCommonErrorMsg').find("#pYesNobtn").css('display', 'none');
+                $('#dlgCommonErrorMsg').find("#pErrMessage").html(errGBLMsg);
+
+                $('#dlgCommonErrorMsg').modal()
+            }
+        }
+        else if ($(obj)[0].value == 'Pull ALL' || $(obj)[0].value == '@eTurns.DTO.ResPullMaster.PullAllButton') {
+            var IsGlobalErrorMsgShow = false;
+            var IsPSRedirectToReq = false;
+            //$('#DivLoading').show();
+            var errGBLMsg = ''; $('#DivLoading').show();
+            $('#ItemModeDataTable tbody tr.row_selected').each(function (i) {
+
+                if ($(this).attr('class').indexOf('row_selected') != -1) {
+                    $(this).toggleClass('row_selected');
+                    var errorMsg = '';
+                    var RowObject = $(this);
+                    var aPos = $('#ItemModeDataTable').dataTable().fnGetPosition($(this)[0]);
+                    var aData = $('#ItemModeDataTable').dataTable().fnGetData(aPos);
+                    var txxt = $(this).find('#txtQty');
+                    var vBinID;
+                    var vProjectID;
+                    var itemType = $(this).find('#spnOrderItemType').text();
+                    var txtQty = txxt.val();
+                    if (itemType != '4') {
+                        vBinID = $(this).find('#BinID')[0].value == '' ? 0 : $(this).find('#BinID')[0].value;
+
+                        if ($("#chkUsePullCommonUDF").is(":checked")) {
+                            if ($('#ProjectIDCommon') != undefined)
+                                vProjectID = $('#ProjectIDCommon').val() == "" ? "" : $('#ProjectIDCommon').val();
+                            else
+                                vProjectID = "";
+                            if ($('#txtProjectSpentCommon').val() != '') {
+                                ProjectSpendName = $('#txtProjectSpentCommon').val();
+                            }
+                        }
+                        else {
+                            if ($(this).find('select[id*="txtProjectSpent"]') != undefined)
+                                vProjectID = $(this).find('select[id*="txtProjectSpent"]').val() == "" ? "" : $(this).find('select[id*="txtProjectSpent"]').val();
+                            else
+                                vProjectID = "";
+                            if ($(this).find('select[id^=txtProjectSpent] :selected').text() != '') {
+                                ProjectSpendName = $(this).find('select[id^=txtProjectSpent] :selected').text();
+                            }
+                        }
+
+                        // vProjectID = $(this).find('#ProjectID')[0].value == "" ? "" : $(this).find('#ProjectID')[0].value;
+
+                        if (!(!isNaN(parseFloat(txtQty)) && parseFloat(txtQty) > 0)) {
+                            $(this).css('background-color', 'Olive');
+                            IsGlobalErrorMsgShow = true;
+                            errorMsg += "<b style='color:Olive;'>" + aData.ItemNumber + ": Qty to Pull is Mandatory.</b><br/>"
+                        }
+
+                        if (!(!isNaN(parseInt(vBinID)) && parseInt(vBinID) > 0)) {
+                            $(this).css('background-color', 'Olive');
+                            IsGlobalErrorMsgShow = true;
+                            errorMsg += "<b style='color:Olive;'>" + aData.ItemNumber + ": Inventory Location are Mandatory.</b><br/>"
+                        }
+
+                    }
+                    else {
+
+                        if (!(!isNaN(parseFloat(txtQty)) && parseFloat(txtQty) > 0)) {
+                            $(this).css('background-color', 'Olive');
+                            IsGlobalErrorMsgShow = true;
+                            errorMsg += "<b style='color:Olive'>" + aData.ItemNumber + ": Labour Item Required Hours to Pull.</b><br>"
+                        }
+                        vBinID = 0;
+                        vProjectID = '';
+                    }
+
+
+                    var trimtxtVal = txtQty.replace(/ /g, '');
+                    //if (trimtxtVal.length > 0) {
+                    if (errorMsg.length <= 0) {
+                        var vItemID = $(this).find('#spnItemID').text();
+                        var vItemGUID = $(this).find('#spnItemGUID').text();
+
+                        var vspnOn_HandQuantity = $(this).find('#spnOn_HandQuantity').text() == "" ? 0 : $(this).find('#spnOn_HandQuantity').text();
+                        var vPullCreditText = "pull"; //$(obj)[0].value;//$(obj).parent().parent().find('input[name=colors'+vItemID+']:checked')[0].value;
+
+                        var VspnDefaultPullQuantity = $(this).find('#spnDefaultPullQuantity').text() == "" ? 0 : $(this).find('#spnDefaultPullQuantity').text();
+
+                        var vUDF1 = ''; var vUDF2 = ''; var vUDF3 = ''; var vUDF4 = ''; var vUDF5 = '';
+                        var vUDF1PullCommon = ''; var vUDF2PullCommon = ''; var vUDF3PullCommon = ''; var vUDF4PullCommon = ''; var vUDF5PullCommon = '';
+
+                        //var vPullOrderNumber = "";
+                        //if ($(this).find('#txtPullOrderNumber') != null) {
+                        //    vPullOrderNumber = $(this).find('#txtPullOrderNumber').val();
+                        //}
+                        var vPullOrderNumber = "";
+                        if ($("#chkUsePullCommonUDF").is(":checked")) {
+                            if ($('#txtPullOrderNumberCommon') != null) {
+                                if ($('#txtPullOrderNumberCommon').attr("class") == 'selectBox') {
+                                    vPullOrderNumber = $('#txtPullOrderNumberCommon option:selected').text();
+                                }
+                                else {
+                                    vPullOrderNumber = $('#txtPullOrderNumberCommon').val();
+                                }
+                            }
+                        }
+                        else {
+                            if ($(this).find('#txtPullOrderNumber') != null) {
+                                if ($(this).find('#txtPullOrderNumber').attr("class") == 'selectBox') {
+                                    vPullOrderNumber = $(this).find('#txtPullOrderNumber option:selected').text();
+                                }
+                                else {
+                                    vPullOrderNumber = $(this).find('#txtPullOrderNumber').val();
+                                }
+                            }
+                        }
+
+                        if ($("#UDF1PullCommon") != null) {
+                            if ($("#UDF1PullCommon").attr("class") == 'selectBox') {
+                                vUDF1PullCommon = $("#UDF1PullCommon option:selected").text();
+                            }
+                            else {
+                                vUDF1PullCommon = $("#UDF1PullCommon").val();
+                            }
+                        }
+
+                        if ($("#UDF2PullCommon") != null) {
+                            if ($("#UDF2PullCommon").attr("class") == 'selectBox') {
+                                vUDF2PullCommon = $("#UDF2PullCommon option:selected").text();
+                            }
+                            else {
+                                vUDF2PullCommon = $("#UDF2PullCommon").val();
+                            }
+                        }
+
+                        if ($("#UDF3PullCommon") != null) {
+                            if ($("#UDF3PullCommon").attr("class") == 'selectBox') {
+                                vUDF3PullCommon = $("#UDF3PullCommon option:selected").text();
+                            }
+                            else {
+                                vUDF3PullCommon = $("#UDF3PullCommon").val();
+                            }
+                        }
+
+                        if ($("#UDF4PullCommon") != null) {
+                            if ($("#UDF4PullCommon").attr("class") == 'selectBox') {
+                                vUDF4PullCommon = $("#UDF4PullCommon option:selected").text();
+                            }
+                            else {
+                                vUDF4PullCommon = $("#UDF4PullCommon").val();
+                            }
+                        }
+
+                        if ($("#UDF5PullCommon") != null) {
+                            if ($("#UDF5PullCommon").attr("class") == 'selectBox') {
+                                vUDF5PullCommon = $("#UDF5PullCommon option:selected").text();
+                            }
+                            else {
+                                vUDF5PullCommon = $("#UDF5PullCommon").val();
+                            }
+                        }
+
+                        if ($(this).find('#UDF1') != null) {
+                            if ($(this).find('#UDF1').attr("class") == 'selectBox') {
+                                vUDF1 = $(this).find('#UDF1 option:selected').text();
+                            }
+                            else {
+                                vUDF1 = $(this).find('#UDF1').val();
+                            }
+                        }
+
+                        if ($(this).find('#UDF2') != null) {
+                            if ($(this).find('#UDF2').attr("class") == 'selectBox') {
+                                vUDF2 = $(this).parent().find('#UDF2 option:selected').text();
+                            }
+                            else {
+                                vUDF2 = $(this).find('#UDF2').val();
+                            }
+                        }
+
+                        if ($(this).find('#UDF3') != null) {
+                            if ($(this).find('#UDF3').attr("class") == 'selectBox') {
+                                vUDF3 = $(this).find('#UDF3 option:selected').text();
+                            }
+                            else {
+                                vUDF3 = $(this).find('#UDF3').val();
+                            }
+                        }
+
+                        if ($(this).find('#UDF4') != null) {
+                            if ($(this).find('#UDF4').attr("class") == 'selectBox') {
+                                vUDF4 = $(this).find('#UDF4 option:selected').text();
+                            }
+                            else {
+                                vUDF4 = $(this).find('#UDF4').val();
+                            }
+                        }
+
+                        if ($(this).find('#UDF5') != null) {
+                            if ($(this).find('#UDF5').attr("class") == 'selectBox') {
+                                vUDF5 = $(this).find('#UDF5 option:selected').text();
+                            }
+                            else {
+                                vUDF5 = $(this).find('#UDF5').val();
+                            }
+                        }
+
+                        if ($("#chkUsePullCommonUDF").is(":checked")) {
+                            vUDF1 = vUDF1PullCommon;
+                            vUDF2 = vUDF2PullCommon;
+                            vUDF3 = vUDF3PullCommon;
+                            vUDF4 = vUDF4PullCommon;
+                            vUDF5 = vUDF5PullCommon;
+                        }
+                        debugger;
+                        $('#DivLoading').show();
+                        if (vProjectID == ProjectSpendName || vProjectID == null) {
+                            vProjectID = '';
+                        }
+                        ///////////////////////////////////// UPDATE PULL DATA CALL//////////////////////////////////////////START
+                        $.ajax({
+                            "url": '@Url.Content("~/Pull/UpdatePullData")',
+                            data: { ID: 0, ItemGUID: vItemGUID, ProjectGUID: vProjectID, BinID: vBinID, PullCreditQuantity: txtQty, PullCredit: vPullCreditText, TempPullQTY: txtQty, UDF1: vUDF1, UDF2: vUDF2, UDF3: vUDF3, UDF4: vUDF4, UDF5: vUDF5, RequisitionDetailID: "", WorkOrderDetailGUID: '@TempData["WorkOrderGUID"]', ProjectSpendName: ProjectSpendName, PullOrderNumber: vPullOrderNumber },
+                            "async": false,
+                            cache: false,
+                            "dataType": "json",
+                            success: function (response) {
+                                $('#DivLoading').hide();
+                                if (response.Status == "ok") {
+                                    if (response.LocationMSG != "") {
+                                        if (response.PSLimitExceed) {
+                                            $(RowObject).css('background-color', 'Yellow');
+                                            IsPSRedirectToReq = true;
+                                            IsGlobalErrorMsgShow = true;
+                                            errorMsg += "<b style='color:Olive'>" + aData.ItemNumber + ": " + response.LocationMSG + " " + "do you want to create new requisition for the same ?</b><br>"
+                                        }
+                                        else {
+                                            $(RowObject).css('background-color', 'Olive');
+                                            IsGlobalErrorMsgShow = true;
+                                            errorMsg += "<b style='color:Olive'>" + aData.ItemNumber + ": " + response.LocationMSG + "</b><br>"
+                                        }
+                                    }
+                                    else {
+
+                                        UDFInsertNewForGrid(RowObject);
+                                        $(RowObject).css('background-color', 'Green');
+                                        errorMsg += "<b style='color:Green'>" + aData.ItemNumber + ": " + response.Message + "</b><br>"
+                                    }
+                                }
+                                else {
+                                    $(RowObject).css('background-color', 'Red');
+                                    IsPSRedirectToReq = false;
+                                    IsGlobalErrorMsgShow = true;
+                                    errorMsg += "<b style='color:Red'>" + aData.ItemNumber + ": " + response.Message + "</b><br>"
+                                }
+                                txxt.val(VspnDefaultPullQuantity);
+
+                            },
+                            error: function (response) {
+                                $(RowObject).css('background-color', 'Red');
+                                IsPSRedirectToReq = false;
+                                IsGlobalErrorMsgShow = true;
+                                errorMsg += "<b style='color:Red'>" + aData.ItemNumber + ":  Unexpected error occurred.</b><br>"
+                            }
+                        });
+                        ///////////////////////////////////// UPDATE PULL DATA CALL//////////////////////////////////////////END
+                    }
+                    //////////////////////////////////////END//////////////////////////////////////
+                }
+                errGBLMsg += errorMsg;
+            });
+            $('#DivLoading').show();
+            $.modal.impl.close();
+            if (IsPSRedirectToReq) {
+                errGBLMsg = "<b>Some of the Item(s) is(are) not able to Pull(s) Due to following reasons.</b><br /><br />" + errGBLMsg;
+                $('#dlgCommonErrorMsg').find("#pOkbtn").css('display', 'none');
+                $('#DivLoading').hide();
+                $('#dlgCommonErrorMsg').find("#pYesNobtn").css('display', '');
+            }
+            else if (IsGlobalErrorMsgShow) {
+                errGBLMsg = "<b>Some of the Item(s) is(are) not able to Pull(s) Due to following reasons.</b><br /><br />" + errGBLMsg;
+                $('#DivLoading').hide();
+                $('#dlgCommonErrorMsg').find("#pOkbtn").css('display', '');
+                $('#dlgCommonErrorMsg').find("#pYesNobtn").css('display', 'none');
+            }
+            else if (!IsGlobalErrorMsgShow) {
+                errGBLMsg = "<b>Pull successfully done.</b><br /><br />" + errGBLMsg;
+                $('#DivLoading').hide();
+                $('#dlgCommonErrorMsg').find("#pOkbtn").css('display', '');
+                $('#dlgCommonErrorMsg').find("#pYesNobtn").css('display', 'none');
+            }
+            $('#dlgCommonErrorMsg').find("#pErrMessage").html(errGBLMsg);
+            $('#dlgCommonErrorMsg').modal({
+                escClose: false,
+                close: false
+            });
+        }
+        else if ($(obj)[0].value == 'Pull') {
+            $('#DivLoading').show();
+            var txxt = $(obj).parent().parent().find('#txtQty');
+            var vBinID;
+            var vProjectID;
+            var itemType = $(obj).parent().find('#spnOrderItemType').text();
+            var txtQty = txxt.val();
+
+            if (itemType != '4') {
+                debugger;
+                vBinID = $(obj).parent().parent().find('#BinID')[0].value == '' ? 0 : $(obj).parent().parent().find('#BinID')[0].value;
+
+                if ($("#chkUsePullCommonUDF").is(":checked")) {
+                    if ($('#ProjectIDCommon') != undefined)
+                        vProjectID = $('#ProjectIDCommon').val() == "" ? "" : $('#ProjectIDCommon').val();
+                    else
+                        vProjectID = "";
+                    if ($('#txtProjectSpentCommon').val() != '') {
+                        ProjectSpendName = $('#txtProjectSpentCommon').val();
+                    }
+                }
+                else {
+                    if ($(obj).parent().parent().find('select[id*="txtProjectSpent"]') != undefined)
+                        vProjectID = $(obj).parents("tr").find('select[id*="txtProjectSpent"]').val() == "" ? "" : $(obj).parents("tr").find('select[id*="txtProjectSpent"]').val();
+                    else
+                        vProjectID = "";
+
+                    if ($(obj).parent().parent().find('select[id*="txtProjectSpent"]').val() != '') {
+                        ProjectSpendName = $(obj).parent().parent().find('select[id*="txtProjectSpent"] :selected').text();
+                    }
+                }
+
+                if ('@Model.IsProjectSpendMandatoryInRoom' == "True" && (vProjectID == undefined || typeof vProjectID == "undefined" || vProjectID == "")) {
+
+                    $("#spanGlobalMessage").text("Project spend is mandatory to perform pull.");
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    enablePullbutton();
+                    $('#DivLoading').hide();
+                    return false;
+                }
+                if ((txtQty == '' || txtQty == 'undefined') && txtQty.length == 0) {
+                    alert('Qty to Pull is Mandatory.');
+                    $('#DivLoading').hide();
+                    enablePullbutton();
+                    return false;
+
+                }
+                if (vBinID == 0) {
+                    alert('Inventory Location are Mandatory.');
+                    enablePullbutton();
+                    $('#DivLoading').hide();
+                    return false;
+                }
+            }
+            else {
+
+                if ($("#chkUsePullCommonUDF").is(":checked")) {
+                    if ($('#ProjectIDCommon') != undefined)
+                        vProjectID = $('#ProjectIDCommon').val() == "" ? "" : $('#ProjectIDCommon').val();
+                    else
+                        vProjectID = "";
+                    if ($('#txtProjectSpentCommon').val() != '') {
+                        ProjectSpendName = $('#txtProjectSpentCommon').val();
+                    }
+                }
+                else {
+                    if ($(obj).parent().parent().find('#ProjectID')[0] != undefined)
+                        vProjectID = $(obj).parent().parent().find('#ProjectID')[0].value == "" ? "" : $(obj).parent().parent().find('#ProjectID')[0].value;
+                    else
+                        vProjectID = "";
+
+                    if ($(obj).parent().parent().find('id^=txtProjectSpent').val() != '') {
+                        ProjectSpendName = $(obj).parent().parent().find('id^=txtProjectSpent :selected').text();;
+                    }
+                }
+
+                if ('@Model.IsProjectSpendMandatoryInRoom' == "True" && (vProjectID == undefined || typeof vProjectID == "undefined" || vProjectID == "")) {
+
+                    $("#spanGlobalMessage").text("Project spend is mandatory to perform pull.");
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    enablePullbutton();
+                    $('#DivLoading').hide();
+                    return false;
+                }
+                if (txtQty == 'undefined' || txtQty == '') {
+                    alert('Labour Item Required Hours to Pull.');
+                    enablePullbutton();
+                    $('#DivLoading').hide();
+                    return false;
+                }
+                if (parseFloat(txtQty) <= 0) {
+                    alert('Labour Item Required Hours to Pull.');
+                    enablePullbutton();
+                    $('#DivLoading').hide();
+                    return false;
+                }
+                if (parseFloat(txtQty) == NaN) {
+                    alert('Labour Item Required Hours to Pull.');
+                    enablePullbutton();
+                    $('#DivLoading').hide();
+                    return false;
+                }
+
+                vBinID = 0;
+                //vProjectID = '';
+                //ProjectSpendName = '';
+
+            }
+
+
+            var trimtxtVal = txtQty.replace(/ /g, '');
+            if (trimtxtVal.length > 0) {
+
+                var vItemID = $(obj).parent().find('#spnItemID').text();
+                var vItemGUID = $(obj).parent().find('#spnItemGUID').text();
+
+                var vspnOn_HandQuantity = $(obj).parent().parent().find('#spnOn_HandQuantity').text() == "" ? 0 : $(obj).parent().parent().find('#spnOn_HandQuantity').text();
+                var vPullCreditText = "pull"; //$(obj)[0].value;//$(obj).parent().parent().find('input[name=colors'+vItemID+']:checked')[0].value;
+
+                var VspnDefaultPullQuantity = $(obj).parent().parent().find('#spnDefaultPullQuantity').text() == "" ? 0 : $(obj).parent().parent().find('#spnDefaultPullQuantity').text();
+                var vhdnPullQtyScanOverride = $(obj).parent().parent().find('#hdnPullQtyScanOverride').val();
+
+                var vPullQuantity = parseFloat(txtQty);
+                var vDefaultPullQuantity = parseFloat(VspnDefaultPullQuantity);
+
+                //                if (vhdnPullQtyScanOverride.toLowerCase() == "true" && vDefaultPullQuantity > 0) {
+                //                    if (vPullQuantity < vDefaultPullQuantity || vPullQuantity % vDefaultPullQuantity != 0) {
+                //                        alert('Pull must be default pull qty (' + vDefaultPullQuantity + ') or multiples of the default pull qty.');
+                //                        enablePullbutton();
+                //                        $('#DivLoading').hide();
+                //                        txxt.val(VspnDefaultPullQuantity);
+                //                        return false;
+                //                    }
+                //                }
+
+                $('#DivLoading').show();
+
+                var vUDF1 = ''; var vUDF2 = ''; var vUDF3 = ''; var vUDF4 = ''; var vUDF5 = '';
+                var vUDF1PullCommon = ''; var vUDF2PullCommon = ''; var vUDF3PullCommon = ''; var vUDF4PullCommon = ''; var vUDF5PullCommon = '';
+
+                var vPullOrderNumber = "";
+                if ($("#chkUsePullCommonUDF").is(":checked")) {
+                    if ($('#txtPullOrderNumberCommon') != null) {
+                        if ($('#txtPullOrderNumberCommon').attr("class") == 'selectBox') {
+                            vPullOrderNumber = $('#txtPullOrderNumberCommon option:selected').text();
+                        }
+                        else {
+                            vPullOrderNumber = $('#txtPullOrderNumberCommon').val();
+                        }
+                    }
+                }
+                else {
+                    if ($(obj).parent().parent().find('#txtPullOrderNumber') != null) {
+                        if ($(obj).parent().parent().find('#txtPullOrderNumber').attr("class") == 'selectBox') {
+                            vPullOrderNumber = $(obj).parent().parent().find('#txtPullOrderNumber option:selected').text();
+                        }
+                        else {
+                            vPullOrderNumber = $(obj).parent().parent().find('#txtPullOrderNumber').val();
+                        }
+                    }
+                }
+
+                if ($("#UDF1PullCommon") != null) {
+                    if ($("#UDF1PullCommon").attr("class") == 'selectBox') {
+                        vUDF1PullCommon = $("#UDF1PullCommon option:selected").text();
+                    }
+                    else {
+                        vUDF1PullCommon = $("#UDF1PullCommon").val();
+                    }
+                }
+
+                if ($("#UDF2PullCommon") != null) {
+                    if ($("#UDF2PullCommon").attr("class") == 'selectBox') {
+                        vUDF2PullCommon = $("#UDF2PullCommon option:selected").text();
+                    }
+                    else {
+                        vUDF2PullCommon = $("#UDF2PullCommon").val();
+                    }
+                }
+
+                if ($("#UDF3PullCommon") != null) {
+                    if ($("#UDF3PullCommon").attr("class") == 'selectBox') {
+                        vUDF3PullCommon = $("#UDF3PullCommon option:selected").text();
+                    }
+                    else {
+                        vUDF3PullCommon = $("#UDF3PullCommon").val();
+                    }
+                }
+
+                if ($("#UDF4PullCommon") != null) {
+                    if ($("#UDF4PullCommon").attr("class") == 'selectBox') {
+                        vUDF4PullCommon = $("#UDF4PullCommon option:selected").text();
+                    }
+                    else {
+                        vUDF4PullCommon = $("#UDF4PullCommon").val();
+                    }
+                }
+
+                if ($("#UDF5PullCommon") != null) {
+                    if ($("#UDF5PullCommon").attr("class") == 'selectBox') {
+                        vUDF5PullCommon = $("#UDF5PullCommon option:selected").text();
+                    }
+                    else {
+                        vUDF5PullCommon = $("#UDF5PullCommon").val();
+                    }
+                }
+
+                if ($(obj).parent().parent().find('#UDF1') != null) {
+                    if ($(obj).parent().parent().find('#UDF1').attr("class") == 'selectBox') {
+                        vUDF1 = $(obj).parent().parent().find('#UDF1 option:selected').text();
+                    }
+                    else {
+                        vUDF1 = $(obj).parent().parent().find('#UDF1').val();
+                    }
+                }
+
+                if ($(obj).parent().parent().find('#UDF2') != null) {
+                    if ($(obj).parent().parent().find('#UDF2').attr("class") == 'selectBox') {
+                        vUDF2 = $(obj).parent().parent().find('#UDF2 option:selected').text();
+                    }
+                    else {
+                        vUDF2 = $(obj).parent().parent().find('#UDF2').val();
+                    }
+                }
+
+                if ($(obj).parent().parent().find('#UDF3') != null) {
+                    if ($(obj).parent().parent().find('#UDF3').attr("class") == 'selectBox') {
+                        vUDF3 = $(obj).parent().parent().find('#UDF3 option:selected').text();
+                    }
+                    else {
+                        vUDF3 = $(obj).parent().parent().find('#UDF3').val();
+                    }
+                }
+
+                if ($(obj).parent().parent().find('#UDF4') != null) {
+                    if ($(obj).parent().parent().find('#UDF4').attr("class") == 'selectBox') {
+                        vUDF4 = $(obj).parent().parent().find('#UDF4 option:selected').text();
+                    }
+                    else {
+                        vUDF4 = $(obj).parent().parent().find('#UDF4').val();
+                    }
+                }
+
+                if ($(obj).parent().parent().find('#UDF5') != null) {
+                    if ($(obj).parent().parent().find('#UDF5').attr("class") == 'selectBox') {
+                        vUDF5 = $(obj).parent().parent().find('#UDF5 option:selected').text();
+                    }
+                    else {
+                        vUDF5 = $(obj).parent().parent().find('#UDF5').val();
+                    }
+                }
+
+                if ($("#chkUsePullCommonUDF").is(":checked")) {
+                    vUDF1 = vUDF1PullCommon;
+                    vUDF2 = vUDF2PullCommon;
+                    vUDF3 = vUDF3PullCommon;
+                    vUDF4 = vUDF4PullCommon;
+                    vUDF5 = vUDF5PullCommon;
+                }
+                debugger;
+                $('#DivLoading').show();
+                if (vProjectID == ProjectSpendName || vProjectID == null) {
+                    vProjectID = '';
+                }
+                ///////////////////////////////////// UPDATE PULL DATA CALL//////////////////////////////////////////START
+                $.ajax({
+                    "url": '@Url.Content("~/Pull/UpdatePullData")',
+                    data: { ID: 0, ItemGUID: vItemGUID, ProjectGUID: vProjectID, BinID: vBinID, PullCreditQuantity: txtQty, PullCredit: vPullCreditText, TempPullQTY: txtQty, UDF1: vUDF1, UDF2: vUDF2, UDF3: vUDF3, UDF4: vUDF4, UDF5: vUDF5, RequisitionDetailID: "", WorkOrderDetailGUID: '@TempData["WorkOrderGUID"]', ProjectSpendName: ProjectSpendName, PullOrderNumber: vPullOrderNumber },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    success: function (response) {
+
+                        $('#DivLoading').hide();
+                        enablePullbutton();
+                        if (response.Status == "ok") {
+                            if (response.LocationMSG != "") {
+                                if (response.PSLimitExceed) {
+                                    // write code to redirect to requisition with confirm box
+                                    $("#PSPlimit").text(response.LocationMSG + " " + "do you want to create new requisition for the same ?");
+                                    $('#project-spend-limit-basic-modal-content').modal();
+                                }
+                                else {
+                                    alert(response.LocationMSG);
+                                }
+                            }
+                            else {
+
+                                UDFInsertNewForGrid($(obj).parent().parent());
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                                $("#spanGlobalMessage").text(response.Message);
+                                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+                                //oTable.fnDraw();
+                                // TOTOTO
+                                //oTableItemModel.fnDraw();
+                                $('#ItemModeDataTable').dataTable().fnStandingRedraw();
+                            }
+                        }
+                        else {
+                            $("#spanGlobalMessage").text(response.Message);
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        }
+                        txxt.val(VspnDefaultPullQuantity);
+                    },
+                    error: function (response) {
+                        enablePullbutton();
+                        $('#DivLoading').hide();
+                        $("#spanGlobalMessage").text(response.message);
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    }
+                });
+                ///////////////////////////////////// UPDATE PULL DATA CALL//////////////////////////////////////////END
+            }
+            $('#DivLoading').hide();
+        }
+        else if ($(obj)[0].value == 'Credit') {
+            $('#DivLoading').show();
+            var txtQty = $(obj).parent().parent().find('#txtQty').val();
+            var vBinName = $(obj).parent().parent().find('#txtBinNumber').val();
+
+            var vitemGUID = $(obj).parent().find('#spnItemGUID').text();
+            var itemType = $(obj).parent().find('#spnOrderItemType').text();
+            var vProjectID = "";
+
+            if ($("#chkUsePullCommonUDF").is(":checked")) {
+                if ($('#ProjectIDCommon') != undefined)
+                    vProjectID = $('#ProjectIDCommon').val() == "" ? "" : $('#ProjectIDCommon').val();
+                else
+                    vProjectID = "";
+                if ($('#txtProjectSpentCommon').val() != '') {
+                    ProjectSpendName = $('#txtProjectSpentCommon').val();
+                }
+            }
+            else {
+                if ($(obj).parent().parent().find('select[id*="txtProjectSpent"]') != undefined)
+                    vProjectID = $(obj).parents("tr").find('select[id*="txtProjectSpent"]').val() == "" ? "" : $(obj).parents("tr").find('select[id*="txtProjectSpent"]').val();
+                else
+                    vProjectID = "";
+
+                if ($(obj).parent().parent().find('id^=txtProjectSpent').val() != '') {
+                    ProjectSpendName = $(obj).parent().parent().find('select[id*="txtProjectSpent"] :selected').text();
+                }
+            }
+
+            if ('@Model.IsProjectSpendMandatoryInRoom' == "True" && (vProjectID == undefined || vProjectID == "")) {
+                if ('@(TempData["WorkOrderGUID"])' != null && '@(TempData["WorkOrderGUID"])'.length > 0) {
+                    alert("For Credit back, Project spend is required ! Kindly select.");
+                    $('#DivLoading').hide();
+                }
+                else {
+                    $("#spanGlobalMessage").text("For Credit back, Project spend is required ! Kindly select.");
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    enablePullbutton();
+                }
+                $('#DivLoading').hide();
+                return false;
+            }
+            else {
+                var vIsConsignment = $(obj).parent().find('#spnIsConsignment').text();
+
+                var vConsignedQuantity = 0;
+                var vCustomerOwnedQuantity = 0;
+                if (vIsConsignment.toLowerCase() == "true") {
+                    vConsignedQuantity = txtQty;
+                }
+                else {
+                    vCustomerOwnedQuantity = txtQty;
+                }
+                debugger;
+                var arrItems = new Array();
+                if (vProjectID == ProjectSpendName || vProjectID == null) {
+                    vProjectID = '';
+                }
+                var data = { "ItemGUID": vitemGUID, "IsCreditPull": true, "ProjectSpentGUID": vProjectID, "IsOnlyFromUI": true, "ConsignedQuantity": vConsignedQuantity, "CustomerOwnedQuantity": vCustomerOwnedQuantity, "BinNumber": vBinName };
+                arrItems.push(data);
+
+                $.ajax({
+                    "url": '@Url.Content("~/Inventory/ItemLocationDetailsSaveForCreditPull")',
+                    data: JSON.stringify({ 'objData': arrItems, 'PullCreditType': 'credit' }),
+                    type: "Post",
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    contentType: 'application/json; charset=utf-8',
+                    success: function (response) {
+                        $('#DivLoading').hide();
+                        enablePullbutton();
+                        if (response.Status == 'OK') {
+                            //UDFInsertNewForGrid($(obj).parent().parent());
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            $("#spanGlobalMessage").text(response.Message);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+                            $('#ItemModeDataTable').dataTable().fnStandingRedraw();
+                        }
+                        else {
+                            $("#spanGlobalMessage").text(response.Message);
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        }
+                    },
+                    error: function (response) {
+                        enablePullbutton();
+                        $('#DivLoading').hide();
+                        $("#spanGlobalMessage").text(response.message);
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    }
+                });
+
+                $('#DivLoading').hide();
+                return false;
+            }
+        }
+        else if ($(obj)[0].value == 'Credit MS') {
+            $('#DivLoading').show();
+            var itemId = $(obj).parent().find('#spnItemGUID').text();
+            var itemType = $(obj).parent().find('#spnOrderItemType').text();
+            var vProjectID = "";
+
+            if ($("#chkUsePullCommonUDF").is(":checked")) {
+                if ($('#ProjectIDCommon') != undefined)
+                    vProjectID = $('#ProjectIDCommon').val() == "" ? "" : $('#ProjectIDCommon').val();
+                else
+                    vProjectID = "";
+            }
+            else {
+                if ($(obj).parent().parent().find('#ProjectID')[0] != undefined)
+                    vProjectID = $(obj).parent().parent().find('#ProjectID')[0].value == "" ? "" : $(obj).parent().parent().find('#ProjectID')[0].value;
+                else
+                    vProjectID = "";
+            }
+
+            //var vProjectID = $(obj).parent().parent().find('#ProjectID')[0].value == "" ? "" : $(obj).parent().parent().find('#ProjectID')[0].value;
+
+            if ('@Model.IsProjectSpendMandatoryInRoom' == "True" && (vProjectID == undefined || vProjectID == "")) {
+                if ('@(TempData["WorkOrderGUID"])' != null && '@(TempData["WorkOrderGUID"])'.length > 0) {
+                    alert("For Credit back, Project spend is required ! Kindly select.");
+                    $('#DivLoading').hide();
+                }
+                else {
+                    $("#spanGlobalMessage").text("For Credit back, Project spend is required ! Kindly select.");
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    enablePullbutton();
+                }
+                $('#DivLoading').hide();
+                return false;
+            }
+            else {
+                var idtype = itemId + '%23' + itemType + '%23' + 'WorkOrderGuid-' + '@(TempData["WorkOrderGUID"])'; //+ '%23' +  'frompullcreditMS' ;
+                $('#DivLoading').show();
+                $('#LocationDetails').load('../Inventory/LocationDetailsMS?ItemID_ItemType=' + idtype, function () {
+                    $('#LocationDetails').dialog('open');
+                    $('#DivLoading').hide();
+                    IsRefreshGrid = true;
+                });
+                $('#DivLoading').hide();
+                return false;
+            }
+        }
+        else {
+            $('#DivLoading').hide();
+            return false;
+        }
+        $('#DivLoading').hide();
+    }
+
+    function OpenCreditPopup(obj) {
+        diabledPullbutton();
+        if ($(obj)[0].value == undefined)
+            return false;
+        $('#DivLoading').show();
+
+        if ($(obj)[0].value == 'Credit') {
+            $('#DivLoading').show();
+
+            var itemId = $(obj).parent().find('#spnItemGUID').text();
+            var itemType = $(obj).parent().find('#spnOrderItemType').text();
+            var txtQty = $(obj).parent().parent().find('#txtQty').val();
+
+            var vProjectID = "";
+
+            if ($("#chkUsePullCommonUDF").is(":checked")) {
+                if ($('#ProjectIDCommon') != undefined)
+                    vProjectID = $('#ProjectIDCommon').val() == "" ? "" : $('#ProjectIDCommon').val();
+                else
+                    vProjectID = "";
+            }
+            else {
+                if ($(obj).parent().parent().find('#ProjectID')[0] != undefined)
+                    vProjectID = $(obj).parent().parent().find('#ProjectID')[0].value == "" ? "" : $(obj).parent().parent().find('#ProjectID')[0].value;
+                else
+                    vProjectID = "";
+            }
+
+            if ('@Model.IsProjectSpendMandatoryInRoom' == "True" && (vProjectID == undefined || vProjectID == "")) {
+                if ('@(TempData["WorkOrderGUID"])' != null && '@(TempData["WorkOrderGUID"])'.length > 0) {
+                    alert("For Credit back, Project spend is required ! Kindly select.");
+                    $('#DivLoading').hide();
+                }
+                else {
+                    $("#spanGlobalMessage").text("For Credit back, Project spend is required ! Kindly select.");
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    enablePullbutton();
+                }
+                $('#DivLoading').hide();
+                return false;
+            }
+            else {
+                var idtype = itemId + '%23' + itemType + '%23' + 'frompullcredit' + '%23' + '@(TempData["WorkOrderGUID"])';
+                $('#DivLoading').show();
+                $('#LocationDetails').load('../Inventory/LocationDetailsNew?ItemID_ItemType=' + idtype + '&ProjectSpendGUID=' + vProjectID + '&QtyToCredit=' + txtQty + '', function () {
+                    $('#LocationDetails').dialog('open');
+                    $('#DivLoading').hide();
+                    IsRefreshGrid = true;
+                });
+                $('#DivLoading').hide();
+                return false;
+            }
+        }
+    }
+
+    function GoToRequisition() {
+        $.modal.impl.close();
+        var url = '@Url.Action("RequisitionList", "Consume")';
+        url = url + '?fromPull=' + 'yes'
+        window.location.href = url;
+    }
+
+    $('#actionSelectAll3').live('click', function () {
+        var Alllen = 0;
+        var selLen = 0;
+        $('#ItemModeDataTable tbody tr').each(function (i) {
+            if ($(this).find('#BinID').length > 0) {
+                Alllen = parseInt(Alllen) + 1;
+            }
+        });
+        $('#ItemModeDataTable tbody tr.row_selected').each(function (i) {
+            if ($(this).find('#BinID').length > 0) {
+                selLen = parseInt(selLen) + 1;
+            }
+        });
+
+        if (selLen < Alllen) {
+            $('#ItemModeDataTable tbody tr').each(function (i) {
+                if ($(this).find('#BinID').length > 0) {
+                    $(this).removeClass("row_selected").addClass("row_selected");
+                }
+            });
+        }
+        else {
+            $('#ItemModeDataTable').find("tbody tr").removeClass("row_selected");
+        }
+    });
+    function callPullNew() {
+        window.location.href = "../pull/newpull";
+    }
+
+</script>

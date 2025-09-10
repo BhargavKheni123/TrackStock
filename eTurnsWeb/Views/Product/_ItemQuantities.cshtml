@@ -1,0 +1,190 @@
+﻿@model eTurns.DTO.ProductToItemQtyDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+}
+@using (Ajax.BeginForm("SaveItemToRoom", "Product", new AjaxOptions { HttpMethod = "Post", OnBegin = "onItemSaveBegin", OnSuccess = "onItemSaveSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onItemSaveFailure" }, new { @id = "frmItemQty" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="userHead">
+        @Html.ValidationSummary(false)
+        <div class="editorForm">
+            <ul>
+                @Html.HiddenFor(model => model.ASIN)
+                @Html.HiddenFor(model => model.CallFor)
+                @if ((Model.CallFor == ProductToItemCallFor.AddToItem && Model.IsExistingItem == false) || (Model.CallFor == ProductToItemCallFor.AddToCart && Model.IsExistingItem == false))
+                {
+                    <li id="liCriticalQuantity">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CriticalQty)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.CriticalQty, new { @class = "numericinput", @autocomplete = "off" })
+                            <span class="ErrorMessage" style="padding-left:19%;" >@Html.ValidationMessageFor(model => model.CriticalQty)</span>
+                        </div>
+                    </li>
+                    <li id="liMinimumQuantity">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.MinimumQty)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.MinimumQty, new { @class = "numericinput", @autocomplete = "off" })
+                            <span class="ErrorMessage" style="padding-left:19%;" >@Html.ValidationMessageFor(model => model.MinimumQty)</span>
+                        </div>
+                    </li>
+                    <li id="liMaximumQuantity">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.MaximumQty)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.MaximumQty, new { @class = "numericinput", @autocomplete = "off" })
+                            <span class="ErrorMessage" style="padding-left:19%;" >@Html.ValidationMessageFor(model => model.MaximumQty)</span>
+                        </div>
+                    </li>
+
+                }
+
+                @if (Model.CallFor == ProductToItemCallFor.AddToCart)
+                {
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CartQty)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.CartQty, new { @class = "numericinput", @autocomplete = "off" })
+                            <span class="ErrorMessage" style="padding-left:19%;" >@Html.ValidationMessageFor(model => model.CartQty)</span>
+                        </div>
+                    </li>
+
+                }
+
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="BtnBlockform">
+                        <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" onclick="CloseModel()" id="btnCatCancel" class="CreateBtn" />
+                        @if (Model.IsExistingItem == false || Model.CallFor == ProductToItemCallFor.AddToCart)
+                        {
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Add" id="btnAdd" class="CreateBtn" />
+                        }
+                        
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+}
+<script>
+
+    $("#frmItemQty").submit(function (e) {
+        var callFor = $("#CallFor").val();
+        RemoveLeadingTrailingSpace("frmItemQty");
+
+        if (!$(this).valid() || (typeof (callFor) != "undefined" && callFor != null && callFor == "AddToCart" && (parseInt($("#CartQty").val()) || 0) < 1)) {
+
+            if ($(this).valid())
+            {
+                var msg = "@ResABProducts.CartQuantityMustBeGreaterThanZero";
+                _notification.showWarning(msg);
+            }
+            e.preventDefault();
+            return false;
+        }
+
+    });
+
+    $(document).ready(function () {
+        $.validator.unobtrusive.parse("#frmItemQty");
+        var Itemfrmvalidator = $("#frmItemQty").validate();
+        $(".userHead").on("blur", "input[data-val='true']", function () {
+            Itemfrmvalidator.element("#" + $(this).attr("id"));
+        });
+        jQuery.validator.addMethod('criticlequantitycheck', function (value, element, params) {
+            
+            if (parseFloat(element.form.CriticalQty.value == '' ? 0 : element.form.CriticalQty.value, 10) > parseFloat(element.form.MinimumQty.value == '' ? 0 : element.form.MinimumQty.value, 10))
+                return false;
+            else
+                return true;
+        }, '');
+        jQuery.validator.unobtrusive.adapters.add('criticlequantitycheck', {}, function (options) {
+            
+            if ($('#liCriticalQuantity').css("display") != 'none') {
+                options.rules['criticlequantitycheck'] = true;
+                options.messages['criticlequantitycheck'] = options.message;
+            }
+            else {
+                options.rules['criticlequantitycheck'] = false;
+            }
+        });
+        jQuery.validator.addMethod('minimumquantitycheck', function (value, element, params) {
+            
+            if (parseFloat(element.form.MinimumQty.value == '' ? 0 : element.form.MinimumQty.value, 10) > parseFloat(element.form.MaximumQty.value == '' ? 0 : element.form.MaximumQty.value, 10))
+                return false;
+            else
+                return true;
+        }, '');
+        jQuery.validator.unobtrusive.adapters.add('minimumquantitycheck', {}, function (options) {
+            
+            //if ($('#IsItemLevelMinMaxQtyRequired').attr('checked') == 'checked') {
+            if ($('#liMinimumQuantity').css("display") != 'none') {
+                options.rules['minimumquantitycheck'] = true;
+                options.messages['minimumquantitycheck'] = options.message;
+            }
+            else {
+                options.rules['minimumquantitycheck'] = false;
+            }
+        });
+
+    });
+    function onItemSaveBegin() {
+        return $('#DivLoading').show();
+
+    }
+
+    function onItemSaveSuccess(response) {
+        $('#DivLoading').hide();
+        if (response.Status == "fail") {
+            $('div#target').fadeToggle();
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            $('div#target').css("z-index", 100000);
+            $("#spanGlobalMessage").html(response.Message);
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        }
+        else if (response.Status == "InvalidModel")
+        {
+            var msg = "";
+
+            if (typeof (response.Message) != 'undefined' && response.Message != null && response.Message != '') {
+                msg = response.Message; 
+            }
+            _notification.showWarning(msg);
+        }
+        else {
+            var callFor = $("#CallFor").val();
+
+            if (typeof (callFor) != "undefined" && callFor != null && callFor == "AddToItem")
+            {
+                SetItemCountInMenu();
+            }
+            
+            $('a[data-asin="' + $("#ASIN").val() + '"]').hide();
+            $.modal.impl.close();
+            $('div#target').fadeToggle();
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            $('div#target').css("z-index", 100000);
+            $('#AddToItemOrCartQtyPopUp').dialog('close');
+            $("#spanGlobalMessage").html(response.Message);
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+        }
+    }
+
+    function onItemSaveFailure(response) {        
+    }
+
+    function CloseModel()
+    {
+        $('#AddToItemOrCartQtyPopUp').dialog('close');
+    }
+        
+</script>

@@ -1,0 +1,2589 @@
+﻿@model eTurns.DTO.QuoteMasterDTO
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = false, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, ColumnSetupFor = "QuoteDetailList", DataTableName = "QuoteLineItem" + Model.ID };
+    string priceformate = "N" + eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits;
+    bool isApprove = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowanquotetobeApproved);
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+    bool IsAllowToCreateOrder = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Orders, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isQuoteDetailsUDF = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetNonDeletedUDFCountByUDFTableName("QuoteDetails", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID) > 0;
+    List<BinMasterDTO> lstBinMaster;
+    bool isDelete = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Quote, eTurnsWeb.Helper.SessionHelper.PermissionType.Delete);
+
+    //---------------------------------Calculate Total---------------------------------
+    //
+    int? PriseSelectionOption = 2;
+    string TotalCost = "0.00";
+    string TotalPrice = "0.00";
+
+    string CurrencySymbol = "";
+    if (eTurnsWeb.Helper.SessionHelper.CurrencySymbol != null
+        && !string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.CurrencySymbol))
+    {
+        CurrencySymbol = eTurnsWeb.Helper.SessionHelper.CurrencySymbol;
+    }
+
+    bool isShowDeleted = ViewBag.IsShowDeleted ?? false;
+
+    if (isShowDeleted == false)
+    {
+        if (Model.QuoteListItem.Count > 0)
+        {
+            if (Model.QuoteCost != null && (double)Model.QuoteCost > 0)
+            {
+                TotalCost = ((double)Model.QuoteCost).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+            }
+            if (Model.QuotePrice != null && (double)Model.QuotePrice > 0)
+            {
+                TotalPrice = ((double)Model.QuotePrice).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+            }
+
+        }
+    }
+    else
+    {
+        if (Model.QuoteListItem.Count > 0)
+        {
+            double? _QuoteCost = Model.QuoteListItem.Sum(x => x.IsCloseItem.GetValueOrDefault(false) ? x.QuoteLineItemExtendedCost : double.Parse((x.ApprovedQuantity.GetValueOrDefault(0) == 0 ? x.RequestedQuantity.GetValueOrDefault(0) : x.ApprovedQuantity.GetValueOrDefault(0)).ToString()) * ((x.Cost.GetValueOrDefault(0)) / ((x.CostUOMValue ?? 0) == 0 ? 1 : (x.CostUOMValue ?? 1))));
+            double? _QuotePrice = Model.QuoteListItem.Sum(x => x.IsCloseItem.GetValueOrDefault(false) ? x.QuoteLineItemExtendedPrice : double.Parse((x.ApprovedQuantity.GetValueOrDefault(0) == 0 ? x.RequestedQuantity.GetValueOrDefault(0) : x.ApprovedQuantity.GetValueOrDefault(0)).ToString()) * ((x.SellPrice.GetValueOrDefault(0)) / ((x.CostUOMValue ?? 0) == 0 ? 1 : (x.CostUOMValue ?? 1)))) ?? 0;
+
+            TotalCost = (_QuoteCost ?? 0).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+            TotalPrice = (_QuotePrice ?? 0).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+        }
+    }
+    bool UDF1IsRequired = Html.GetUdfIsRequiredStatus("OrderMaster", "UDF1");
+    bool UDF2IsRequired = Html.GetUdfIsRequiredStatus("OrderMaster", "UDF2");
+    bool UDF3IsRequired = Html.GetUdfIsRequiredStatus("OrderMaster", "UDF3");
+    bool UDF4IsRequired = Html.GetUdfIsRequiredStatus("OrderMaster", "UDF4");
+    bool UDF5IsRequired = Html.GetUdfIsRequiredStatus("OrderMaster", "UDF5");
+	
+    if (Model.QuoteStatus > (int) QuoteStatus.Approved && Model.QuoteStatus < (int)QuoteStatus.Closed)
+    {
+        settings.ShowSelectAll = true;
+    }
+    string OrderAllowedFileExtension = eTurns.DTO.SiteSettingHelper.OrderAllowedFileExtension;
+}
+<style type="text/css">
+    .editComment, .editRequiredDate {
+        display: block;
+        height: 15px;
+        width: 15px;
+        top: 0;
+        right: 0;
+        float: left;
+    }
+
+        .editComment, .editRequiredDate img {
+            cursor: pointer;
+        }
+</style>
+<script type="text/javascript">
+    $(document).ready(function () {
+
+        $('#frmQuote').areYouSure({ 'silent': false });
+        $('#spnTotalQuoteCost').html('@CurrencySymbol' + ' ' + '@TotalCost');
+        $('#spnTotalQuotePrice').html('@CurrencySymbol' + ' ' + '@TotalPrice');
+        if ('@PriseSelectionOption.ToString()' == '1') {
+            $('#lblQuoteTotalSellPrice').show();
+            $('#spnTotalQuotePrice').show();
+
+            $('#lblQuoteTotalCost').hide();
+            $('#spnTotalQuoteCost').hide();
+        }
+        else if ('@PriseSelectionOption.ToString()' == '2') {
+            $('#lblQuoteTotalSellPrice').hide();
+            $('#spnTotalQuotePrice').hide();
+
+            $('#lblQuoteTotalCost').show();
+            $('#spnTotalQuoteCost').show();
+        }
+
+        if ('@isCost' == "True") {
+            $('#liQuoteCostInfo').show();
+        }
+        else {
+            //alert('test else');
+            $('#liQuoteCostInfo').hide();
+        }
+    });
+</script>
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        @*<div id="tab7" class="tabContener" style="width: 99.5%">*@
+        <div class="searchWrapper">
+            <div class="searchBlock">
+                <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                <div class="searchinputB">
+                    <input type="text" class="searchinput" id="InnerItem_filter" />
+                    <a href="javascript:void(0);" class="xclose">
+                        <img src="~/Content/images/x.png" alt="X" id="clear_QLItem_filter" />
+                    </a>
+                </div>
+            </div>
+            <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+        </div>
+        @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Quote)
+        <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+            <input type="hidden" id="hdSelectedItemGuids" />
+            <table id="QuoteLineItem@(Model.ID)" class="display">
+                <thead>
+                    <tr>
+                        <th>
+                            @eTurns.DTO.Resources.ResCommon.RowNo
+                        </th>
+                        <th>
+                            @eTurns.DTO.Resources.ResCommon.ID
+                        </th>
+                        <th class="NotHide">
+                            @eTurns.DTO.ResItemMaster.ItemNumber
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResQuoteMaster.Bin
+                        </th>
+                        <th class="NotHide">
+                            @eTurns.DTO.ResQuoteMaster.RequestedQuantity
+                        </th>
+
+                        <th class="NotHide">
+                            @eTurns.DTO.ResQuoteMaster.ApprovedQuantity
+                        </th>
+
+                        <th>
+                            @eTurns.DTO.ResQuoteMaster.RequiredDate
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResQuoteMaster.OrderedQuantity
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.OnHandQuantity
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.StagedQuantity
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.Description
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResUnitMaster.Unit
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResGLAccount.GLAccount
+                        </th>
+                        @if (isCost)
+                        {
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Cost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Markup
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SellPrice
+                            </th>
+                        }
+                        <th>
+                            @eTurns.DTO.ResSupplierMaster.Supplier
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.OnQuotedQuantity
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.OnOrderQuantity
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.OnOrderInTransitQuantity
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.MinimumQuantity
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.MaximumQuantity
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResCategoryMaster.Category
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.DefaultReorderQuantity
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.ManufacturerName
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.ManufacturerNumber
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.SupplierPartNo
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.SuggestedOrderQuantity
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResQuoteMaster.ItemBlanketPO
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResQuoteMaster.SendToEDI
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResQuoteMaster.ASNNumber
+                        </th>
+                        <th>
+                            @ResCostUOMMaster.CostUOM
+                        </th>
+                        <th>
+                            @ResCostUOMMaster.CostUOMValue
+                        </th>
+                        @if (isCost)
+                        {
+                            <th>
+                                @ResQuoteMaster.ExtendedCost
+                            </th>
+                        }
+                        <th class="NotSortable">
+                            @ResQuoteMaster.Comment
+                        </th>
+                        <th>
+                            @ResItemMaster.InTransferTransitQuantity
+                        </th>
+
+                        <th>
+                            @ResCommon.CreatedBy
+                        </th>
+                        <th>
+                            @ResCommon.CreatedOn
+                        </th>
+                        <th>
+                            @ResCommon.LastUpdatedBy
+                        </th>
+                        <th>
+                            @ResCommon.UpdatedOn
+                        </th>
+                        <th>
+                            @ResCommon.AddedFrom
+                        </th>
+                        <th>
+                            @ResCommon.ReceivedOnWeb
+                        </th>
+                        <th>
+                            @ResCommon.EditedFrom
+                        </th>
+                        <th>
+                            @ResCommon.ReceivedOn
+                        </th>
+                        <th>
+                            @ResQuoteMaster.OrdDtlInTransitQty
+                        </th>
+                        <th>
+                            @ResOrder.POItemLineNumber
+                        </th>
+                        @if (isCost)
+                        {
+                            <th>
+                                @ResQuoteMaster.QuoteLineItemExtendedCost
+                            </th>
+                        }
+                        <th class="NotSortable">
+                            @ResQuoteMaster.QuoteItemCost
+                        </th>
+                        @if (isCost)
+                        {
+                            <th>
+                                @ResQuoteMaster.QuoteItemSellPrice
+                            </th>
+                            <th>
+                                @ResQuoteMaster.QuoteItemMarkup
+                            </th>
+                            <th>
+                                @ResQuoteMaster.QuoteItemCostUOMValue
+                            </th>
+                        }
+                        @if (isQuoteDetailsUDF)
+                        {
+                            @Html.RenderColumnsHeader("QuoteDetails", typeof(eTurns.DTO.ResQuoteDetail))
+                        }
+
+                        @Html.RenderColumnsHeader("ItemMaster", typeof(eTurns.DTO.ResItemMaster), "Item")
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.QuoteListItem != null && Model.QuoteListItem.Count > 0)
+                    {
+
+                        int trid = 0;
+                        int POLineItemManual = 0;
+                        foreach (var item in Model.QuoteListItem)
+                        {
+                            lstBinMaster = new List<BinMasterDTO>();
+                            lstBinMaster.Add(new BinMasterDTO() { BinNumber = item.BinName ?? string.Empty });
+                            string strBack = "";
+                            if (item.IsCloseItem.GetValueOrDefault(false) || item.IsOrdered || (!item.IsItemActive || !item.IsItemOrderable) )
+                            {
+                                strBack = "background-color:LightGray;height: 35px;";
+                            }
+                            else
+                            {
+                                strBack = "";
+                            }
+                    <tr style='@strBack' id="tr@(item.ID)">
+                        <td></td>
+                        <td>
+                            @if (item.ID > 0)
+                            {
+                                @item.ID.ToString()
+                            }
+                        </td>
+                        <td class="read_only control center NotHide">
+                            @*<span id="spnItemNumber">@item.ItemNumber</span>*@
+                            @(item.ItemNumber)
+                            <input id="hdnID" type="hidden" value="@item.ID" />
+                            <input id="hdnDetailGUID" type="hidden" value="@item.GUID" />
+                            <input id="hdnTempDetailsGUID" type="hidden" value="@item.tempDetailsGUID" />
+                            <input id="hdnItemGUID" type="hidden" value="@item.ItemGUID" />
+                            <input id="hdnQuoteGUID" type="hidden" value="@item.QuoteGUID" />
+                            <input id="hdnItemNumber" type="hidden" value="@item.ItemNumber" />
+                            <input id="hdnRequiredDate" type="hidden" value="@item.RequiredDateStr" />
+                            <input id="hdnUDF1" type="hidden" value="@item.UDF1" />
+                            <input id="hdnUDF2" type="hidden" value="@item.UDF2" />
+                            <input id="hdnUDF3" type="hidden" value="@item.UDF3" />
+                            <input id="hdnUDF4" type="hidden" value="@item.UDF4" />
+                            <input id="hdnUDF5" type="hidden" value="@item.UDF5" />
+                            <input id="hdnDefultQuoteQty" type="hidden" value="@item.DefaultReorderQuantity" />
+                            <input id="hdnIsEnforceDefultOrdQty" type="hidden" value="@(item.IsEnforceDefaultReorderQuantity.GetValueOrDefault(false).ToString())" />
+                            <input id="hdnBinName" type="hidden" value="@item.BinName" />
+                            <input id="hdnComment" type="hidden" value="@item.Comment" />
+                            <input id="hdnIsAllowQuoteCostuom" type="hidden" value="@(item.IsAllowQuoteCostuom_LineItem.ToString())" />
+                            <input id="hdnQuoteUOMValue" type="hidden" value="@item.QuoteUOMValue_LineItem.GetValueOrDefault(0)" />
+                            <input id="hdnQuoteLineItemIsDeleted" type="hidden" value="@item.IsDeleted.ToString()" />
+                            <input id="hdnQuoteLineItemExtendedCost_@trid" type="hidden" value="@(item.QuoteLineItemExtendedCost.GetValueOrDefault(0).ToString())" />
+                            <input id="hdnQuoteLineItemExtendedPrice_@trid" type="hidden" value="@(item.QuoteLineItemExtendedPrice.GetValueOrDefault(0).ToString())" />
+                            <input id="hdnSupplierId" type="hidden" value="@item.SupplierID" />
+                            <input id="hdnSupplierPartNo" type="hidden" value="@item.SupplierPartNo" />
+                            <input id="hdnSupplierName" type="hidden" value="@item.SupplierName" />
+                            <input id="hdnItemSellPrice" type="hidden" value="@item.ItemSellPrice" />
+                            <input id="hdnItemCostUOMValue" type="hidden" value="@item.ItemCostUOMValue" />
+                            <input id="hdnItemMarkup" type="hidden" value="@item.ItemMarkup" />
+                            <input id="hdnIsClosedItem" type="hidden" value="@item.IsCloseItem.ToString()" />
+                            <input id="hdnIsOrderedItem" type="hidden" value="@item.IsOrdered.ToString()" />
+                            <input id="hdnIsItemActive" type="hidden" value="@item.IsItemActive.ToString()" />
+                            <input id="hdnIsItemOrderable" type="hidden" value="@item.IsItemOrderable.ToString()" />
+                        </td>
+                        <td>
+                            <span style="display:none">@item.BinName</span>
+                            @if (Model.StagingDefaultLocation.GetValueOrDefault(0) > 0)
+                            {
+                                @Html.TextBox("txtBinNumber", item.BinName, new { id = "txtBinNumber", @class = "text-boxinner", @style = "width:90px;", @readonly = "readonly" })
+                            }
+                            else
+                            {
+                                if (HasOnTheFlyEntryRight)
+                                {
+                                    <span style='position:relative'>
+                                        @Html.TextBox("txtBinNumber", item.BinName, new { id = "txtBinNumber", @class = "QtDetailAuto text-boxinner", @style = "width:90px;" })
+                                        <a id='lnkShowAllOptions' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptions">
+                                            <img src='/Content/images/arrow_down_black.png' alt='select' />
+                                        </a>
+                                        <input type="hidden" value="false" id="hdnIsLoadMoreLocations" />
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span style='position:relative'>
+                                        @Html.DropDownList("slctBinNumber", new SelectList(lstBinMaster, "BinNumber", "BinNumber", item.BinName), new { @class = "selectBox" })
+                                        <input type="hidden" name="txtBinNumber" id="txtBinNumber" value="@item.BinName" />
+                                    </span>
+                                }
+                            }
+                        </td>
+                        <td>
+                            <span style="display:none">@item.RequestedQuantity.GetValueOrDefault(0)</span>
+                            @if (item.SerialNumberTracking)
+                            {
+                                @Html.TextBox("txtQty", item.RequestedQuantity.GetValueOrDefault(0).ToString("N0"), new { @style = "width:93%;", @maxlength = "10", @class = "numericinput text-boxinner txtSRQtyFormat" })
+                            }
+                            else
+                            {
+                                @Html.TextBox("txtQty", item.RequestedQuantity.GetValueOrDefault(0), new { @style = "width:93%;", @maxlength = "10", @class = "numericinput text-boxinner" })
+                            }
+                        </td>
+                        <td>
+                            <span style="display:none">@item.ApprovedQuantity.GetValueOrDefault(0)</span>
+                            @if (item.SerialNumberTracking)
+                            {
+                                @Html.TextBox("txtApprQty", item.ApprovedQuantity.GetValueOrDefault(0).ToString("N0"), new { @style = "width:93%;", @maxlength = "10", @class = "numericinput text-boxinner clsApprQty txtSRQtyFormat", @readonly = "readnly" })
+                            }
+                            else
+                            {
+                                @Html.TextBox("txtApprQty", item.ApprovedQuantity.GetValueOrDefault(0), new { @style = "width:93%;", @maxlength = "10", @class = "numericinput text-boxinner clsApprQty", @readonly = "readonly" })
+                            }
+                        </td>
+                        <td>
+                            <span style="display:none">@(item.RequiredDate == null ? "" : ((DateTime)item.RequiredDate).ToString("yyyyMMdd"))</span>
+                            @if (Model.QuoteStatus != (int)QuoteStatus.Closed)
+                            {
+                                <input type='text' style="width:93%;background:white;" readonly="readonly" class='hasDatePicker text-box' value='@item.RequiredDateStr' id='hiddenDatePicker@(item.ID)_@(trid)' />
+                            }
+                            else
+                            {
+                                <div id="dveditRequiredDate" class='editRequiredDate'><img src='/Content/images/editico.png' title='Edit RequiredDate' /></div>
+                                <input type='text' style="width:75%;background:#ccc;" readonly="readonly" class='hasDatePicker text-box' value='@item.RequiredDateStr' id='hiddenDatePicker@(item.ID)_@(trid)' />
+                            }
+                        </td>
+                        <td class="numericalign">
+                            <label id="qtyTempReceivedQuantity_@trid">@item.OrderedQuantity</label>
+                        </td>
+                        <td class="numericalign">
+                            <label id="qtyTempOnHandQuantity_@trid">@item.OnHandQuantity</label>
+                        </td>
+                        <td class="numericalign">
+                            <label id="qtyTempStagedQuantity_@trid">@item.StagedQuantity</label>
+                        </td>
+                        <td>
+                            @item.ItemDescription
+                        </td>
+                        <td>
+                            @item.Unit
+                        </td>
+                        <td>
+                            @item.GLAccount
+                        </td>
+                        @if (isCost)
+                        {
+                            <td class="numericalign">
+                                <label id="CostTempCost_@trid">@item.Cost.GetValueOrDefault(0)</label>
+                            </td>
+                            <td class="numericalign">
+                                @item.Markup
+                            </td>
+                            <td class="numericalign">
+                                <label id="costTempSellPrice_@trid">@item.SellPrice</label>
+                            </td>
+                        }
+                        <td>
+                            @item.SupplierName
+                        </td>
+                        <td class="numericalign">
+                            <label id="qtyTempOnQuotedQuantity_@trid">@item.OnQuotedQuantity.GetValueOrDefault(0)</label>
+                        </td>
+                        <td class="numericalign">
+                            <label id="qtyTempOnOrderQuantity_@trid">@item.OnOrderQuantity.GetValueOrDefault(0)</label>
+                        </td>
+                        <td class="numericalign">
+                            <label id="qtyTempInTransitQuantity_@trid">@item.OnOrderInTransitQuantity</label>
+                        </td>
+                        <td class="numericalign">
+                            <label id="qtyTempMinimumQuantity_@trid">@item.MinimumQuantity</label>
+                        </td>
+                        <td class="numericalign">
+                            <label id="qtyTempMaximumQuantity_@trid">@item.MaximumQuantity</label>
+                        </td>
+                        <td>
+                            @item.Category
+                        </td>
+                        <td class="numericalign">
+                            <label id="qtyTempDefaultReorderQuantity_@trid">@item.DefaultReorderQuantity</label>
+                        </td>
+                        <td>
+                            @item.Manufacturer
+                        </td>
+                        <td>
+                            @item.ManufacturerNumber
+                        </td>
+                        <td>
+                            @item.SupplierPartNo
+                        </td>
+                        <td class="numericalign">
+                            @item.SuggestedOrderQuantity
+                        </td>
+                        <td>
+                            @item.ItemBlanketPO
+                        </td>
+                        <td>
+                            @if (item.IsEDISent.GetValueOrDefault(false) == true)
+                            {
+                                @Html.Label("True");
+                                <input id="hdnIsEDISent" type="hidden" value="True" />
+                            }
+                            else
+                            {
+                                @Html.Label("False");
+                                <input id="hdnIsEDISent" type="hidden" value="False" />
+                            }
+                        </td>
+                        <td>
+                            @item.ASNNumber
+                        </td>
+                        <td>
+                            @item.CostUOM
+                        </td>
+                        <td>
+                            @(item.CostUOMValue ?? 0)
+                        </td>
+                        @if (isCost)
+                        {
+                            <td class="numericalign">
+                                @(item.ExtendedCost.GetValueOrDefault(0).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture))
+                            </td>
+                        }
+                        <td>
+                            @if (Model.QuoteStatus != (int)QuoteStatus.Closed)
+                            {
+                                <textarea id="Comment" name="Comment" style="background:white !important;width:80% !important;" rows="3" cols="20" class="text-box" maxlength="2000">@item.Comment</textarea>
+                            }
+                            else
+                            {
+                                <div id="dveditComment" class='editComment'><img src='/Content/images/editico.png' title='Edit Comment' /></div>
+                                <textarea id="Comment" disabled="disabled" readonly="readonly" name="Comment" style="width:65% !important;" rows="3" cols="20" class="text-box" maxlength="2000">@item.Comment</textarea>
+                            }
+                        </td>
+                        <td>
+                            @(item.ItemInTransitQuantity ?? 0)
+                        </td>
+
+                        <td>
+                            @(item.CreatedByName)
+                        </td>
+                        <td>
+                            @(item.CreatedDate)
+                        </td>
+                        <td>
+                            @(item.UpdatedByName)
+                        </td>
+                        <td>
+                            @(item.UpdatedDate)
+                        </td>
+                        <td>
+                            @(item.AddedFrom)
+                        </td>
+                        <td>
+                            @(item.ReceivedOnDateWeb)
+                        </td>
+                        <td>
+                            @(item.EditedFrom)
+                        </td>
+                        <td>
+                            @(item.ReceivedOnDate)
+                        </td>
+                        <td>
+                            @(item.InTransitQuantity ?? 0)
+                        </td>
+                        <td>
+                            @*@{
+              POLineItemManual++;
+              <span id="POLineItemNumbers" data-value="@POLineItemManual"> @(POLineItemManual) </span>
+            }*@
+                            @if (item.POItemLineNumber == null || item.POItemLineNumber < 1)
+                            {
+                                POLineItemManual++;
+                                <span id="POLineItemNumbers" data-value="@POLineItemManual"> @(POLineItemManual) </span>
+                            }
+                            else
+                            {
+                                <span id="POLineItemNumbers" data-value="@item.POItemLineNumber"> @(item.POItemLineNumber) </span>
+                                POLineItemManual = item.POItemLineNumber.GetValueOrDefault(0);
+                            }
+
+                        </td>
+                        @if (isCost)
+                        {
+                            <td class="numericalign">
+                                @item.QuoteLineItemExtendedCost.GetValueOrDefault(0).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture)
+                            </td>
+                        }
+                        <td>
+                            <span style="display:none">@item.ItemCost.GetValueOrDefault(0)</span>
+                            @Html.TextBox("txtQuoteItemCost", item.ItemCost, new { @style = "width:93%;", @maxlength = "20", @class = "numericinput text-boxinner" })
+                        </td>
+                        @if (isCost)
+                        {
+                            <td class="numericalign">
+                                @item.ItemSellPrice.GetValueOrDefault(0).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture)
+                            </td>
+                            <td class="numericalign">
+                                @item.ItemMarkup.GetValueOrDefault(0).ToString(priceformate)
+                            </td>
+                            <td class="numericalign">
+                                @item.ItemCostUOMValue.GetValueOrDefault(0).ToString(priceformate)
+                            </td>
+                        }
+                        @if (isQuoteDetailsUDF)
+                        {
+                            @Html.RenderColumnsArrayEditableObjectForDOM("QuoteDetails", controlIDPostfix: "QuoteDetails")
+                        }
+                        @(Html.RenderColumnsArrayForDOM("ItemMaster", item, "Item"))
+                    </tr>
+                            trid += 1;
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+        @*</div>*@
+    </div>
+    @if (Model.QuoteStatus > (int)QuoteStatus.Approved && Model.QuoteStatus != (int)QuoteStatus.Closed)
+    {
+        <input id="btnCloseQuote" type="button" value="@ResQuoteMaster.CloseQuote" style="float: left; margin-left: 4%;margin-top: 1%" class="CreateBtn" />
+        <input id="btnCloseQuoteLineItem" type="button" value="@ResQuoteMaster.CloseQuoteLineItem" style="float: left;margin-left: 1%; margin-top: 1%" class="CreateBtn" />
+        
+        if(IsAllowToCreateOrder)
+        {
+            <input id="btnCreateOrderFromQuote" type="button" value="@ResQuoteMaster.CreateOrder" style="float: left;margin-left: 1%; margin-top: 1%" class="CreateBtn" />    
+        }        
+    }
+
+</div>
+
+<script type="text/javascript">
+    var QtId = '@Model.ID';
+    var QtStatus = '@Model.QuoteStatus';
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var oTableQuoteLineItems;
+    var bIsFilter = false;
+    var objQuoteDtlGridColumns = {};
+    var ISDeletable = '@isDelete';
+    var OrderAllowedFileExtension = '@OrderAllowedFileExtension';
+    formData = new FormData();
+
+    $(document).ready(function () {
+        AllowDeletePopup = false;
+        $('form').areYouSure();
+        objQuoteDtlGridColumns = GetGridChildGridColumnsObject('QuoteLineItem' + QtId);
+        $('.ShowAllOptions').click(function () {
+            $(this).siblings('.QtDetailAuto').trigger("focus");
+            $(this).siblings(".QtDetailAuto").autocomplete("search", " ");
+        });
+
+        UDFfillEditableOptionsForGrid();
+        var tableName = $('table[id^=QuoteLineItem]').attr("id");
+        var rowno = 0;
+        $('#' + tableName + ' tr').each(function () {
+
+            var raw = $(this);
+            var qtyTempReceivedQuantity = $('#qtyTempReceivedQuantity_' + rowno).text();
+            if (qtyTempReceivedQuantity != "" && qtyTempReceivedQuantity != NaN)
+                $('#qtyTempReceivedQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempReceivedQuantity), 2));
+            else
+                $('#qtyTempReceivedQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var txtQty = raw.find("#txtQty").val();
+            if (txtQty != "" && txtQty != NaN) {
+                raw.find("#txtQty").val(FormatedCostQtyValues(txtQty, 2));
+            }
+            else
+                raw.find("#txtQty").val(FormatedCostQtyValues(0, 2));
+            var txtApprQty = raw.find("#txtApprQty").val();
+
+            if (txtApprQty != "" && txtApprQty != NaN) {
+                raw.find("#txtApprQty").val(FormatedCostQtyValues(txtApprQty, 2));
+            }
+            else
+                raw.find("#txtApprQty").val(FormatedCostQtyValues(0, 2));
+
+            var qtyTempOnHandQuantity = $('#qtyTempOnHandQuantity_' + rowno).text();
+            if (qtyTempOnHandQuantity != "" && qtyTempOnHandQuantity != NaN)
+                $('#qtyTempOnHandQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempOnHandQuantity), 2));
+            else
+                $('#qtyTempOnHandQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempStagedQuantity = $('#qtyTempStagedQuantity_' + rowno).text();
+            if (qtyTempStagedQuantity != "" && qtyTempStagedQuantity != NaN)
+                $('#qtyTempStagedQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempStagedQuantity), 2));
+            else
+                $('#qtyTempStagedQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var CostTempCost = $('#CostTempCost_' + rowno).text();
+            if (CostTempCost != "" && CostTempCost != NaN)
+                $('#CostTempCost_' + rowno).text(FormatedCostQtyValues(parseFloat(CostTempCost), 1));
+            else
+                $('#CostTempCost_' + rowno).text(FormatedCostQtyValues(0, 1));
+
+            var qtyTempOnOrderQuantity = $('#qtyTempOnOrderQuantity_' + rowno).text();
+
+            if (qtyTempOnOrderQuantity != "" && qtyTempOnOrderQuantity != NaN)
+                $('#qtyTempOnOrderQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempOnOrderQuantity), 2));
+            else
+                $('#qtyTempOnOrderQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempInTransitQuantity = $('#qtyTempInTransitQuantity_' + rowno).text();
+            if (qtyTempInTransitQuantity != "" && qtyTempInTransitQuantity != NaN)
+                $('#qtyTempInTransitQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempInTransitQuantity), 2));
+            else
+                $('#qtyTempInTransitQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempMinimumQuantity = $('#qtyTempMinimumQuantity_' + rowno).text();
+            if (qtyTempMinimumQuantity != "" && qtyTempMinimumQuantity != NaN)
+                $('#qtyTempMinimumQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempMinimumQuantity), 2));
+            else
+                $('#qtyTempMinimumQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempMaximumQuantity = $('#qtyTempMaximumQuantity_' + rowno).text();
+            if (qtyTempMaximumQuantity != "" && qtyTempMaximumQuantity != NaN)
+                $('#qtyTempMaximumQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempMaximumQuantity), 2));
+            else
+                $('#qtyTempMaximumQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var costTempSellPrice = $('#costTempSellPrice_' + rowno).text();
+            if (costTempSellPrice != "" && costTempSellPrice != NaN)
+                $('#costTempSellPrice_' + rowno).text(FormatedCostQtyValues(parseFloat(costTempSellPrice), 1));
+            else
+                $('#costTempSellPrice_' + rowno).text(FormatedCostQtyValues(0, 1));
+
+            var qtyTempDefaultReorderQuantity = $('#qtyTempDefaultReorderQuantity_' + rowno).text();
+            if (qtyTempDefaultReorderQuantity != "" && qtyTempDefaultReorderQuantity != NaN)
+                $('#qtyTempDefaultReorderQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempDefaultReorderQuantity), 2));
+            else
+                $('#qtyTempDefaultReorderQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyQuoteLineItemExtendedCost = $('#hdnQuoteLineItemExtendedCost_' + rowno).val();
+            if (qtyQuoteLineItemExtendedCost != "" && qtyQuoteLineItemExtendedCost != NaN)
+                $('#hdnQuoteLineItemExtendedCost_' + rowno).val(FormatedCostQtyValues(parseFloat(qtyQuoteLineItemExtendedCost), 2));
+            else
+                $('#hdnQuoteLineItemExtendedCost_' + rowno).val(FormatedCostQtyValues(0, 2));
+
+            var qtyQuoteLineItemExtendedPrice = $('#hdnQuoteLineItemExtendedPrice_' + rowno).val();
+            if (qtyQuoteLineItemExtendedPrice != "" && qtyQuoteLineItemExtendedPrice != NaN)
+                $('#hdnQuoteLineItemExtendedPrice_' + rowno).val(FormatedCostQtyValues(parseFloat(qtyQuoteLineItemExtendedPrice), 2));
+            else
+                $('#hdnQuoteLineItemExtendedPrice_' + rowno).val(FormatedCostQtyValues(0, 2));
+
+            rowno += 1;
+        });
+
+        var gaiSelected = [];
+
+        //----------------------------------------------------
+        //
+        $('#QuoteLineItem' + QtId + ' tr').each(function () {
+            var UDF1 = '';
+            var UDF2 = '';
+            var UDF3 = '';
+            var UDF4 = '';
+            var UDF5 = '';
+            if ($(this).find("input#hdnUDF1").val() != '') {
+                UDF1 = $(this).find("input#hdnUDF1").val();
+            }
+            if ($(this).find("input#hdnUDF2").val() != '') {
+                UDF2 = $(this).find("input#hdnUDF2").val();
+            }
+            if ($(this).find("input#hdnUDF3").val() != '') {
+                UDF3 = $(this).find("input#hdnUDF3").val();
+            }
+            if ($(this).find("input#hdnUDF4").val() != '') {
+                UDF4 = $(this).find("input#hdnUDF4").val();
+            }
+            if ($(this).find("input#hdnUDF5").val() != '') {
+                UDF5 = $(this).find("input#hdnUDF5").val();
+            }
+
+            if (UDF1 != '') {
+                $(this).find('#hdnSpnUDF1QuoteDetails').text(UDF1);
+            }
+            if (UDF2 != '') {
+                $(this).find('#hdnSpnUDF2QuoteDetails').text(UDF2);
+            }
+            if (UDF3 != '') {
+                $(this).find('#hdnSpnUDF3QuoteDetails').text(UDF3);
+            }
+            if (UDF4 != '') {
+                $(this).find('#hdnSpnUDF4QuoteDetails').text(UDF4);
+            }
+            if (UDF5 != '') {
+                $(this).find('#hdnSpnUDF5QuoteDetails').text(UDF5);
+            }
+        });
+
+        //----------------------------------------------------
+        //
+        oTableQuoteLineItems = $('#QuoteLineItem' + QtId).DataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "150%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            "oColVis": {
+            },
+            //"aaSorting": [],
+            "aaSorting": [[1, "desc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                if ('@isApprove' === "True") {
+                    $(nRow).find("input.clsApprQty").removeAttr("readonly");
+                }
+                if ('@Model.IsRecordNotEditable' != 'True') {
+                    $(nRow).find('input.hasDatePicker').blur(function () { }).datepicker({
+                        dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+                        changeMonth: true,
+                        changeYear: true,
+                        clearText: 'Clear', onClose: function () { this.focus(); }
+                    });
+                }
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+
+                if ('@isShowDeleted' === "True" || '@Model.IsDeleted' === "True") {
+                    $(nRow).css('background-color', '#FFCCCC');
+                }
+                return nRow;
+            },
+            "aoColumnDefs": [
+		        { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '', aTargets: [0] }
+            ],
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                //   if (!bIsFilter) {
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'QuoteDetailList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = json;
+                    }
+                });
+                //  }
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'QuoteDetailList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+                if ('@Model.IsDeleted' === "True") {
+                    if ($("#IsDeletedRecordsQuoteLn").length > 0) {
+                        $("#IsDeletedRecordsQuoteLn").parent("li").hide();
+                    }
+                }
+                //var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+                //$('#QuoteLineItem' + QtId + ' td').removeHighlight();
+                //if (searchtext.length > 0)
+                    //$('#QuoteLineItem' + QtId + ' td').highlight($("#InnerItem_filter").val());
+            }
+            ,
+            "fnDrawCallback": function () {
+                //var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+                //$('#QuoteLineItem' + QtId + ' td').removeHighlight();
+                //if (searchtext.length > 0)
+                //    $('#QuoteLineItem' + QtId + ' td').highlight($("#InnerItem_filter").val());
+            }
+            //, "aoColumns": ColumnObject
+
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+        $('#btnblock').css({ 'margin-right': '45px' });
+        if ('@isShowDeleted' === 'True') {
+            if ('@Model.QuoteListItem.Count' === '0') {
+                $('#spnNoOfItems').text('0');
+            }
+            else {
+                $('#spnNoOfItems').text('@Model.QuoteListItem.Count');
+            }
+        }
+        else {
+            $('#spnNoOfItems').text('@Model.NoOfLineItems.GetValueOrDefault(0)');
+            $('#spnTotalCost').text('@CurrencySymbol' + '@Model.QuoteCost.GetValueOrDefault(0).ToString(priceformate)');
+        }
+
+        $(".clsApprQty").attr("readonly", "readonly");
+
+        if ('@isApprove' === "True") {
+            $(".clsApprQty").removeAttr("readonly");
+        }
+
+        $('#QuoteLineItem' + QtId).on('focus', "input.QtDetailAuto", function (e) {
+
+            var ajaxURL = '/Master/GetBinForItemOrStaging';
+            var itmGuid = $(this).parent().parent().parent().find('#hdnItemGUID').val();
+            var stagingName = "";
+            var includeQty = false;
+            var tr = $(this).parent().parent().parent();
+            var hdnIsLoadMoreLocations = $(tr).find("#hdnIsLoadMoreLocations").val();
+            $(this).autocomplete("destroy");
+
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'ItemGuid': itmGuid, 'StagingHeaderName': stagingName, 'IncludeQty': includeQty, 'NameStartWith': request.term, 'IsLoadMoreLocations': hdnIsLoadMoreLocations }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    if (ui.item.value == MoreLocation) {
+                        $(tr).find("#hdnIsLoadMoreLocations").val("true");
+                        $(this).trigger("focus");
+                        $(this).autocomplete("search", " ");
+                        return false;
+                    }
+                    else {
+                        $(this).val(ui.item.value);
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                    $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                    $('ul.ui-autocomplete').css('max-height', '300px');
+                    $('ul.ui-autocomplete').css('z-index', '99999');
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                }
+            }).bind("focus", function () {
+                $(this).autocomplete("search", " ");
+                //$(objTxtselector).autocomplete("search", $(objTxtselector).val());
+            });
+        });
+        $('#QuoteLineItem' + QtId + ' tr').each(function () {
+            var UDF1 = '';
+            var UDF2 = '';
+            var UDF3 = '';
+            var UDF4 = '';
+            var UDF5 = '';
+            if ($(this).find("input#hdnUDF1").val() != '') {
+                UDF1 = $(this).find("input#hdnUDF1").val();
+            }
+
+            if ($(this).find("input#hdnUDF2").val() != '') {
+                UDF2 = $(this).find("input#hdnUDF2").val();
+            }
+            if ($(this).find("input#hdnUDF3").val() != '') {
+                UDF3 = $(this).find("input#hdnUDF3").val();
+            }
+            if ($(this).find("input#hdnUDF4").val() != '') {
+                UDF4 = $(this).find("input#hdnUDF4").val();
+            }
+            if ($(this).find("input#hdnUDF5").val() != '') {
+                UDF5 = $(this).find("input#hdnUDF5").val();
+            }
+            if (UDF1 != '') {
+                $(this).find("input#UDF1QuoteDetails").val(UDF1);
+                $(this).find("select#UDF1QuoteDetails option").filter(function () {
+                    return this.text == UDF1;
+                }).attr('selected', true);
+            }
+            if (UDF2 != '') {
+                $(this).find("input#UDF2QuoteDetails").val(UDF2);
+                $(this).find("select#UDF2QuoteDetails option").filter(function () {
+                    return this.text == UDF2;
+                }).attr('selected', true);
+            }
+            if (UDF3 != '') {
+                $(this).find("input#UDF3QuoteDetails").val(UDF3);
+                $(this).find("select#UDF3QuoteDetails option").filter(function () {
+                    return this.text == UDF3;
+                }).attr('selected', true);
+            } if (UDF4 != '') {
+                $(this).find("input#UDF4QuoteDetails").val(UDF4);
+                $(this).find("select#UDF4QuoteDetails option").filter(function () {
+                    return this.text == UDF4;
+                }).attr('selected', true);
+            } if (UDF5 != '') {
+                $(this).find("input#UDF5QuoteDetails").val(UDF5);
+                $(this).find("select#UDF5QuoteDetails option").filter(function () {
+                    return this.text == UDF5;
+                }).attr('selected', true);
+            }
+        });
+
+        //oTableQuoteLineItems.rows().invalidate().draw();
+
+        $('#IsDeletedRecordsQuoteLn').click(function () {
+            var _vIsDeleted = false;
+            if (typeof ($('#IsDeletedRecordsQuoteLn')) != undefined) {
+                _vIsDeleted = $('#IsDeletedRecordsQuoteLn').is(':checked');
+                CallThisFunctionFromModel('success', true, _vIsDeleted)
+            }
+        });
+
+        $('#QuoteLineItem' + QtId).on("blur", "#Comment", function (event) {
+            if ('@Model.QuoteStatus' == @Convert.ToInt32(QuoteStatus.Closed)) {
+                var arrReqDateCommentItems = new Array();
+                var parenttd = $(this).parents('td').parent();
+                var ID = $(this).parents().find('#hdnID').val();
+                var ItemGUID = $(this).parents().find('#hdnItemGUID').val();
+                var QuoteGUID = $(this).parents().find('#hdnQuoteGUID').val();
+                //var hdnComment = $(this).parents().find("input[type='hidden'][id*='hdnComment']").val();
+                var hdnComment = parenttd.find('#hdnComment').val();//$(this).parents().find('#hdnComment').val();
+                var Comment = $(this).parents().find('#Comment').val();
+                if (hdnComment != Comment) {
+                    $('#DivLoading').show();
+                    var data = {
+                        "ID": ID
+                        , "ItemGUID": ItemGUID
+                        , "QuoteGUID": QuoteGUID
+                        //, "RequiredDateStr": RequiredDate
+                        , "Comment": Comment
+                    };
+                    arrReqDateCommentItems.push(data);
+                    var msg = SaveQuoteLineItemsForReqDateCommentGrid(arrReqDateCommentItems, true, false);
+
+                    if (msg.Status == "ok") {
+                        var txtComment = $(this).parents().find("#Comment");
+                        if (txtComment != undefined && (typeof (txtComment) != undefined)) {
+                            var hdnComment = parenttd.find('#hdnComment');//$(this).parents().find("#hdnComment");
+                            if (hdnComment != undefined && (typeof (hdnComment) != "undefined")) {
+                                $(hdnComment).val($(txtComment).val());
+                            }
+                            $(txtComment).attr("readonly", "readonly");
+                            $(txtComment).attr("disabled", "disabled");
+                            $(txtComment).css({ "background-color": "#ccc" });
+                        }
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html(msg.Message);
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+                    }
+                    else if (msg.Status == 'No') {
+                        $('#DivLoading').hide();
+                        $("#spanGlobalMessage").html('@ResCommon.NoChanges');
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                    }
+                    else {
+                        $('#DivLoading').hide();
+                        $("#spanGlobalMessage").html(msg.Message);
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    }
+                }
+                else {
+                    var txtComment = $(this).parents().find("#Comment");
+                    if (txtComment != undefined && (typeof (txtComment) != undefined)) {
+                        $(txtComment).attr("readonly", "readonly");
+                        $(txtComment).attr("disabled", "disabled");
+                        $(txtComment).css({ "background-color": "#ccc" });
+                    }
+                }
+            }
+        });
+
+        $('#QuoteLineItem' + QtId).on("click", ".editComment img", function (event) {
+            if ('@Model.QuoteStatus' == @Convert.ToInt32(QuoteStatus.Closed)) {
+                $('#DivLoading').show();
+                var parenttd = $(this).parents('td').parent();
+                var txtComment = parenttd.find("#Comment");
+
+                if (txtComment != undefined && (typeof (txtComment) != undefined)) {
+                    $(txtComment).removeAttr("readonly");
+                    $(txtComment).removeAttr("disabled");
+                    $(txtComment).css({ "background-color": "#fff" });
+                }
+
+                $('#DivLoading').hide();
+                return true;
+            }
+        });
+
+        $('#QuoteLineItem' + QtId).on("click", ".editRequiredDate img", function (event) {
+            if ('@Model.QuoteStatus' == @Convert.ToInt32(QuoteStatus.Closed)) {
+                $('#DivLoading').show();
+                var parenttd = $(this).parents('td').parent();
+                parenttd.find('input.hasDatePicker').removeAttr("disabled", "disabled");
+                parenttd.find('input.hasDatePicker').css({ "background-color": "#fff" });
+                parenttd.find('input.hasDatePicker').blur(function () {  }).datepicker({
+                    dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+                    changeMonth: true,
+                    changeYear: true,
+                    clearText: 'Clear', onClose: function () { this.focus(); }
+                }).on("change", function () {
+                    if ('@Model.QuoteStatus' == @Convert.ToInt32(QuoteStatus.Closed)) {
+                        var arrReqDateCommentItems = new Array();
+                        var ID = $(this).parents().find('#hdnID').val();
+                        var ItemGUID = $(this).parents().find('#hdnItemGUID').val();
+                        var QuoteGUID = $(this).parents().find('#hdnQuoteGUID').val();
+                        var hdnRequiredDate = $(this).parents().find('#hdnRequiredDate').val();
+                        var RequiredDate = $(this).parents().find('input.hasDatePicker').val();
+                        if ((typeof (RequiredDate) == "undefined" || (typeof (RequiredDate) == undefined))) {
+                            RequiredDate = $(this).parents().find('#hdnRequiredDate').val();
+                        }
+
+                        var hdnComment = $(this).parents().find("#hdnComment");
+
+                        if (hdnRequiredDate != RequiredDate) {
+                            $('#DivLoading').show();
+                            var data = {
+                                "ID": ID
+                                , "ItemGUID": ItemGUID
+                                , "QuoteGUID": QuoteGUID
+                                , "RequiredDateStr": RequiredDate
+                                , "Comment": hdnComment.val()
+                            };
+                            arrReqDateCommentItems.push(data);
+                            var msg = SaveQuoteLineItemsForReqDateCommentGrid(arrReqDateCommentItems, false, true);
+
+                            if (msg.Status == "ok") {
+                                var RequiredDate = $(this).parents().find('input.hasDatePicker');
+                                if (RequiredDate != undefined && (typeof (RequiredDate) != undefined)) {
+
+                                    var hdnRequiredDate = $(this).parents().find('#hdnRequiredDate').val();
+                                    if (hdnRequiredDate != undefined && (typeof (hdnRequiredDate) != undefined)) {
+                                        $(hdnRequiredDate).val($(RequiredDate).val());
+                                    }
+
+                                    $(RequiredDate).attr("readonly", "readonly");
+                                    $(RequiredDate).attr("disabled", "disabled");
+                                    $(RequiredDate).css({ "background-color": "#ccc" });
+                                }
+
+                                showNotificationDialog();
+                                $("#spanGlobalMessage").html(msg.Message);
+                                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+                            }
+                            else if (msg.Status == 'No') {
+                                $('#DivLoading').hide();
+                                $("#spanGlobalMessage").html('@ResCommon.NoChanges');
+                                showNotificationDialog();
+                                $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                            }
+                            else {
+                                $('#DivLoading').hide();
+                                $("#spanGlobalMessage").html(msg.Message);
+                                showNotificationDialog();
+                                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            }
+                        }
+                        else {
+                            var RequiredDate = $(this).parents().find('input.hasDatePicker');
+                            if (RequiredDate != undefined && (typeof (RequiredDate) != undefined)) {
+                                $(RequiredDate).attr("readonly", "readonly");
+                                $(RequiredDate).attr("disabled", "disabled");
+                                $(RequiredDate).css({ "background-color": "#ccc" });
+                            }
+                        }
+                    }
+                });
+                //var dveditRequiredDate = $(this).parents('td').find("#dveditRequiredDate");
+                //if (typeof (dveditRequiredDate) != "undefined") {
+                //    $(dveditRequiredDate).hide();
+                //}
+                $('#DivLoading').hide();
+                return true;
+            }
+        });
+
+        $('#btnCloseQuote').click(function () {
+            $('#CloseQuoteDialog').modal();
+        });
+
+        $('#btnCloseQuoteLineItem').click(function () {
+            if ($('#QuoteLineItem' + QtId).find("tbody tr.row_selected").length > 0) {
+                $('#CloseQuoteLineItemDialog').modal();
+            }
+            else {
+                alert('@ResCommon.ReqLineItems');
+            }
+        });
+
+        $('#bntCloseConfirmYes').click(function () {
+            $('#DivLoading').show();
+            $.ajax({
+               url: '@Url.Action("CloseQuotes", "Quote")',
+               type: "POST",
+                data: { Ids: QtId },
+                'success': function (result) {
+                    SetReplenishRedCount();
+                    CloseModel();
+                    $('#DivLoading').hide();
+                    RefreshQuoteListNarrowSearhFromEdit();
+                    //SwitchOrderTab('OrderCreate', 'frmOrder');
+                    SwitchQuoteTab('QuoteCreate', 'frmQuote');
+                },
+                'error': function (result) {
+                    CloseModel();
+                    $('#DivLoading').hide();
+                }
+
+            });
+        });
+
+        $('#bntCloseQuoteLineItemConfirmYes').click(function () {
+            $('#DivLoading').show();
+            var quoteDetailID = '';
+
+            $('#QuoteLineItem' + QtId).find("tbody tr.row_selected").each(function (e) {
+
+                if ($(this).find('#hdnID').val() != undefined) {
+                    if (quoteDetailID.length > 0) {
+                        quoteDetailID = quoteDetailID + ",";
+                    }
+                    quoteDetailID = quoteDetailID + $(this).find('#hdnID').val();
+                }
+            });
+            if (quoteDetailID.length > 0) {
+                $.ajax({
+                    'url': 'CloseQuoteDetailLineItems',
+                    'data': { 'Ids': quoteDetailID, 'CallFrom': 'Quote' },
+                    'success': function (result) {
+                        if (!isNaN(parseInt(result.QuoteStatus)) && parseInt(result.QuoteStatus) > 0) {
+                            $('#ddlQuoteStatus').val(result.QuoteStatus);
+                        }
+                        CloseModel();
+                        if (!isNaN(parseInt(result.QuoteStatus)) && parseInt(result.QuoteStatus) == 8) {
+                            RefreshQuoteListNarrowSearhFromEdit();
+                            ShowEditTab('QuoteEdit/' + QtId, 'frmQuote');
+                            $('#tab11').hide();
+                        }
+                        else {
+                            CallThisFunctionFromModel('success')
+                        }
+                        $('#DivLoading').hide();
+                    },
+                    'error': function (result) {
+                        CloseModel();
+                        $('#DivLoading').hide();
+                    }
+
+                });
+            }
+            else {
+                CloseModel();
+                $('#DivLoading').hide();
+                alert('@ResCommon.ReqLineItems');
+            }
+
+        });
+
+        $("#btnCreateOrderFromQuote").click(function () {
+
+            var anSelected = fnGetSelected(oTableQuoteLineItems);
+            if (typeof (anSelected) == "undefined" || anSelected.length == 0) {
+                alert("@ResQuoteMaster.QuoteItemRequired");
+                return false;
+            }
+
+            var stringIDs = "";
+            var QuoteLineItemUDF1 = "";
+            var QuoteLineItemUDF2 = "";
+            var QuoteLineItemUDF3 = "";
+            var QuoteLineItemUDF4 = "";
+            var QuoteLineItemUDF5 = "";
+            var quoteGUID = $(anSelected[0]).find("#hdnQuoteGUID").val();
+
+            for (var i = 0; i <= anSelected.length - 1; i++) {
+                stringIDs = stringIDs + $(anSelected[i]).find('#hdnDetailGUID').val() + ",";
+
+                if ($(anSelected[i]).find('#UDF1QuoteDetails') != null) {
+                    if ($(anSelected[i]).find('#UDF1QuoteDetails').attr("class") == 'selectBox' && $(anSelected[i]).find('#UDF1QuoteDetails option:selected').text() != undefined) {
+                        QuoteLineItemUDF1 += $(anSelected[i]).find('#UDF1QuoteDetails option:selected').text() + ",";
+                    }
+                    else {
+                        if ($(anSelected[i]).find('#UDF1QuoteDetails').val() != undefined) {
+                            QuoteLineItemUDF1 += $(anSelected[i]).find('#UDF1QuoteDetails').val() + ",";
+                        }
+                    }
+                }
+
+                if ($(anSelected[i]).find('#UDF2QuoteDetails') != null) {
+                    if ($(anSelected[i]).find('#UDF2QuoteDetails').attr("class") == 'selectBox' && $(anSelected[i]).find('#UDF2QuoteDetails option:selected').text() != undefined) {
+                        QuoteLineItemUDF2 += $(anSelected[i]).find('#UDF2QuoteDetails option:selected').text() + ",";
+                    }
+                    else {
+                        if ($(anSelected[i]).find('#UDF2QuoteDetails').val() != undefined) {
+                            QuoteLineItemUDF2 += $(anSelected[i]).find('#UDF2QuoteDetails').val() + ",";
+                        }
+                    }
+                }
+
+                if ($(anSelected[i]).find('#UDF3QuoteDetails') != null) {
+                    if ($(anSelected[i]).find('#UDF3QuoteDetails').attr("class") == 'selectBox' && $(anSelected[i]).find('#UDF3QuoteDetails option:selected').text() != undefined) {
+                        QuoteLineItemUDF3 += $(anSelected[i]).find('#UDF3QuoteDetails option:selected').text() + ",";
+                    }
+                    else {
+                        if ($(anSelected[i]).find('#UDF3QuoteDetails').val() != undefined) {
+                            QuoteLineItemUDF3 += $(anSelected[i]).find('#UDF3QuoteDetails').val() + ",";
+                        }
+                    }
+                }
+
+                if ($(anSelected[i]).find('#UDF4QuoteDetails') != null) {
+                    if ($(anSelected[i]).find('#UDF4QuoteDetails').attr("class") == 'selectBox' && $(anSelected[i]).find('#UDF4QuoteDetails option:selected').text() != undefined) {
+                        QuoteLineItemUDF4 += $(anSelected[i]).find('#UDF4QuoteDetails option:selected').text() + ",";
+                    }
+                    else {
+                        if ($(anSelected[i]).find('#UDF4QuoteDetails').val() != undefined) {
+                            QuoteLineItemUDF4 += $(anSelected[i]).find('#UDF4QuoteDetails').val() + ",";
+                        }
+                    }
+                }
+
+                if ($(anSelected[i]).find('#UDF5QuoteDetails') != null) {
+                    if ($(anSelected[i]).find('#UDF5QuoteDetails').attr("class") == 'selectBox' && $(anSelected[i]).find('#UDF5QuoteDetails option:selected').text() != undefined) {
+                        QuoteLineItemUDF5 += $(anSelected[i]).find('#UDF5QuoteDetails option:selected').text() + ",";
+                    }
+                    else {
+                        if ($(anSelected[i]).find('#UDF5QuoteDetails').val() != undefined) {
+                            QuoteLineItemUDF5 += $(anSelected[i]).find('#UDF5QuoteDetails').val() + ",";
+                        }
+                    }
+                }
+            }
+
+            $('#DivLoading').show();
+            if ($.trim(stringIDs) != "") {
+                $('#DivLoading').show();
+                $.ajax({
+                    url: '@Url.Action("CreateQuoteOrderPopup", "Quote")',
+                    type: 'POST',
+                    //dataType: 'json',
+                    data: "{QuoteGuid: '" + quoteGUID + "', Ids: '" + stringIDs + "', QuoteLineItemUDF1: '" + QuoteLineItemUDF1 + "', QuoteLineItemUDF2: '" + QuoteLineItemUDF2 + "', QuoteLineItemUDF3: '" + QuoteLineItemUDF3 + "', QuoteLineItemUDF4: '" + QuoteLineItemUDF4 + "', QuoteLineItemUDF5: '" + QuoteLineItemUDF5 + "'}",
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "html",
+                    success: function (result) {
+                        $('#DivLoading').hide();
+                        $("#dvCreteQuoteToOrder").empty();
+                        $("#dvCreteQuoteToOrder").html(result);
+                        $("#dvCreteQuoteToOrder").dialog("open");
+                    },
+                    error: function (request, status, error) {
+                    }
+                });
+            }
+            else {
+                alert("@ResQuoteMaster.QuoteItemRequired");
+            }
+    });
+
+    });
+
+    function CallBackAfterOrderCreate()
+    {
+        ShowEditTab('QuoteEdit/' + QtId, 'frmQuote');
+        RefreshQuoteListNarrowSearhFromEdit();
+    }
+
+
+    function CheckUnSavedItemBeforCancel() {
+
+        var IsReturn = true;
+        $('#QuoteLineItem' + '@Model.ID' + ' tbody tr').each(function (i) {
+            var tr = $(this);
+            var id = $(tr).find('#hdnID').val();
+            if (id == '' || id == '0') {
+                $('#divOrdCancelUnsaveItemInfoDialog').modal();
+                IsReturn = false;
+                return;
+            }
+        });
+
+        return IsReturn;
+    }
+
+    $(".text-boxPriceFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+    });
+    $(".text-boxQuantityFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+    });
+
+    $('input.txtSRQtyFormat').on('keypress', function (evt) {
+        var keyCode = [evt.keyCode || evt.which];
+
+        if (keyCode == 8 || keyCode == 13 || keyCode == 9)
+            return true;
+        if (keyCode > 57 || keyCode < 48)
+            return false;
+        else
+            return true;
+    });
+
+
+
+    if ('@Model.QuoteStatus' >= '@((int)QuoteStatus.Transmitted)') {
+        $('#deleteRows1').attr('style', 'display:none');
+        ISDeletable = false;
+    }
+
+    if ('@Model.IsRecordNotEditable' == 'True') {
+        $('select', '#QuoteLineItem' + QtId)
+        .attr('disabled', 'disabled');
+
+        $(':input[type=text], textarea', '#QuoteLineItem' + QtId)
+        .attr('readonly', 'readonly');
+
+        $('#saveRows').attr('style', 'display:none');
+        $('#deleteRows1').attr('style', 'display:none');
+        ISDeletable = false;
+
+        if ('@Model.QuoteStatus' == '@((int)QuoteStatus.Approved)') {
+            $('[id*="Comment"]', '#QuoteLineItem' + QtId)
+            .removeAttr("readonly");
+        }
+    }
+
+    $('#QuoteLineItem' + QtId + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+    var lastChecked1;
+    var starttrvalue1 = "";
+    $('#QuoteLineItem' + QtId + ' tbody tr').live('tap click', function (e) {
+        if ($(e.target).hasClass("control") == true || e.target.nodeName.toLowerCase() == "img" || e.target.type == "checkbox" || e.target.type == "radio" || e.target.type == "text" || e.target.type == "button" || $(e.target).is('a') == true || $(e.target).is('span') == true
+            || $(e.target).hasClass("selectBox")
+        ) {
+            e.stopPropagation();
+        }
+        else {
+
+            if (lastChecked1 !== undefined && lastChecked1 != null && !lastChecked1) {
+                lastChecked1 = this;
+            }
+
+            if (e.shiftKey) {
+                var start = $('#QuoteLineItem' + QtId + ' tbody tr').index(this);
+                var end = $('#QuoteLineItem' + QtId + ' tbody tr').index(lastChecked1);
+
+                var stringval1 = readCookieforshift("selectstartindex");
+                if (stringval1 != null) {
+                    var endindex = $(this).closest('tr').attr('id');
+                    createCookieforshift("selectendindex", endindex, 1);
+                    if ($("#hdnPageName").val() !== undefined) {
+                        var pagename = '';
+                        pagename = $("#hdnPageName").val();
+                        GetOnlyIdsForPassPagesForshift(pagename, true);
+                    }
+                }
+
+                for (i = Math.min(start, end); i <= Math.max(start, end); i++) {
+                    if (!$('#QuoteLineItem' + QtId + ' tbody tr').eq(i).hasClass('row_selected')) {
+                        //$('#QuoteLineItem' + QtId + ' tbody tr').eq(i).addClass("row_selected");
+                        var ths = $('#QuoteLineItem' + QtId + ' tbody tr').eq(i);
+                        var isClosed = ths.find("input#hdnIsClosedItem").val();
+                        var isOrdered = ths.find("input#hdnIsOrderedItem").val();
+                        var isItemActive = ths.find("input#hdnIsItemActive").val();
+                        var isItemOrderable = ths.find("input#hdnIsItemOrderable").val();
+
+                        if (parseInt(QtStatus) > parseInt('@((int)QuoteStatus.Approved)')) {
+                            if ((typeof (isClosed) != "undefined" && isClosed != null && isClosed.toLowerCase() == "true") ||
+                                (typeof (isOrdered) != "undefined" && isOrdered != null && isOrdered.toLowerCase() == "true") ||
+                                ((typeof (isItemActive) != "undefined" && isItemActive != null && isItemActive.toLowerCase() == "false") ||
+                                    (typeof (isItemOrderable) != "undefined" && isItemOrderable != null && isItemOrderable.toLowerCase() == "false")
+                                )
+                                || (parseInt(QtStatus) == '@((int)QuoteStatus.Closed)')
+                            ) {
+                                ths.removeClass("row_selected");
+                            }
+                            else {
+                                ths.addClass("row_selected");
+                            }
+                        }
+                        else
+                        {
+                            ths.addClass("row_selected");
+                        }
+                    }
+                }
+                if (window.getSelection) {
+                    if (window.getSelection().empty) {  // Chrome
+                        window.getSelection().empty();
+                    } else if (window.getSelection().removeAllRanges) {  // Firefox
+                        window.getSelection().removeAllRanges();
+                    }
+                } else if (document.selection) {  // IE?
+                    document.selection.empty();
+                }
+            } else if ((e.metaKey || e.ctrlKey)) {
+                $(this).toggleClass('row_selected');
+            } else {
+                $(this).toggleClass('row_selected');
+
+
+                if ($(this).hasClass('row_selected')) {
+                    (starttrvalue1 == "") ? starttrvalue1 = $(this).closest('tr').attr('id') : starttrvalue1 = starttrvalue1 + "," + $(this).closest('tr').attr('id');
+                    createCookieforshift("selectstartindex", starttrvalue1, 1);
+                } else {
+
+                    var stringval = readCookieforshift("selectstartindex");
+                    if (stringval != "undefined") {
+                        if (stringval != null) {
+                            var tmp = stringval.split(',');
+                            var index = tmp.indexOf($(this).closest('tr').attr('id'));
+                            if (index !== -1) {
+                                tmp.splice(index, 1);
+                                stringval = tmp.join(',');
+                                createCookieforshift("selectstartindex", stringval, 1);
+                            }
+                        }
+                    }
+
+                }
+            }
+
+            lastChecked1 = this;
+
+            var isClosed = $(this).find("input#hdnIsClosedItem").val();
+            var isOrdered = $(this).find("input#hdnIsOrderedItem").val();
+            var isItemActive = $(this).find("input#hdnIsItemActive").val();
+            var isItemOrderable = $(this).find("input#hdnIsItemOrderable").val();
+
+            if (parseInt(QtStatus) > parseInt('@((int)QuoteStatus.Approved)'))
+            {
+                if ((typeof (isClosed) != "undefined" && isClosed != null && isClosed.toLowerCase() == "true") ||
+                (typeof (isOrdered) != "undefined" && isOrdered != null && isOrdered.toLowerCase() == "true") ||
+                ((typeof (isItemActive) != "undefined" && isItemActive != null && isItemActive.toLowerCase() == "false") ||
+                (typeof (isItemOrderable) != "undefined" && isItemOrderable != null && isItemOrderable.toLowerCase() == "false")
+                )
+                ||  (parseInt(QtStatus) == '@((int)QuoteStatus.Closed)')
+                ) {
+                    $(this).removeClass("row_selected");
+                }
+            }
+        }
+
+    });
+
+    $('#deleteRows1').click(function () {
+        var anSelected = fnGetSelected(oTableQuoteLineItems);
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+        }
+
+    });
+
+    $(document).keyup(function (e) {
+        /*START - HANDLING OF GLOBAL DELETE KEYPRESS BUG*/
+        if (e.target.type == 'text' && e.target.localName == 'input')
+            return false;
+        /*END - HANDLING OF GLOBAL DELETE KEYPRESS BUG*/
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 46 && ISDeletable) {
+            $('#deleteRows1').click();
+        }
+
+    });
+
+    $("#btnModelYesInnerGrid").live("click", function () {
+        var anSelected = fnGetSelected(oTableQuoteLineItems);
+        var arrItems = new Array();
+
+        for (var i = 0; i < anSelected.length; i++) {
+            var quoteDetailId = $(anSelected[i]).find("#hdnID").val();
+            var ordTempDtlsGUID = $(anSelected[i]).find("#hdnTempDetailsGUID").val();
+            var quoteDtlGUID = $(anSelected[i]).find("#hdnDetailGUID").val();
+            var itemGuid = $(anSelected[i]).find("#hdnItemGUID").val();
+            var qtGuid = $(anSelected[i]).find("#hdnQuoteGUID").val();
+            var binName = $(anSelected[i]).find("#hdnBinName").val();
+
+            arrItems.push({ 'ID': quoteDetailId, 'GUID': quoteDtlGUID, 'ItemGUID': itemGuid, 'QuoteGUID': qtGuid, 'tempDetailsGUID': ordTempDtlsGUID, 'BinName': binName });
+        }
+        if (anSelected.length > 0) {
+            $.ajax({
+                'url': '/Quote/QuoteLineItemsDelete',
+                data: JSON.stringify({ 'objDeletedItems': arrItems, 'QuoteID': QtId }),
+                dataType: 'json',
+                type: 'POST',
+                contentType: "application/json",
+                async: false,
+                cache: false,
+                success: function (response) {
+                    $("#spanGlobalMessage").html(response.Message);
+                    showNotificationDialog();
+
+                    if (response.Status == "ok") {
+                        for (var i = 0; i < anSelected.length; i++) {
+                            $('#QuoteLineItem' + QtId).dataTable().fnDeleteRow(anSelected[i]);
+
+                            if (response.QuoteItems.length > 0) {
+                                $('#spnNoOfItems').text(response.QuoteItems);
+                            }
+                            if (response.QuoteCost.length > 0) {
+                                //$('#spnTotalCost').text(response.Quotecost);
+                                $('#spnTotalQuoteCost').html('@CurrencySymbol' + ' ' + response.QuoteCost);
+                            }
+                            if (response.QuotePrice.length > 0) {
+                                //$('#spnTotalCost').text(response.Quotecost);
+                                $('#spnTotalQuotePrice').html('@CurrencySymbol' + ' ' + response.QuotePrice);
+                            }
+                        }
+                    }
+                },
+                error: function (response) {
+                }
+            });
+            $.modal.impl.close();
+        }
+    });
+
+
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+
+        $('#QuoteLineItem' + QtId).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+    /* global search function */
+    function fnFilterQuoteLineItem() {
+        if (typeof $("#InnerItem_filter") != 'undefined')
+        {
+            bIsFilter = true;
+            var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+            $('#QuoteLineItem' + QtId + ' td').removeHighlight();
+            $('#QuoteLineItem' + QtId).dataTable().fnFilter(searchtext, null, null, false);
+                
+            //$('#QuoteLineItem' + QtId).removeHighlight();
+            if (searchtext.length > 0)
+                $('#QuoteLineItem' + QtId + ' td').highlight($("#InnerItem_filter").val());
+                
+        }
+        
+    }
+
+    function highlightSelection()
+    {
+        var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+        $('#QuoteLineItem' + QtId + ' td').removeHighlight();
+        if (searchtext.length > 0)
+            $('#QuoteLineItem' + QtId + ' td').highlight($("#InnerItem_filter").val());
+    }    
+
+    var timeoutsc1;
+    $(document).on('propertychange input', "#InnerItem_filter", function () {
+        
+        if ($("#InnerItem_filter").val().length > 0) {
+            $("input#InnerItem_filter").focus();
+        }
+        clearTimeout(timeoutsc1);
+        var self = this;
+        timeoutsc1 = setTimeout(function () {
+            if (SearchPattern == 2 || SearchPattern == "2") {
+                if ($("#InnerItem_filter").val().length > 2 || $("#InnerItem_filter").val().length == 0) {
+                    fnFilterQuoteLineItem();
+                }
+                //else {
+                //    highlightSelection();
+                //}
+            }
+            else {
+                $('#InnerItem_filter').unbind("keypress");
+                $('#InnerItem_filter').keypress(function (event) {
+                    var keycode = (event.keyCode ? event.keyCode : event.which);
+                    if (keycode == 13) {
+                        fnFilterQuoteLineItem();
+                    }
+                    //else {
+                    //    highlightSelection();
+                    //}
+                });
+                if ($("#InnerItem_filter").val().length == 0) {
+                    setTimeout(function () { fnFilterQuoteLineItem(); }, 200);
+                }
+            }
+        }, 500);
+        return false;
+    });
+
+    //Clear Filter
+    $("#clear_QLItem_filter").click(function () {
+        if ($("#InnerItem_filter").val().length > 0) {
+            $("#InnerItem_filter").val('');
+            fnFilterQuoteLineItem();
+        }
+        $("#InnerItem_filter").focus();
+        return false;
+    });
+    _Common.setGloblaSearch('InnerItem_filter', 'QuoteLineItem' + QtId);
+
+    $('#saveRows').live("click", function () {
+        var msg = UpdateLineItemGrid(-1, '');
+        if (msg.Status == "ok") {
+            showNotificationDialog();
+            $("#spanGlobalMessage").html(msg.Message);
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+        }
+        else if (msg.Status == 'No') {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html('@ResCommon.NoChanges');
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+        }
+        else {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html(msg.Message);
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        }
+
+    });
+
+    function UpdateLineItemGrid(StagingID) {
+        var arrItems = new Array();
+        $('#DivLoading').show();
+        var ItemNodes = $('#QuoteLineItem' + QtId).dataTable().fnGetNodes();
+        if (ItemNodes.length <= 0) {
+            SaveLineItemsGrid(arrItems);
+            return { 'Status': 'ok', 'Message': '@ResMessage.SaveMessage' };
+        }
+
+        if (StagingID == "0") {
+
+            for (var i = 0; i < ItemNodes.length; i++) {
+                var ID = $(ItemNodes[i]).find('#hdnID').val();
+                //var RequiredDate_New = $(ItemNodes[i]).find('#hiddenDatePicker' + ID).val();
+                var RequiredDate_New = $(ItemNodes[i]).find('input.hasDatePicker' + ID).val();
+                var Qty = $(ItemNodes[i]).find('#txtQty').val();
+                if ((typeof (RequiredDate_New) == "undefined" || (typeof (RequiredDate_New) == undefined))) {
+                    RequiredDate_New = $(ItemNodes[i]).find('#hdnRequiredDate').val();
+                    if ((typeof (RequiredDate_New) == "" || (typeof (RequiredDate_New) == "undefined" || (typeof (RequiredDate_New) == undefined)))) {
+                        // alert("Please select Required Date");
+                        var obj = { 'Status': "fail", 'Message': "Please select Required Date" };
+                        return obj;
+                    }
+                }
+
+                if (isNaN(Qty) === true || parseFloat(Qty) <= 0) {
+                    var obj = { 'Status': "fail", 'Message': "Required quantity must be greater than zero" };
+                    return obj;
+                }
+            }
+        }
+        for (var i = 0; i < ItemNodes.length; i++) {
+            var Qty = $(ItemNodes[i]).find('#txtQty').val();
+            var ApprQty = $(ItemNodes[i]).find('#txtApprQty').val();
+            var ID = $(ItemNodes[i]).find('#hdnID').val();
+            var ItemGUID = $(ItemNodes[i]).find('#hdnItemGUID').val();
+            var QuoteGUID = $(ItemNodes[i]).find('#hdnQuoteGUID').val();
+            var vtempDetailsGUID = $(ItemNodes[i]).find('#hdnTempDetailsGUID').val();
+            //var RequiredDate = $(ItemNodes[i]).find('#hiddenDatePicker' + ID).val();
+            var RequiredDate = $(ItemNodes[i]).find('input.hasDatePicker').val();
+            if ((typeof (RequiredDate) == "undefined" || (typeof (RequiredDate) == "undefined"))) {
+                RequiredDate = $(ItemNodes[i]).find('#hdnRequiredDate').val();
+            }
+            var IsEDISent = $(ItemNodes[i]).find('#hdnIsEDISent').val();
+            var Comment = $(ItemNodes[i]).find('#Comment').val();
+
+            if ($("#hdnIsEDISentOnEditQuoteLineItems").val() == "true") {
+                IsEDISent = false;
+            }
+            else if (IsEDISent == "True") {
+                IsEDISent = true;
+            }
+            else {
+                IsEDISent = false;
+            }
+            var vUDF1 = '';
+            var vUDF2 = '';
+            var vUDF3 = '';
+            var vUDF4 = '';
+            var vUDF5 = '';
+            var vQuoteItemCost = '';
+            vQuoteItemCost = $(ItemNodes[i]).find('#txtQuoteItemCost').val();
+
+
+            if ($(ItemNodes[i]).find('#UDF1QuoteDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF1QuoteDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF1QuoteDetails option:selected').text() != undefined) {
+                    vUDF1 = $(ItemNodes[i]).find('#UDF1QuoteDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF1QuoteDetails').val() != undefined) {
+                        vUDF1 = $(ItemNodes[i]).find('#UDF1QuoteDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF2QuoteDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF2QuoteDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF2QuoteDetails option:selected').text() != undefined) {
+                    vUDF2 = $(ItemNodes[i]).find('#UDF2QuoteDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF2QuoteDetails').val() != undefined) {
+                        vUDF2 = $(ItemNodes[i]).find('#UDF2QuoteDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF3QuoteDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF3QuoteDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF3QuoteDetails option:selected').text() != undefined) {
+                    vUDF3 = $(ItemNodes[i]).find('#UDF3QuoteDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF3QuoteDetails').val() != undefined) {
+                        vUDF3 = $(ItemNodes[i]).find('#UDF3QuoteDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF4QuoteDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF4QuoteDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF4QuoteDetails option:selected').text() != undefined) {
+                    vUDF4 = $(ItemNodes[i]).find('#UDF4QuoteDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF4QuoteDetails').val() != undefined) {
+                        vUDF4 = $(ItemNodes[i]).find('#UDF4QuoteDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF5QuoteDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF5QuoteDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF5QuoteDetails option:selected').text() != undefined) {
+                    vUDF5 = $(ItemNodes[i]).find('#UDF5QuoteDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF5QuoteDetails').val() != undefined) {
+                        vUDF5 = $(ItemNodes[i]).find('#UDF5QuoteDetails').val();
+                    }
+                }
+            }
+            var binName = $(ItemNodes[i]).find('#txtBinNumber').val();
+
+            var vQuoteLineItemExtendedCost = $(ItemNodes[i]).find('#hdnQuoteLineItemExtendedCost_' + i).val();
+            var vQuoteLineItemExtendedPrice = $(ItemNodes[i]).find('#hdnQuoteLineItemExtendedPrice_' + i).val();
+            var tmpSupplierId = $(ItemNodes[i]).find('#hdnSupplierId').val();
+            var supplierID = (tmpSupplierId !== undefined && tmpSupplierId != null && tmpSupplierId != '' && !isNaN(tmpSupplierId)) ? tmpSupplierId : 0;
+            var supplierPartNo = $(ItemNodes[i]).find('#hdnSupplierPartNo').val();
+            var supplierName = $(ItemNodes[i]).find('#hdnSupplierName').val();
+            var vItemSellPrice = $(ItemNodes[i]).find('#hdnItemSellPrice').val();
+            var vItemMarkup = $(ItemNodes[i]).find('#hdnItemMarkup').val();
+            var vItemCostUOMValue = $(ItemNodes[i]).find('#hdnItemCostUOMValue').val();
+            var POLineItemNumber = $(ItemNodes[i]).find('#POLineItemNumbers').attr("data-value");
+            if (isNaN(Qty) === false && parseFloat(Qty) > 0) {
+                var data = {
+                    "ID": ID
+                , "ItemGUID": ItemGUID
+                , "QuoteGUID": QuoteGUID
+                , "tempDetailsGUID": vtempDetailsGUID
+                , "RequestedQuantity": Qty
+                , "ApprovedQuantity": ApprQty
+                , "BinName": binName
+                , "RequiredDateStr": RequiredDate
+                , "IsEDISent": IsEDISent
+                , "Comment": Comment
+                    , "UDF1": vUDF1
+                    , "UDF2": vUDF2
+                    , "UDF3": vUDF3
+                    , "UDF4": vUDF4
+                    , "UDF5": vUDF5
+                    , "QuoteLineItemExtendedCost": vQuoteLineItemExtendedCost
+                    , "QuoteLineItemExtendedPrice": vQuoteLineItemExtendedPrice
+                    , "ItemCost": vQuoteItemCost
+                    , "SupplierID": supplierID
+                    , "SupplierPartNo": supplierPartNo
+                    , "SupplierName": supplierName
+                    , "ItemSellPrice": vItemSellPrice
+                    , "ItemMarkup": vItemMarkup
+                    , "POItemLineNumber": POLineItemNumber
+                    , "ItemCostUOMValue": vItemCostUOMValue
+                };
+                arrItems.push(data);
+
+            }
+        }
+        return SaveLineItemsGrid(arrItems);
+    }
+
+    function SaveLineItemsGrid(arrItems) {
+
+        var status = "No";
+        var message = "@ResCommon.NoChanges"
+        //if (arrItems.length > 0) {
+
+        var newArray = new Array();
+        var mainArray = new Array();
+        for (var i = 0; i < arrItems.length; i++) {
+            if (newArray.length < 250) {
+                newArray.push(arrItems[i]);
+            }
+            else {
+                mainArray.push(newArray);
+                newArray = null;
+                newArray = new Array();
+                newArray.push(arrItems[i]);
+            }
+        }
+        if (newArray.length > 0) {
+            mainArray.push(newArray);
+        }
+        $('#DivLoading').show();
+        if (mainArray.length > 0) {
+
+
+            for (var k = 0; k < mainArray.length; k++) {
+                $('#DivLoading').show();
+                $.ajax({
+                    url: '@Url.Content("~/Quote/AddUpdateDeleteItemsToQuote")',
+                    data: JSON.stringify({ 'arrDetails': mainArray[k], 'QuoteID': QtId }),
+                    dataType: 'json',
+                    type: 'POST',
+                    contentType: "application/json",
+                    async: false,
+                    cache: false,
+                    success: function (response) {
+                        if (response.Status == "ok") {
+                            if (k == (mainArray.length - 1)) {
+                                $.ajax({
+                                    url: '@Url.Content("~/Quote/SetQuoteMail")',
+                                    data: JSON.stringify({ 'QuoteID': QtId}),
+                                    dataType: 'json',
+                                    type: 'POST',
+                                    contentType: "application/json",
+                                    async: false,
+                                    cache: false,
+                                    success: function (resp) {
+                                        CallThisFunctionFromModel('success');
+                                        status = response.Status;
+                                        message = response.Message;
+                                        $('#DivLoading').hide();
+                                    },
+                                    error: function (exh) {
+                                        $('#DivLoading').hide();
+                                    }
+                                });
+                            }
+                        }
+                        else {
+                            status = response.Status;
+                            message = response.Message;
+                            $('#DivLoading').hide();
+                        }
+                    },
+                    error: function (exh) {
+                        alert(exh.status + ' ' + exh.statusText);
+                        $('#DivLoading').hide();
+                    }
+                });
+            }
+        }
+        else {
+
+            $('#DivLoading').show();
+            $.ajax({
+                url: '@Url.Content("~/Quote/AddUpdateDeleteItemsToQuote")',
+                data: JSON.stringify({ 'arrDetails': null, 'QuoteID': QtId }),
+                dataType: 'json',
+                type: 'POST',
+                contentType: "application/json",
+                async: false,
+                cache: false,
+                success: function (response) {
+                    if (response.Status == "ok") {
+                        CallThisFunctionFromModel('success');
+                        status = response.Status;
+                        message = response.Message;
+                        $('#DivLoading').hide();
+                    }
+                    else {
+                        status = response.Status;
+                        message = response.Message;
+                        $('#DivLoading').hide();
+                    }
+                },
+                error: function (exh) {
+                    alert(exh.status + ' ' + exh.statusText);
+                    $('#DivLoading').hide();
+                }
+            });
+
+        }
+
+        var obj = { 'Status': status, 'Message': message };
+        $('#DivLoading').hide();
+        return obj;
+    }
+
+    /* For Edit Required Date and comment for Close Quote -- 4661 Add a back Quoteed checkbox to Quote details records in the Quote page-------------- */
+
+    function SaveQuoteLineItemsForReqDateCommentGrid(arrReqDateCommentItems, isCommentUpdate, isReqDateUpdate) {
+        var status = "No";
+        var message = "@ResCommon.NoChanges"
+
+        var newArray = new Array();
+        var mainArray = new Array();
+        for (var i = 0; i < arrReqDateCommentItems.length; i++) {
+            if (newArray.length < 250) {
+                newArray.push(arrReqDateCommentItems[i]);
+            }
+            else {
+                mainArray.push(newArray);
+                newArray = null;
+                newArray = new Array();
+                newArray.push(arrReqDateCommentItems[i]);
+            }
+        }
+        if (newArray.length > 0) {
+            mainArray.push(newArray);
+        }
+
+        $('#DivLoading').show();
+        if (mainArray.length > 0) {
+            for (var k = 0; k < mainArray.length; k++) {
+                $('#DivLoading').show();
+                $.ajax({
+                    url: '@Url.Content("~/Quote/UpdateReqDateandCommentToQuoteLineItems")',
+                    data: JSON.stringify({
+                        'arrDetails': mainArray[k], 'QuoteID': QtId, 'isCommentUpdate': isCommentUpdate, 'isReqDateUpdate': isReqDateUpdate}),
+                    dataType: 'json',
+                    type: 'POST',
+                    contentType: "application/json",
+                    async: false,
+                    cache: false,
+                    success: function (response) {
+                        status = response.Status;
+                        message = response.Message;
+                        $('#DivLoading').hide();
+                    },
+                    error: function (exh) {
+                        alert(exh.status + ' ' + exh.statusText);
+                        $('#DivLoading').hide();
+                    }
+                });
+            }
+        }
+        var obj = { 'Status': status, 'Message': message };
+        $('#DivLoading').hide();
+        return obj;
+    }
+
+    /* For Edit Required Date and comment for Close Quote -- 4661 Add a back Quoteed checkbox to Quote details records in the Quote page-------------- */
+
+    $("#dvCreteQuoteToOrder").on("click", "#btnCancel", function () {
+        //$("#dvCreteQuoteToOrder").empty();
+        $("#dvCreteQuoteToOrder").dialog("close");
+    });
+
+        $("#btnModelYesCartAction").off('click');
+        $("#btnModelYesCartAction").on('click',function () {
+            var btnSave = $(this);
+            closeModal();
+            $('#DivLoading').show();
+            var orderHeaders = new Array();
+            var validationToken = true;
+            if ($("#dvCreteQuoteToOrder").find("table.display").find("input[type='checkbox'][id^='chkOrder']:checked").length > 0) {
+
+                $("#dvCreteQuoteToOrder").find("table.display").find("input[type='checkbox'][id^='chkOrder']:checked").each(function (indx, curchk) {
+                    if ($(curRow).find("select[id^='ddlOrderStatus']").val() == 2) {
+
+                    }
+                    var vvUDF1 = '', vvUDF2 = '', vvUDF3 = '', vvUDF4 = '', vvUDF5 = '';
+                    var curRow = $(curchk).parent().parent();
+
+                    /// save UDF options for the editable dropdown start ////
+                    if ($(curRow).find('.udf-editable-dropdownbox').length > 0) {
+                        $(curRow).find('.udf-editable-dropdownbox').each(function () {
+                            var _UDFID = $(this).prev().val();
+                            var _UDFOption = $(this).val();
+                            var _UDFColumnName = $(this).prop("name");
+                            var actionURL;
+                            var params;
+                            var udftable = '';
+                            if ($("input#UDFTableName").length > 0) {
+                                udftable = $("input#UDFTableName").val();
+                            }
+                            if (_UDFID > 0) {
+                                //Add Mode  - UDFOption
+                                actionURL = '/UDF/InsertUDFOption';
+                                params = { UDFID: _UDFID, UDFOption: _UDFOption, UDFTableName: udftable, UDFColumnName: _UDFColumnName }
+                                $.ajax({
+                                    'url': actionURL,
+                                    data: params,
+                                    success: function (response) {
+                                    }
+                                });
+                            }
+                        });
+                    }
+                    /// save UDF options for the editable dropdown end ////
+
+                    var supplierId = $(curRow).find("input[type='hidden'][id^='hdnSupplierId']").val();
+                    var lineItems = $(curRow).find("input[type='hidden'][id^='hdnNoOfLineItems']").val();
+                    var orderLineItemsIds = $(curRow).find("input[type='hidden'][id^='hdnOrderLineItemsIds']").val();
+                    var orderNumber = $(curRow).find("input[type='text'][id^='txtOrderNumber']").val();
+                    var suplierName = $(curRow).find("select[id^='ddlOrderSupplier'] option:selected").text();
+                    var orderStatus = $(curRow).find("select[id^='ddlOrderStatus']").val();
+                    var comments = $(curRow).find("textarea[id^='txtComment']").val();
+                    var requiredDate = $(curRow).find("input[type='text'][id^='txtRequiredDate']").val();
+                    var shipViaName = $(curRow).find("input[type='text'][id^='txtShipViaName']").val();
+                    var stagingName = $(curRow).find("input[type='text'][id^='txtStagingName']").val();
+                    var customerName = $(curRow).find("input[type='text'][id^='txtCustomerName']").val();
+                    var VendorName = $(curRow).find("input[type='text'][id^='txtVendorName']").val();
+                    var ShippingTrackNumber = $(curRow).find("input[type='text'][id^='ShippingTrackNumber']").val();
+                    var SupplierAccountGuid = $(curRow).find("select[id^='ddlSupplierAccountt_']").val();
+
+                    var orderLineItemsUDF1 = $(curRow).find("input[type='hidden'][id^='hdnOrderLineUDF1']").val();
+                    var orderLineItemsUDF2 = $(curRow).find("input[type='hidden'][id^='hdnOrderLineUDF2']").val();
+                    var orderLineItemsUDF3 = $(curRow).find("input[type='hidden'][id^='hdnOrderLineUDF3']").val();
+                    var orderLineItemsUDF4 = $(curRow).find("input[type='hidden'][id^='hdnOrderLineUDF4']").val();
+                    var orderLineItemsUDF5 = $(curRow).find("input[type='hidden'][id^='hdnOrderLineUDF5']").val();
+
+                    var isBlanketOrder = $(curRow).find("input[type='hidden'][id^='hdnIsBlanketOrder']").val();
+                    
+                    if (isBlanketOrder == "True") {
+                        var blanketPO = $(curRow).find("select[id^='ddlBlanketPO']").val();
+                        if (!isNaN(parseInt(blanketPO)) && parseInt(blanketPO) > 0) {
+                            orderNumber = $(curRow).find("select[id^='ddlBlanketPO'] :selected").text();
+                        }
+                        else {
+                            orderNumber = "";
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF1').length > 0) {
+                        if ($(curRow).find('#UDF1').attr("class") == 'selectBox') {
+                            vvUDF1 = $(curRow).find('#UDF1 option:selected').text();
+                        }
+                        else {
+                            vvUDF1 = $(curRow).find('#UDF1').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF2').length > 0) {
+                        if ($(curRow).find('#UDF2').attr("class") == 'selectBox') {
+                            vvUDF2 = $(curRow).find('#UDF2 option:selected').text();
+                        }
+                        else {
+                            vvUDF2 = $(curRow).find('#UDF2').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF3').length > 0) {
+                        if ($(curRow).find('#UDF3').attr("class") == 'selectBox') {
+                            vvUDF3 = $(curRow).find('#UDF3 option:selected').text();
+                        }
+                        else {
+                            vvUDF3 = $(curRow).find('#UDF3').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF4').length > 0) {
+                        if ($(curRow).find('#UDF4').attr("class") == 'selectBox') {
+                            vvUDF4 = $(curRow).find('#UDF4 option:selected').text();
+                        }
+                        else {
+                            vvUDF4 = $(curRow).find('#UDF4').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF5').length > 0) {
+                        if ($(curRow).find('#UDF5').attr("class") == 'selectBox') {
+                            vvUDF5 = $(curRow).find('#UDF5 option:selected').text();
+                        }
+                        else {
+                            vvUDF5 = $(curRow).find('#UDF5').val();
+                        }
+                    }
+
+                    orderHeaders.push({
+                        ID: 0, OrderNumber: orderNumber, Supplier: supplierId, Comment: comments, RequiredDateString: requiredDate, ShipViaName: shipViaName,
+                        StagingName: stagingName, CustomerName: customerName, ShippingVendorName: VendorName, ShippingTrackNumber: ShippingTrackNumber,
+                        OrderLineItemsIds: orderLineItemsIds, OrderStatus: orderStatus, IsOnlyFromUI: true, SupplierAccountGuid: SupplierAccountGuid,
+                        OrderLineItemUDF1: orderLineItemsUDF1, OrderLineItemUDF2: orderLineItemsUDF2, OrderLineItemUDF3: orderLineItemsUDF3,
+                        OrderLineItemUDF4: orderLineItemsUDF4, OrderLineItemUDF5: orderLineItemsUDF5,
+                        UDF1: vvUDF1, UDF2: vvUDF2, UDF3: vvUDF3, UDF4: vvUDF4, UDF5: vvUDF5,
+                        SupplierName: suplierName
+                    });
+
+                    if ($.trim(orderNumber) == "") {
+                        $(curRow).css("background-color", "#FFA17F");
+                        if (validationToken == true) {
+                            validationToken = false;
+                        }
+                    }
+                });
+
+                if (validationToken == true)
+                {
+                    var quoteGuid = '@Model.GUID';
+                    var dataToSend = JSON.stringify({ "lstOrders": orderHeaders, "QuoteGuid": quoteGuid });
+                    //var dataToSend = JSON.stringify({ "lstOrders": orderHeaders, "QuoteGuid": $('select#ddlQuotes').val() });
+                    $.ajax({
+                        type: "POST",
+                        url: '@Url.Action("CreateOrdersfromQuoteItems", "Quote")',
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        data: dataToSend, //{ "lstOrders": orderHeaders, QuoteGuid: $('select#ddlQuotes').val() },
+                        success: function (retdt) {
+                                 if (retdt != undefined && retdt.lstOrders != null && retdt.lstOrders != undefined) {
+                                     for (var i = 0; i < retdt.lstOrders.length; i++) {
+                                         var SUPPLIERID = retdt.lstOrders[i].Supplier;
+                                         var totalfiles = document.getElementById("file_" + retdt.lstOrders[i].Supplier).files.length;
+                                         if (totalfiles > 0) {
+                                             for (var j = 0; j < totalfiles; j++) {
+                                                 var fileExt = document.getElementById("file_" + retdt.lstOrders[i].Supplier).files[j].name;
+                                                 fileExt = fileExt.substring(fileExt.lastIndexOf('.'));
+                                                 if (OrderAllowedFileExtension.indexOf(fileExt.toLowerCase()) <= -1) {
+                                                     // do nothing for invalid file
+                                                 } else {
+                                                     var SUPPLIERID = (retdt.lstOrders[i] != undefined && retdt.lstOrders[i].Supplier != undefined) ? parseInt(retdt.lstOrders[i].Supplier) : 0;
+                                                     var FILENAME = document.getElementById("file_" + retdt.lstOrders[i].Supplier).files[j].name;
+                                                     var isavailable = removedFileListName.filter(function (item) {
+                                                         return item.id == SUPPLIERID && item.fileName === FILENAME
+                                                     });
+                                                     if (isavailable.length == 0) {
+                                                         formData.append("file_" + retdt.lstOrders[i].Supplier + j.toString(), document.getElementById("file_" + retdt.lstOrders[i].Supplier).files[j]);
+                                                     }
+                                                 }
+                                             }
+                                             //uupload image for suucess
+                                             var OrderGuid;
+                                             var OrderID;
+                                             if (retdt.lstOrders != null && retdt.lstOrders[i] != undefined && retdt.lstOrders[i].GUID != "00000000-0000-0000-0000-000000000000" && retdt.lstOrders[i].ID > 0) {
+                                                 OrderGuid = retdt.lstOrders[i].GUID;
+                                                 OrderID = retdt.lstOrders[i].ID;
+                                                 //send formdata to server-side
+                                                 $.ajax({
+                                                     url: "/api/fileupload/OrderFileUpload/" + OrderID + "?OrderGUID=" + OrderGuid,
+                                                     type: 'post',
+                                                     data: formData,
+                                                     dataType: 'html', // we return html from our file
+                                                     async: false,
+                                                     processData: false,  // tell jQuery not to process the data
+                                                     contentType: false,   // tell jQuery not to set contentType
+                                                     success: function (data) {
+                                                         formData = new FormData();
+                                                         deleteFromArray(SUPPLIERID);
+                                                     },
+                                                     error: function (request) {
+                                                         console.log(request.responseText);
+                                                         formData = new FormData();
+                                                     }
+                                                 });
+                                             } else {
+                                                 formData = new FormData();
+                                             }
+                                         }
+                                     }
+                                }
+                            
+                            $.modal.close();
+                            $('#DivLoading').hide();
+                            if (retdt.Status == "ok") {
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                                $("#spanGlobalMessage").html(retdt.Message);
+                                $('div#target').css("z-index", 100000);
+                                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+                                //RefressFilterCart("CartItemList");
+                                oTable.fnDraw();
+                                //$("#dvCreteQuoteToOrder").empty();
+                                $("#dvCreteQuoteToOrder").dialog("close");
+                                if (typeof (CallBackAfterOrderCreate) != "undefined" && typeof (CallBackAfterOrderCreate) == "function")
+                                {
+                                    CallBackAfterOrderCreate();
+                                }
+                            }
+                            else {
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime + 3000).fadeOut(FadeOutTime + 1000);
+                                $("#spanGlobalMessage").html(retdt.Message);
+                                $('div#target').css("z-index", 100000);
+                                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('errorIcon');
+                            }
+                        },
+                        error: function (err) {
+                            alert("There is some Error");
+                        }
+                    });
+                }
+                else {
+                    $('div#target').fadeToggle();
+                    $('#DivLoading').hide();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $('div#target').css("z-index", 100000);
+                    $("#spanGlobalMessage").html("@ResCommon.CorrectErrorToProceed");
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                }
+            }
+        });
+
+        $("#dvCreteQuoteToOrder").on("focus", "input[id^='txtRequiredDate']", function () {
+            $(this).datepicker(
+                {
+                    dateFormat: RoomDateJSFormat,
+                    showButtonPanel: true,
+                    clearText: 'Clear',
+                    onClose: function () {
+                        this.focus();
+                    }
+                });
+
+        });
+
+        //// Order Save start ///
+        $("#dvCreteQuoteToOrder").off('click', '#btnSaveOrders');
+        $("#dvCreteQuoteToOrder").on("click", "#btnSaveOrders", function () {
+            var validationToken = true;
+            var errMsg = '';
+            var vSupplierName = '';
+            var orderHeaders = new Array();
+            var orderSelected = $("#dvCreteQuoteToOrder").find("table.display").find("input[type='checkbox'][id^='chkOrder']:checked").length;
+            if (orderSelected > 0) {
+                $("#dvCreteQuoteToOrder").find("table.display").find("input[type='checkbox'][id^='chkOrder']:checked").each(function (indx, curchk) {
+                    var vUDF1 = '', vUDF2 = '', vUDF3 = '', vUDF4 = '', vUDF5 = '';
+                    var curRow = $(curchk).parent().parent();
+                    var supplierId = $(curRow).find("input[type='hidden'][id^='hdnSupplierId']").val();
+                    var lineItems = $(curRow).find("input[type='hidden'][id^='hdnNoOfLineItems']").val();
+                    var orderLineItemsIds = $(curRow).find("input[type='hidden'][id^='hdnOrderLineItemsIds']").val();
+                    var orderNumber = $(curRow).find("input[type='text'][id^='txtOrderNumber']").val();
+                    var orderStatus = $(curRow).find("select[id^='ddlOrderStatus']").val();
+                    var comments = $(curRow).find("textarea[id^='txtComment']").val();
+                    var requiredDate = $(curRow).find("input[type='text'][id^='txtRequiredDate']").val();
+                    var shipViaName = $(curRow).find("input[type='text'][id^='txtShipViaName']").val();
+                    var stagingName = $(curRow).find("input[type='text'][id^='txtStagingName']").val();
+                    var customerName = $(curRow).find("input[type='text'][id^='txtCustomerName']").val();
+                    var VendorName = $(curRow).find("input[type='text'][id^='txtVendorName']").val();
+                    var ShippingTrackNumber = $(curRow).find("input[type='text'][id^='ShippingTrackNumber']").val();
+                    var SupplierAccountGuid = $(curRow).find("select[id^='ddlSupplierAccountt_']").val();
+                    vSupplierName = $(curRow).find('#ddlOrderSupplier').text();
+                    var isBlanketOrder = $(curRow).find("input[type='hidden'][id^='hdnIsBlanketOrder']").val();
+                    
+                    if (isBlanketOrder == "True") {
+                        var blanketPO = $(curRow).find("select[id^='ddlBlanketPO']").val();
+                        if (!isNaN(parseInt(blanketPO)) && parseInt(blanketPO) > 0) {
+                            orderNumber = $(curRow).find("select[id^='ddlBlanketPO'] :selected").text();
+                        }
+                        else {
+                            orderNumber = "";
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF1').length > 0) {
+                        if ($(curRow).find('#UDF1').attr("class") == 'selectBox') {
+                            vUDF1 = $(curRow).find('#UDF1 option:selected').text();
+                        }
+                        else {
+                            vUDF1 = $(curRow).find('#UDF1').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF2').length > 0) {
+                        if ($(curRow).find('#UDF2').attr("class") == 'selectBox') {
+                            vUDF2 = $(curRow).find('#UDF2 option:selected').text();
+                        }
+                        else {
+                            vUDF2 = $(curRow).find('#UDF2').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF3').length > 0) {
+                        if ($(curRow).find('#UDF3').attr("class") == 'selectBox') {
+                            vUDF3 = $(curRow).find('#UDF3 option:selected').text();
+                        }
+                        else {
+                            vUDF3 = $(curRow).find('#UDF3').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF4').length > 0) {
+                        if ($(curRow).find('#UDF4').attr("class") == 'selectBox') {
+                            vUDF4 = $(curRow).find('#UDF4 option:selected').text();
+                        }
+                        else {
+                            vUDF4 = $(curRow).find('#UDF4').val();
+                        }
+                    }
+
+                    if ($(curRow).find('#UDF5').length > 0) {
+                        if ($(curRow).find('#UDF5').attr("class") == 'selectBox') {
+                            vUDF5 = $(curRow).find('#UDF5 option:selected').text();
+                        }
+                        else {
+                            vUDF5 = $(curRow).find('#UDF5').val();
+                        }
+                    }
+
+                    var udfFlag = 0;
+                    var udfReqMsg = '';
+                    if ($.trim(vUDF1) == "" && '@UDF1IsRequired' == 'True') {
+                        udfReqMsg += ' @ResOrder.UDF1' + ",";
+                        udfFlag++;
+                    }
+                    if ($.trim(vUDF2) == "" && '@UDF2IsRequired' == 'True') {
+                        udfReqMsg += ' @ResOrder.UDF2' + ",";
+                        udfFlag++;
+                    }
+                    if ($.trim(vUDF3) == "" && '@UDF3IsRequired' == 'True') {
+                        udfReqMsg += ' @ResOrder.UDF3' + ",";
+                        udfFlag++;
+                    }
+                    if ($.trim(vUDF4) == "" && '@UDF4IsRequired' == 'True') {
+                        udfReqMsg += ' @ResOrder.UDF4' + ",";
+                        udfFlag++;
+                    }
+                    if ($.trim(vUDF5) == "" && '@UDF5IsRequired' == 'True') {
+                        udfReqMsg += ' @ResOrder.UDF5' + ",";
+                        udfFlag++;
+                    }
+
+                    if ($.trim(udfReqMsg) != '') {
+                        errMsg += "@ResMessage.MsgRequired".replace("{0}", udfReqMsg.slice(0, -1));
+                    }
+                    orderHeaders.push({
+                        ID: 0, OrderNumber: orderNumber,
+                        Supplier: supplierId,
+                        Comment: comments,
+                        RequiredDate: requiredDate, ShipViaName: shipViaName,
+                        StagingName: stagingName, CustomerName: customerName, ShippingVendorName: VendorName,
+                        ShippingTrackNumber: ShippingTrackNumber, OrderLineItemsIds: orderLineItemsIds,
+                        OrderStatus: orderStatus, SupplierAccountGuid: SupplierAccountGuid,
+                        UDF1: vUDF1, UDF2: vUDF2, UDF3: vUDF3, UDF4: vUDF4, UDF5: vUDF5
+                    });
+
+                    if ($.trim(orderNumber) == "") {
+                        $(curRow).css("background-color", "#FFA17F");
+                        if (validationToken == true) {
+                            validationToken = false;
+                            errMsg += "@ResMessage.MsgRequired".replace("{0}",'@ResOrder.OrderNumber');
+                        }
+                    }
+                    else {
+                        $(curRow).css("background-color", "");
+                    }
+                    if ($.trim(errMsg) != "" && udfFlag > 0) {
+                        $(curRow).css("background-color", "#FFA17F");
+                        if (validationToken == true) {
+                            validationToken = false;
+                        }
+                    }
+                    else {
+                        $(curRow).css("background-color", "");
+                    }
+                });
+                if (validationToken == true) {
+                    $('#basic-modal-content-OrderAction').find("#ptextcart").html(orderSelected + " " + "@ResQuoteDetail.ConfirmOrderWillCreatedFromQuote");
+                    $('#basic-modal-content-OrderAction').modal();
+                    //$('#basic-modal-content-OrderAction').css("z-index", 100001);
+                    $('#simplemodal-container').css("z-index", 100001);
+                    //
+                    IsDeletePopupOpen = true;
+                }
+                else {
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $('div#target').css("z-index", 100000);
+                    $("#spanGlobalMessage").html(vSupplierName + ' ' + errMsg);
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                }
+            }
+            else {
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                $('div#target').css("z-index", 100000);
+                $("#spanGlobalMessage").html("@ResQuoteMaster.ReqOrderToCreate");
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+
+            }
+        });
+        /// Order Save End ///
+		
+		$('#aSelectAll').on('click', function (e) {
+        $('#QuoteLineItem' + QtId).find("tbody tr").each(function (e) {
+            if ($(this).hasClass('row_selected') == false)
+            {
+                var isClosed = $(this).find("input#hdnIsClosedItem").val();
+                var isOrdered = $(this).find("input#hdnIsOrderedItem").val();
+                var isItemActive = $(this).find("input#hdnIsItemActive").val();
+                var isItemOrderable = $(this).find("input#hdnIsItemOrderable").val();
+
+                if (parseInt(QtStatus) > parseInt('@((int)QuoteStatus.Approved)')) {
+                    if ((typeof (isClosed) != "undefined" && isClosed != null && isClosed.toLowerCase() == "true") ||
+                        (typeof (isOrdered) != "undefined" && isOrdered != null && isOrdered.toLowerCase() == "true") ||
+                        ((typeof (isItemActive) != "undefined" && isItemActive != null && isItemActive.toLowerCase() == "false") ||
+                            (typeof (isItemOrderable) != "undefined" && isItemOrderable != null && isItemOrderable.toLowerCase() == "false")
+                        )
+                        || (parseInt(QtStatus) == '@((int)QuoteStatus.Closed)')
+                    ) {
+                        $(this).removeClass("row_selected");
+                    }
+                    else {
+                        $(this).addClass('row_selected');
+                    }
+                }
+                else
+                {
+                    $(this).addClass('row_selected');
+                }
+            }
+        });
+
+        $(this).css('display', 'none');
+        $('#aDeSelectAll').css('display', 'block');
+        return false;
+    });
+
+    $('#aDeSelectAll').on('click', function (e) {
+        $('#QuoteLineItem' + QtId).find("tbody tr").each(function (e) {
+            if ($(this).hasClass('row_selected'))
+                $(this).removeClass('row_selected');
+        });
+        $(this).css('display', 'none');
+        $('#aSelectAll').css('display', 'block');
+        return false;
+    });
+		
+
+    function deleteFromArray(ID) {
+        var removedCount = removedFileListName.length;
+        for (var i = 0; i <= removedCount; i++) {
+            var isavailable = removedFileListName.filter(function (item) {
+                return item.id == ID;
+            });
+            var Index = removedFileListName.indexOf(isavailable[0]);
+            if (Index >= 0) {
+                removedFileListName.splice(Index, 1);
+            }
+        }
+    }
+
+</script>

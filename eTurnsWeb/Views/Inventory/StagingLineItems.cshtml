@@ -1,0 +1,933 @@
+﻿@model eTurns.DTO.MaterialStagingDTO
+@{
+    bool showSaveBtn = false;
+    if (string.IsNullOrWhiteSpace(Convert.ToString(Model.StagingLocationName)))
+    {
+        showSaveBtn = true;
+    }
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = showSaveBtn, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = false, DisplayColumnSetupButton = true, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, ColumnSetupFor = "GetMsLineItems" + Model.ID };
+    var settings1 = new GridHeaderSettings() { DisplaySaveButton = false, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "MstagingLineItem" };
+    bool ShowStagSelection = false;
+
+    if (string.IsNullOrWhiteSpace(Model.StagingLocationName) || Model.StagingLocationName == "[|EmptyStagingBin|]")
+    {
+        ShowStagSelection = true;
+    }
+    string headerStagingLocationName = Convert.ToString(Model.StagingLocationName);
+
+
+}
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="MSLItem_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_MSLItem_filter" />
+                        </a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Materialstaging)
+            @Html.GridChildGridTopHeader(settings1)
+            <div class="userContent11" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="MstagingLineItem@(Model.ID)" class="display tbldatach">
+                    <thead>
+                        <tr>
+                            <th>
+
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                            </th>
+                            <th>
+                                @ResSchedulerReportList.MoveType
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResKitToolMaster.QtyToMove
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.StagingHeader
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.DestinationLocation
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResMaterialStagingDetail.StagingBinName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResMaterialStagingDetail.Quantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResMaterialStaging.SourceBin
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div style="clear: both; width: 90%; margin-top: 10px;">
+                    <input type="button" value="@ResItemMaster.MoveAll" id="btnMoveAll" class="CreateBtn" style="float: left;" />
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="dialog" id="mdlMSLIYesNo" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+        </p>
+        <a href="JavaScript:void{}" id="btnMSLIYes" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no"
+               onclick="closeConfirmModal()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<div id="QtyMoveInMoveOutModel">
+</div>
+<script type="text/javascript">
+    var MSLIObjectTable = 'MstagingLineItem' + '@Model.ID';
+    var ColumnObject = new Array();
+    var oTableMSItem;
+    var IsDeleteKLIPopupOpen = false;
+    var AllowKLIDeletePopup = true;
+    var anOpenMS = [];
+    var MstagingChildGridTableColumns;
+    $(document).ready(function () {
+        objColumns = GetGridHeaderColumnsObject('MstagingLineItem' + '@(Model.ID)');
+        MstagingChildGridTableColumns = objColumns;
+        BindReorderChildGridPopUpAndEvents(true);
+        $('form').areYouSure();
+
+        ColumnObject.push({
+            mDataProp: null,
+            bSortable: false,
+            sClass: "read_only control center",
+            sDefaultContent: '',
+            fnRender: function (obj, val) {
+                if (obj.aData.SerialNumberTracking || obj.aData.LotNumberTracking || obj.aData.DateCodeTracking) {
+                    return '<img class="MStgImage" src="' + sImageUrl + 'drildown_open.jpg' + '">';
+                }
+                else {
+                    return '';
+                }
+            }
+        });
+
+        ColumnObject.push({ mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' });
+        ColumnObject.push({
+            mDataProp: null,
+            bSortable: false,
+            sClass: "read_only control center NotHide",
+            sDefaultContent: '',
+            fnRender: function (obj) {
+                return "<input type='button' name='btnMoveItem' id='btnMoveItem' value='@ResItemMaster.Move' style='float: none;width:60px;margin: 5px -3px 2px 2px;' class='CreateBtn' />";
+            }
+        });
+
+        ColumnObject.push({
+            mDataProp: "",
+            bSortable: false,
+            sClass: "read_only control center NotHide",
+            sDefaultContent: '',
+            fnRender: function (obj) {
+                return '<select style="width:85%;min-width:40px;" name="MoveType" id="ddlMoveTypePopup" class="selectBox"><option value="3" selected="selected">Staging To Inventory</option><option value="4">Staging To Staging</option></select>';
+            }
+        });
+
+        ColumnObject.push({
+            "mDataProp": "", "bSortable": false,
+            "sClass": "read_only center NotHide",
+            "sDefaultContent": '',
+            "fnRender": function (obj, val) {
+                return "<input type='text' name='txtQtyToMove' id='txtQtyToMove' value='' style='width:85%;min-width:40px;' class='numericinput' />";
+
+            }
+        });
+
+        ColumnObject.push({
+            "mDataProp": null,
+            "bSortable": false,
+            "sClass": "read_only center",
+            "sDefaultContent": '',
+            "fnRender": function (obj, val) {
+                return "<span id='divDestStagingHeader' style='position:relative;display:none;'><input type='text' id='txtDestStagingHeader' name='txtDestStagingHeader' value='' style='width:90px;display:none;' class='text-boxinner AutoCompleteddl' /><input type='hidden' id='hdnDestStageGuid' value='' /><a id='lnkShowAllOptions' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class='ShowAllOptions' ><img src='/Content/images/arrow_down_black.png' alt='select' /></a></span>";
+            }
+        });
+        ColumnObject.push({
+            "mDataProp": "",
+            "bSortable": true,
+            "sClass": "read_only center NotHide",
+            "sDefaultContent": '',
+            "fnRender": function (obj, val) {
+                return "<span style='position:relative'><input type='text' id='txtDestBin' name='txtDestBin' value='' style='width:85%;min-width:40px;' class='text-boxinner AutoCompleteddl' /><input type='hidden' id='hdnDestBinID' value='' /><a id='lnkShowAllOptions' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class='ShowAllOptions' ><img src='/Content/images/arrow_down_black.png' alt='select' /></a></span>";
+            }
+        });
+
+        ColumnObject.push({
+            mDataProp: "ItemNumber",
+            sClass: "read_only NotHide",
+            fnRender: function (obj, val) {
+                return "<span>" + val + "</span><input type='hidden' name='hdnGUID' value='" + obj.aData.GUID + "' /><input type='hidden' name='hdnitmID' value='" + obj.aData.ItemGUID + "' /><input type='hidden' name='hdnStagBinID' value='" + obj.aData.StagingBinID + "' /><input type='hidden' name='hdnStagingBinName' value='" + obj.aData.StagingBinName + "' /><input type='hidden' name='hdnMatStagID' value='" + obj.aData.MaterialStagingGUID + "' />";
+            }
+        });
+        ColumnObject.push({
+            mDataProp: "Description",
+            sClass: "read_only",
+            fnRender: function (obj, val) {
+                return "<span>" + obj.aData.Description + "</span>";
+            }
+        });
+        ColumnObject.push({
+            mDataProp: "StagingBinName", sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) {
+                var stagingBinName = obj.aData.StagingBinName;
+
+                if ($.trim(obj.aData.StagingBinName) == '[|EmptyStagingBin|]') {
+                    stagingBinName = "";
+                    return "<span style='display:none'>'" + obj.aData.StagingBinName + "'</span> <span></span><input type='hidden' name='hdnStagingBin' value='" + obj.aData.StagingBinID + "' /><input type='hidden' name='hdnStagingBinName' value='" + obj.aData.StagingBinName + "' />";
+                }
+
+                if ('@ShowStagSelection' == '@Boolean.TrueString') {
+                    //return "<input type='text' class='text-boxinner' style='width:90%;' name='txtLineItemStagingBin' value='" + stagingBinName + "' /><input type='hidden' name='hdnStagingBin' value='" + obj.aData.StagingBinID + "' /><input type='hidden' name='hdnStagingBinName' value='" + obj.aData.StagingBinName + "' />";
+                    //return "<input type='text' class='text-boxinner' readonly='readonly' style='width:90%;' name='txtLineItemStagingBin' value='" + stagingBinName + "' /><input type='hidden' name='hdnStagingBin' value='" + obj.aData.StagingBinID + "' /><input type='hidden' name='hdnStagingBinName' value='" + obj.aData.StagingBinName + "' />";
+                    return "<span>" + stagingBinName + "</span><input type='hidden' name='hdnStagingBin' value='" + obj.aData.StagingBinID + "' /><input type='hidden' name='hdnStagingBinName' value='" + stagingBinName + "' />";
+
+                }
+                else {
+                    //                    return "<span>@Model.StagingLocationName</span><input type='hidden' name='hdnStagingBin' value='@Model.BinID' /><input type='hidden' name='hdnStagingBinName' value='@Model.StagingLocationName' />";
+                    if ('@Model.StagingLocationName' == "[|EmptyStagingBin|]") {
+                        return "<span style='display:none'>@Model.StagingLocationName</span> <span></span><input type='hidden' name='hdnStagingBin' value='" + obj.aData.StagingBinID + "' /><input type='hidden' name='hdnStagingBinName' value='@Model.StagingLocationName' />";
+                    }
+                    else {
+                        return "<span>@Model.StagingLocationName</span><input type='hidden' name='hdnStagingBin' value='" + obj.aData.StagingBinID + "' /><input type='hidden' name='hdnStagingBinName' value='@Model.StagingLocationName' />";
+                    }
+                }
+            }
+        });
+        ColumnObject.push({ "mDataProp": "Quantity", "sClass": "read_only numericalign", "fnRender": function (obj, val) { return "<span id='spnQty'>" + FormatedCostQtyValues(val, 2) + "</span> "; } });
+        ColumnObject.push({
+            "mDataProp": "BinName", "bSortable": false,
+            "sClass": "read_only center",
+            "sDefaultContent": '',
+            "fnRender": function (obj, val) {
+                return "<span>" + (obj.aData.BinName == "[|EmptyStagingBin|]" ? "" :  obj.aData.BinName) + "</span><input type='hidden' name='hdnSourceBinID' value='" + obj.aData.BinID + "' />";
+
+            }
+        });
+
+
+        oTableMSItem = $('#' + MSLIObjectTable).dataTable({
+            "bJQueryUI": true,
+            "sscrollx": "100%",
+            "bScrollCollapse": true,
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            "aaSorting": [[2, "asc"]],
+            "oColReorder": {},
+            "bAutoWidth": false,
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "bServerSide": true,
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'MstagingLineItem' },
+                    "async": false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        o = json;
+                    }
+                });
+            },"oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries',
+                    "sZeroRecords": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable'
+             },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                return nRow;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": "/Master/LoadGridState",
+                    "type": "POST",
+                    data: { ListName: 'MstagingLineItem' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "sAjaxSource": '@Url.Content("~/Inventory/GetMsLineItems")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                aoData.push({ "name": "MSGUID", "value": '@Model.GUID' });
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting.length != 0)
+                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+                    "headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                        if ($("#MSLItem_filter").val() != '') {
+                            $('#MstagingLineItem@(Model.ID) td').highlight($("#MSLItem_filter").val());
+                        }
+
+                        $('.ShowAllOptions').click(function () {
+                            $(this).siblings('.AutoCompleteddl').trigger("focus");
+                            $(this).siblings(".AutoCompleteddl").autocomplete("search", " ");
+                        });
+                    }
+                })
+            },
+            "aoColumns": ColumnObject
+        }).makeEditable({
+            fnShowError: function (errorText, action) {
+            },
+            sUpdateURL: function (value, settings) {
+
+            }
+        });
+
+
+
+
+        $('.DTTT_container').css('z-index', '-1');
+
+        $('#btnblockms').css({ 'margin-right': '45px' });
+        $('.ColVis_MasterButton').hide();
+        $('#MSLineItems .refresh').css("margin-top", "-31px");
+
+
+        $("#" + MSLIObjectTable).on("click", "td.control img.MStgImage", function (event) {
+
+            var nTr = this.parentNode.parentNode;
+            var i = $.inArray(nTr, anOpenMS);
+            if (i === -1) {
+                $('img', this.parentNode).attr('src', sImageUrl + "drildown_close.jpg");
+                oTableMSItem.fnOpen(nTr, fnFormatDetailsLI(oTableMSItem, nTr), '');
+                anOpenMS.push(nTr);
+            }
+            else {
+                $('img', this.parentNode).attr('src', sImageUrl + "drildown_open.jpg");
+                oTableMSItem.fnClose(nTr);
+                anOpenMS.splice(i, 1);
+            }
+        });
+
+
+
+        $('#deleteRows1').click(function () {
+            var tbl = $("#" + MSLIObjectTable).dataTable();
+            var anSelected = fnGetSelected1(tbl);
+            var stringIDs = "";
+            for (var i = 0; i <= anSelected.length - 1; i++) {
+                stringIDs = stringIDs + $(anSelected[i]).find("input[type='hidden'][name='hdnitmID']").val() + "_" + $(anSelected[i]).find("input[type='hidden'][name='hdnStagBinID']").val() + ",";
+            }
+            if (anSelected.length !== 0) {
+                $('#mdlMSLIYesNo').modal();
+                IsDeleteKLIPopupOpen = true;
+            }
+
+        });
+
+        $("#btnMSLIYes").click(function () {
+            var tbl = $("#" + MSLIObjectTable).dataTable();
+            var anSelected = fnGetSelected1(tbl);
+            var stringIDs = "";
+            for (var i = 0; i <= anSelected.length - 1; i++) {
+                stringIDs = stringIDs + $(anSelected[i]).find("input[type='hidden'][name='hdnitmID']").val() + "_" + $(anSelected[i]).find("input[type='hidden'][name='hdnStagBinID']").val() + ",";
+            }
+            if (anSelected.length !== 0) {
+                $.ajax({
+                    url: '@Url.Content("~/Inventory/DeleteMaterialStagingLineItems")',
+                    type: "POST",
+                    data: { ids: stringIDs, MaterialStagingGUId: '@Model.GUID' },
+
+                    success: function (response) {
+                        if (response == "ok") {
+                            for (var i = 0; i <= anSelected.length - 1; i++) {
+                                tbl.fnDeleteRow(anSelected[i]);
+                            }
+
+                            if (anSelected.length > 0)
+                                $("#spanGlobalMessage").html("@ResCommon.RecordDeletedSuccessfully".replace("{0}", "(" + anSelected.length + ")"));
+
+
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        }
+                    },
+                    error: function (response) {
+                    }
+                });
+                QLcloseModal();
+                IsDeleteKLIPopupOpen = false;
+            }
+        });
+
+        $('#' + MSLIObjectTable+' tbody tr').die('tap click');
+        var lastChecked1;
+        var starttrvalue1 = "";
+        $('#' + MSLIObjectTable +' tbody tr').live('tap click', function (e) {
+            //$(this).toggleClass('row_selected');
+            //return false;
+
+            if ($(e.target).hasClass("control") == true || e.target.nodeName.toLowerCase() == "img" || e.target.type == "checkbox" || e.target.type == "radio" || e.target.type == "text" || e.target.type == "button" || $(e.target).is('a') == true || $(e.target).is('span') == true
+                || $(e.target).hasClass("selectBox")
+            ) {
+                e.stopPropagation();
+            }
+            else {
+                if (lastChecked1 !== undefined && lastChecked1 != null && !lastChecked1) {
+                    lastChecked1 = this;
+                }
+
+                if (e.shiftKey) {
+                    var start = $('#' + MSLIObjectTable +' tbody tr').index(this);
+                    var end = $('#' + MSLIObjectTable +' tbody tr').index(lastChecked1);
+
+                    var stringval1 = readCookieforshift("selectstartindex");
+                    if (stringval1 != null) {
+                        var endindex = $(this).closest('tr').attr('id');
+                        createCookieforshift("selectendindex", endindex, 1);
+                        if ($("#hdnPageName").val() !== undefined) {
+                            var pagename = '';
+                            pagename = $("#hdnPageName").val();
+                            GetOnlyIdsForPassPagesForshift(pagename, true);
+                        }
+                    }
+
+                    for (i = Math.min(start, end); i <= Math.max(start, end); i++) {
+                        if (!$('#' + MSLIObjectTable +' tbody tr').eq(i).hasClass('row_selected')) {
+                            $('#' + MSLIObjectTable +' tbody tr').eq(i).addClass("row_selected");
+                        }
+                    }
+                    if (window.getSelection) {
+                        if (window.getSelection().empty) {  // Chrome
+                            window.getSelection().empty();
+                        } else if (window.getSelection().removeAllRanges) {  // Firefox
+                            window.getSelection().removeAllRanges();
+                        }
+                    } else if (document.selection) {  // IE?
+                        document.selection.empty();
+                    }
+                } else if ((e.metaKey || e.ctrlKey)) {
+                    $(this).toggleClass('row_selected');
+                } else {
+                    //$(this).toggleClass('row_selected');
+
+
+                    if ($(this).hasClass('row_selected')) {
+                        (starttrvalue1 == "") ? starttrvalue1 = $(this).closest('tr').attr('id') : starttrvalue1 = starttrvalue1 + "," + $(this).closest('tr').attr('id');
+                        createCookieforshift("selectstartindex", starttrvalue1, 1);
+                    } else {
+
+                        var stringval = readCookieforshift("selectstartindex");
+                        if (stringval != "undefined") {
+                            if (stringval != null) {
+                                var tmp = stringval.split(',');
+                                var index = tmp.indexOf($(this).closest('tr').attr('id'));
+                                if (index !== -1) {
+                                    tmp.splice(index, 1);
+                                    stringval = tmp.join(',');
+                                    createCookieforshift("selectstartindex", stringval, 1);
+                                }
+                            }
+                        }
+
+                    }
+                }
+
+                lastChecked1 = this;
+            }
+            return false;
+        });
+
+    });
+
+    function openLocPop(itemid) {
+        var selectedStagBin = $(curobj).parent().parent().find("input[type='hidden'][name='hdnStagingBin']").val();
+        if (selectedStagBin != undefined && selectedStagBin != "") {
+            $('#dvItemLocations').data("data", itemid + "~" + '@Model.ID').dialog('open');
+        }
+    }
+    //    function SetChangedData(curobj) {
+
+    //        var aPos = oTableMSItem.fnGetPosition($(curobj).parent()[0]);
+    //        var aData = oTableMSItem.fnGetData(aPos[0]);
+    //        setTimeout(function () { alert(curobj.value); }, 50)
+    //    }
+    function CallThisFunctionFromModel(msg) {
+        if (msg == 'success') {
+            $("#" + MSLIObjectTable).DataTable().fnDraw();
+        }
+        else if (msg.Status == 'fail') {
+            alert(json.Message);
+            return false;
+        }
+    }
+
+    function updateMSLineItem(itmId, curobj) {
+        if (itmId != undefined) {
+            var aPos = $('#' + MSLIObjectTable).dataTable().fnGetPosition($(curobj).parent()[0]);
+            var aData = $('#' + MSLIObjectTable).dataTable().fnGetData(aPos[0]);
+            var msbinID = $(curobj).parent().parent().find("input[type='hidden'][name='hdnStagingBin']").val();
+            var msbinName = $(curobj).parent().parent().find("input[type='text'][name='txtLineItemStagingBin']").val();
+            if (msbinName != "") {
+                $.ajax({
+                    type: "POST",
+                    url: '@Url.Action("UpdateStagingLineItem", "Inventory")',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: "{MsID:'" + parseInt('@Model.ID') + "' , ItmID: '" + itmId + "', msbinID: '" + aData.StagingBinID + "', StagingBinName: '" + msbinName + "'}",
+                    success: function (retdt) {
+                        $("#" + MSLIObjectTable).DataTable().fnDraw();
+                    },
+                    error: function (err) {
+                        alert("There is some Error");
+                    }
+                });
+            }
+            else {
+                alert("Enter staging location");
+            }
+        }
+        else {
+            alert("there is some error.");
+        }
+    }
+
+    //    function setnametohidden(curobj) {
+    //        $(curobj).parent().find("input[type='hidden'][name='hdnStagingBinName']").val(curobj.value);
+
+    //    }
+
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var bIsFilter = false;
+    var timeoutsc11;
+
+    $("#MSLItem_filter").bind("textchange", function () {
+        clearTimeout(timeoutsc11);
+        var self = this;
+        timeoutsc11 = setTimeout(function () {
+            fnFilterMS();
+        }, 200);
+    });
+
+    $(".searchBlock").on({
+        keydown: function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                var searchtext = $("#MSLItem_filter").val().replace(/'/g, "''");
+                oTableMSItem.fnFilter(searchtext,
+                                        null,
+                                        null,
+                                        null
+                                    );
+                return false;
+            }
+        }
+
+    }, "#MSLItem_filter");
+
+    $("#clear_MSLItem_filter").click(function () {
+        if ($("#MSLItem_filter").val().length > 0) {
+            $("#MSLItem_filter").val("");
+            $("#MSLItem_filter").change();
+        }
+        return false;
+    });
+
+    function fnFilterMS() {
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#MSLItem_filter") != 'undefined' && ($("#MSLItem_filter").val().length > 2 || $("#MSLItem_filter").val().length == 0)) {
+            var searchtext = $("#MSLItem_filter").val().replace(/'/g, "''");
+            oTableMSItem.fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+        }
+        else {
+            $("#" + MSLIObjectTable).find("td").removeHighlight();
+            $("#" + MSLIObjectTable).find("td").highlight($("#MSLItem_filter").val());
+        }
+    }
+
+    $("#saveRows").click(function () {
+        SaveAllClick($(this));
+    });
+
+    function SaveAllClick(curobj) {
+        var aData = oTableMSItem.fnGetData();
+        var datatopass = [];
+        for (var i = 0; i < aData.length; i++) {
+            if ($.trim(aData[i].BinName) != $.trim(aData[i].RoomName)) {
+                //datatopass.push({ "MaterialStagingID": aData[i].MaterialStagingID, "ItemID": aData[i].ItemID, "StagingBinID": aData[i].StagingBinID, "BinName": aData[i].BinName, "RoomName": aData[i].RoomName });
+                datatopass.push({ "MaterialStagingGUID": aData[i].MaterialStagingGUID, "ItemGUID": aData[i].ItemGUID, "StagingBinID": aData[i].StagingBinID, "BinName": aData[i].BinName, "RoomName": aData[i].RoomName });
+            }
+        }
+        $.ajax({
+            type: "POST",
+            url: '@Url.Action("UpdateStagingLineItemBulk", "Inventory")',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify(datatopass),
+            success: function (retdt) {
+                if (retdt == "ok") {
+                    $("#spanGlobalMessage").html("@ResCommon.RecordUpdatedSuccessfully".replace("{0}", datatopass.length));
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    oTableMSItem.fnDraw();
+                }
+            },
+            error: function (err) {
+                alert("There is some Error");
+            }
+        });
+    }
+
+
+    function fnFormatDetailsLI(oTable, nTr) {
+
+        var oData = oTableMSItem.fnGetData(nTr);
+        var sOut = '';
+
+        @*var stgbinName = $(nTr).find("input[type='hidden'][name='hdnStagingBinName']").val();
+        $('#DivLoading').show();
+        $.ajax({
+            "url": '@Url.Content("~/Inventory/ItemLocDet")',
+            data: { ItemGUID: oData.ItemGUID, MSGUID: oData.MaterialStagingGUID, StageBinId: oData.StagingBinID, staLocName: stgbinName },
+            "async": false,
+            cache: false,
+            "dataType": "text",
+            "success": function (json) {
+                sOut = json;
+                $('#DivLoading').hide();
+            },
+            error: function (response) {
+            }
+        });*@
+
+        $('#DivLoading').show();
+        $.ajax({
+            "url": '@Url.Content("~/Inventory/MaterialStagingPullDetail_MS")',
+            data: { ItemGUID: oData.ItemGUID, MSDTLGUID: oData.GUID },
+            "async": false,
+            cache: false,
+            "dataType": "text",
+            "success": function (json) {
+                sOut = json;
+                $('#DivLoading').hide();
+            },
+            error: function (response) {
+            }
+        });
+
+        return sOut;
+    }
+    function closeConfirmModal() {
+        $.modal.impl.close();
+    }
+
+    var IsLoadMoreLocations = false;
+
+    $("#" + MSLIObjectTable).on("focus", "input.AutoCompleteddl", function (event) {
+
+        var nTr = $(this).parent().parent().parent();
+        var ctrlID = $(this).attr('id');
+        var locTyp = '';
+        if (ctrlID === "txtDestBin") {
+            locTyp = "DL";
+        }
+        else if (ctrlID === "txtDestStagingHeader") {
+            locTyp = "SH";
+        }
+
+        var movTyp = $(nTr).find('#ddlMoveTypePopup').val();
+
+        var destStageHeader = $(nTr).find('#hdnDestStageGuid').val();
+        var itmGuid = $(nTr).find('input[type="hidden"][name="hdnitmID"]').val();
+
+        $(this).autocomplete({
+            source: function (request, response) {
+                $('#DivLoading').show();
+                $.ajax({
+                    url: 'GetLocationByType',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: { 'NameStartWith': request.term, 'itemGuid': itmGuid, 'locType': locTyp, 'moveType': movTyp, 'StageHeaderGUID': destStageHeader, 'IsLoadMoreLocations': IsLoadMoreLocations },
+                    success: function (data) {
+                        if (locTyp === 'DL') {
+                            $(nTr).find('#hdnDestBinID').val('');
+                            //$(nTr).find('#hdnDestStageGuid').val('');
+                            $(nTr).find('#hdnDestBinID').val('');
+                        }
+                        else if (locTyp === 'SH') {
+                            $(nTr).find('#hdnDestStageGuid').val('');
+                            $(nTr).find('#txtDestBin').val('');
+                            $(nTr).find('#hdnDestBinID').val('');
+                            $(nTr).find('#txtDestBin').removeAttr('readonly');
+                        }
+
+                        response(
+                            $.map(data, function (Items) {
+                                return {
+                                    label: Items.Key,
+                                    value: Items.Value,
+                                    qty: Items.Quantity,
+                                    id: Items.ID,
+                                    guid: Items.GUID,
+                                    stageHeader: Items.OtherInfo1,
+                                    otherinfo2: Items.OtherInfo2
+                                }
+                            }));
+                        $('#DivLoading').hide();
+                    },
+                    error: function (err) {
+                        $('#DivLoading').hide();
+                    }
+                });
+            },
+            autoFocus: false,
+            minLength: 1,
+            select: function (event, ui) {
+                $(this).val(ui.item.label);
+                if (locTyp === 'DL') {
+                    $(nTr).find('#hdnDestBinID').val(ui.item.id);
+                    $(nTr).find('#hdnDestStageGuid').val(ui.item.guid);
+
+                    if (ui.item.value == MoreLocation) {
+                        IsLoadMoreLocations = true;
+                        $(this).trigger("focus");
+                        $(this).autocomplete("search", " ");
+                        $(this).val("");
+                        return false;
+                    }
+                }
+                else if (locTyp === 'SH') {
+                    $(nTr).find('#hdnDestStageGuid').val(ui.item.guid);
+                    $(nTr).find('#txtDestBin').val('');
+                    $(nTr).find('#txtDestBin').removeAttr('readonly');
+                    if (!isNaN(parseInt(ui.item.id)) && parseInt(ui.item.id) > 0 && ui.item.otherinfo2.length > 0) {
+                        $(nTr).find('#txtDestBin').val(ui.item.otherinfo2);
+                        $(nTr).find('#txtDestBin').attr('readonly', 'readonly');
+                        $(nTr).find('#hdnDestBinID').val(ui.item.id);
+                    }
+                }
+            },
+            open: function () {
+                $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                $('ul.ui-autocomplete').css('max-height', '300px');
+            },
+            close: function () {
+                $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                $('#DivLoading').hide();
+            },
+            change: function (event, ui) {
+
+                if ($.trim($(this).val()).length <= 0) {
+                    if (locTyp === 'DL') {
+                        $(nTr).find('#hdnDestBinID').val('');
+                    }
+                    else if (locTyp === 'SH') {
+                        $(nTr).find('#hdnDestStageGuid').val('');
+                        $(nTr).find('#txtDestBin').val('');
+                        $(nTr).find('#hdnDestBinID').val('');
+                        $(nTr).find('#txtDestBin').removeAttr('readonly');
+                    }
+                }
+            }
+        });
+    });
+
+
+    $("#" + MSLIObjectTable).on('change', '#ddlMoveTypePopup', function (e) {
+        if ($(this).val() == '4') {
+            $(this).parent().parent().find('#txtDestStagingHeader').css('display', '');
+            $(this).parent().parent().find('#divDestStagingHeader').css('display', '');
+        }
+        else {
+            $(this).parent().parent().find('#txtDestStagingHeader').css('display', 'none');
+            $(this).parent().parent().find('#divDestStagingHeader').css('display', 'none');
+        }
+    });
+
+    $('#btnMoveAll').on('click', function (e) {
+        if ($('#' + MSLIObjectTable + ' tbody tr.row_selected').length > 0) {
+            $('#DivLoading').show();
+            $('#' + MSLIObjectTable + ' tbody tr.row_selected').each(function (i) {
+                var obj = {};
+                var nTr = $(this);
+                obj.ItemGUID = $(nTr).find('input[type="hidden"][name="hdnitmID"]').val();
+                obj.SourceBinID = $(nTr).find('input[type="hidden"][name="hdnStagingBin"]').val();
+                obj.SourceStagingHeaderGuid = $(nTr).find('input[type="hidden"][name="hdnMatStagID"]').val();
+                obj.MoveQuanity = $(nTr).find('input#txtQtyToMove').val();
+                obj.MoveType = $(nTr).find('#ddlMoveTypePopup').val();
+                obj.SourceLocation = $(nTr).find('input[type="hidden"][name="hdnStagingBinName"]').val();
+                obj.SourceStagingHeader = '@(Model.StagingName)';
+                obj.DestinationLocation = $(nTr).find('input[type="text"][id="txtDestBin"]').val();;
+                if (obj.MoveType == '4') {
+                    obj.DestStagingHeaderGuid = $(nTr).find('#hdnDestStageGuid').val();
+                    obj.DestinationStagingHeader = $(nTr).find('#txtDestStagingHeader').val();
+                }
+                obj.OpenFrom = 3;
+                $.ajax({
+                    url: '@Url.Content("~/Inventory/MoveQuantitySourceToDestinationPost")',
+                    data: JSON.stringify(obj),
+                    type: 'POST',
+                    async: false,
+                    cache: false,
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    success: function (response) {
+                        var errors = '';
+                        for (var i = 0; i < response.ErrorList.length; i++) {
+                            errors = errors + response.ErrorList[i] + "<br/>";
+                        }
+                        if (response.Status) {
+                            $(nTr).removeClass('row_selected')
+                            $(nTr).css('background-color', 'Green');
+                            if (errors.length <= 0) {
+                                $("#spanGlobalMessage").html("@ResCommon.success");
+                            }
+                            else {
+                                $("#spanGlobalMessage").html(errors);
+                            }
+
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                            showNotificationDialog();
+                        }
+                        else {
+                            $("#spanGlobalMessage").html(errors);
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            showNotificationDialog();
+                        }
+
+                    },
+                    error: function (xhr) {
+                        alert('@ResCommon.ErrorInProcess');
+                    }
+
+                });
+
+            });
+
+            //if ($('#' + MSLIObjectTable + ' tbody tr.row_selected').length <= 0) {
+            $('#DivLoading').hide();
+            setTimeout(function () { refressLineItems(); }, 2000);
+            //}
+        }
+    });
+
+    $("#" + MSLIObjectTable).on('click', 'input#btnMoveItem', function (e) {
+        $('#DivLoading').show();
+        var obj = {};
+        var nTr = $(this).parent().parent();
+        obj.ItemGUID = $(nTr).find('input[type="hidden"][name="hdnitmID"]').val();
+        obj.SourceBinID = $(nTr).find('input[type="hidden"][name="hdnStagingBin"]').val();
+        obj.SourceStagingHeaderGuid = $(nTr).find('input[type="hidden"][name="hdnMatStagID"]').val();
+        obj.MoveQuanity = $(nTr).find('input#txtQtyToMove').val();
+        obj.MoveType = $(nTr).find('#ddlMoveTypePopup').val();
+        obj.SourceLocation = $(nTr).find('input[type="hidden"][name="hdnStagingBinName"]').val();
+        obj.SourceStagingHeader = '@(Model.StagingName)';
+        obj.DestinationLocation = $(nTr).find('input[type="text"][id="txtDestBin"]').val();;
+        if (obj.MoveType == '4') {
+            obj.DestStagingHeaderGuid = $(nTr).find('#hdnDestStageGuid').val();
+            obj.DestinationStagingHeader = $(nTr).find('#txtDestStagingHeader').val();
+        }
+        obj.OpenFrom = 3;
+        $.ajax({
+            url: '@Url.Content("~/Inventory/MoveQuantitySourceToDestinationPost")',
+            data: JSON.stringify(obj),
+            type: 'POST',
+            async: false,
+            cache: false,
+            contentType: 'application/json',
+            dataType: 'json',
+            success: function (response) {
+                var errors = '';
+                for (var i = 0; i < response.ErrorList.length; i++) {
+                    errors = errors + response.ErrorList[i] + "<br/>";
+                }
+                $("#spanGlobalMessage").html(errors);
+                $('#DivLoading').hide();
+                if (response.Status) {
+                    refressLineItems();
+                    if (errors.length <= 0) {
+                        $("#spanGlobalMessage").html("@ResCommon.success");
+                    }
+                    $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                }
+                else {
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                }
+                showNotificationDialog();
+            },
+            error: function (xhr) {
+                $('#DivLoading').hide();
+                alert('@ResCommon.ErrorInProcess');
+            }
+
+        });
+
+
+    });
+    function ChildGridReloadAfterReorder() {
+        refressLineItems();
+    }
+
+    function ChildGridColumnAndTableRebinding() {
+        oTableGlobalTABLE = $("#" + "MstagingLineItem" + '@(Model.ID)').dataTable();
+        objColumns = MstagingChildGridTableColumns;
+    }
+</script>

@@ -1,0 +1,257 @@
+﻿@model IList<eTurns.DTO.KitItemToMoveDTO>
+@{
+    string viewRight = "ViewOnly";
+    bool IsAllowOverwriteLotOrSerial = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowOverwriteLotOrSerial, eTurnsWeb.Helper.SessionHelper.PermissionType.AllowPull);
+    bool IsAllowToEnterLotOrSerialInBlankBox = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowToEnterLotOrSerialInBlankBox, eTurnsWeb.Helper.SessionHelper.PermissionType.AllowPull);
+    bool IsViewOnlyLotOrSerial = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ViewOnlyLotOrSerial, eTurnsWeb.Helper.SessionHelper.PermissionType.AllowPull);
+
+    if (IsAllowOverwriteLotOrSerial)
+    {
+        viewRight = "ViewOverwrite";
+    }
+    else if (IsAllowToEnterLotOrSerialInBlankBox)
+    {
+        viewRight = "NoRight";
+    }
+    else if (IsViewOnlyLotOrSerial)
+    {
+        viewRight = "ViewOnly";
+    }
+}
+<div>
+    @if (Model != null && Model.Count > 0)
+    {
+        <div style="width: 100%; padding-bottom: 10px;">
+
+            @if (Model[0].MoveType == "OUT")
+            {
+                <input type="button" class="btnGeneral" value="Move Out All" id="btnMoveOutAllPopUp" name="btnMoveOutAllPopUp" />
+            }
+            else
+            {
+                <input type="button" class="btnGeneral" value="Move In All" id="btnPullAllPopUp" name="btnPullAllPopUp" />
+            }
+            
+        </div>
+        foreach (KitItemToMoveDTO objItem in Model)
+        {
+            string jsonPullMasterDTO = Newtonsoft.Json.JsonConvert.SerializeObject(objItem);
+            bool isMoveOutOperation = objItem.MoveType == "OUT" ? true : false;
+            var qtyToMoveInOut = "Qty To Move In";
+            var moveInOutQty = "Move In Qty";
+            if (isMoveOutOperation)
+            {
+                qtyToMoveInOut = "Qty To Move Out";
+                moveInOutQty = "Move Out Qty";
+            }
+            <div style="padding: 10px; margin-bottom: 10px; border: 1px solid red;" id="divItem_@(objItem.ItemGUID)_@(objItem.BinID)" class="divItem">
+                <table style="width: 100%" class="display" id="tblItemPullheader_@(objItem.ItemGUID)_@(objItem.BinID)">
+                    <thead>
+                        <tr>
+                            <th>
+                                <input type="hidden" id="hdnPullMasterDTO_@(objItem.ItemGUID)_@(objItem.BinID)" value="@jsonPullMasterDTO" name="hdnPullMasterDTO" />
+                                Item #
+                            </th>
+                            <th>
+                                Item Tracking
+                            </th>
+                            <th>
+                                Bin
+                            </th>
+                            <th>
+                                @qtyToMoveInOut
+                            </th>
+                            <th>
+                                Kit#
+                            </th>
+                          
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                @objItem.ItemNumber
+                                <input type="hidden" id="hdnmaximumnmoveoutquantity_@objItem.ItemGUID" value="@objItem.maximumQuantityForMoveOut" class="hdnmaximumnmoveoutquantity" />
+                                <input type="hidden" id="hdnmaximumnmoveoutquantity_@objItem.ItemGUID" value="@objItem.maximumQuantityForMoveIn" class="hdnmaximumnmoveinquantity" />
+                            </td>
+                            <td>
+                                @if (objItem.IsLotTrack)
+                                {
+                                    <text>Lot# Tracking</text>
+                                    <input type='hidden' id='hdnTrackingType_@(objItem.ItemGUID)_@(objItem.BinID)' value='LotNumberTracking' />
+                                }
+                                else if (objItem.IsSRTrack)
+                                {
+                                    <text>Serial# Tracking</text>
+                                    <input type='hidden' id='hdnTrackingType_@(objItem.ItemGUID)_@(objItem.BinID)' value='SerialNumberTracking' />
+                                }
+                                else if (objItem.IsDCTrack)
+                                {
+                                    <text>Date Code Tracking</text>
+                                    <input type='hidden' id='hdnTrackingType_@(objItem.ItemGUID)_@(objItem.BinID)' value='DateCodeTracking' />
+                                }
+                                else
+                                {
+                                    <text>No Tracking</text>
+                                    <input type='hidden' id='hdnTrackingType_@(objItem.ItemGUID)_@(objItem.BinID)' value='NoTracking' />
+                                }
+                            </td>
+                            <td>
+                                @objItem.BinName
+                            </td>
+                            <td>
+                                <input type='text' value='@objItem.QtyToMoveIn' id='txtPoolQuantity_@(objItem.ItemGUID)_@(objItem.BinID)' name='txtPoolQuantity_@(objItem.ItemGUID)_@(objItem.BinID)' class='text-boxinner pull-quantity' onkeypress='return isNumberKey(event)' />
+                            </td>
+                            <td>
+                                @objItem.KitPartNumber
+                            </td>
+                            
+                        </tr>
+                    </tbody>
+                </table>
+                <table>
+                    <tr>
+                        <td>
+                            &nbsp;
+                        </td>
+                    </tr>
+                </table>
+                @if (objItem.QtyToMoveIn > 0)
+                {
+                    string htmltableName = "tblItemPull_" + objItem.ItemGUID+"_"+ objItem.BinID;
+                    <table style="width: 100%" class="display tbl-item-pull" id="@htmltableName">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">
+                                    @if (objItem.IsLotTrack)
+                                    {
+                                        @eTurns.DTO.ResItemLocationDetails.LotNumber
+                                    }
+                                    else if (objItem.IsSRTrack)
+                                    {
+                                        @eTurns.DTO.ResItemLocationDetails.SerialNumber
+                                    }
+                                    else
+                                    {
+                                        @eTurns.DTO.ResPullMaster.LotSrnumber
+                                    }
+                                </th>
+                                <th style="text-align: left;">
+                                    Bin
+                                </th>
+                                <th style="text-align: left;">
+                                    Available Qty
+                                </th>
+                                <th>
+                                    @moveInOutQty
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.ReceivedDate
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.ExpirationDate
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <script type="text/javascript">
+                        var IsCheckViewRight = true;
+                        var isDeleteSrLotRow = false;
+                        var BoolTrueString = '@Boolean.TrueString';
+                        var PullSerialsAndLotsNewUrl = '@Url.Action("MoveInSerialsAndLots", "Kit")';
+                        var PullLotSrSelectionUrl = '@Url.Content("~/Pull/PullLotSrSelection")';
+                        var moveOutSerialLotUrl = '@Url.Action("MoveOutSerialsAndLots", "Kit")';
+                        var moveOutLotSrSelectionUrl = '@Url.Content("~/Kit/MoveOutLotSrSelection")';
+
+                        var objReturnItemDetail = {
+                            tableID: '@htmltableName',
+                            ItemGUID: '@objItem.ItemGUID',
+                            BinID: '@objItem.BinID',
+                            PullQuantity: '@objItem.QtyToMoveIn',
+                            InventoryConsuptionMethod: '@objItem.InventoryConsuptionMethod',
+                            LotNumberTracking: '@objItem.IsLotTrack',
+                            SerialNumberTracking: '@objItem.IsSRTrack',
+                            DateCodeTracking: '@objItem.IsDCTrack',
+                            ViewRight: '@viewRight',
+                            KitDetailGUID: '@objItem.KitDetailGUID',
+                            MoveType: '@objItem.MoveType',
+                            KitGUID: '@objItem.KitGuid',
+                            BinName: '@objItem.BinName'
+                        };
+
+                        PrepareReturnDataTable(objReturnItemDetail);
+
+                    </script>
+                }
+                <div style="width: 100%; padding-top: 10px;">
+                    @if (viewRight != "ViewOnly")
+                    {
+                        <input type="button" class="btnGeneral" value="Add" id="btnLoadMoreLots_@(objItem.ItemGUID)_@(objItem.BinID)" name="btnLoadMoreLots" />
+                        <input type="button" class="btnGeneral" value="Delete" id="btnDeleteLots_@(objItem.ItemGUID)_@(objItem.BinID)" name="btnDeleteLots" />
+                    }
+                    @if (isMoveOutOperation)
+                    {
+                        <input type="button" class="btnGeneral" value="Move Out" id="btnPullPopup_@(objItem.ItemGUID)_@(objItem.BinID)" name="btnMoveOutPopup" />
+                    }
+                    else
+                    {
+                        <input type="button" class="btnGeneral" value="Move In" id="btnPullPopup_@(objItem.ItemGUID)_@(objItem.BinID)" name="btnPullPopup" />
+                    }
+                    <input type="hidden" name="hdnSelectedId" id="hdnSelectedId_@(objItem.ItemGUID)_@(objItem.BinID)" />
+                    <input type="hidden" name="hdnCurrentLoadedIds" id="hdnCurrentLoadedIds_@(objItem.ItemGUID)_@(objItem.BinID)" />
+                </div>
+            </div>
+        }
+    }
+    <table style="width: 100%">
+        <tr>
+            <td>
+                &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align: right;">
+                @if (Model != null && Model.Count > 0 && Model[0].MoveType == "OUT")
+                {
+                    <input type="button" class="btnGeneral" value="Move Out All" id="btnPullAllPopUp1" name="btnMoveOutAllPopUp" />
+                }
+                else
+                {
+                    <input type="button" class="btnGeneral" value="Move In All" id="btnPullAllPopUp1" name="btnPullAllPopUp" />
+                }
+                
+                <input type="button" class="btnGeneral" value="Cancel" id="btnCancel1" name="btnCancelPullPopup" />
+            </td>
+        </tr>
+    </table>
+    <div class="dialog" id="dlgCommonErrorMsgPopup" style="display: none; width: 600px;">
+        <div class="inner" style="width: 600px; max-height: 300px; overflow: scroll;">
+            <p class="text" id="pErrMessage" style="text-align: left; padding-left: 10px;">
+            </p>
+            <p id="pOkbtn" class="text" style="text-align: center; padding-left: 10px; display: none;">
+                <a href="#" class="no" onclick="closeMessageModalInPopup()">
+                    <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.InformOk" />@eTurns.DTO.Resources.ResMessage.InformOk
+                </a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+
+    $(document).ready(function () {
+
+        if ('@viewRight' == "ViewOnly") {
+            $("input[type='text'][name^='txtPoolQuantity_']").keypress(function () {
+                return false;
+            });
+        }
+
+    });
+
+    function closeMessageModalInPopup() {
+        $.modal.impl.close();
+    }
+
+</script>

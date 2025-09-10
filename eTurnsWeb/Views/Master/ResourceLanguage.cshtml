@@ -1,0 +1,155 @@
+﻿@{
+    ViewBag.Title = ResLayout.ResourceLanguage;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    bool IsShowChangeLog = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ResourceMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.ShowChangeLog);
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+     
+}
+<style>
+    ul.ui-autocomplete {
+        overflow-y: auto;
+        max-height: 300px;
+    }
+</style>
+<form id="frmBarcodeList" method="post" action="/Barcode/BarcodeList">
+    @Html.AntiForgeryToken()
+    <div class="userListingWrapper">
+        <h2>
+            @eTurns.DTO.Resources.ResourceLanguage.PageHeader
+        </h2>
+        @*<div class="Infoclass">
+            <a href="~/Uploads/HelpDoc/Orders.pdf" target="_blank">
+                <img src="~/Content/images/Info.png" alt="Help" />
+            </a>
+        </div>*@
+        <div class="userListBlock">
+            <ul class='tabs'></ul>
+            <div id="Ctab" class="tabContener" style="min-height: 620px;">
+                <div style="float: left; width: 99%; margin: 10px;">
+                    @eTurns.DTO.Resources.ResourceLanguage.ResourceLanguageTitle:&nbsp;&nbsp; @Html.DropDownList("ddlLanguageList", new SelectList(ViewBag.ResourceLanguage, "Culture", "Language"), new { @class = "selectBox", @style = "width:120px" })
+                    <input type="button" value="@eTurns.DTO.Resources.ResourceLanguage.AddLanguage" onclick="return AddLanguage();" />
+                </div>
+                <div class="searchWrapper">
+                    <div class="searchBlock">
+                        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                        <div class="searchinputB">
+                            <input type="text" class="searchinput" id="txtItemFilter" />
+                            <a href="javascript:void(0);" class="xclose">
+                                <img src="~/Content/images/x.png" alt="X" id="imgClearItemFilter" />
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="userHead" id="divSearchedItem">
+                    <div id="AddedLanguageList" style="float: left; width: 80%;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+<script type="text/javascript">
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+
+    $('#btnAddNewLanguage').click(function () {
+
+
+    });
+
+    $(document).ready(function () {
+        $('form').areYouSure({ 'message': MsgLostChangesConfirmation });
+        fillLanguageGrid();
+    });
+
+    function fillLanguageGrid() {
+        $('#DivLoading').show();
+        $("#AddedLanguageList").html('');
+        var searchtext = $("#txtItemFilter").val().replace(/'/g, "''");
+        $.post("GetAddedLanguage", { "SearchText": searchtext }, function (data) {
+            $("#AddedLanguageList").html(data);
+            $('#DivLoading').hide();
+        });
+    }
+
+    /* global search function */
+    function fnFilter() {
+        fnFilterRLDataFromGlobalFilter();
+    }
+
+    function fnFilterRLDataFromGlobalFilter() {
+        $('#DivLoading').show();
+        var searchtext = $("#txtItemFilter").val().replace(/'/g, "''");
+        $("#AddedLanguageList").html('');
+        $.post("GetAddedLanguage", { "SearchText": searchtext }, function (data) {
+            $("#AddedLanguageList").html(data);
+            $('#DivLoading').hide();
+            if (searchtext != '') {
+                $('.dataTables_scroll').css({ "opacity": 1 });
+                $('#ResourceLanguages').highlight($("#txtItemFilter").val());
+            }
+        });
+    }
+
+    var timeoutsc1;
+    $(document).on('propertychange input', "#txtItemFilter", function () {
+
+        clearTimeout(timeoutsc1);
+        var self = this;
+        timeoutsc1 = setTimeout(function () {
+            fnFilter();
+        }, 500);
+    });
+
+    $("#txtItemFilter").keypress(function (e) {
+        if (e.which == 13 && $("#txtItemFilter").val().length >= 2) {
+            fnFilterRLDataFromGlobalFilter();
+        }
+    });
+
+    function AddLanguage()
+    {
+        var Culture = $("select#ddlLanguageList").val();
+        if (Culture != null && Culture != '')
+        {
+            var Language = $("select#ddlLanguageList option:selected").text();
+            $.ajax({
+                url: "AddLanguageeTurns",
+                data: { "Culture": Culture, "Language": Language },
+                method: "Post",
+                success: function (res) {
+                    if(res != "ok")
+                    {
+                        ShowNotificationMessage(res);
+                    }
+                    else
+                    {
+                        $("select#ddlLanguageList option[value='" + Culture + "']").remove();
+                        $("select#ddlLanguageList").prop('selectedIndex', 0);
+                        $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                        $("#spanGlobalMessage").html("@eTurns.DTO.Resources.ResourceLanguage.LanguageAddedSuccessfully");
+                        showNotificationDialog();
+                        fnFilter();
+                    }
+                },error:function(xhr)
+                {
+                    alert(xhr.status);
+                }
+
+            });
+        }
+        else
+        {
+            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+            $("#spanGlobalMessage").html("@eTurns.DTO.Resources.ResourceLanguage.SelectLanguage");
+            showNotificationDialog();
+        }
+    }
+    $("#txtItemFilter").keyup(function (e) {
+        if (e.keyCode === 27 || e.key === "Escape" || e.key === "Esc") {
+            $("#txtItemFilter").val('');
+            fnFilter();
+        }
+    });
+</script>

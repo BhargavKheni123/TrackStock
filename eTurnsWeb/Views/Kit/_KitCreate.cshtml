@@ -1,0 +1,2704 @@
+﻿@model eTurns.DTO.KitMasterDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Kits, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Kits, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+
+    string costForm = "N";
+
+    if (!string.IsNullOrEmpty(eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits))
+    {
+        costForm = "N" + eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits;
+    }
+    string CurrencySymbol = "";
+    if (eTurnsWeb.Helper.SessionHelper.CurrencySymbol != null
+        && !string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.CurrencySymbol))
+    {
+        CurrencySymbol = eTurnsWeb.Helper.SessionHelper.CurrencySymbol;
+    }
+}
+@using (Ajax.BeginForm("SaveKitHeader", "Kit", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmKitMaster" }))
+{
+    @Html.AntiForgeryToken()
+    <input type="hidden" id="hdnIsCalledFromSingleMoveOut" name="hdnIsCalledFromSingleMoveOut" />
+    <input type="hidden" id="hdnSingleMoveOutQty" name="hdnSingleMoveOutQty" />
+    <div class="userHead">
+        @Html.ValidationSummary(true)
+        @if (Model.ID > 0)
+        {
+            string jsonKitBins = Newtonsoft.Json.JsonConvert.SerializeObject(Model.KitBins);
+            <input type="hidden" id="hdnKitBins" value="@jsonKitBins" name="hdnKitBins" />
+            <div class="infoBlock">
+                <ul>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.RoomName)
+                        </label>
+                        : <span>@(Model.RoomName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Created)
+                        </label>
+                        : <span>@(Model.ReceivedOnWebDate)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.CreatedByName)
+                        </label>
+                        : <span>@(Model.CreatedByName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Updated)
+                        </label>
+                        : <span>@(Model.ReceivedOnDate)</span>
+                    </li>
+                    <li style="border: none">
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.UpdatedByName)
+                        </label>
+                        : <span>@(Model.UpdatedByName)</span>
+                    </li>
+                </ul>
+            </div>
+        }
+        <div style="clear: both; padding-top: 15px">
+            <a id="ancHideShowContent" style="float: left; margin-top: 8px; margin-left: 10px">
+                <img src="/Content/images/drildown_open.jpg" alt="" />
+            </a>
+            <div class="infoBlock" style="width: 95%; margin-left: 10px; background: none">
+                <div id="CollapsedContent" class="edtForm">
+                    <ul>
+                        <li style="border-right: none;">
+                            <label for="label" style="width: 100px; float: left; padding: 1.3% 0;">
+                                @eTurns.DTO.ResKitMaster.KitPartNumber <em style="color: Red">*</em>
+                            </label>
+                            @Html.TextBoxFor(model => model.KitPartNumber, new { @id = "txtKitPartNumber", @class = "text-box disableBack", @style = "background:white" })
+                            <br />
+                            @Html.ValidationMessageFor(model => model.KitPartNumber)
+                            <span>
+                                @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                                @Html.HiddenFor(model => model.GUID, new { id = "hiddenGUID" })
+                                @Html.HiddenFor(model => model.Created)
+                                @Html.HiddenFor(model => model.Updated)
+                                @Html.HiddenFor(model => model.CreatedBy)
+                                @Html.HiddenFor(model => model.LastUpdatedBy)
+                                @Html.HiddenFor(model => model.CompanyID)
+                                @Html.HiddenFor(model => model.Room)
+                                @Html.HiddenFor(model => model.RoomName)
+                                @Html.HiddenFor(model => model.CreatedByName)
+                                @Html.HiddenFor(model => model.UpdatedByName)
+                                @Html.HiddenFor(model => model.IsDeleted)
+                                @Html.HiddenFor(model => model.IsArchived)
+                                @Html.HiddenFor(model => model.IsKitBuildAction)
+                                @Html.HiddenFor(model => model.IsKitBreakAction)
+                                @Html.HiddenFor(model => model.IsNotAbleToDelete)
+                                @Html.HiddenFor(model => model.ReceivedOn)
+                                @Html.HiddenFor(model => model.ReceivedOnWeb)
+                                @Html.HiddenFor(model => model.AddedFrom)
+                                @Html.HiddenFor(model => model.EditedFrom)
+                            </span>
+                        </li>
+                    </ul>
+                    @if (Model.ID > 0)
+                    {
+                        <ul>
+                            <li style="border-right: none;">
+                                <label for="label" style="width: 90px; float: left; padding: 1.3% 0;">
+                                    @eTurns.DTO.ResKitMaster.AvailableKitQuantity
+                                </label>
+                                <span style="padding-left: 10px;">
+                                    @if (Model.SerialNumberTracking)
+                                    {
+                                        @Html.TextBoxFor(model => model.AvailableKitQuantity, "{0:0}", new { @id = "txtAQ", @readonly = "readonly", @class = "text-boxQuantityFormatSR text-box disableBack", @style = "width: 50px;" })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBoxFor(model => model.AvailableKitQuantity, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @id = "txtAQ", @class = "text-boxQuantityFormat text-box disableBack", maxlength = 10, @style = "width: 50px;" })
+                                    }
+                                </span>
+                            </li>
+                            <li style="border-right: none;">
+                                <label for="label" style="width: 90px; float: left; padding: 1.3% 0;">
+                                    @eTurns.DTO.ResKitMaster.KitDemand
+                                </label>
+                                <span>
+                                    @if (Model.SerialNumberTracking)
+                                    {
+                                        @Html.TextBoxFor(model => model.KitDemand, "{0:0}", new { @id = "txtDQ", @readonly = "readonly", @class = "text-boxQuantityFormatSR text-box disableBack", @style = "width: 50px;" })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBoxFor(model => model.KitDemand, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @id = "txtDQ", @readonly = "readonly", @class = "text-boxQuantityFormat text-box disableBack", @style = "width: 50px;" })
+                                    }
+                                </span>
+                            </li>
+                            <li style="border-right: none;">
+                                <label for="label" style="width: 90px; float: left; padding: 1.3% 0;">
+                                    @if (Model.KitCategory.GetValueOrDefault(0) == 0)
+                                    {
+                                        @eTurns.DTO.ResKitMaster.AvailableWIPKit
+                                    }
+                                    else
+                                    {
+                                        @eTurns.DTO.ResKitMaster.QuantityToBuildKit
+                                    }
+                                </label>
+                                <span>
+                                    @if (Model.SerialNumberTracking)
+                                    {
+                                        @Html.TextBoxFor(model => model.AvailableWIPKit, "{0:0}", new { @id = "txtAWIP", @readonly = "readonly", @class = "text-boxQuantityFormatSR text-box disableBack", @style = "width: 50px;" })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBoxFor(model => model.AvailableWIPKit, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @id = "txtAWIP", @readonly = "readonly", @class = "text-boxQuantityFormat text-box disableBack", @style = "width: 50px;" })
+                                    }
+                                </span>
+                            </li>
+                            <li style="border-right: none;">
+                                <label for="label" style="width: 90px; float: left; padding: 1.3% 0;">
+                                    @eTurns.DTO.ResKitMaster.AvailableInGeneralInventory
+                                </label>
+                                <span>
+                                    @if (Model.SerialNumberTracking)
+                                    {
+                                        @Html.TextBoxFor(model => model.AvailableInGeneralInventory, "{0:0}", new { @id = "txtAQGI", @readonly = "readonly", @class = "text-boxQuantityFormatSR text-box disableBack", @style = "width: 50px;" })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBoxFor(model => model.AvailableInGeneralInventory, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @id = "txtAQGI", @readonly = "readonly", @class = "text-boxQuantityFormat text-box disableBack", @style = "width: 50px;" })
+                                    }
+                                </span>
+                            </li>
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+        <div id="ExpandedContent" style="display: none">
+            <ul>
+                <li style="border: none">
+                    <div class="editorForm">
+                        <ul>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.Description)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.TextAreaFor(model => model.Description, new { id = "txtDescription", @class = "text-box disableBack", maxlength = 1024 })
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Description)</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.CriticalQuantity)
+                                </div>
+                                <div class="editor-field">
+                                    @if (Model.SerialNumberTracking)
+                                    {
+                                        @Html.TextBoxFor(model => model.CriticalQuantity, "{0:0}", new { @class = "text-boxQuantityFormatSR text-box disableBack", maxlength = 10 })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBoxFor(model => model.CriticalQuantity, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @class = "text-boxQuantityFormat text-box disableBack", maxlength = 10 })
+                                    }
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CriticalQuantity)</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.MinimumKitQuantity)
+                                </div>
+                                <div class="editor-field">
+                                    @if (Model.SerialNumberTracking)
+                                    {
+                                        @Html.TextBoxFor(model => model.MinimumKitQuantity, "{0:0}", new { @class = "text-boxQuantityFormatSR text-box disableBack", maxlength = 10 })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBoxFor(model => model.MinimumKitQuantity, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @class = "text-boxQuantityFormat text-box disableBack", maxlength = 10 })
+                                    }
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.MinimumKitQuantity)</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.MaximumKitQuantity)
+                                </div>
+                                <div class="editor-field">
+                                    @if (Model.SerialNumberTracking)
+                                    {
+                                        @Html.TextBoxFor(model => model.MaximumKitQuantity, "{0:0}", new { @class = "text-boxQuantityFormatSR text-box disableBack", maxlength = 10 })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBoxFor(model => model.MaximumKitQuantity, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @class = "text-boxQuantityFormat text-box disableBack", maxlength = 10 })
+                                    }
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.MaximumKitQuantity)</span>
+                                </div>
+                            </li>
+                            @*<li>
+                                    <div class="editor-label">
+                                        @Html.LabelFor(model => model.ReOrderType) <em style="color: Red">*</em>
+                                    </div>
+                                    <div class="editor-field">
+                                        @Html.DropDownListFor(model => model.ReOrderType, new SelectList(ViewBag.ReOrderTypeList, "typeValue", "ReOrderType", Model.ReOrderType), new { style = "width:80px", @class = "selectBox" })
+                                        <br />
+                                        @Html.ValidationMessageFor(model => model.ReOrderType)
+                                    </div>
+                                </li>*@
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.KitCategory)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.DropDownListFor(model => model.KitCategory, new SelectList(ViewBag.KitCategoryList, "CategoryValue", "KitCategory", Model.KitCategory), new { style = "width:80px", @class = "selectBox" })
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="editorForm padRightNone">
+                        <ul>
+                            @Html.Partial("UDFLayout", new eTurns.DTO.ResKitMaster())
+                        </ul>
+                    </div>
+                </li>
+            </ul>
+        </div>
+        <div class="editorForm" style="width: 98%">
+            <ul>
+                <li>
+                    <div class="editor-label" style="width: 2%">
+                        &nbsp;
+                    </div>
+                    <div class="BtnBlockform" style="width: 98%; margin-left: 50px;">
+                        @* <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />*@
+                        <ul style="float: left; width: 99%">
+                            <li style="float: left; width: 99%">
+                                <div style="float: left; margin: 0px 5px;">
+                                    @if (!Model.IsDeleted.GetValueOrDefault(false) && !Model.IsArchived.GetValueOrDefault(false))
+                                    {
+                                        if ((isInsert == true && Model.ID == 0) || (isUpdate == true && Model.ID > 0) || Convert.ToString(Session["IsInsert"]) == "True")
+                                        {
+
+                                            if (Model.ID > 0)
+                                            {
+                                                if (Model.LotNumberTracking)
+                                                {
+                                                    <span style="float: left;">
+                                                        @eTurns.DTO.ResItemLocationDetails.LotNumber:&nbsp;&nbsp;
+                                                        <input id="txtLotNumber" type="text" class="text-box LotNumberClass" style="width: 80px;" />
+                                                    </span>
+                                                }
+                                                if (Model.DateCodeTracking)
+                                                {
+                                                    <span style="float: left; margin: 0px 10px;">
+                                                        @eTurns.DTO.ResItemLocationDetails.ExpirationDate:&nbsp;&nbsp;
+                                                        @if (Model.LotNumberTracking)
+                                                        {
+                                                            <input id="txtExpireDate" type="text" style="width: 80px;" readonly="readonly" onchange="return isDuplicateLotExpirationCombination(this,0)" class="myDatePicker text-box" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <input id="txtExpireDate" type="text" style="width: 80px;" readonly="readonly" class="myDatePicker text-box" />
+                                                        }
+
+                                                    </span>
+                                                }
+                                                <span id="spnBuildBreakQty" style="float: left; margin: 0px 5px;">
+                                                    @ResKitMaster.EnterQuantity:&nbsp;&nbsp;
+                                                    @if (Model.SerialNumberTracking)
+                                                    {
+                                                        @Html.TextBox("txtBuildBreakQty", "", "", new { @id = "txtBuildBreakQty", @style = "width:80px;", @maxlength = "10", @class = "numericinput text-boxinner", @readonly = "readonly" })
+                                                    }
+                                                    else
+                                                    {
+                                                        @Html.TextBox("txtBuildBreakQty", "", eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @id = "txtBuildBreakQty", @style = "width:80px;", @maxlength = "10", @class = "numericinput text-boxinner", @readonly = "readonly" })
+                                                    }
+                                                    @*<input id="txtBuildBreakQty" type="text" style="width: 80px; background: white;"
+                                                        readonly="readonly" class="text-box text-boxQuantityFormat" onkeydown="return OnlyNumeric(event,this);" />*@
+                                                </span>
+                                                if (!Model.SerialNumberTracking)
+                                                {
+                                                    <span style="float: left;">
+                                                        @eTurns.DTO.ResKitMaster.KitCost (@CurrencySymbol):&nbsp;&nbsp;
+                                                        <input id="txtCost" value="@(Model.KitCost.GetValueOrDefault(0).ToString(costForm))" type="text" class="text-box disableBack" style="width: 80px;" />
+                                                    </span>
+
+                                                    <span style="float: left; margin: 0px 5px;">
+                                                        <input type="button" value="@ResKitMaster.btnBuild" id="btnBuild" style="display: none" class="CreateBtn" />
+                                                    </span>
+                                                    <span style="float: left; margin: 0px 5px;">&nbsp;</span> <span style="float: left;
+                                                margin: 0px 5px;">
+                                                        <input type="button" value="@ResKitMaster.btnBreak" id="btnBreak" style="display: none" class="CreateBtn" />
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span style="float: left; margin: 0px 5px;">&nbsp;</span> <span style="float: left;
+                                                margin: 0px 5px;">
+                                                        <input type="button" value="@ResKitMaster.btnBreak" id="btnBreak" style="display: none" class="CreateBtn" />
+                                                    </span> <span style="float: left; margin: 0px 5px;">
+                                                        <input type="button" value="@ResKitMaster.btnBuild" id="btnBuildSerial" style="display: none" class="CreateBtn" />
+                                                    </span>
+
+                                                }
+                                                <span style="float: left; margin: 0px 5px;">
+                                                    <input type="button" value="@ResKitMaster.btnMoveInBulk" id="btnMoveInBulk" class="CreateBtn" />
+                                                </span><span style="float: left; margin: 0px 5px;">
+                                                    <input type="button" value="@ResKitMaster.btnMoveOutBulk" id="btnMoveOutBulk" class="CreateBtn" />
+                                                </span>
+
+
+                                            }
+                                        }
+                                        else //if (isUpdate == false && isInsert == false)
+                                        {
+                                            <script type="text/javascript">
+                                                disableControls('frmKitMaster');
+                                            </script>
+                                        }
+                                    }
+                                    <span style="float: left; margin: 0px 5px;">
+                                        <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+                                    </span>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                    @if (Model.ID > 0)
+                    {
+                        <div class="infoBlock" style="margin-bottom: 10px; margin-top: 10px;">
+                            <ul>
+                                <li style="width: auto;">
+                                    <label for="RoomName">
+                                        @*<label>@eTurns.DTO.ResKitMaster.NoOfItemsInKit</label>*@
+                                        <label>
+                                            @ResKitMaster.KitPartsInWIP
+                                        </label>
+                                    </label>
+                                    : <span id="spnWIPParts">@(Model.NoOfItemsInKit)</span>
+                                </li>
+                                <li style="border: none; width: auto;">
+                                    <label for="RoomName">
+                                        @*<label>@eTurns.DTO.ResKitMaster.KitCost</label>*@
+                                        <label>
+                                            @ResKitMaster.WIPCost
+                                        </label>
+                                    </label>
+                                    : <span id="spnTotalCost">@CurrencySymbol @(Model.WIPKitCost.GetValueOrDefault(0).ToString(costForm))</span>
+                                </li>
+                            </ul>
+                        </div>
+                    }
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div id="divKitLineItems">
+    </div>
+}
+<div id="ItemModel">
+</div>
+<div id="BuildSearialKitLocationDetail">
+</div>
+<div id="MoveOutQtyModel">
+</div>
+<div id="DivPullSelection">
+
+</div>
+<input type="hidden" id="hdnListName" value="KitLineItemList" />
+@Html.Partial("_RequiredMessages")
+<script type="text/javascript">
+    var KitID = '@Model.ID';
+    var KitGUID = '@Model.GUID';
+    var BuildKitMinimumQuantityMsg = '@ResMessage.BuildKitMinimumQuantity'
+    var BuildKitMiximumQuantityMsg = '@ResMessage.BuildKitMaximumQuantity'
+
+    $('#ancHideShowContent').click(function () {
+        if ($('#ExpandedContent').css('display') == 'none') {
+            $('#ExpandedContent').css('display', '');
+            $('#ancHideShowContent img').attr('src', '/Content/images/drildown_close.jpg');
+        }
+        else {
+            $('#ExpandedContent').css('display', 'none');
+            $('#ancHideShowContent img').attr('src', '/Content/images/drildown_open.jpg');
+        }
+    });
+
+
+
+    $(document).ready(function () {
+        //$('form').areYouSure();
+
+        $('#txtBuildBreakQty').val('');
+        $("form").submit(function (e) {
+            $.validator.unobtrusive.parse("#frmKitMaster");
+            if ($(this).valid()) {
+                rememberUDFValues($("#hdnPageName").val(), parseInt(KitID, 10));
+            } e.preventDefault();
+        });
+
+        if (parseInt(KitID, 10) <= 0) {
+            $('#ExpandedContent').css('display', '');
+            $('#ancHideShowContent').css('display', 'none');
+        }
+        else {
+            $('#ExpandedContent').css('display', 'none');
+            $('#ancHideShowContent').css('display', '');
+            //CallThisFunctionFromModel('success');
+        }
+
+        $(':input[type="text"]', '#frmKitMaster')
+            .css('background', 'white');
+
+
+        $("#BuildSearialKitLocationDetail").dialog({
+            autoOpen: false, modal: true, draggable: true, resizable: true, width: '82%', height: 710, title: 'Item Locations',
+            open: function () {
+                $('#DivLoading').show();
+                var strdata = $(this).data("cdata");
+                $.get('@Url.Content("~/Inventory/LocationDetails")', strdata, function (data) {
+                    $("#BuildSearialKitLocationDetail").html(data);
+                    $('#DivLoading').hide();
+                });
+            },
+            close: function () {
+                //CallThisFunctionFromModel('success');
+                $("#BuildSearialKitLocationDetail").empty();
+            }
+        });
+
+        $("#ItemModel").dialog({
+            autoOpen: false, modal: true, draggable: true, resizable: true, width: '82%', height: 710, title: '@eTurns.DTO.ResKitMaster.PageHeader',
+            open: function () {
+                $('#DivLoading').show();
+                var objData = $("#frmKitMaster").serialize();
+                $.ajax({
+                    url: '@Url.Action("LoadItemMasterModel")',
+                    type: 'POST',
+                    data: objData,
+                    success: function (r) {
+                        $('#ItemModel').html(r);
+                        $('#DivLoading').hide();
+                    }
+                });
+            },
+            close: function () {
+                $("#ItemModel").empty();
+                //CallThisFunctionFromModel('success');
+            }
+        });
+
+        $('#txtDQ,#txtAQ,#txtAWIP,#txtAQGI,#txtKitParts,#txtKitCost').keydown(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                return false;
+            }
+        });
+
+
+        if ('@Model.IsDeleted' === "True" || '@Model.IsArchived' === "True") {
+            $(':input', '#frmKitMaster').attr('disabled', 'disabled');
+
+            $('#btnCancel').removeAttr('disabled');
+            $('#btnSave,#btnAddNewItem').css('display', 'none');
+        }
+
+        $(':input', '#frmKitMaster').attr('readonly', 'readonly');
+        $('select', '#frmKitMaster').attr('disabled', 'disabled');
+        //$('#btnCancel, #btnBuild,#bntBreak,#txtBuildBreakQty ').removeAttr('disabled');
+        $('#txtBuildBreakQty, #txtLotNumber, txtExpireDate').removeAttr('readonly');
+
+        //$('#txtExpireDate').datepicker({ dateFormat: 'mm/dd/yy' });
+        $('#txtExpireDate').datepicker({
+            dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+            changeMonth: true,
+            changeYear: true,
+            clearText: 'Clear', onClose: function () { this.focus(); }
+        });
+
+        fillLineItem();
+
+
+        $("#MoveOutQtyModel").dialog({
+            autoOpen: false, modal: true, draggable: true, resizable: true, width: 800, height: 600, title: "Kit move out item quantity",
+            open: function () {
+                $('#DivLoading').show();
+                $("#MoveOutQtyModel").empty();
+                var kitDetailGUID = $(this).data("KitDetailGUID");
+                $.ajax({
+                    url: '@Url.Action("ShowMoveOutQtyModel")',
+                    type: 'POST',
+                    data: { 'KitDetailGUID': kitDetailGUID },
+                    success: function (r) {
+                        $('#MoveOutQtyModel').html(r);
+                        $('#DivLoading').hide();
+                    }
+                });
+
+                return false;
+            },
+            close: function () {
+                $("#MoveOutQtyModel").empty();
+                fillLineItem();
+            }
+        });
+
+
+        $("#DivPullSelection").dialog({
+            autoOpen: false,
+            show: "blind",
+            hide: "explode",
+            height: 700,
+            title: "@ResKitMaster.QtyMoveinKitItems",
+            width: 900,
+            modal: true,
+            open: function () {
+            },
+            beforeClose: function () {
+            },
+            close: function () {
+                $("#DivPullSelection").empty();
+            }
+        });
+
+    });
+
+    function fillLineItem() {
+        $('#divKitLineItems').html('')
+        $.ajax({
+            url: '@Url.Action("LoadKitLineItemsByKitMasterDTO")',
+            type: 'POST',
+            data: { 'KitGUID': '@Model.GUID' },
+            success: function (r) {
+                $('#divKitLineItems').html(r);
+                $('#DivLoading').hide();
+            }
+        });
+    }
+
+    $('#btnCancel').unbind('click');
+    $('#btnCancel').click(function (e) {
+        //        if (IsRefreshGrid)
+        //            $('#NarroSearchClear').click();
+
+        SwitchTextTab(0, 'KitCreate', 'frmKitMaster');
+        if (oTable !== undefined && oTable != null) {
+            oTable.fnDraw();
+        }
+        $('#NarroSearchClear').click();
+    });
+
+
+    function onSuccess(response) {
+        IsRefreshGrid = true;
+
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+
+        if (response.Status == "fail") {
+
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#Name").val("");
+            $("#Name").focus();
+        }
+        else if (idValue == 0) {
+
+            $("#Name").val("");
+            $("#Name").focus();
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+                ShowEditTabGUID("KitEdit?KitGUID=" + response.UpdatedDTO.GUID, "frmKitMaster");
+            }
+        }
+        else if (idValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                $("#Name").val("");
+                $("#Name").focus();
+            }
+            else {
+                UpdateLineItemGrid();
+                if (oTable !== undefined && oTable != null)
+                    oTable.fnDraw();
+
+                if (IsRefreshGrid)
+                    $('#NarroSearchClear').click();
+
+                SwitchTextTab(0, 'KitCreate', 'frmKitMaster');
+            }
+        }
+
+    }
+
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        showNotificationDialog();
+        $("#txtKitPartNumber").focus();
+    }
+
+    function UpdateKitCostWIPAndKitParts() {
+        //    return;
+        var objData = $("#frmKitMaster").serialize();
+        $.ajax({
+            url: '@Url.Action("UpdateKitCost")',
+            type: 'POST',
+            //data: JSON.stringify({ 'KitDTO': objData }),
+            data: { 'GUID': '@Model.GUID', 'IsDeleted': '@Model.IsDeleted.GetValueOrDefault(false)', 'IsArchived': '@Model.IsArchived.GetValueOrDefault(false)' },
+            success: function (r) {
+                if (r.Status == 'ok') {
+                    //if (r.KitDTO.KitCost != null && parseFloat(r.KitDTO.KitCost) != NaN && parseFloat(r.KitDTO.KitCost) > 0)
+                    //$('#txtKitCost').val((r.KitDTO.KitCost).toFixed(2));
+                    if (r.KitDTO.NoOfItemsInKit != null && parseInt(r.KitDTO.NoOfItemsInKit) != NaN && parseInt(r.KitDTO.NoOfItemsInKit) > 0)
+                        $('#txtKitParts').val(r.KitDTO.NoOfItemsInKit);
+
+                    if (r.KitDTO.SerialNumberTracking == true) {
+                        $('#txtAQ').val(parseFloat(r.KitDTO.AvailableKitQuantity).toFixed(0));
+                        $('#txtAWIP').val(parseFloat(r.KitDTO.AvailableWIPKit).toFixed(0));
+                        $('#txtDQ').val(parseFloat(r.KitDTO.KitDemand).toFixed(0));
+                        $('#txtAQGI').val(parseFloat(r.KitDTO.AvailableInGeneralInventory).toFixed(0));
+                    }
+                    else {
+                        $('#txtAQ').val(parseFloat(r.KitDTO.AvailableKitQuantity).toFixed(parseInt($('#hdQuantitycentsLimit').val(), 10)));
+                        $('#txtAWIP').val(parseFloat(r.KitDTO.AvailableWIPKit).toFixed(parseInt($('#hdQuantitycentsLimit').val(), 10)));
+                        $('#txtDQ').val(parseFloat(r.KitDTO.KitDemand).toFixed(parseInt($('#hdQuantitycentsLimit').val(), 10)));
+                        $('#txtAQGI').val(parseFloat(r.KitDTO.AvailableInGeneralInventory).toFixed(0));
+                    }
+
+                    $('#spnWIPParts').text(parseFloat(r.KitDTO.NoOfItemsInKit).toFixed(0));
+                    $('#spnTotalCost').html('@CurrencySymbol' + ' ' + parseFloat(r.KitDTO.WIPKitCost).toFixed(2));
+                    $('#txtCost').val(parseFloat(r.KitDTO.KitCost).toFixed(2));
+                    $('#txtBuildBreakQty').val('');
+                    $('#btnBuild').css('display', 'none');
+                    $('#btnBreak').css('display', 'none');
+
+
+                    //$('#spnBuildBreakQty').css('display', 'none');
+                    if (parseFloat(r.KitDTO.AvailableWIPKit) > 0) {
+                        if (r.KitDTO.SerialNumberTracking) {
+                            $('#btnBuildSerial').css('display', '');
+                        }
+                        else {
+                            $('#btnBuild').css('display', '');
+                            $('#spnBuildBreakQty').css('display', '');
+                        }
+                    }
+                    if (parseFloat(r.KitDTO.AvailableKitQuantity) > 0) {
+                        $('#btnAddNewItem').css('display', 'none');
+                        $('#btnBreak').css('display', '');
+                        $('#spnBuildBreakQty').css('display', '');
+                    }
+
+                    //Upon successfully updating KIT header, load the line items
+                    //var objData = $("#frmKitMaster").serialize();
+
+                }
+            }
+        });
+    }
+    $('#btnBuildSerial').click(function () {
+        var buildQtyElement = $('#txtBuildBreakQty');
+        var buildQty = 0;
+        if (buildQtyElement !== undefined && buildQtyElement != null && buildQtyElement != "") {
+            buildQty = !isNaN(buildQtyElement.val()) ? parseFloat(buildQtyElement.val()) : 0;
+        }
+
+        if (buildQty <= 0)
+        {
+            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+            $("#spanGlobalMessage").html(BuildKitMinimumQuantityMsg);
+            showNotificationDialog();
+            return false;
+        }
+
+        var availableWIP = !isNaN($('#txtAWIP').val())
+            ? parseFloat($('#txtAWIP').val()) : 0
+
+        if (buildQty > availableWIP) {
+            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+            $("#spanGlobalMessage").html(BuildKitMiximumQuantityMsg);
+            showNotificationDialog();
+            return false;
+        }
+
+        $("#BuildSearialKitLocationDetail").empty();
+        var ItemGUID = '@Model.GUID.ToString()';
+        var itemType = '@Model.ItemType';
+        var binID = '@Model.DefaultLocation';
+        var idtype = ItemGUID + '#' + itemType + '#' + ' ' + ' #' + binID + "#FROMKITMASTER" + "#" + buildQty;
+        var strData = { 'ItemID_ItemType': idtype };
+        $('#BuildSearialKitLocationDetail').data("cdata", strData).dialog('open');
+
+        return false;
+    });
+
+    $('#btnBuild').click(function () {
+        $('#DivLoading').show();
+        var ItemGUID = '@Model.GUID.ToString()';
+        var binID = '@Model.DefaultLocation';
+
+        var DOCtrack = '@Model.DateCodeTracking';
+        var LOTTrack = '@Model.LotNumberTracking';
+
+        var cost = $("#txtCost").val();
+        var qty = $("#txtBuildBreakQty").val();
+        var arr = new Array();
+        var lotnumber = "";
+        var expireDATE = "";
+
+        if (DOCtrack == 'True') {
+            expireDATE = $("#txtExpireDate").val();
+            if (expireDATE.trim() == '') {
+                //alert('@ResKitMaster.selectexpiredate');
+                $('#DivLoading').hide();
+                $("#spanGlobalMessage").html('@ResKitMaster.selectexpiredate');
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                $("#txtExpireDate").focus();
+                return false;
+            }
+        }
+        if (LOTTrack == "True") {
+            lotnumber = $("#txtLotNumber").val();
+            if (lotnumber.trim() == '') {
+                //alert('@ResKitMaster.EnterLotNumber');
+                $('#DivLoading').hide();
+                $("#spanGlobalMessage").html('@ResKitMaster.EnterLotNumber');
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                $("#txtLotNumber").focus();
+                return false;
+            }
+        }
+
+        var obj = { KitGuid: ItemGUID, Consignment: '@Model.Consignment', LotNumber: lotnumber, ExpirationDate: expireDATE, Quantity: qty, LocationID: binID, Cost: cost };
+
+        var BuildQty = parseFloat($('#txtBuildBreakQty').val());
+        if (BuildQty != NaN && BuildQty != undefined && BuildQty > 0) {
+            var AvailWIP = parseFloat($('#txtAWIP').val());
+            if (AvailWIP != NaN && AvailWIP != undefined && AvailWIP >= BuildQty) {
+
+                $.ajax({
+                    url: '@Url.Action("BuildNewKit")',
+                    type: 'POST',
+                    data: { 'objDTO': JSON.stringify(obj) },
+                    success: function (r) {
+                        if (r.Status == 'OK') {
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                            $("#txtBuildBreakQty").val('');
+                            $("#txtExpireDate").val('');
+                            $("#txtLotNumber").val('');
+                            //CallThisFunctionFromModel('success');
+                            UpdateKitCostWIPAndKitParts();
+                            fillLineItem();
+                        }
+                        else {
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        }
+                        $("#spanGlobalMessage").html(r.Message);
+                        showNotificationDialog();
+                        $("#txtBuildBreakQty").focus();
+                        $('#DivLoading').hide();
+                    },
+                    error: function (xhr) {
+                        $("#spanGlobalMessage").html('error');
+                        showNotificationDialog();
+                        $("#txtBuildBreakQty").focus();
+                        $('#DivLoading').hide();
+                    }
+                });
+            }
+            else {
+                $("#spanGlobalMessage").html('@ResKitMaster.BuildQtyLessThanEqualsWIP');
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                $("#txtBuildBreakQty").focus();
+                $('#DivLoading').hide();
+
+            }
+        }
+        else {
+            $("#spanGlobalMessage").html('@ResKitMaster.EnterQtyToBuildKit');
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#txtBuildBreakQty").focus();
+            showNotificationDialog();
+            $('#DivLoading').hide();
+        }
+    });
+
+
+
+
+    $('#btnBreak').click(function () {
+        $('#DivLoading').show();
+        var ItemGUID = '@Model.GUID.ToString()';
+        var binID = '@Model.DefaultLocation';
+        var qty = $("#txtBuildBreakQty").val();
+        var obj = { KitGuid: ItemGUID, Quantity: qty, LocationID: binID };
+        var breakQty = parseFloat($('#txtBuildBreakQty').val());
+
+        if (breakQty != NaN && breakQty != undefined && breakQty > 0) {
+            var AvailQty = parseFloat($('#txtAQ').val());
+            var arrLocWiseQty = new Array();
+
+            if (AvailQty != NaN && AvailQty != undefined && AvailQty >= breakQty) {
+
+                var arrLocWiseQty = new Array();
+                var tmpKitBins = $("#hdnKitBins");
+
+                if (typeof (tmpKitBins) != "undefined" && tmpKitBins != null && tmpKitBins.length > 0) {
+                    var tmpbreakQty = parseFloat(breakQty);
+                    var tmpkitBins = JSON.parse(tmpKitBins.val());
+
+                    if (tmpkitBins != null && typeof (tmpkitBins) != "undefined" && tmpkitBins.length > 0) {
+                        for (var i = 0; i < tmpkitBins.length; i++) {
+                            var tmplocationQty = parseFloat(tmpkitBins[i].CustomerOwnedQuantity + tmpkitBins[i].ConsignedQuantity);
+                            var locationQty = parseFloat(tmplocationQty);
+                            if (tmplocationQty <= tmpbreakQty) {
+                                tmpbreakQty -= tmplocationQty;
+                            }
+                            else {
+                                locationQty = tmpbreakQty;
+                                tmpbreakQty = 0;
+                            }
+                            var objLocWiseQty = { 'LocationID': tmpkitBins[i].ID, 'Quantity': parseFloat(locationQty) };
+                            arrLocWiseQty.push(objLocWiseQty);
+                        }
+                    }
+                    else {
+                        var objLocWiseQty = { 'LocationID': binID, 'Quantity': breakQty };
+                        arrLocWiseQty.push(objLocWiseQty);
+                    }
+                }
+                else {
+                    var objLocWiseQty = { 'LocationID': binID, 'Quantity': breakQty };
+                    arrLocWiseQty.push(objLocWiseQty);
+                }
+
+                var obj = { 'BinWiseQty': arrLocWiseQty, 'TotalQty': breakQty, 'ItemGUID': ItemGUID };
+                $.ajax({
+                    url: 'BreakNewKit',
+                    data: JSON.stringify(obj),
+                    type: 'POST',
+                    contentType: "application/json",
+                    dataType: "json",
+                    success: function (response) {
+                        if (response.Status == "ok") {
+                            //CallThisFunctionFromModel('success');
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                            $("#txtBuildBreakQty").val('');
+                            $("#txtExpireDate").val('');
+                            $("#txtLotNumber").val('');
+                            UpdateKitCostWIPAndKitParts();
+                            fillLineItem();
+                            $('#DivLoading').hide();
+                        }
+                        else {
+                            $(this).removeAttr("disabled");
+                            $('#DivLoading').hide();
+                            $("#spanGlobalMessage").html(response.Message);
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            showNotificationDialog();
+                            //alert(response.Message);
+                        }
+                    },
+                    error: function (xhr) {
+                        $('#DivLoading').hide();
+                        $("#spanGlobalMessage").html('@ResCommon.ErrorInProcess');
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        showNotificationDialog();
+                        //alert('@ResCommon.ErrorInProcess');
+                        $(this).removeAttr("disabled");
+                    }
+
+                });
+
+            }
+            else {
+                $("#spanGlobalMessage").html('@ResKitMaster.BuildQtyLessThanEqualsWIP');
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                $("#txtBuildBreakQty").focus();
+                $('#DivLoading').hide();
+
+            }
+        }
+        else {
+            $("#spanGlobalMessage").html('@ResKitMaster.EnterQtyToBreakKit');
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#txtBuildBreakQty").focus();
+            showNotificationDialog();
+            $('#DivLoading').hide();
+        }
+    });
+
+    function isDuplicateLotExpirationCombination(txtLot, id) {
+        var ItemGUID = '@Model.GUID.ToString()';
+        var lotnumber = $("#txtLotNumber").val();
+        var expireDATE = $("#txtExpireDate").val();
+        var isValid = true;
+
+        if (typeof (expireDATE) == "undefined" || expireDATE == null || expireDATE.trim() == '') {
+            //alert('@ResKitMaster.selectexpiredate');
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html('@ResKitMaster.selectexpiredate');
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            showNotificationDialog();
+            $("#txtExpireDate").focus();
+            isValid = false;
+            return false;
+        }
+
+        if (typeof (lotnumber) == "undefined" || lotnumber == null || lotnumber.trim() == '') {
+            //alert('@ResKitMaster.EnterLotNumber');
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html('@ResKitMaster.EnterLotNumber');
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            showNotificationDialog();
+            $("#txtLotNumber").focus();
+            isValid = false;
+            return false;
+        }
+
+        if (isValid) {
+
+            var obj = { 'KitGuid': ItemGUID, 'LotNumber': lotnumber, 'ExpirationDate': expireDATE };
+            $.ajax({
+                url: '@Url.Action("ValidateLotExpirationCombination")',
+                data: JSON.stringify(obj),
+                type: 'POST',
+                contentType: "application/json",
+                dataType: "json",
+                success: function (response) {
+                    if (response.Status == "ok") {
+                        $('#DivLoading').hide();
+                        return false;
+                    }
+                    else {
+                        $("#spanGlobalMessage").html(response.Message);
+                        showNotificationDialog();
+                        $(txtLot).val('');
+                        $(txtLot).focus();
+                        $('#DivLoading').hide();
+                        return false;
+                    }
+                },
+                error: function (response) {
+                    $('#DivLoading').hide();
+                    //$("#spanGlobalMessage").text(response);
+                }
+            });
+        }
+        else {
+            return true;
+        }
+    }
+
+
+    function isDuplicateLot(txtLot, id) {
+        if ($(txtLot).val() != '') {
+            $.ajax({
+                "url": '@Url.Content("~/Inventory/DuplicateCheckLotNumber")',
+                data: { LotNumber: $(txtLot).val(), ID: id },
+                "async": false,
+                cache: false,
+                "dataType": "text",
+                "success": function (response) {
+                    if (response == "duplicate") {
+                        //alert('@ResMessage.DuplicateLotFound');
+                        $(txtLot).val('');
+                        $(txtLot).focus();
+                        $('#DivLoading').hide();
+                        $("#spanGlobalMessage").html('@ResMessage.DuplicateLotFound');
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        showNotificationDialog();
+                        return false;
+                    }
+                    else {
+                        $('#DivLoading').hide();
+                        return false;
+                    }
+                },
+                error: function (response) {
+                    $('#DivLoading').hide();
+                    $("#spanGlobalMessage").html(response);
+                }
+            });
+        }
+        else {
+            return true;
+        }
+    }
+
+
+
+    function FillKitRedCount() {
+        $.ajax({
+            url: '@Url.Content("~/Kit/GetWIPKitCountForRedCircle")'
+                 , type: "GET"
+                 , data: {}
+                 , contentType: "application/json"
+                 , dataType: "json"
+                 , success: function (result) {
+
+                     if (isNaN(parseInt(result)) == false && parseInt(result) > 0 && $("#amnuKitBBLink") !== undefined) {
+                         $("#amnuKitBBLink").text('@eTurns.DTO.Resources.ResLayout.Kits' + '(' + result + ')');
+                     }
+                     else if ($("#amnuKitBBLink") !== undefined) {
+                         $("#amnuKitBBLink").text('@eTurns.DTO.Resources.ResLayout.Kits');
+                     }
+                     if ($("#spnTotWIPKit") !== undefined) {
+                         $("#spnTotWIPKit").text(result);
+                     }
+                     if (isNaN(parseInt(result)) == false && parseInt(result) > 0) {
+                         $("#spnTotWIPKit").css('display', 'block');
+                     }
+                     else {
+                         $("#spnTotWIPKit").css('display', 'none');
+                     }
+
+
+                 }
+                 , error: function (msg) {
+                     //alert('@ResCommon.ErrorInProcess');
+                     $("#spanGlobalMessage").html('@ResCommon.ErrorInProcess');
+                     $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                     showNotificationDialog();
+                 }
+        });
+    }
+
+    $(document).ready(function () {
+
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormatSR").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 0
+        });
+
+    });
+
+    $('#btnMoveInBulk,#btnMoveOutBulk').off('click')
+
+    function MoveInQuantityNew(moveType) {
+        var qtyToMoveBulk = $('#txtBuildBreakQty').val();
+        if (isNaN(parseFloat(qtyToMoveBulk)) || parseFloat(qtyToMoveBulk) <= 0) {
+            $("#spanGlobalMessage").html('@ResKitMaster.EnterQtyToMove');
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            showNotificationDialog();
+            //alert("@ResKitMaster.EnterQtyToMove");
+            return false;
+        }
+
+        var isSingleMoveOut = false;
+        if ($('#hdnIsCalledFromSingleMoveOut').val() == "true") {
+            var itemLevelMoveOutQty = $('#hdnSingleMoveOutQty').val();
+            if (isNaN(parseFloat(itemLevelMoveOutQty)) || parseFloat(itemLevelMoveOutQty) < 0) {
+                $("#spanGlobalMessage").html('@ResKitMaster.EnterQtyToMove');
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                //alert('@ResKitMaster.EnterQtyToMove');
+                return;
+            }
+            else {
+                isSingleMoveOut = true;
+                qtyToMoveBulk = parseFloat(itemLevelMoveOutQty);
+            }
+        }
+
+        var ItemToMoveIn = new Array();
+
+        $('#KitLineItem' + '@Model.GUID' + ' tbody tr.row_selected').each(function () {
+
+            var tr = $(this);
+            var binName = '';
+            var qtyPerKit = $(tr).find('input[type="text"][id^="txtQtyPerKit"]').val();
+            // var qtyToMove = $(tr).find("#txtQtyToMove").val();
+            var qtyToMove = isSingleMoveOut ? qtyToMoveBulk : (parseFloat(qtyToMoveBulk) * parseFloat(qtyPerKit));
+
+            if (isNaN(parseFloat(qtyToMove)) || parseFloat(qtyToMove) <= 0) {
+                //alert("@ResKitMaster.EnterQtyToMove");
+                $("#spanGlobalMessage").html('@ResKitMaster.EnterQtyToMove');
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                return false;
+            }
+            var itemType = $(tr).find('#hdnItemType').val();
+            if (itemType != 4)
+                binName = $(tr).find('#txtItemLocations').val().split(' (')[0];
+
+            if (binName.length <= 0 && itemType != 4) {
+                $("#spanGlobalMessage").html('@ResKitMaster.SelectBin');
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                //alert('@ResKitMaster.SelectBin');
+                return false;
+            }
+            var kitDetailGuid = $(tr).find('#hdnGUID').val();
+            var isSerial = $(tr).find('#hdnItemSRTrack').val();
+            var isLotTrack = $(tr).find('#hdnItemLOTTrack').val();
+            var isDCT = $(tr).find('#hdnItemDOCTrack').val();
+            var kitDetailID = $(tr).find('#hdnID').val();
+            var kitDetailGUID = $(tr).find('#hdnGUID').val();
+            var vBinName = $(tr).find('#hdnBinName').val();
+            var vBinId = $(tr).find('#hdnBinID').val();
+            var vItemGUID = $(tr).find("#hdnItemGUID").val();
+            if (vBinName.length <= 0) {
+                vBinName = $(tr).find("#txtItemLocations").val();
+                if (vBinName.indexOf("(") > 0)
+                    vBinName = vBinName.slice(0, vBinName.indexOf("(")).trim();
+
+            }
+
+            var kitNumber = '@Model.KitPartNumber';
+            var kitGuid = '@Model.GUID';
+            var itemNumber = $(tr).find('#hdnItemNumber').val();
+            var maximumQuantityForMoveOut = $(tr).find("#hdnMaximumQuantityForMoveOut").val();
+            var maximumQuantityForMoveIn = $(tr).find("#hdnMaximumQuantityForMoveIn").val();
+                $.ajax({
+                    url: 'GetLocationDetailsForMoveIn',
+                    type: 'POST',
+                    async: false,
+                    data: JSON.stringify({ 'qty': parseFloat(qtyToMove), 'KitGuid': kitGuid, 'MoveType': moveType, 'KitDetailGuid': kitDetailGUID, "BinID": vBinId , "BinName": vBinName }),
+                    dataType: 'json',
+                    contentType: 'application/json',
+                    success: function (result) {
+                        if (result.Status) {
+                            for (var cnt = 0; cnt < result.Data.length; cnt++)
+                            {
+                                ItemToMoveIn.push({
+                                    ItemGUID: vItemGUID, KitDetailID: kitDetailID, BinID: result.Data[cnt].BinID, KitDetailGUID: kitDetailGUID, BinNumber: result.Data[cnt].BinNumber, BinName: result.Data[cnt].BinNumber,
+                                    KitGuid: kitGuid, QtyToMoveIn: result.Data[cnt].TotalQuantity, KitPartNumber: kitNumber,
+                                    IsLotTrack: isLotTrack, IsSRTrack: isSerial, IsDCTrack: isDCT, ItemNumber: itemNumber, MoveType: moveType, maximumQuantityForMoveOut: maximumQuantityForMoveOut, maximumQuantityForMoveIn: maximumQuantityForMoveIn
+                                });
+                            }
+                        } else if (result.Status == false && result.ErrorMessage != "") {
+                                $("#spanGlobalMessage").html(result.ErrorMessage);
+                                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                                showNotificationDialog();
+                        }
+                        else {
+                            ItemToMoveIn.push({
+                                ItemGUID: vItemGUID, KitDetailID: kitDetailID, BinID: vBinId, KitDetailGUID: kitDetailGUID, BinNumber: vBinName, BinName: binName,
+                                KitGuid: kitGuid, QtyToMoveIn: qtyToMove, KitPartNumber: kitNumber,
+                                IsLotTrack: isLotTrack, IsSRTrack: isSerial, IsDCTrack: isDCT, ItemNumber: itemNumber, MoveType: moveType, maximumQuantityForMoveOut: maximumQuantityForMoveOut, maximumQuantityForMoveIn: maximumQuantityForMoveIn
+                            });
+                        }
+                    },
+                    error: function (xhr) {
+                        ItemToMoveIn.push({
+                            ItemGUID: vItemGUID, KitDetailID: kitDetailID, BinID: vBinId, KitDetailGUID: kitDetailGUID, BinNumber: vBinName, BinName: binName,
+                            KitGuid: kitGuid, QtyToMoveIn: qtyToMove, KitPartNumber: kitNumber,
+                            IsLotTrack: isLotTrack, IsSRTrack: isSerial, IsDCTrack: isDCT, ItemNumber: itemNumber, MoveType: moveType, maximumQuantityForMoveOut: maximumQuantityForMoveOut, maximumQuantityForMoveIn: maximumQuantityForMoveIn
+                        });
+                    }
+                });
+        });
+
+        $('#hdnIsCalledFromSingleMoveOut').val(false);
+        $('#hdnSingleMoveOutQty').val("");
+
+        if (ItemToMoveIn.length > 0) {
+            $.ajax({
+                url: 'OpenPopupToMoveInItem',
+                type: 'Post',
+                data: JSON.stringify(ItemToMoveIn),
+                dataType: 'html',
+                contentType: 'application/json',
+                success: function (result) {
+                    // closeOrdReceiveInfoModel();
+                    $('#DivPullSelection').html(result);
+                    $("#DivPullSelection").dialog('open');
+                    if (moveType == "OUT") {
+                        $('span#ui-dialog-title-DivPullSelection').text("Qty to Move Out Kit Items");
+                    }
+                    else {
+                        $('span#ui-dialog-title-DivPullSelection').text("Qty to Move In Kit Items");
+                    }
+                },
+                error: function (xhr) {
+                    $("#spanGlobalMessage").html(xhr.status + ' ' + xhr.statusText);
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    showNotificationDialog();
+                    //alert(xhr.status + ' ' + xhr.statusText);
+                }
+            })
+        }
+    }
+
+    $('#btnMoveInBulk,#btnMoveOutBulk').on('click', function () {
+        var moveQty = $('#txtBuildBreakQty').val();
+        if (isNaN(parseFloat(moveQty)) || parseFloat(moveQty) < 0) {
+            $("#spanGlobalMessage").html('@ResKitMaster.EnterQtyToMove');
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            showNotificationDialog();
+            //alert('@ResKitMaster.EnterQtyToMove');
+            return;
+        }
+
+        var selectedItems = new Array();
+        var hasPullPopup = false;
+        $('#KitLineItem' + '@Model.GUID' + ' tbody tr.row_selected').each(function () {
+            var GUID = $(this).find('#hdnGUID').val();
+            selectedItems.push(GUID);
+            var isSerial = $(this).find('#hdnItemSRTrack').val();
+            var isLotTrack = $(this).find('#hdnItemLOTTrack').val();
+            var isDCT = $(this).find('#hdnItemDOCTrack').val();
+            if (isSerial == "True" || isLotTrack == "True" || isDCT == "True") {
+                hasPullPopup = true;
+                return;
+            }
+        });
+
+        var moveType = 'IN';
+        if ($(this).attr('id') == 'btnMoveOutBulk')
+            moveType = "OUT";
+
+        if (selectedItems.length <= 0) {
+            $("#spanGlobalMessage").html('@ResKitMaster.SelectItemsForBulkMove');
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            showNotificationDialog();
+            //alert('@ResKitMaster.SelectItemsForBulkMove');
+            return;
+        }
+        var isSingleMoveOut = false;
+        if ($('#hdnIsCalledFromSingleMoveOut').val() == "true")
+        {
+            var itemLevelMoveOutQty = $('#hdnSingleMoveOutQty').val();
+            if (isNaN(parseFloat(itemLevelMoveOutQty)) || parseFloat(itemLevelMoveOutQty) < 0) {
+                $("#spanGlobalMessage").html('@ResKitMaster.EnterQtyToMove');
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                //alert('@ResKitMaster.EnterQtyToMove');
+                $('#hdnIsCalledFromSingleMoveOut').val(false);
+                return;
+            }
+            else {
+                isSingleMoveOut = true;
+                moveQty = parseFloat(itemLevelMoveOutQty);
+            }
+        }
+
+        if (hasPullPopup) {
+            if (moveType == "OUT") {
+                $('#DivLoading').show();
+                $.ajax({
+                    url: 'ValidateMoveOutBulk',
+                    type: 'POST',
+                    async: false,
+                    data: JSON.stringify({ 'qty': parseFloat(moveQty), 'KitGuid': '@Model.GUID', 'MoveType': moveType, 'KitDetailGuids': selectedItems, 'isSingleMoveOut': isSingleMoveOut }),
+                    dataType: 'json',
+                    contentType: 'application/json',
+                    success: function (result) {
+                        if (result.Status) {
+                            return MoveInQuantityNew(moveType);
+                        }
+                        else {
+                             $("#spanGlobalMessage").html(result.Message);
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            showNotificationDialog();
+                            //alert(result.Message);
+                        }
+                        $('#DivLoading').hide();
+                    },
+                    error: function (xhr) {
+                        $('#DivLoading').hide();
+                    }
+                });
+            }
+            else {
+                return MoveInQuantityNew(moveType);
+            }
+        }
+        else {
+            $('#DivLoading').show();
+            $.ajax({
+                url: 'QtyToMoveBulk',
+                type: 'POST',
+                async: false,
+                data: JSON.stringify({ 'qty': parseFloat(moveQty), 'KitGuid': '@Model.GUID', 'MoveType': moveType, 'KitDetailGuids': selectedItems, 'isSingleMoveOut': isSingleMoveOut }),
+                dataType: 'json',
+                contentType: 'application/json',
+                success: function (result) {
+                    $('#DivLoading').hide();
+                    $('#hdnIsCalledFromSingleMoveOut').val(false);
+                    $('#hdnSingleMoveOutQty').val("");
+                    if (result.Status) {
+                        UpdateKitCostWIPAndKitParts();
+                        fillLineItem();
+                    }
+                    else {
+                        $("#spanGlobalMessage").html(result.Message);
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        showNotificationDialog();
+                        //alert(result.Message);
+                    }
+
+                },
+                error: function (xhr) {
+                    $('#DivLoading').hide();
+                }
+            });
+        }
+    });
+
+
+    function MoveInOut(arrayObj) {
+        var arrObj = new Array();
+
+        $.ajax({
+            url: 'QtyToMove',
+            type: 'POST',
+            data: JSON.stringify(arrayObj),
+            dataType: 'json',
+            contentType: 'application/json',
+            success: function (result) {
+                if (result.Status) {
+                    UpdateKitCostWIPAndKitParts();
+                    fillLineItem();
+                }
+                else {
+                    $("#spanGlobalMessage").html(result.Message);
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    showNotificationDialog();
+                    //alert(result.Message);
+                }
+            },
+            error: function (xhr) {
+            }
+        });
+    }
+
+
+    var isDeleteSrLotRow = false;
+
+    function MoveInSerialLotExpiryItem() {
+        var ItemToMoveIn = new Array();
+        $('#KitLineItem' + '@Model.GUID' + ' tbody tr.row_selected').each(function (index, tr) {
+            var kitDetailID = $(this).find('#hdnID').val();
+            var kitDetailGUID = $(this).find('#hdnGUID').val();
+            var vBinId = $(this).find('#hdnBin').val();
+            var vItemGUID = $(this).find("#hdnItemGUID").val();
+            var vBinName = $(this).find("#txtItemLocations").val();
+
+            var qtyToMove = $(tr).find("#txtQtyToMove").val();
+            var kitNumber = '@Model.KitPartNumber';
+
+            var kitGuid = '@Model.GUID';
+            var isSerial = $(this).find('#hdnItemSRTrack').val();
+            var isLotTrack = $(this).find('#hdnItemLOTTrack').val();
+            var isDCT = $(this).find('#hdnItemDOCTrack').val();
+            var itemNumber = $(this).find('#hdnItemNumber').val();
+
+            ItemToMoveIn.push({
+                ItemGUID: vItemGUID, KitDetailID: kitDetailID, BinID: vBinId, KitDetailGUID: kitDetailGUID, BinNumber: vBinName, BinName: $(this).find("#txtItemLocations").text(),
+                KitGuid: kitGuid, QtyToMove: qtyToMove, KitPartNumber: kitNumber,
+                IsLotTrack: isLotTrack, IsSRTrack: isSerial, IsDCTrack: isDCT, ItemNumber: itemNumber
+            });
+
+        });
+
+
+        if (ItemToRuturn.length > 0) {
+            $.ajax({
+                url: 'OpenPopupToMoveInItem',
+                type: 'Post',
+                data: JSON.stringify(ItemToMoveIn),
+                dataType: 'html',
+                contentType: 'application/json',
+                success: function (result) {
+                    closeOrdReceiveInfoModel();
+                    $('#DivPullSelection').html(result);
+                    $("#DivPullSelection").dialog('open');
+                },
+                error: function (xhr) {
+                    $("#spanGlobalMessage").html(xhr.status + ' ' + xhr.statusText);
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    showNotificationDialog();
+                    //alert(xhr.status + ' ' + xhr.statusText);
+                }
+            })
+        }
+    }
+</script>
+<script type="text/javascript">
+    var ValidateSerialLotNumberUrl = '@Url.Action("ValidateSerialLotNumber", "Pull")';
+    var urlValidateSerialLotNumberForKitMoveOut = '@Url.Action("ValidateSerialLotNumberForKitMoveOut", "Kit")';
+
+
+    function PrepareReturnDataTable(objPullItemDTO) {
+        var columnarrIL = new Array();
+        var uniqueidCounter = 0;
+        columnarrIL.push({
+            mDataProp: null, sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) {
+                if (objPullItemDTO.ViewRight == "ViewOverwrite") {
+                    var strReturn = "<span style='position:relative'>";
+                    strReturn = strReturn + "<input type='text' value='" + obj.aData.LotOrSerailNumber + "' id='txtLotOrSerailNumber' name='txtLotOrSerailNumber' class='text-boxinner AutoSerialLot' />";
+                    strReturn = strReturn + '<a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptionsSL" ><img src="/Content/images/arrow_down_black.png" alt="select" /></a></span>';
+                    return strReturn;
+                }
+                else if (objPullItemDTO.ViewRight == "NoRight") // && IsCheckViewRight == false)
+                {
+                    var strReturn = "<span style='position:relative'>";
+                    strReturn = strReturn + "<input type='text' value='" + obj.aData.LotOrSerailNumber + "' id='txtLotOrSerailNumberNoRight' name='txtLotOrSerailNumberNoRight' class='text-boxinner' />";
+                    //strReturn = strReturn + '<a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptionsSL" ><img src="/Content/images/arrow_down_black.png" alt="select" /></a></span>';
+                    return strReturn;
+                }
+                else if (objPullItemDTO.ViewRight == "ViewOnly") {
+                    var strReturn = "<input type='text' value='" + obj.aData.LotOrSerailNumber + "' id='txtLotOrSerailNumberViewOnly' name='txtLotOrSerailNumberViewOnly' class='text-boxinner' />";
+                    return strReturn;
+                }
+                else {
+                    var strReturn = "<input type='text' value='" + obj.aData.LotOrSerailNumber + "' id='txtLotOrSerailNumberViewOnly' name='txtLotOrSerailNumberViewOnly' class='text-boxinner' />";
+                    return strReturn;
+                }
+            }
+        });
+        columnarrIL.push({ mDataProp: "BinNumber", sClass: "read_only" });
+        columnarrIL.push({
+            mDataProp: null, sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) {
+                var strReturn = "";
+                if (objPullItemDTO.MoveType == "OUT") {
+                    strReturn = "<span name='spnLotSerialQuantity' id='spnLotSerialQuantity_" + obj.aData.ID + "'>" + obj.aData.PullQuantity + "</span>";
+                }
+                else{
+                    strReturn = "<span name='spnLotSerialQuantity' id='spnLotSerialQuantity_" + obj.aData.ID + "'>" + obj.aData.LotSerialQuantity + "</span>";
+                }
+                    return strReturn;
+
+            }
+        });
+        columnarrIL.push({
+            mDataProp: null, sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) {
+                var strReturn = "<input type='hidden' name='hdnRowUniqueId' value='" + obj.aData.ID + "_" + obj.aData.ItemGUID + "_" + obj.aData.BinID + "' />";
+                strReturn = strReturn + "<input type='hidden' name='hdnLotNumberTracking' value='" + obj.aData.LotNumberTracking + "' />";
+                strReturn = strReturn + "<input type='hidden' name='hdnSerialNumberTracking' value='" + obj.aData.SerialNumberTracking + "' />";
+                strReturn = strReturn + "<input type='hidden' name='hdnDateCodeTracking' value='" + obj.aData.DateCodeTracking + "' />";
+                strReturn = strReturn + "<input type='hidden' name='hdnExpiration' value='" + obj.aData.Expiration + "' />";
+                strReturn = strReturn + "<input type='hidden' name='hdnExpirationDate' value='" + obj.aData.strExpirationDate + "' />";
+                strReturn = strReturn + "<input type='hidden' name='hdnBinNumber' value='" + obj.aData.BinNumber + "' />";
+                strReturn = strReturn + "<input type='hidden' name='hdnKitGuid' value='" + objPullItemDTO.KitGUID + "' />";
+                strReturn = strReturn + "<input type='hidden' name='hdnKitDetailGuid' value='" + objPullItemDTO.KitDetailGUID + "' />";
+                strReturn = strReturn + "<input type='hidden' name='hdnMoveType' value='" + objPullItemDTO.MoveType + "' />";
+                strReturn = strReturn + "<input type='hidden' name='hdnBinId' value='" + obj.aData.BinID + "' />";
+                strReturn = strReturn + "<input type='hidden' name='hdnLotNumber' value='" + obj.aData.LotNumber + "' />";
+
+                if (objPullItemDTO.SerialNumberTracking == BoolTrueString) {
+                    strReturn = strReturn + "<input type='text' value='" + FormatedCostQtyValues(obj.aData.PullQuantity, 2) + "' id='txtPullQty_" + obj.aData.ID + "' name='txtPullQty' class='text-boxinner pull-quantity' readonly='readonly' />";
+                }
+                else {
+                    strReturn = strReturn + "<input type='text' onkeypress='return isNumberKey(event)' value='" + FormatedCostQtyValues(obj.aData.PullQuantity, 2) + "' id='txtPullQty_" + obj.aData.ID + "' name='txtPullQty' class='text-boxinner pull-quantity' />";
+                }
+                return strReturn;
+            }
+        });
+        columnarrIL.push({ mDataProp: "Received", sClass: "read_only" });
+        if (objPullItemDTO.MoveType == "OUT") {
+            columnarrIL.push({
+                mDataProp: "Expiration", sClass: "read_only", fnRender: function (obj, val) {
+                    uniqueidCounter++;
+                    return "<input type='text' value='" + obj.aData.Expiration + "' id='txtExpirationDate_" + obj.aData.ItemGUID + "_" + uniqueidCounter + "' name='txtExpirationDate' class='text-boxinner kitmoveoutexpirationdate' readonly='readonly' />";
+                }
+            });
+        }else {
+            columnarrIL.push({ mDataProp: "Expiration", sClass: "read_only" });
+        }
+        var urlForLotSrSelection = '@Url.Content("~/Pull/PullLotSrSelection")'
+        var moveType = objPullItemDTO.MoveType;
+        var kitDetailGUID = objPullItemDTO.KitDetailGUID;
+        var kitGUID = objPullItemDTO.KitGUID;
+
+        if (moveType !== undefined && moveType != null && moveType == "OUT" && kitDetailGUID !== undefined && kitDetailGUID != null)
+        {
+            urlForLotSrSelection = moveOutLotSrSelectionUrl;
+        }
+
+        var Curtable = $('#' + objPullItemDTO.tableID).dataTable({
+            "bPaginate": false,
+            "bLengthChange": false,
+            "bFilter": false,
+            "bSort": false,
+            "bInfo": false,
+            "bAutoWidth": false,
+            "sScrollX": "100%",
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bProcessing": true,
+            "bServerSide": true,
+            "aoColumns": columnarrIL,
+            "sAjaxSource": urlForLotSrSelection,
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                if (aData.IsConsignedLotSerial == true) {
+                    nRow.className = "even trconsigned";
+                }
+            },
+            "fnInitComplete": function (oSettings) {
+                var strAllSelected = "";
+                $("#hdnSelectedId_" + objPullItemDTO.ItemGUID + "_" + objPullItemDTO.BinID).val();
+                if (objPullItemDTO.LotNumberTracking != BoolTrueString && objPullItemDTO.SerialNumberTracking != BoolTrueString) {
+                    $('#' + objPullItemDTO.tableID).dataTable().fnSetColumnVis(0, false);
+                }
+                if (objPullItemDTO.DateCodeTracking != BoolTrueString) {
+                    $('#' + objPullItemDTO.tableID).dataTable().fnSetColumnVis(5, false);
+                }
+
+            },
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                aoData.push({ "name": "ItemGUID", "value": objPullItemDTO.ItemGUID });
+                aoData.push({ "name": "BinID", "value": objPullItemDTO.BinID });
+                aoData.push({ "name": "PullQuantity", "value": FormatedCostQtyValues($("#txtPoolQuantity_" + objPullItemDTO.ItemGUID + "_" + objPullItemDTO.BinID).val(), 2) });
+                aoData.push({ "name": "InventoryConsuptionMethod", "value": objPullItemDTO.InventoryConsuptionMethod });
+                aoData.push({ "name": "CurrentLoaded", "value": $("#hdnCurrentLoadedIds_" + objPullItemDTO.ItemGUID + "_" + objPullItemDTO.BinID).val() });
+                aoData.push({ "name": "ViewRight", "value": objPullItemDTO.ViewRight });
+                aoData.push({ "name": "IsDeleteRowMode", "value": isDeleteSrLotRow });
+                aoData.push({ "name": "IsFromKit", "value": true });
+                //var hdnCurrentDeletedLoaded = ''
+                //if ($("#hdnCurrentDeletedLoadedIds_" + objPullItemDTO.ItemGUID).length > 0) {
+                //    hdnCurrentDeletedLoaded = $("#hdnCurrentDeletedLoadedIds_" + objPullItemDTO.ItemGUID).val();
+                //}
+                //aoData.push({ "name": "CurrentDeletedLoaded", "value": hdnCurrentDeletedLoaded });
+
+                if (moveType !== undefined && moveType != null && moveType == "OUT")
+                {
+                    aoData.push({ "name": "BinName", "value": objPullItemDTO.BinName });
+                }
+
+
+                if (moveType !== undefined && moveType != null && moveType == "OUT" && kitDetailGUID !== undefined && kitDetailGUID != null)
+                {
+                    aoData.push({ "name": "KitDetailGUID", "value": kitDetailGUID });
+                    if (kitGUID !== undefined && kitGUID != null)
+                    {
+                        aoData.push({ "name": "KitGUID", "value": kitGUID });
+                    }
+                }
+
+                oSettings.jqXHR = $.ajax({
+                    dataType: 'json',
+                    type: "POST",
+                    url: sSource,
+                    cache: false,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    success: fnCallback,
+                    beforeSend: function () {
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                        isDeleteSrLotRow = false;
+                        $('.ShowAllOptionsSL').click(function () {
+                            $(this).siblings('.AutoSerialLot').trigger("focus");
+                            $(this).siblings(".AutoSerialLot").autocomplete("search", "");
+                        });
+
+                        if (objPullItemDTO.ViewRight == "ViewOnly") {
+                            $("input[type='text'][name='txtLotOrSerailNumberViewOnly']").keypress(function () {
+                                return false;
+                            });
+
+                            $("#DivPullSelection input[type='text'][name='txtPullQty']").keypress(function () {
+                                return false;
+                            });
+                        }
+
+                        $("input.kitmoveoutexpirationdate").each(function () {
+                            $(this).datepicker({ dateFormat: RoomDateJSFormat });
+                        });
+
+                    }
+                });
+            }
+        });
+    }
+
+
+    function PullAllNewFlow(isForMoveOut) {
+        var ArrItem = new Array();
+        var arrItemDetails;
+        var ErrorMessage = ValidateAllPull();
+
+        if (ErrorMessage == "") {
+            $("#DivPullSelection").find("table[id^='tblItemPullheader']").each(function (indx, tblHeader) {
+                arrItemDetails = new Array();
+                var idArray = $(tblHeader).prop("id").split('_');
+                var ID = idArray[1] + "_" + idArray[2];
+                var SpanQty = $(tblHeader).find("#txtPoolQuantity_" + ID);
+
+                var dt = $("#tblItemPull_" + ID).dataTable();
+                var currentData = dt.fnGetData();
+
+                var strpullobj = JSON.parse($(tblHeader).find("input[name='hdnPullMasterDTO']").val());
+                strpullobj.WorkOrderDetailGUID = null;
+                strpullobj.RequisitionDetailGUID = null;
+                var itemBinId = strpullobj.BinID;
+                var itemBinNumber = strpullobj.BinNumber;
+
+                $("#tblItemPull_" + ID).find("tbody").find("tr").each(function (index, tr) {
+                    var txtPullQty = $(tr).find("input[type='text'][name='txtPullQty']").val();
+                    var hdnLotNumberTracking = $(tr).find("input[name='hdnLotNumberTracking']").val();
+                    var hdnSerialNumberTracking = $(tr).find("input[name='hdnSerialNumberTracking']").val();
+                    var hdnDateCodeTracking = $(tr).find("input[name='hdnDateCodeTracking']").val();
+                    var txtPullQty = $(tr).find("input[type='text'][name='txtPullQty']").val();
+                    var hdnBinNumber = $(tr).find("input[name='hdnBinNumber']").val();
+                    var hdnExpiration = $(tr).find("input[name='hdnExpiration']").val();
+                    var hdnLotNumber = $(tr).find("input[name='hdnLotNumber']").val();
+                    var binId = strpullobj.BinID;
+                    if (isForMoveOut)
+                    {
+                        binId = $(tr).find("input[name='hdnBinId']").val();
+                        itemBinId = binId;
+                        itemBinNumber = hdnBinNumber;
+                        hdnExpiration = $(tr).find("input[name='txtExpirationDate']").val();
+                    }
+
+                    if (txtPullQty != "") {
+                        var txtLotOrSerailNumber = "";
+                        if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true")
+                            var txtLotOrSerailNumber = $(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val();
+
+                        var vSerialNumber = "";
+                        var vLotNumber = "";
+                        var vExpiration = "";
+
+                        if (hdnSerialNumberTracking == "true")
+                            vSerialNumber = txtLotOrSerailNumber;
+                        if (hdnLotNumberTracking == "true")
+                            vLotNumber = hdnLotNumber != "" ? hdnLotNumber : txtLotOrSerailNumber;
+                        if (hdnDateCodeTracking == "true")
+                            vExpiration = hdnExpiration;
+
+                        var obj = {
+                            "LotOrSerailNumber": txtLotOrSerailNumber, "BinNumber": hdnBinNumber, "PullQuantity": parseFloat(txtPullQty.toString())
+                                        , "LotNumberTracking": hdnLotNumberTracking, "SerialNumberTracking": hdnSerialNumberTracking, "DateCodeTracking": hdnDateCodeTracking
+                                        , "Expiration": hdnExpiration, "SerialNumber": vSerialNumber, "LotNumber": vLotNumber
+                                        , "ItemGUID": strpullobj.ItemGUID, "BinID": binId, "ID": binId
+                        };
+
+                        arrItemDetails.push(obj);
+                    }
+                });
+                var pullQty = parseFloat($(SpanQty).val().toString());
+
+                var PullItem = {
+                    ID: indx,
+                    ItemGUID: strpullobj.ItemGUID,
+                    KitDetailGUID: strpullobj.KitDetailGUID,
+                    ItemID: strpullobj.ItemID,
+                    ItemNumber: strpullobj.ItemNumber,
+                    BinID: itemBinId,
+                    BinNumber: itemBinNumber,
+                    QtyToMoveIn: pullQty,
+                    lstItemPullDetails: arrItemDetails,
+                    KitGUID: strpullobj.KitGuid,
+                };
+                ArrItem.push(PullItem);
+            });
+
+            if (ArrItem.length > 0) {
+                PullMultipleItemNew(ArrItem, isForMoveOut);
+            }
+        }
+        else {
+            $("#spanGlobalMessage").html(ErrorMessage);
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            showNotificationDialog();
+            //alert(ErrorMessage);
+        }
+    }
+
+    function PullSingleItem(indx, ArrItem) {
+        var SingleItemArrItem = ArrItem[indx];
+        $.ajax({
+            type: "POST",
+            url: PullSerialsAndLotsUrl,
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify(SingleItemArrItem),
+            success: function (RetData) {
+                if (RetData.ErrorList.length > 0) {
+
+                }
+                else {
+                    $("#spanGlobalMessage").html(RetData.ErrorList.length);
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    showNotificationDialog();
+                    //alert(RetData.ErrorList.length);
+                }
+
+            },
+            error: function (err) {
+                $("#spanGlobalMessage").html(err);
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                //alert(err);
+            },
+            complete: function () {
+                if ((indx + 1) < ArrItem.length) {
+                    PullSingleItem((indx + 1), ArrItem);
+                }
+            }
+        });
+    }
+
+    function PullMultipleItemNew(ArrItem, isForMoveOut) {
+        $('#DivLoading').show();
+
+        var url = PullSerialsAndLotsNewUrl;
+        if (isForMoveOut !== undefined && isForMoveOut != null && isForMoveOut != "")
+        {
+            url = moveOutSerialLotUrl;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: url,
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify(ArrItem),
+            success: function (RetData) {
+                var errorMessage = "";
+
+                $.each(RetData, function (indx, RetDataItem) {
+                    if (RetDataItem.ErrorList.length > 0) {
+                        $.each(RetDataItem.ErrorList, function (indx, ErrorListItem) {
+                            errorMessage += ErrorListItem.ErrorMessage + "<br />";
+                        });
+                    }
+                    else {
+                        $("#divItem_" + RetDataItem.ItemGUID+"_"+RetDataItem.BinID).attr('style', '');
+                        $("#divItem_" + RetDataItem.ItemGUID+"_"+RetDataItem.BinID).html("");
+                    }
+                });
+                $('#DivLoading').hide();
+                if (errorMessage != "") {
+                    $.modal.impl.close();
+                    if (isForMoveOut) {
+                        errorMessage = "<b>Some of the Item(s) is(are) not able to move out due to following reasons.</b><br /><br />" + errorMessage;
+                    }
+                    else {
+                        errorMessage = "<b>Some of the Item(s) is(are) not able to move in due to following reasons.</b><br /><br />" + errorMessage;
+                    }
+
+                    $('#dlgCommonErrorMsgPopup').find("#pOkbtn").css('display', '');
+                    $('#dlgCommonErrorMsgPopup').find("#pErrMessage").html(errorMessage);
+                    $('#dlgCommonErrorMsgPopup').modal();
+                    $('#dlgCommonErrorMsgPopup').css("z-index", "1104");
+                    $('#simplemodal-overlay').css("z-index", "1103");
+                    $('#simplemodal-container').css("z-index", "1104");
+                }
+                else {
+                    if ($("input[type='hidden'][name^='hdnPullMasterDTO']").length > 0) {
+                        $.modal.impl.close();
+                        $('#dlgCommonErrorMsgPopup').find("#pOkbtn").css('display', '');
+                        if (isForMoveOut) {
+                            $('#dlgCommonErrorMsgPopup').find("#pErrMessage").html("<b>@ResKitMaster.MoveOutSuccessfully</b><br /><br />");
+                        }
+                        else {
+                            $('#dlgCommonErrorMsgPopup').find("#pErrMessage").html("<b>@ResKitMaster.MoveInSuccessfully</b><br /><br />");
+                        }
+                        $('#dlgCommonErrorMsgPopup').modal();
+                        $('#dlgCommonErrorMsgPopup').css("z-index", "1104");
+                        $('#simplemodal-overlay').css("z-index", "1103");
+                        $('#simplemodal-container').css("z-index", "1104");
+                    }
+                    else {
+                        UpdateKitCostWIPAndKitParts();
+                        fillLineItem();
+                        if (isForMoveOut)
+                        {
+                            $("#spanGlobalMessage").html("@ResKitMaster.MoveOutSuccessfully");
+                        }
+                        else
+                        {
+                            $("#spanGlobalMessage").html("@ResKitMaster.MoveInSuccessfully");
+                        }
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        $('#DivPullSelection').dialog('close');
+                        //$('#ItemModeDataTable').dataTable().fnStandingRedraw();
+                        //clearALL();
+                    }
+                }
+            },
+            error: function (err) {
+                $('#DivLoading').hide();
+                $.modal.impl.close();
+                $('#dlgCommonErrorMsgPopup').find("#pOkbtn").css('display', '');
+                //$('#dlgCommonErrorMsg').find("#pYesNobtn").css('display', 'none');
+                $('#dlgCommonErrorMsgPopup').find("#pErrMessage").html("Not saved, error occured");
+                $('#dlgCommonErrorMsgPopup').modal();
+                $('#dlgCommonErrorMsgPopup').css("z-index", "1004");
+                $('#simplemodal-overlay').css("z-index", "1003");
+                $('#simplemodal-container').css("z-index", "1004");
+            },
+            complete: function () {
+            }
+        });
+    }
+
+    function ValidateSinglePull(vItemGUID) {
+        var returnVal = true;
+        var errormsg = "";
+        var isMoreQty = false;
+        var dtID = "#tblItemPull_" + vItemGUID;
+
+        var SpanQty = $("#DivPullSelection").find("#txtPoolQuantity_" + vItemGUID);
+
+        var TotalEntered = 0;
+        $("#tblItemPull_" + vItemGUID).find("tbody").find("tr").each(function (index, tr) {
+            var txtPullQty = $(tr).find("input[type='text'][name='txtPullQty']").val();
+            var spnLotSerialQuantity = $(tr).find("span[name='spnLotSerialQuantity']").text();
+
+            if (parseFloat(txtPullQty) > parseFloat(spnLotSerialQuantity)) {
+                errormsg = "\nYou can not pull more QTY than available QTY.";
+                isMoreQty = true;
+                return errormsg;
+            }
+
+            TotalEntered = TotalEntered + parseFloat(txtPullQty);
+        });
+
+        if (isMoreQty == false) {
+            var pullQty = parseFloat($(SpanQty).val().toString());
+            if (TotalEntered != pullQty) {
+                errormsg = errormsg + "\n You have entered :" + TotalEntered + " QTY. You had entered Returned Qty :" + pullQty;
+            }
+        }
+        else {
+            errormsg = "You can not return more QTY than available QTY.";
+        }
+
+        return errormsg;
+    }
+
+    function ValidateAllPull() {
+        var returnVal = true;
+        var errormsg = "";
+        var isMoreQty = false;
+        $("#DivPullSelection").find("table[id^='tblItemPullheader']").each(function (indx, tblHeader) {
+            var idArray = $(tblHeader).prop("id").split('_');
+            var ID = idArray[1] + "_" + idArray[2];
+            var SpanQty = $(tblHeader).find("#txtPoolQuantity_" + ID);
+
+            var TotalEntered = 0;
+            $("#tblItemPull_" + ID).find("tbody").find("tr").each(function (index, tr) {
+                var txtPullQty = $(tr).find("input[type='text'][name='txtPullQty']").val();
+                var spnLotSerialQuantity = $(tr).find("span[name='spnLotSerialQuantity']").text();
+
+                if (parseFloat(txtPullQty) > parseFloat(spnLotSerialQuantity)) {
+                    errormsg = "\nYou can not pull more QTY than available QTY.";
+                    isMoreQty = true;
+                    return errormsg;
+                }
+
+                TotalEntered = TotalEntered + parseFloat(txtPullQty);
+            });
+
+            if (isMoreQty == false) {
+                var pullQty = parseFloat($(SpanQty).val().toString());
+                if (TotalEntered != pullQty) {
+                    ////errormsg = errormsg + "\nentered :" + TotalEntered + "\tPull Qty :" + pullQty;
+                    errormsg = errormsg + "\n You have entered :" + TotalEntered + " QTY. You had entered Returned Qty :" + pullQty;
+                }
+            }
+            else {
+                errormsg = "You can not return more QTY than available QTY.";
+            }
+
+        });
+
+        return errormsg;
+    }
+
+
+
+    $(document).ready(function () {
+
+        $("#DivPullSelection").off('change', "input[type='text'][name^='txtLotOrSerailNumber']");
+        $("#DivPullSelection").on('change', "input[type='text'][name^='txtLotOrSerailNumber']", function (e) {
+            var objCurtxt = $(this);
+            var oldValue = $(objCurtxt).val();
+            //var ids = $(this).parentbtnMoveInBulk().parent().parent().find("input[type='hidden'][name='hdnRowUniqueId']").val().split('_');
+            var ids = $(this).parent().parent().parent().find("input[type='hidden'][name='hdnRowUniqueId']").val().split('_');
+            var itemGuidAndBinIdInTableId = ids[1].toString() + "_" + ids[2].toString();
+            var dtThisItem = $("#tblItemPull_" + itemGuidAndBinIdInTableId).dataTable();
+            var currentTR = $(objCurtxt).parent().parent().parent()[0];
+            var row_id = dtThisItem.fnGetPosition(currentTR);
+
+            if ($.trim(oldValue) == '')
+                return;
+
+            var isDuplicateEntry = false;
+            var OtherPullQuantity = 0;
+            var moveType = $(this).parent().parent().parent().find("input[name='hdnMoveType']").val();
+            var kitGuid = $(this).parent().parent().parent().find("input[name='hdnKitGuid']").val();
+            var kitDetailGuid = $(this).parent().parent().parent().find("input[name='hdnKitDetailGuid']").val();
+
+            $("#tblItemPull_" + itemGuidAndBinIdInTableId + " tbody tr").each(function (i) {
+                if (i != row_id) {
+                    var tr = $(this);
+                    var SerialOrLotNumber = $(tr).find('#' + objCurtxt.prop("id")).val();
+                    if (SerialOrLotNumber == $(objCurtxt).val()) {
+                        isDuplicateEntry = true;
+                    }
+                    else {
+                        var txtPullQty = $(tr).find("input[type='text'][name='txtPullQty']").val();
+                        OtherPullQuantity = OtherPullQuantity + parseFloat(txtPullQty);
+                    }
+                }
+            });
+
+            if (isDuplicateEntry == true) {
+
+                if ($("#hdnTrackingType_" + itemGuidAndBinIdInTableId).val() == "LotNumberTracking") {
+                    //alert("@ResMessage.DuplicateLotFound");
+                    $("#spanGlobalMessage").html('@ResMessage.DuplicateLotFound');
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    showNotificationDialog();
+                }
+                else if ($("#hdnTrackingType_" + itemGuidAndBinIdInTableId).val() == "SerialNumberTracking") {
+                    //alert("@ResMessage.DuplicateSerialFound");
+                    $("#spanGlobalMessage").html('@ResMessage.DuplicateSerialFound');
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    showNotificationDialog();
+                }
+                else {
+                    //alert("@ResMessage.DuplicateNumber");
+                    $("#spanGlobalMessage").html('@ResMessage.DuplicateNumber');
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    showNotificationDialog();
+                }
+
+                $(objCurtxt).val("");
+                $(objCurtxt).focus();
+            }
+            else {
+                var requestData;
+                var requestUrl = ValidateSerialLotNumberUrl;
+
+                if (moveType === "OUT") {
+                    requestUrl = urlValidateSerialLotNumberForKitMoveOut;
+                    requestData = "{ ItemGuid: '" + ids[1].toString() + "', SerialOrLotNumber: '" + $(objCurtxt).val() + "',BinID: '" + ids[2].toString() + "',KitDetailGUID:'" + kitDetailGuid + "',KitGUID:'" + kitGuid +"'}";
+                }
+                else {
+                    requestData = "{ ItemGuid: '" + ids[1].toString() + "', SerialOrLotNumber: '" + $(objCurtxt).val() + "',BinID: '" + ids[2].toString() + "' }";
+                }
+                $.ajax({
+                    type: "POST",
+                    url: requestUrl,
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    //data: "{ ItemGuid: '" + ids[1].toString() + "', SerialOrLotNumber: '" + $(objCurtxt).val() + "',BinID: '" + ids[2].toString() + "' }",
+                    data: requestData,
+                    success: function (RetData) {
+                        if (RetData.ID > 0) {
+                            if (moveType != "OUT")
+                            {
+                                IsCheckViewRight = false;
+
+                                var spnPoolQuantity = parseFloat($("#txtPoolQuantity_" + itemGuidAndBinIdInTableId).val());
+                                if ((spnPoolQuantity - OtherPullQuantity) > 0) {
+                                    if ((spnPoolQuantity - OtherPullQuantity) < RetData.PullQuantity)
+                                        RetData.PullQuantity = spnPoolQuantity - OtherPullQuantity;
+                                }
+                                else {
+                                    RetData.PullQuantity = 0;
+                                }
+
+                                dtThisItem.fnUpdate(RetData, row_id, undefined, false, false);
+                                IsCheckViewRight = true;
+
+                                $('.ShowAllOptionsSL').click(function () {
+                                    $(this).siblings('.AutoSerialLot').trigger("focus");
+                                    $(this).siblings(".AutoSerialLot").autocomplete("search", "");
+                                });
+
+                                if (RetData.IsConsignedLotSerial) {
+                                    $(currentTR).addClass("trconsigned");
+                                }
+                                else {
+                                    $(currentTR).removeClass("trconsigned");
+                                }
+                            }
+                        }
+                        else {
+                            if (moveType != "OUT")
+                            {
+                                $(objCurtxt).val("");
+                                $(objCurtxt).focus();
+                            }
+                        }
+                    },
+                    error: function (err) {
+                        //alert(err);
+                    }
+                });
+            }
+        });
+
+        $("#DivPullSelection").off('focus', "input[type='text'][name^='txtLotOrSerailNumber']");
+        $("#DivPullSelection").on('focus', "input[type='text'][name^='txtLotOrSerailNumber']", function (e) {
+            var objCurtxt = $(this);
+            var ids = $(this).parent().parent().parent().find("input[type='hidden'][name='hdnRowUniqueId']").val().split('_');
+            var itemGuidAndBinIdInTableId = ids[1].toString() + "_" + ids[2].toString();
+            var aPos = $("#tblItemPull_" + itemGuidAndBinIdInTableId).dataTable().fnGetPosition($(this).parent().parent().parent()[0]);
+            var aData = $("#tblItemPull_" + itemGuidAndBinIdInTableId).dataTable().fnGetData(aPos);
+            var dtItemPull = "#tblItemPull_" + itemGuidAndBinIdInTableId;
+            var strSerialLotNos = "";
+            var moveType = $(this).parent().parent().parent().find("input[name='hdnMoveType']").val();
+            var kitGuid = $(this).parent().parent().parent().find("input[name='hdnKitGuid']").val();
+            var kitDetailGuid = $(this).parent().parent().parent().find("input[name='hdnKitDetailGuid']").val();
+
+            $(dtItemPull).find("tbody").find("tr").each(function (index, tr) {
+
+                if (index != aPos) {
+                    var hdnLotNumberTracking = $(tr).find("input[name='hdnLotNumberTracking']").val();
+                    var hdnSerialNumberTracking = $(tr).find("input[name='hdnSerialNumberTracking']").val();
+                    var hdnDateCodeTracking = $(tr).find("input[name='hdnDateCodeTracking']").val();
+
+                    if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true") {
+                        var txtLotOrSerailNumber = $(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val();
+                        if (txtLotOrSerailNumber != undefined)
+                            strSerialLotNos = strSerialLotNos + txtLotOrSerailNumber + "|#|";
+                    }
+                    else if (hdnDateCodeTracking == "true") {
+                        var hdnExpiration = $(tr).find("input[name='hdnExpiration']").val();
+                        if (hdnExpiration != undefined)
+                            strSerialLotNos = strSerialLotNos + hdnExpiration + "|#|";
+                    }
+                    else {
+                        var hdnBinNumber = $(tr).find("input[name='hdnBinNumber']").val();
+                        if (hdnBinNumber != undefined)
+                            strSerialLotNos = strSerialLotNos + hdnBinNumber + "|#|";
+                    }
+                }
+
+            });
+            if ($(this).hasClass("AutoSerialLot")) {
+                $(this).autocomplete({
+                    source: function (request, response) {
+                        if (moveType === "OUT") {
+
+                            $.ajax({
+                                url: '/Kit/GetLotOrSerailNumberListForMoveOut',
+                                contentType: 'application/json',
+                                dataType: 'json',
+                                data: {
+                                    maxRows: 1000,
+                                    name_startsWith: request.term,
+                                    ItemGuid: ids[1].toString(),
+                                    BinID: ids[2].toString(),
+                                    KitDetailGUID: kitDetailGuid,
+                                    KitGUID: kitGuid,
+                                    prmSerialLotNos: strSerialLotNos
+                                },
+                                success: function (data) {
+                                    response($.map(data, function (item) {
+                                        return {
+                                            label: item.LotOrSerailNumber,
+                                            value: item.LotOrSerailNumber,
+                                            selval: item.LotOrSerailNumber
+                                        }
+                                    }));
+                                },
+                                error: function (err) {
+
+                                }
+                            });
+                        }
+                        else {
+                            $.ajax({
+                                url: '/Pull/GetLotOrSerailNumberList',
+                                contentType: 'application/json',
+                                dataType: 'json',
+                                data: {
+                                    maxRows: 1000,
+                                    name_startsWith: request.term,
+                                    ItemGuid: ids[1].toString(),
+                                    BinID: ids[2].toString(),
+                                    prmSerialLotNos: strSerialLotNos
+                                },
+                                success: function (data) {
+                                    //alert('call 2');
+                                    response($.map(data, function (item) {
+                                        return {
+                                            label: item.LotOrSerailNumber,
+                                            value: item.LotOrSerailNumber,
+                                            selval: item.LotOrSerailNumber
+                                        }
+                                    }));
+                                },
+                                error: function (err) {
+
+                                }
+                            });
+                        }
+
+                    },
+                    autoFocus: false,
+                    minLength: 0,
+                    select: function (event, ui) {
+                        //                    $(objCurtxt).parent().parent().find("input[type='hidden'][name='hdnStagingBin']").val(ui.item.selval);
+                        //                    $(objCurtxt).parent().parent().find("input[type='hidden'][name='hdnStagingBinName']").val(ui.item.label);
+                    },
+                    open: function () {
+                        $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                        $(this).autocomplete('widget').css('z-index', 9000);
+                        $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                        $('ul.ui-autocomplete').css('max-height', '300px');
+                    },
+                    close: function () {
+                        $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                        $(objCurtxt).trigger("change");
+                    }
+                });
+            }
+        });
+
+        $("#DivPullSelection").off("click", "input[type='button'][name='btnLoadMoreLots']");
+        $("#DivPullSelection").on("click", "input[type='button'][name='btnLoadMoreLots']", function () {
+            var idArray = $(this).prop("id").split('_');
+            var vItemGUID = idArray[1] + "_" + idArray[2];
+            var dtID = "#tblItemPull_" + vItemGUID;
+            var strIds = "";
+            var ISError = false;
+            var totalPullQty = 0;
+            var EnterQuantityToMoveOut = '';
+
+            $(dtID).find("tbody").find("tr").each(function (index, tr) {
+                var IsLotNumberTracking = false;
+                var IsSerialNumberTracking = false;
+                var IsDateCodeTracking = false;
+
+
+                var hdnLotNumberTracking = $(tr).find("input[name='hdnLotNumberTracking']").val();
+                var hdnSerialNumberTracking = $(tr).find("input[name='hdnSerialNumberTracking']").val();
+                var hdnDateCodeTracking = $(tr).find("input[name='hdnDateCodeTracking']").val();
+                var txtPullQty = $(tr).find("input[type='text'][name='txtPullQty']").val();
+                var MaximumQuantityMoveOut = $($(tr).closest(".divItem")).find(".hdnmaximumnmoveoutquantity").val();
+                var MaximumQuantityMoveIn = $($(tr).closest(".divItem")).find(".hdnmaximumnmoveinquantity").val();
+                EnterQuantityToMoveOut = $($(tr).closest(".divItem")).find("input[type='text'][name*='txtPoolQuantity_']").val();
+
+                if ($(tr).find("input[name='hdnMoveType']").val() != undefined && $(tr).find("input[name='hdnMoveType']").val() == 'OUT' && EnterQuantityToMoveOut != undefined && MaximumQuantityMoveOut != undefined && parseInt(EnterQuantityToMoveOut) && parseInt(MaximumQuantityMoveOut) && (parseInt(EnterQuantityToMoveOut) > parseInt(MaximumQuantityMoveOut))) {
+                    alert('@ResKitMaster.ItemHasNotEnoughQtyToMoveOut');
+                    ISError = true;
+                    return false;
+                }
+                if ($(tr).find("input[name='hdnMoveType']").val() != undefined && $(tr).find("input[name='hdnMoveType']").val() == 'IN' && EnterQuantityToMoveOut != undefined && MaximumQuantityMoveIn != undefined && parseInt(EnterQuantityToMoveOut) && parseInt(MaximumQuantityMoveIn) && (parseInt(EnterQuantityToMoveOut) > parseInt(MaximumQuantityMoveIn))) {
+                    alert('@ResKitMaster.ItemsHasNotEnoughQuantityToMoveIn');
+                    ISError = true;
+                    return false;
+                }
+
+                if (hdnLotNumberTracking == "true")
+                    IsLotNumberTracking = true;
+                if (hdnSerialNumberTracking == "true")
+                    IsSerialNumberTracking = true;
+                if (hdnDateCodeTracking == "true")
+                    IsDateCodeTracking = true;
+
+                if (IsLotNumberTracking == true) {
+                    var txtLotNumber = $.trim($(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val());
+                    if (txtLotNumber == "" || txtLotNumber == null) {
+                        alert('@ResKitMaster.EnterLotNumber');
+                        ISError = true;
+                        return false;
+                    }
+                }
+                if (IsSerialNumberTracking == true) {
+                    var txtSerailNumber = $.trim($(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val());
+                    if (txtSerailNumber == "" || txtSerailNumber == null) {
+                        alert('@ResReceiveOrderDetails.MsgSerialNumberValidation');
+                        ISError = true;
+                        return false;
+                    }
+                }
+                if (IsDateCodeTracking == true) {
+                    var txtExpiration = $.trim($(tr).find("input[type='text'][name^='txtExpirationDate']").val());
+                    if ($(tr).find("input[type='text'][name^='txtExpirationDate']").length > 0 && (txtExpiration == "" || txtExpiration == null)) {
+                        alert('@ResPullMaster.MsgEnterExpirationDate');
+                        ISError = true;
+                        return false;
+                    }
+                }
+
+
+
+                if (txtPullQty != undefined) {
+                    if (txtPullQty == "") {
+                        txtPullQty = "0";
+                    }
+                    totalPullQty += parseInt(txtPullQty);
+                    if ((hdnLotNumberTracking == "true" && hdnDateCodeTracking == "false")
+                        || (hdnSerialNumberTracking == "true" && hdnDateCodeTracking == "false")) {
+                        var txtLotOrSerailNumber = $(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val();
+                        if (txtLotOrSerailNumber != undefined && !IsLotSerialExistsInCurrentLoaded(strIds, txtLotOrSerailNumber))
+                            strIds = strIds + txtLotOrSerailNumber + "@@@@" + txtPullQty + ",";
+                    }
+                    else if ((hdnLotNumberTracking == "true" && hdnDateCodeTracking == "true")
+                        || (hdnSerialNumberTracking == "true" && hdnDateCodeTracking == "true")) {
+                        var hdnExpiration = $(tr).find("input[type='text'][name^='txtExpirationDate']").length > 0 ? $(tr).find("input[name='txtExpirationDate']").val() : $(tr).find("input[name='hdnExpirationDate']").val();
+                        var txtLotOrSerailNumber = $.trim($(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val());
+                        if (txtLotOrSerailNumber != undefined && hdnExpiration != undefined && !IsLotSerialExistsInCurrentLoaded(strIds, hdnExpiration)) {
+                            strIds = strIds + txtLotOrSerailNumber + "@@@@" + hdnExpiration + "@@@@" + txtPullQty + ",";
+                        }
+                    }
+                    else if (hdnLotNumberTracking == "false" && hdnSerialNumberTracking == "false" && hdnDateCodeTracking == "true") {
+                        var hdnExpiration = $(tr).find("input[name='txtExpirationDate']").val();
+                        if (hdnExpiration != undefined)
+                            strIds = strIds + hdnExpiration + "@@@@" + txtPullQty + ",";
+                    }
+                    else {
+                        var hdnBinNumber = $(tr).find("input[name='hdnBinNumber']").val();
+                        if (hdnBinNumber != undefined && !IsLotSerialExistsInCurrentLoaded(strIds, hdnBinNumber))
+                            strIds = strIds + hdnBinNumber + "@@@@" + txtPullQty + ",";
+                    }
+                }
+            });
+
+            if ((!ISError) && totalPullQty >= parseInt(EnterQuantityToMoveOut)) {
+                alert('@ResKitMaster.MsgMoveInOutQuantity');
+                ISError = false;
+                return false;
+            }
+
+            if (ISError == false) {
+                $("#hdnCurrentLoadedIds_" + vItemGUID).val(strIds);
+                var dt = $(dtID).dataTable();
+                dt.fnStandingRedraw();
+            }
+        });
+
+        function IsLotSerialExistsInCurrentLoaded(strIds, SerialLot) {
+            if (SerialLot.trim() == '')
+                return true;
+
+            if (strIds.trim() == '')
+                return false
+
+            var ArrIds = strIds.split(',');
+            var i = 0;
+            for (i = 0; i < ArrIds.length; i++) {
+                if (ArrIds[i].split('_')[0].toLowerCase() == SerialLot.toLowerCase()) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        $("#DivPullSelection").off("click", "input[type='button'][name='btnPullPopup']");
+        $("#DivPullSelection").on("click", "input[type='button'][name='btnPullPopup']", function () {
+            //RequisitionDetailsGUID
+            var idArray = $(this).prop("id").split('_');
+            var vItemGUID = idArray[1] + "_" + idArray[2];;
+            var dtID = "#tblItemPull_" + vItemGUID;
+
+            var ArrItem = new Array();
+            var arrItemDetails;
+            var ErrorMessage = ValidateSinglePull(vItemGUID);
+
+            if (ErrorMessage == "") {
+
+                arrItemDetails = new Array();
+                var ID = vItemGUID;
+                var SpanQty = $("#DivPullSelection").find("#txtPoolQuantity_" + vItemGUID);
+
+                var dt = $("#tblItemPull_" + vItemGUID).dataTable();
+                var currentData = dt.fnGetData();
+
+                var strpullobj = JSON.parse($("#hdnPullMasterDTO_" + vItemGUID).val());
+                strpullobj.WorkOrderDetailGUID = null;
+                strpullobj.RequisitionDetailGUID = null;
+
+
+                $("#tblItemPull_" + vItemGUID).find("tbody").find("tr").each(function (index, tr) {
+                    var txtPullQty = $(tr).find("input[type='text'][name='txtPullQty']").val();
+                    var hdnLotNumberTracking = $(tr).find("input[name='hdnLotNumberTracking']").val();
+                    var hdnSerialNumberTracking = $(tr).find("input[name='hdnSerialNumberTracking']").val();
+                    var hdnDateCodeTracking = $(tr).find("input[name='hdnDateCodeTracking']").val();
+                    var txtPullQty = $(tr).find("input[type='text'][name='txtPullQty']").val();
+                    var hdnBinNumber = $(tr).find("input[name='hdnBinNumber']").val();
+                    var hdnExpiration = $(tr).find("input[name='hdnExpiration']").val();
+
+                    if (txtPullQty != "") {
+                        var txtLotOrSerailNumber = "";
+                        if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true")
+                            var txtLotOrSerailNumber = $(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val();
+
+                        var vSerialNumber = "";
+                        var vLotNumber = "";
+                        var vExpiration = "";
+
+                        if (hdnSerialNumberTracking == "true")
+                            vSerialNumber = txtLotOrSerailNumber;
+                        if (hdnLotNumberTracking == "true")
+                            vLotNumber = txtLotOrSerailNumber;
+                        if (hdnDateCodeTracking == "true")
+                            vExpiration = hdnExpiration;
+
+                        var obj = {
+                            "LotOrSerailNumber": txtLotOrSerailNumber, "BinNumber": hdnBinNumber, "PullQuantity": parseFloat(txtPullQty.toString())
+                                        , "LotNumberTracking": hdnLotNumberTracking, "SerialNumberTracking": hdnSerialNumberTracking, "DateCodeTracking": hdnDateCodeTracking
+                                        , "Expiration": hdnExpiration, "SerialNumber": vSerialNumber, "LotNumber": vLotNumber
+                                        , "ItemGUID": strpullobj.ItemGUID, "BinID": strpullobj.BinID, "ID": strpullobj.BinID
+                        };
+
+                        arrItemDetails.push(obj);
+                    }
+                });
+
+                var pullQty = parseFloat($(SpanQty).val().toString());
+
+                var PullItem = {
+                    ID: 1,
+                    ItemGUID: strpullobj.ItemGUID,
+                    KitDetailGUID: strpullobj.KitDetailGUID,
+                    ItemID: strpullobj.ItemID,
+                    ItemNumber: strpullobj.ItemNumber,
+                    BinID: strpullobj.BinID,
+                    BinNumber: strpullobj.BinNumber,
+                    QtyToMoveIn: pullQty,
+                    lstItemPullDetails: arrItemDetails,
+                };
+
+                ArrItem.push(PullItem);
+
+                if (ArrItem.length > 0) {
+                    PullMultipleItemNew(ArrItem,false);
+                }
+            }
+            else {
+                $("#spanGlobalMessage").html(ErrorMessage);
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                //alert(ErrorMessage);
+            }
+        });
+
+        $("#DivPullSelection").off("click", "input[type='button'][name='btnPullAllPopUp']");
+        $("#DivPullSelection").on("click", "input[type='button'][name='btnPullAllPopUp']", function () {
+            PullAllNewFlow();
+        });
+
+        $("#DivPullSelection").off("click", "input[type='button'][name='btnMoveOutAllPopUp']");
+        $("#DivPullSelection").on("click", "input[type='button'][name='btnMoveOutAllPopUp']", function () {
+            PullAllNewFlow(true);
+        });
+
+        $("#DivPullSelection").off("click", "input[type='button'][name='btnMoveOutPopup']");
+        $("#DivPullSelection").on("click", "input[type='button'][name='btnMoveOutPopup']", function () {
+            var idArray = $(this).prop("id").split('_');
+            var vItemGUID = idArray[1] + "_" + idArray[2];
+            var dtID = "#tblItemPull_" + vItemGUID;
+
+            var ArrItem = new Array();
+            var arrItemDetails;
+            var ErrorMessage = ValidateSinglePull(vItemGUID);
+
+            if (ErrorMessage == "") {
+
+                arrItemDetails = new Array();
+                var ID = vItemGUID;
+                var SpanQty = $("#DivPullSelection").find("#txtPoolQuantity_" + vItemGUID);
+
+                var dt = $("#tblItemPull_" + vItemGUID).dataTable();
+                var currentData = dt.fnGetData();
+
+                var strpullobj = JSON.parse($("#hdnPullMasterDTO_" + vItemGUID).val());
+                strpullobj.WorkOrderDetailGUID = null;
+                strpullobj.RequisitionDetailGUID = null;
+                var itemBinId = strpullobj.BinID;
+                var itemBinNumber = strpullobj.BinNumber;
+
+                $("#tblItemPull_" + vItemGUID).find("tbody").find("tr").each(function (index, tr) {
+                    var txtPullQty = $(tr).find("input[type='text'][name='txtPullQty']").val();
+                    var hdnLotNumberTracking = $(tr).find("input[name='hdnLotNumberTracking']").val();
+                    var hdnSerialNumberTracking = $(tr).find("input[name='hdnSerialNumberTracking']").val();
+                    var hdnDateCodeTracking = $(tr).find("input[name='hdnDateCodeTracking']").val();
+                    var txtPullQty = $(tr).find("input[type='text'][name='txtPullQty']").val();
+                    var hdnBinNumber = $(tr).find("input[name='hdnBinNumber']").val();
+                    var hdnExpiration = $(tr).find("input[name='txtExpirationDate']").val();
+                    var binId = $(tr).find("input[name='hdnBinId']").val();
+                    itemBinId = binId;
+                    itemBinNumber = hdnBinNumber;
+
+                    if (txtPullQty != "") {
+                        var txtLotOrSerailNumber = "";
+                        if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true")
+                            var txtLotOrSerailNumber = $(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val();
+
+                        var vSerialNumber = "";
+                        var vLotNumber = "";
+                        var vExpiration = "";
+
+                        if (hdnSerialNumberTracking == "true")
+                            vSerialNumber = txtLotOrSerailNumber;
+                        if (hdnLotNumberTracking == "true")
+                            vLotNumber = txtLotOrSerailNumber;
+                        if (hdnDateCodeTracking == "true")
+                            vExpiration = hdnExpiration;
+
+                        var obj = {
+                            "LotOrSerailNumber": txtLotOrSerailNumber, "BinNumber": hdnBinNumber, "PullQuantity": parseFloat(txtPullQty.toString())
+                                        , "LotNumberTracking": hdnLotNumberTracking, "SerialNumberTracking": hdnSerialNumberTracking, "DateCodeTracking": hdnDateCodeTracking
+                                        , "Expiration": hdnExpiration, "SerialNumber": vSerialNumber, "LotNumber": vLotNumber
+                                        , "ItemGUID": strpullobj.ItemGUID, "BinID": binId, "ID": binId
+                        };
+
+                        arrItemDetails.push(obj);
+                    }
+                });
+
+                var pullQty = parseFloat($(SpanQty).val().toString());
+                var PullItem = {
+                    ID: 1,
+                    ItemGUID: strpullobj.ItemGUID,
+                    KitDetailGUID: strpullobj.KitDetailGUID,
+                    ItemID: strpullobj.ItemID,
+                    ItemNumber: strpullobj.ItemNumber,
+                    BinID: itemBinId,
+                    BinNumber: itemBinNumber,
+                    QtyToMoveIn: pullQty,
+                    lstItemPullDetails: arrItemDetails,
+                    KitGUID: strpullobj.KitGuid,
+                };
+
+                ArrItem.push(PullItem);
+
+                if (ArrItem.length > 0) {
+                    PullMultipleItemNew(ArrItem,true);
+                }
+            }
+            else {
+                $("#spanGlobalMessage").html(ErrorMessage);
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                showNotificationDialog();
+                //alert(ErrorMessage);
+            }
+        });
+
+        $("#DivPullSelection").off("click", "input[type='button'][name='btnCancelPullPopup']");
+        $("#DivPullSelection").on("click", "input[type='button'][name='btnCancelPullPopup']", function () {
+            $("#DivPullSelection").empty();
+            $('#DivPullSelection').dialog('close');
+            $('#ItemModeDataTable').dataTable().fnStandingRedraw();
+        });
+
+        $("#DivPullSelection").off('click', "input[type='button'][name='btnValidateThis']");
+        $("#DivPullSelection").on('click', "input[type='button'][name='btnValidateThis']", function (e) {
+            var idArray = $(this).prop("id").split('_');
+            var itemGuidAndBinIdInTableId = idArray[1] + "_" + idArray[2];
+            var dt = $("#tblItemPull_" + itemGuidAndBinIdInTableId).dataTable();
+            var currentData = dt.fnGetData();
+            var TotalEntered = 0;
+            $(currentData).each(function (indx, obj) {
+                TotalEntered = TotalEntered + parseFloat(obj.PullQuantity);
+            });
+            var pullQty = parseFloat($("#DivPullSelection").find("#txtPoolQuantity_" + itemGuidAndBinIdInTableId).val().toString());
+            //alert("Entered :" + TotalEntered + ", Pull Qty :" + pullQty);
+            if (TotalEntered != pullQty) {
+                alert("Please enter correct pull quantity");
+            }
+            else {
+                alert("Validated");
+            }
+        });
+
+        $("#DivPullSelection").off('click', "input[type='button'][name='btnvalidateAll']");
+        $("#DivPullSelection").on('click', "input[type='button'][name='btnvalidateAll']", function (e) {
+            var returnmsg = ValidateAllPull();
+            if (returnmsg == "")
+                returnmsg = "Validated All";
+            alert(returnmsg);
+        });
+
+        $("#DivPullSelection").off("change", "input[type='text'][name='txtPullQty']");
+        $("#DivPullSelection").on("change", "input[type='text'][name='txtPullQty']", function () {
+            var ids = $(this).parent().parent().find("input[type='hidden'][name='hdnRowUniqueId']").val().split('_');
+            var itemGuidAndBinIdInTableId = ids[1] + "_" + ids[2];
+            var aPos = $("#tblItemPull_" + itemGuidAndBinIdInTableId).dataTable().fnGetPosition($(this).parent().parent()[0]);
+            $("#tblItemPull_" + itemGuidAndBinIdInTableId).dataTable().fnGetData(aPos).PullQuantity = $(this).val();
+        });
+
+        $("#DivPullSelection").off("tap click", ".tbl-item-pull tbody tr");
+        $("#DivPullSelection").on("tap click", ".tbl-item-pull tbody tr", function (e) {
+
+            if (e.target.type == "checkbox" || e.target.type == "radio" || e.target.type == "text") {
+                e.stopPropagation();
+            }
+            else if (e.currentTarget.getElementsByTagName("input").btnLoad != undefined) {
+                e.stopPropagation();
+            }
+            else {
+                if ((e.metaKey || e.ctrlKey)) {
+                    $(this).toggleClass('row_selected');
+                } else {
+                    $(this).toggleClass('row_selected');
+                }
+            }
+            return false;
+        });
+
+        $("#DivPullSelection").off('click', "input[type='button'][name='btnDeleteLots']");
+        $("#DivPullSelection").on('click', "input[type='button'][name='btnDeleteLots']", function (e) {
+            var idArray = $(this).prop("id").split('_');
+            var vItemGUID = idArray[1] + "_" + idArray[2];
+            var dtID = "#tblItemPull_" + vItemGUID;
+            var TotalRows = $(dtID + ' tbody tr').length;
+            var SelectedRows = $(dtID + ' tbody tr.row_selected').length;
+            var RemainingRows = TotalRows - SelectedRows;
+            var DeletedRowObject = '';
+
+            if ($(dtID + ' tbody tr.row_selected').length <= 0) {
+                //alert("Select at least one row to delete.");
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                $("#spanGlobalMessage").html('@ResKitMaster.MsgSelectRowToDelete');
+                showNotificationDialog();
+            }
+            else {
+                if (RemainingRows >= 1) {
+
+                    $(dtID).find("tbody").find("tr.row_selected").each(function (index, tr) {
+
+                        var hdnLotNumberTracking = $(tr).find("input[name='hdnLotNumberTracking']").val();
+                        var hdnSerialNumberTracking = $(tr).find("input[name='hdnSerialNumberTracking']").val();
+                        var hdnDateCodeTracking = $(tr).find("input[name='hdnDateCodeTracking']").val();
+                        var txtPullQty = $(tr).find("input[type='text'][name='txtPullQty']").val();
+
+                        if (txtPullQty == "")
+                            txtPullQty = "0";
+
+                        if ((hdnLotNumberTracking == "true" && hdnDateCodeTracking == "false")
+                            || (hdnSerialNumberTracking == "true" && hdnDateCodeTracking == "false")) {
+                            var txtLotOrSerailNumber = $.trim($(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val());
+                            if (txtLotOrSerailNumber != undefined && !IsLotSerialExistsInCurrentLoadedForCredit(DeletedRowObject, txtLotOrSerailNumber))
+                                DeletedRowObject = DeletedRowObject + txtLotOrSerailNumber + "@@@@" + txtPullQty + ",";
+                        }
+                        else if ((hdnLotNumberTracking == "true" && hdnDateCodeTracking == "true")
+                            || (hdnSerialNumberTracking == "true" && hdnDateCodeTracking == "true")) {
+                            var hdnExpiration = $(tr).find("input[type='hidden'][name='hdnExpirationDate']").val();
+                            var txtLotOrSerailNumber = $.trim($(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val());
+                            if (txtLotOrSerailNumber != undefined && hdnExpiration != undefined && !IsLotSerialExistsInCurrentLoadedForCredit(DeletedRowObject, hdnExpiration))
+                                DeletedRowObject = DeletedRowObject + txtLotOrSerailNumber + "@@@@" + hdnExpiration + "@@@@" + txtPullQty + ",";
+                        }
+                        else if (hdnLotNumberTracking == "false" && hdnSerialNumberTracking == "false" && hdnDateCodeTracking == "true") {
+                            var hdnExpiration = $(tr).find("input[type='text'][name='txtExpirationDate']").val();
+                            if (hdnExpiration != undefined)
+                                DeletedRowObject = DeletedRowObject + hdnExpiration + "@@@@" + txtPullQty + ",";
+                        }
+                        else {
+                            var hdnBinNumber = $(tr).find("input[name='hdnBinNumber']").val();
+                            if (hdnBinNumber != undefined && !IsLotSerialExistsInCurrentLoadedForCredit(DeletedRowObject, hdnBinNumber))
+                                DeletedRowObject = DeletedRowObject + hdnBinNumber + "@@@@" + txtPullQty + ",";
+                        }
+
+                        $(tr).remove();
+                    });
+
+                    var strIds = "";
+                    $(dtID).find("tbody").find("tr").each(function (index, tr) {
+                        var $tr = $(tr);
+                        var hdnLotNumberTracking = $tr.find("input[name='hdnLotNumberTracking']").val();
+                        var hdnSerialNumberTracking = $tr.find("input[name='hdnSerialNumberTracking']").val();
+                        var hdnDateCodeTracking = $tr.find("input[name='hdnDateCodeTracking']").val();
+                        var txtPullQty = $tr.find("input[type='text'][name='txtPullQty']").val();
+
+                        if (txtPullQty == "")
+                            txtPullQty = "0";
+
+                        //if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true") {
+                        //    var txtLotOrSerailNumber = $(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val();
+                        //    strIds = strIds + txtLotOrSerailNumber + "_" + txtPullQty + ",";
+                        //}
+                        //else if (hdnDateCodeTracking == "true") {
+                        //    var hdnExpiration = $(tr).find("input[name='hdnExpiration']").val();
+                        //    strIds = strIds + hdnExpiration + "_" + txtPullQty + ",";
+                        //}
+                        //else {
+                        //    var hdnBinNumber = $(tr).find("input[name='hdnBinNumber']").val();
+                        //    strIds = strIds + hdnBinNumber + "_" + txtPullQty + ",";
+                        //}
+                        if ((hdnLotNumberTracking == "true" && hdnDateCodeTracking == "false")
+                            || (hdnSerialNumberTracking == "true" && hdnDateCodeTracking == "false")) {
+                            var txtLotOrSerailNumber = $.trim($tr.find("input[type='text'][name^='txtLotOrSerailNumber']").val());
+                            if (txtLotOrSerailNumber != undefined && !IsLotSerialExistsInCurrentLoaded(strIds, txtLotOrSerailNumber)) {
+                                strIds = strIds + txtLotOrSerailNumber + "@@@@" + txtPullQty + ",";
+                            }
+                        }
+                        else if ((hdnLotNumberTracking == "true" && hdnDateCodeTracking == "true")
+                            || (hdnSerialNumberTracking == "true" && hdnDateCodeTracking == "true")) {
+                            var hdnExpiration = '';
+                            if ($tr.find("input[name='txtExpirationDate']").length > 0) {
+                                hdnExpiration = $tr.find("input[name='txtExpirationDate']").val();
+                            } else {
+                                hdnExpiration = $tr.find("input[name='hdnExpirationDate']").val();
+                            }
+                            var txtLotOrSerailNumber = $.trim($tr.find("input[type='text'][name^='txtLotOrSerailNumber']").val());
+                            if (txtLotOrSerailNumber != undefined && hdnExpiration != undefined && !IsLotSerialExistsInCurrentLoaded(strIds, hdnExpiration)) {
+                                strIds = strIds + txtLotOrSerailNumber + "@@@@" + hdnExpiration + "@@@@" + txtPullQty + ",";
+                            }
+                        }
+                        else if (hdnLotNumberTracking == "false" && hdnSerialNumberTracking == "false" && hdnDateCodeTracking == "true") {
+                            var hdnExpiration = $tr.find("input[name='txtExpirationDate']").val();
+                            if (hdnExpiration != undefined) {
+                                strIds = strIds + hdnExpiration + "@@@@" + txtPullQty + ",";
+                            }
+                        }
+                        else {
+                            var hdnBinNumber = $tr.find("input[name='hdnBinNumber']").val();
+                            if (hdnBinNumber != undefined && !IsLotSerialExistsInCurrentLoaded(strIds, hdnBinNumber)) {
+                                strIds = strIds + hdnBinNumber + "@@@@" + txtPullQty + ",";
+                            }
+                        }
+                    });
+
+                    $("#hdnCurrentDeletedLoadedIds_" + vItemGUID).val(DeletedRowObject);
+                    $("#hdnCurrentLoadedIds_" + vItemGUID).val(strIds);
+                    isDeleteSrLotRow = true;
+                    var dtThisItem = $(dtID).dataTable();
+                    dtThisItem.fnStandingRedraw();
+                } else {
+                    alert('@ResToolMaster.MsgRowShouldExists');
+                }
+            }
+        });
+
+        function IsLotSerialExistsInCurrentLoadedForCredit(strIds, SerialLot) {
+            if (SerialLot.trim() == '')
+                return true;
+
+            if (strIds.trim() == '')
+                return false
+
+            var ArrIds = strIds.split(',');
+            var i = 0;
+            for (i = 0; i < ArrIds.length; i++) {
+                if (ArrIds[i].split('_')[0].toLowerCase() == SerialLot.toLowerCase()) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+    });
+</script>

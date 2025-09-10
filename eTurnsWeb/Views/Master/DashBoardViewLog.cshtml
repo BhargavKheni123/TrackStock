@@ -1,0 +1,349 @@
+﻿@using eTurns.DTO
+@{
+        ViewBag.Title = ResLayout.DashBoardViewLog;
+        var settingsNew = new GridHeaderSettings() { DisplayGoToPage = false, DisplaySettings = false, dataViewType = DataViewType.None, DisplayDeleteButton = false, DisplayColumnSetupButton = true, DisplayPrintBlock = false, DataTableName = "MinMaxHistoryTable", ColumnSetupFor = "DashBoardChangeLog" };
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+<style type="text/css">
+    .dataTables_scrollBody {
+        max-height: 500px;
+        overflow-y: scroll;
+    }
+</style>
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script language="javascript" type="text/javascript">
+        var oMinMaxHistoryTable;
+        var objHistoryColumns = {}
+        var wHeight = $(window).height();
+        var historyDTName = 'MinMaxHistoryTable';
+        var bIsIHFilter = false;
+        var IsRefreshGrid = false;
+
+        $(document).ready(function () {
+            var dHeight = wHeight * 0.8;
+            objHistoryColumns = GetGridHeaderColumnsObject('MinMaxHistoryTable');
+            LoadTabs();
+            oHistoryTable = $('#MinMaxHistoryTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "350%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[1, "desc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable', //+ "&nbsp; This barcode text is not assing to any item.<br>Would you like to assing it?<br><a id='aBarcodeYes'href='javascript:void(0)' onclick='javascript:return OpenItemInPopup(this);' >Yes</a> ",
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries',
+                    "sLoadingRecords": '@eTurns.DTO.Resources.ResMessage.MsgLoading'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    @*oData.oSearch.sSearch = "";
+                    if (!bIsIHFilter) {
+                        $.ajax({
+                            "url": '@Url.Content("~/Master/SaveGridState")',
+                            "type": "POST",
+                            data: { Data: JSON.stringify(oData), ListName: 'ItemMasterHistoryList' },
+                            "async": false,
+                            cache: false,
+                            "dataType": "json",
+                            "success": function (json) {
+                                if (json.jsonData != '')
+                                    o = json;
+                            }
+                        });
+                    }
+                    bIsIHFilter = false;*@
+                },
+                "fnStateLoad": function (oSettings) {
+                    @*var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                         "type": "POST",
+                        data: { ListName: 'ItemMasterHistoryList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;*@
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Master/MinMax_ChangeLogListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+
+                    //PostCount = PostCount + 1;
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    if (oSettings.aaSorting.length != 0) {
+                        aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                    }
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        "cache": false,
+                        "data": aoData,
+                        "headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        "beforeSend": function () {
+                            // $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        "error": function (xhr, status, error) {
+                            console.log(xhr);
+                        },
+                        "complete": function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+
+                            if ($("#MinMaxDashboardHistoryText").val() != '') {
+
+                                var SearchText = $("#MinMaxDashboardHistoryText").val();
+                                var count = (SearchText.match(/"/g) || []).length;
+
+                                if (count == 2 && SearchText.indexOf('"') == 0) {
+                                    SearchText = SearchText.replace('"', '').replace('"', '');
+                                    $('#MinMaxHistoryTable').highlight(SearchText);
+                                }
+                                if (count == 0) {
+                                    $('#MinMaxHistoryTable').highlight($("#MinMaxDashboardHistoryText").val());
+                                }
+                            }
+
+                            CallShowHideData();
+                            //if ($('#global_filter').val().length > 0) {
+                            //}
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [
+                    { "mDataProp": "Action", "sClass": "read_only" },
+                    {
+                        "mDataProp": "ActionDate", "sClass": "read_only",
+                        "fnRender": function (obj, val) {
+                            return obj.aData.ActionDateStr;
+                        }
+                    },
+                    {
+                        "mDataProp": "ItemNumber",
+                        "sClass": "read_only",
+                        "sDefaultContent": '',
+                        "bSortable": true,
+                        "bSearchable": false,
+                        "fnRender": function (obj, val) {
+                            var strVal = val;
+                            return strVal;
+                        }
+                    },
+                    {
+                        "mDataProp": "BinNumber",
+                        "sClass": "read_only",
+                        "sDefaultContent": '',
+                        "bSortable": true,
+                        "bSearchable": false,
+                        "fnRender": function (obj, val) {
+                            var strVal = val;
+                            return strVal;
+                        }
+                    },
+                    {
+                        "mDataProp": "UserName",
+                        "sClass": "read_only",
+                        "sDefaultContent": '',
+                        "bSortable": true,
+                        "bSearchable": false,
+                        "fnRender": function (obj, val) {
+                            var strVal = val;
+                            return strVal;
+                        }
+                    },
+                    {
+                        "mDataProp": "CompanyName",
+                        "sClass": "read_only",
+                        "sDefaultContent": '',
+                        "bSortable": true,
+                        "bSearchable": false,
+                        "fnRender": function (obj, val) {
+                            var strVal = val;
+                            return strVal;
+                        }
+                    },
+                    {
+                        "mDataProp": "RoomName",
+                        "sClass": "read_only",
+                        "sDefaultContent": '',
+                        "bSortable": true,
+                        "bSearchable": false,
+                        "fnRender": function (obj, val) {
+                            var strVal = val;
+                            return strVal;
+                        }
+                    }
+                ]
+            });
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+            $('#MinMaxHistoryTable').dataTable().fnFilter(FilterStringGlobalUse, null, null, null);
+
+        });
+
+    /* global search function */
+        function fnFilterGlobalPS() {
+            //set filter only if more than 2 characters are pressed
+            if (typeof $("#MinMaxDashboardHistoryText") != 'undefined' && ($("#MinMaxDashboardHistoryText").val().length > 2 || $("#MinMaxDashboardHistoryText").val().length == 0)) {
+                bIsIHFilter = true;
+                var searchtext = $("#MinMaxDashboardHistoryText").val().replace(/'/g, "''");
+
+                $('#' + historyDTName + ' td').removeHighlight();
+
+                $('#' + historyDTName).dataTable().fnFilter(
+                    searchtext,
+                    null,
+                    null,
+                    null
+                );
+
+                if (searchtext.length > 0)
+                    $('#' + historyDTName + ' td').highlight($("#MinMaxDashboardHistoryText").val());
+            }
+        }
+
+        $("#MinMaxDashboardHistoryText").keyup(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+            }
+            else {
+                fnFilterGlobalPS();
+            }
+        });
+
+    //Keydown event is required to handle ENTER KEY to work in IE
+        $("#MinMaxDashboardHistoryText").keydown(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                fnFilterGlobalPS();
+            }
+        });
+
+    //Clear Filter
+        function clearMinMaxsearh() {
+            $("#MinMaxDashboardHistoryText").val('');
+            fnFilterGlobalPS();
+            $("#MinMaxDashboardHistoryText").focus();
+            return false;
+        }
+
+    var timeoutscheduler;
+        $(document).on('propertychange input', "#MinMaxDashboardHistoryText", function () {
+            clearTimeout(timeoutscheduler);
+            var self = this;
+            timeoutscheduler = setTimeout(function () {
+                if (SearchPattern == 2 || SearchPattern == "2") {
+                    fnFilterGlobalPS();
+                }
+                else {
+                    $('#MinMaxDashboardHistoryText').unbind("keypress");
+                    $('#MinMaxDashboardHistoryText').keypress(function (event) {
+                        var keycode = (event.keyCode ? event.keyCode : event.which);
+                        if (keycode == 13) {
+                            fnFilterGlobalPS();
+                        }
+                    });
+                    if ($("#MinMaxDashboardHistoryText").val().length == 0) {
+                        setTimeout(function () { fnFilterGlobalPS(); }, 200);
+                    }
+                }
+            }, 500);
+        });
+        _Common.setGloblaSearch('MinMaxDashboardHistoryText', 'MinMaxHistoryTable');
+    </script>
+}
+<script type="text/javascript">
+    var TabsArry = [new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true)
+         ];
+    function callbackhistory() { }
+</script>
+<div class="userListingWrapper">
+    <h2>
+        @ResLayout.DashBoardViewLog
+    </h2>
+    <div class="userListBlock">
+        <ul class='tabs'></ul>        
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="MinMaxDashboardHistoryText" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="MinMaxDashboardHistoryClear" onclick="return clearMinMaxsearh()" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @Html.GridTopHeader(settingsNew)
+            <div class="userContent">
+                <table id="MinMaxHistoryTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.ResInventoryAnalysis.MinMaxAction
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResInventoryAnalysis.MinMaxActionDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResInventoryAnalysis.MinMaxItemnumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResInventoryAnalysis.MinMaxLocation
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResInventoryAnalysis.MinMaxUserName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResInventoryAnalysis.MinMaxCompanyName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResInventoryAnalysis.MinMaxRoomName
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>

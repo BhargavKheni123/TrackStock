@@ -1,0 +1,650 @@
+﻿@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplayDeleteButton = false, DataTableName = "HistoryTable", ColumnSetupFor ="RoomChangeLog"};
+}
+<script language="javascript" type="text/javascript">
+    var oHistoryTable;
+    $(document).ready(function () {
+        oHistoryTable = $('#HistoryTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "bAutoWidth": true,
+            "sScrollX": "100%",
+            "sDom": 'R<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[2, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries',
+                "sLoadingRecords": '@eTurns.DTO.Resources.ResMessage.MsgLoading'
+            },
+            "sAjaxSource": '@Url.Content("~/Master/GetHistoryData")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                aoData.push({ "name": "PageType", "value": "RoomList" });
+                aoData.push({ "name": "PageID", "value": SelectedHistoryRecordID });
+                aoData.push({ "name": "EnterpriseID", "value": SelectedHistoryRecordEnterpriseID });
+                aoData.push({ "name": "CompanyID", "value": SelectedCompanyId });
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback
+                })
+            },
+            "fnInitComplete": function () {
+                compareHistoryRows(this);
+            },
+            "aoColumns": [
+			                { "mDataProp": "Action", "sClass": "read_only" },
+			                {
+			                    "mDataProp": "RoomName",
+			                    "sClass": "read_only",
+			                    "sDefaultContent": '',
+			                    "fnRender": function (obj, val) {
+			                        //			                        return "<a onclick='return ShowEditTab(&quot;RoomEdit/" + obj.aData.ID + "&quot;,&quot;frmRoom&quot;)' href='JavaScript:void(0);'>" + obj.aData.RoomName + "</a>";
+			                        return "<span>" + obj.aData.RoomName + "</span>";
+
+			                    }
+			                },
+                            { "mDataProp": "CompanyName", "sClass": "read_only" },
+                            { "mDataProp": "ContactName", "sClass": "read_only" },
+                            { "mDataProp": "streetaddress", "sClass": "read_only" },
+                            { "mDataProp": "City", "sClass": "read_only" },
+                            { "mDataProp": "State", "sClass": "read_only" },
+                            { "mDataProp": "PostalCode", "sClass": "read_only" },
+                            { "mDataProp": "Country", "sClass": "read_only" },
+                            { "mDataProp": "Email", "sClass": "read_only" },
+                            { "mDataProp": "PhoneNo", "sClass": "read_only" },
+                            {
+                                "mDataProp": "IsRoomActive", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            { "mDataProp": "InvoiceBranch", "sClass": "read_only" },
+                            { "mDataProp": "CustomerNumber", "sClass": "read_only" },
+                            { "mDataProp": "BlanketPO", "sClass": "read_only" },
+                            {
+                                "mDataProp": "LastOrderDate", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetDateInFullFormat(val);
+                                }
+                            },
+                            {
+                                "mDataProp": "LastPullDate", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetDateInFullFormat(val);
+                                }
+                            },
+                            {
+                                "mDataProp": "IsConsignment", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "IsTrending", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            { "mDataProp": "TrendingFormulaDays", "sClass": "read_only" },
+                            { "mDataProp": "TrendingFormulaOverDays", "sClass": "read_only" },
+                            { "mDataProp": "TrendingFormulaAvgDays", "sClass": "read_only" },
+                            {
+                                "mDataProp": "SuggestedOrder", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "SuggestedTransfer", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            { "mDataProp": "ReplineshmentRoomName", "sClass": "read_only" },
+//                            { "mDataProp": "IsItemReplenishment", "sClass": "read_only" ,"fnRender": function (obj, val) {  return GetBoolInFormat(obj, val); } },
+//                            { "mDataProp": "IsBinReplenishment", "sClass": "read_only" ,"fnRender": function (obj, val) {  return GetBoolInFormat(obj, val); }},
+                            {
+                                "mDataProp": "IseVMI", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            { "mDataProp": "MaxOrderSize", "sClass": "read_only" },
+                            { "mDataProp": "HighPO", "sClass": "read_only" },
+                            { "mDataProp": "HighJob", "sClass": "read_only" },
+                            { "mDataProp": "HighTransfer", "sClass": "read_only" },
+                            { "mDataProp": "HighCount", "sClass": "read_only" },
+                            { "mDataProp": "GlobMarkupParts", "sClass": "read_only" },
+                            { "mDataProp": "GlobMarkupLabor", "sClass": "read_only" },
+                            {
+                                "mDataProp": "IsTax1Parts", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "IsTax1Labor", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            { "mDataProp": "Tax1name", "sClass": "read_only" },
+                            { "mDataProp": "Tax1Rate", "sClass": "read_only" },
+                            {
+                                "mDataProp": "IsTax2Parts", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "IsTax2Labor", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            { "mDataProp": "tax2name", "sClass": "read_only" },
+                            { "mDataProp": "Tax2Rate", "sClass": "read_only" },
+                            {
+                                "mDataProp": "IsTax2onTax1", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            { "mDataProp": "GXPRConsJob", "sClass": "read_only" },
+                            { "mDataProp": "CostCenter", "sClass": "read_only" },
+                            { "mDataProp": "UniqueID", "sClass": "read_only" },
+                            { "mDataProp": "eVMIWaitCommand", "sClass": "read_only" },
+                            { "mDataProp": "eVMIWaitPort", "sClass": "read_only" },
+			                {
+			                    "mDataProp": "Created", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.CreatedDate;
+			                    }
+			                },
+			                {
+			                    "mDataProp": "Updated", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.UpdatedDate;
+			                    }
+			                },
+                            { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                            { "mDataProp": "BillingRoomTypeStr", "sClass": "read_only" },
+                            { "mDataProp": "CountAutoNrFixedValue", "sClass": "read_only" },
+                            { "mDataProp": "NextCountNo", "sClass": "read_only" },
+                            { "mDataProp": "POAutoSequenceStr", "sClass": "read_only" },
+                            { "mDataProp": "POAutoNrFixedValue", "sClass": "read_only" },
+                            { "mDataProp": "NextOrderNo", "sClass": "read_only" },
+                            { "mDataProp": "PullPurchaseNumberTypeStr", "sClass": "read_only" },
+                            { "mDataProp": "PullPurchaseNrFixedValue", "sClass": "read_only" },
+                            { "mDataProp": "LastPullPurchaseNumberUsed", "sClass": "read_only" },
+                            { "mDataProp": "ReqAutoSequenceStr", "sClass": "read_only" },
+                            { "mDataProp": "ReqAutoNrFixedValue", "sClass": "read_only" },
+                            { "mDataProp": "NextRequisitionNo", "sClass": "read_only" },
+                            {
+                                "mDataProp": "IsAllowRequisitionDuplicate", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "IsAllowOrderDuplicate", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "IsAllowWorkOrdersDuplicate", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            { "mDataProp": "StagingAutoSequenceStr", "sClass": "read_only" },
+                            { "mDataProp": "StagingAutoNrFixedValue", "sClass": "read_only" },
+                            { "mDataProp": "NextStagingNo", "sClass": "read_only" },
+                            { "mDataProp": "TransferAutoSequenceStr", "sClass": "read_only" },
+                            { "mDataProp": "TransferAutoNrFixedValue", "sClass": "read_only" },
+                            { "mDataProp": "NextTransferNo", "sClass": "read_only" },
+                            { "mDataProp": "WorkOrderAutoSequenceStr", "sClass": "read_only" },
+                            { "mDataProp": "WorkOrderAutoNrFixedValue", "sClass": "read_only" },
+                            { "mDataProp": "NextWorkOrderNo", "sClass": "read_only" },
+                            { "mDataProp": "TAOAutoSequenceStr", "sClass": "read_only" },
+                            { "mDataProp": "TAOAutoNrFixedValue", "sClass": "read_only" },
+                            { "mDataProp": "NextToolAssetOrderNo", "sClass": "read_only" },
+                            { "mDataProp": "ToolCountAutoSequenceStr", "sClass": "read_only" },
+                            { "mDataProp": "NextToolCountNo", "sClass": "read_only" },
+                            {
+                                "mDataProp": "AllowInsertingItemOnScan", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "AllowPullBeyondAvailableQty", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            { "mDataProp": "PullRejectionTypeStr", "sClass": "read_only" },
+                            { "mDataProp": "ReplenishmentTypeStr", "sClass": "read_only" },
+                            { "mDataProp": "DefaultBinName", "sClass": "read_only" },
+                            { "mDataProp": "DefaultSupplierName", "sClass": "read_only" },
+                            { "mDataProp": "SlowMovingValue", "sClass": "read_only" },
+                            { "mDataProp": "FastMovingValue", "sClass": "read_only" },
+                            { "mDataProp": "InventoryConsuptionMethod", "sClass": "read_only" },
+                            { "mDataProp": "MethodOfValuingInventoryStr", "sClass": "read_only" },
+                            { "mDataProp": "BaseOfInventoryStr", "sClass": "read_only" },
+                            { "mDataProp": "LicenseBilled", "sClass": "read_only" },
+                            {
+                                "mDataProp": "IsProjectSpendMandatory", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "WarnUserOnAssigningNonDefaultBin", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "IsWOSignatureRequired", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "IsIgnoreCreditRule", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "ForceSupplierFilter", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "IsAllowOrderCostuom", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            { "mDataProp": "RequestedXDays", "sClass": "read_only" },
+                            { "mDataProp": "ShelfLifeleadtimeOrdRpt", "sClass": "read_only" },
+                            { "mDataProp": "LeadTimeOrdRpt", "sClass": "read_only" },
+                            { "mDataProp": "MaintenanceDueNoticeDays", "sClass": "read_only" },
+                            { "mDataProp": "DefaultRequisitionRequiredDays", "sClass": "read_only" },
+                            { "mDataProp": "AttachingWOWithRequisitionStr", "sClass": "read_only" },
+                            { "mDataProp": "PreventMaxOrderQtyStr", "sClass": "read_only" },
+                            { "mDataProp": "DefaultCountTypeStr", "sClass": "read_only" },
+                            {
+                                "mDataProp": "SuggestedReturn", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            }
+                            @Html.RenderColumnsArray("Room")
+            ]
+        });
+        //HIDE PRINT CONTAINER
+        $('.DTTT_container').css('z-index', '-1');
+        $("#HistoryText").keydown(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                oHistoryTable.fnFilter(this.value);
+            }
+        });
+        $("#HistoryClear").click(function () {
+            if ($("#HistoryText").val().length > 0) {
+                $("#HistoryText").val("");
+                oHistoryTable.fnFilter("");
+            }
+            return false;
+        });
+        _Common.setGloblaSearch('HistoryText', 'HistoryTable');
+    });
+</script>
+<div class="searchWrapper">
+    <div class="searchBlock">
+        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+        <div class="searchinputB">
+            <input type="text" class="searchinput" id="HistoryText" />
+            <a href="javascript:void(0);" class="xclose">
+                <img src="~/Content/images/x.png" alt="X" id="HistoryClear" />
+            </a>
+        </div>
+    </div>
+</div>
+@Html.GridTopHeaderForHistory(settings)
+<div style="margin: 0 0.4% 1%">
+    <table id="HistoryTable" class="display">
+        <thead>
+            <tr>
+                <th>
+                    @ResCommon.HistoryAction
+                </th>
+                <th>
+                    @ResRoomMaster.RoomName
+                </th>
+                <th>
+                    @ResRoomMaster.CompanyName
+                </th>
+                <th>
+                    @ResRoomMaster.ContactName
+                </th>
+                <th>
+                    @ResCommon.Address
+                </th>
+                <th>
+                    @ResCommon.City
+                </th>
+                <th>
+                    @ResCommon.State
+                </th>
+                <th>
+                    @ResCommon.PostalCode
+                </th>
+                <th>
+                    @ResCommon.Country
+                </th>
+                <th>
+                    @ResCommon.Email
+                </th>
+                <th>
+                    @ResCommon.Phone
+                </th>
+                <th>
+                    @ResRoomMaster.IsRoomActive
+                </th>
+                <th>
+                    @ResRoomMaster.InvoiceBranch
+                </th>
+                <th>
+                    @ResRoomMaster.CustomerNumber
+                </th>
+                <th>
+                    @ResRoomMaster.BlanketPO
+                </th>
+                <th>
+                    @ResRoomMaster.LastOrderDate
+                </th>
+                <th>
+                    @ResRoomMaster.LastPullDate
+                </th>
+                <th>
+                    @ResRoomMaster.IsConsignment
+                </th>
+                <th>
+                    @ResRoomMaster.Trending
+                </th>
+                <th>
+                    @ResRoomMaster.Value1
+                </th>
+                <th>
+                    @ResRoomMaster.Value2
+                </th>
+                <th>
+                    @ResRoomMaster.Value3
+                </th>
+                <th>
+                    @ResRoomMaster.SuggestedOrder
+                </th>
+                <th>
+                    @ResRoomMaster.SuggestedTransfer
+                </th>
+                <th>
+                    @ResRoomMaster.ReplineshmentRoom
+                </th>
+                <th>
+                    @ResRoomMaster.IseVMI
+                </th>
+                <th>
+                    @ResRoomMaster.MaxOrderSize
+                </th>
+                <th>
+                    @ResRoomMaster.HighPO
+                </th>
+                <th>
+                    @ResRoomMaster.HighJob
+                </th>
+                <th>
+                    @ResRoomMaster.HighTransfer
+                </th>
+                <th>
+                    @ResRoomMaster.HighCount
+                </th>
+                <th>
+                    @ResRoomMaster.GlobalMarkupParts
+                </th>
+                <th>
+                    @ResRoomMaster.GlobalMarkupLabor
+                </th>
+                <th>
+                    @ResRoomMaster.Tax1Parts
+                </th>
+                <th>
+                    @ResRoomMaster.Tax1Labor
+                </th>
+                <th>
+                    @ResRoomMaster.Tax1name
+                </th>
+                <th>
+                    @ResRoomMaster.Tax1percent
+                </th>
+                <th>
+                    @ResRoomMaster.Tax2Parts
+                </th>
+                <th>
+                    @ResRoomMaster.Tax2Labor
+                </th>
+                <th>
+                    @ResRoomMaster.Tax2name
+                </th>
+                <th>
+                    @ResRoomMaster.Tax2percent
+                </th>
+                <th>
+                    @ResRoomMaster.Tax2onTax1
+                </th>
+                <th>
+                    @ResRoomMaster.GXPRConsJob
+                </th>
+                <th>
+                    @ResRoomMaster.CostCenter
+                </th>
+                <th>
+                    @ResRoomMaster.UniqueID
+                </th>
+                <th>
+                    @ResRoomMaster.eVMIWaitCommand
+                </th>
+                <th>
+                    @ResRoomMaster.eVMIWaitPort
+                </th>
+                <th>
+                    @ResCommon.CreatedOn
+                </th>
+                <th>
+                    @ResCommon.UpdatedOn
+                </th>
+                <th>
+                    @ResCommon.UpdatedBy
+                </th>
+                <th>
+                    @ResCommon.CreatedBy
+                </th>
+                <th>
+                    @ResRoomMaster.BillingRoomType
+                </th>
+                <th>
+                    @ResRoomMaster.CountAutoSequence
+                </th>
+                <th>
+                    @ResRoomMaster.NextCountNo
+                </th>
+                <th>
+                    @ResSupplierMaster.POAutoSequence
+                </th>
+                <th>
+                    @ResRoomMaster.POAutoNrFixedValue
+                </th>
+                <th>
+                    @ResRoomMaster.NextOrderNo
+                </th>
+                <th>
+                    @ResRoomMaster.PullPurchaseNumberType
+                </th>
+                <th>
+                    @ResRoomMaster.PullPurchaseNrFixedValue
+                </th>
+                <th>
+                    @ResRoomMaster.LastPullPurchaseNumberUsed
+                </th>
+                <th>
+                    @ResSupplierMaster.RequisitionAutoSequence
+                </th>
+                <th>
+                    @ResRoomMaster.ReqAutoNrFixedValue
+                </th>
+                <th>
+                    @ResRoomMaster.NextRequisitionNo
+                </th>
+                <th>
+                    @ResRoomMaster.IsAllowRequisitionDuplicate
+                </th>
+                <th>
+                    @ResRoomMaster.IsAllowOrderDuplicate
+                </th>
+                <th>
+                    @ResRoomMaster.IsAllowWorkOrdersDuplicate
+                </th>
+                <th>
+                    @ResRoomMaster.StagingAutoSequence
+                </th>
+                <th>
+                    @ResRoomMaster.StagingAutoNrFixedValue
+                </th>
+                <th>
+                    @ResRoomMaster.NextStagingNo
+                </th>
+                <th>
+                    @ResRoomMaster.TransferAutoSequence
+                </th>
+                <th>
+                    @ResRoomMaster.TransferAutoNrFixedValue
+                </th>
+                <th>
+                    @ResRoomMaster.NextTransferNo
+                </th>
+                <th>
+                    @ResRoomMaster.WorkOrderAutoSequence
+                </th>
+                <th>
+                    @ResRoomMaster.WorkOrderAutoNrFixedValue
+                </th>
+                <th>
+                    @ResRoomMaster.NextWorkOrderNo
+                </th>
+                <th>
+                    @ResSupplierMaster.TAOAutoSequence
+                </th>
+                <th>
+                    @ResRoomMaster.NextToolAssetOrderNo
+                </th>
+                <th>
+                    @ResRoomMaster.ToolCountAutoSequence
+                </th>
+                <th>
+                    @ResRoomMaster.NextToolCountNo
+                </th>
+                <th>
+                    @ResRoomMaster.AllowInsertingItemOnScan
+                </th>
+                <th>
+                    @ResRoomMaster.AllowPullBeyondAvailableQty
+                </th>
+                <th>
+                    @ResRoomMaster.PullRejectionType
+                </th>
+                <th>
+                    @ResRoomMaster.ReplenishmentType
+                </th>
+                <th>
+                    @ResRoomMaster.DefaultBinID
+                </th>
+                <th>
+                    @ResRoomMaster.DefaultSupplier
+                </th>
+                <th>
+                    @ResRoomMaster.SlowMovingValue
+                </th>
+                <th>
+                    @ResRoomMaster.FastMovingValue
+                </th>
+                <th>
+                    @ResRoomMaster.InventoryConsuptionMethod
+                </th>
+                <th>
+                    @ResRoomMaster.ValuingInventoryMethod
+                </th>
+                <th>
+                    @ResRoomMaster.BaseOfInventory
+                </th>
+                <th>
+                    @ResRoomMaster.LicenseBilled
+                </th>
+                <th>
+                    @ResRoomMaster.IsProjectSpendMandatory
+                </th>
+                <th>
+                    @ResRoomMaster.WarnUserOnAssigningNonDefaultBin
+                </th>
+                <th>
+                    @ResRoomMaster.IsWOSignatureRequired
+                </th>
+                <th>
+                    @ResRoomMaster.IsIgnoreCreditRule
+                </th>
+                <th>
+                    @ResRoomMaster.ForceSupplierFilter
+                </th>                
+                <th>
+                    @ResRoomMaster.IsAllowOrderCostuom
+                </th>
+                <th>
+                    @ResRoomMaster.RequestedXDays
+                </th>
+                <th>
+                    @ResRoomMaster.ShelfLifeleadtimeOrdRpt
+                </th>
+                <th>
+                    @ResRoomMaster.LeadTimeOrdRpt
+                </th>
+                <th>
+                    @ResRoomMaster.MaintenanceDueNoticeDays
+                </th>
+                <th>
+                    @ResRoomMaster.DefaultRequisitionRequiredDays
+                </th>
+                <th>
+                    @ResRoomMaster.AttachingWOWithRequisition
+                </th>
+                <th>
+                    @ResRoomMaster.PreventMaxOrderQty
+                </th>
+                <th>
+                    @ResRoomMaster.DefaultCountType
+                </th>
+                <th>
+                    @ResRoomMaster.SuggestedReturn
+                </th>
+                @Html.RenderColumnsHeader("Room", typeof(eTurns.DTO.ResRoomMaster))
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>

@@ -1,0 +1,1213 @@
+@{
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DataTableName = "myInventoryDataTable", ListViewhref = "", PictureViewhref = "", DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "DashboardItemMasterList", DisplayDeleteButton = false, DisplayGoToPage = false, ShowReorder = true, ReorderByDataTableName = true, ExportModuleName = "ItemMasterList" };
+    eTurns.DAL.DashboardDAL objItemMasterDAL = new eTurns.DAL.DashboardDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    string title = ResDashboard.Inventry;
+    string ChartLoadUrl = Url.Action("LoadChart", "InventoryChart");
+    var objinvenrotyDash = new eTurnsWeb.Controllers.InventoryDashboardController();
+    int TotalCount = 0;
+    DashboardItem objDashboardItem = objItemMasterDAL.GetItemsForItemDashboardDB(0, 10, out TotalCount, string.Empty, "Turns ASC", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.UserSupplierIds, true, null, null, 0, false, "somename", true).FirstOrDefault();
+    Int64 intCritical = objDashboardItem.CritCount ?? 0;
+    Int64 intMinimum = objDashboardItem.MinCount ?? 0;
+    Int64 intMaximum = objDashboardItem.MaxCount ?? 0;
+    Int64 intSlowMoving = objDashboardItem.SlowMovingCount ?? 0;
+    Int64 intFastMoving = objDashboardItem.FastMovingCount ?? 0;
+    long intStockOut = new eTurns.DAL.ItemMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetStockOutsForDashboard(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID);
+    bool IsOrderViewrRights = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Orders, eTurnsWeb.Helper.SessionHelper.PermissionType.View);
+    bool IsTransferViewrRights = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Transfer, eTurnsWeb.Helper.SessionHelper.PermissionType.View);
+    Int64 InvBillingRoomType = eTurnsWeb.Helper.SessionHelper.BillingRoomType;
+}
+<style>
+    .dataTables_scrollBody {
+        overflow-y:scroll ;
+        overflow-x:scroll;
+        
+        max-height:3000px !important;
+        overflow:scroll !important;
+    }
+
+    .Lnavd {
+        float: left;
+        padding-left: 1px;
+    }
+
+        .Lnavd li {
+            float: left;
+            padding: 2px 4px 1px 0;
+            position: relative;
+            list-style: none;
+        }
+
+            .Lnavd li.clear {
+                width: 100%;
+                height: 1px;
+                float: left;
+                margin: 0;
+                padding: 0;
+            }
+
+    .lia {
+        background: none repeat scroll 0 0 #F3F9FF;
+        border: 1px solid #C7E3FF;
+        border-radius: 5px 5px 5px 5px;
+        color: #1971BD;
+        float: left;
+        font-size: 12px;
+        padding: 1px 5px;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none; /* width: 50px;*/
+    }
+
+    .liahover {
+        background: no-repeat scroll 90px center red;
+        border: 1px solid #1971BD;
+        border-radius: 5px 5px 5px 5px;
+        color: #FFFFFF !important;
+        cursor: auto;
+        text-decoration: none;
+    }
+    /*  .Lnavd li a
+    {
+        background: none repeat scroll 0 0 #F3F9FF;
+        border: 1px solid #C7E3FF;
+        border-radius: 5px 5px 5px 5px;
+        color: #1971BD;
+        float: left;
+        font-size: 12px;
+        padding: 1px 5px;
+        text-align: center;
+        text-decoration: none;
+    }*/
+    .Lnavd li a:hover {
+        text-decoration: none;
+    }
+
+    .imgclassd span {
+        background: url("../../content/images/num-selected.png") no-repeat scroll 0 0 transparent;
+        color: #FFFFFF;
+        float: right;
+        font-size: 12px;
+        font-weight: bold;
+        height: 18px;
+        margin: -12px 0 0 -6px;
+        padding: 6px 0;
+        text-align: center;
+        width: 29px;
+    }
+
+    .invgridchartclass {
+        float: right;
+        margin-right: 0;
+        padding-bottom: 0;
+        padding-left: 0;
+        padding-top: 0;
+        width: auto;
+    }
+
+    .ui-widget-overlay {
+        background: #666666 url(../images/ui-bg_diagonals-thick_20_666666_40x40.png) 50% 50% repeat !important;
+    }
+</style>
+<div id="ItemQty">
+</div>
+<div id="Inventory" class="portlet ui-widget-content ui-helper-clearfix ui-corner-all">
+    <div class="portlet-header ui-widget-header ui-corner-top">
+        <span class="forcolor">@title</span><a href="#" class="closeEl ui-icon ui-icon-triangle-1-n"></a>
+    </div>
+    <div class="portlet-content">
+        <div id="dvInventry">
+            <div style="float: left; width: 100%;">
+                <div style="float: left; width: 100%;">
+                    <div id="dvmainInventory" class="Lnavd">
+                        <ul>
+                            <li class="imgclassd"><a id="lnkitem" title="Item" href="javascript:void(0);" class="lia liahover">@eTurns.DTO.ResDashboard.TabItem</a></li>
+                        </ul>
+                    </div>
+                    <div class="viewBlock invgridchartclass">
+                        <span class="label">View:</span> 
+                        <a class="view clsLoadChart" href="javascript:void(0);" onclick="ShowHideInventoryDiv('Chart');">
+                            <img alt="" id="imgchart" src="/content/images/chart-view-active.png">
+                        </a> 
+                        <a class="view clsLoadGraph" href="javascript:void(0);" onclick="ShowHideInventoryDiv('Grid');" id="aimggrid">
+                            <img alt="" id="imggrid" src="/content/images/list-view-inactive.png">
+                        </a>
+                    </div>
+                    <div id="dvinnerInventory" style="float: left; width: 100%;">
+                        <div id="dvpartialinventory" class="Lnavd" style="float: left; width: 100%; padding-top: 10px;">
+                            <ul>
+                                @if (InvBillingRoomType != 4)
+                                {
+                                    <li class="imgclassd">
+                                        <a id="lnkInvValue" title="Inv. Value" onclick="BindPartialInventoryStatusGrid('lnkInvValue','InvValue')"
+                                           class="lia">@ResDashboard.SubTabItemInvValue</a>
+                                    </li>
+                                    <li class="imgclassd">
+                                        <a id="lnkstockout" title="Stock Out" onclick="BindPartialInventoryStatusGrid('lnkstockout','Stock Out')"
+                                           class="lia">@ResDashboard.SubTabItemStockOut</a>@if (intStockOut != 0)
+                                           {<span>@intStockOut</span>}
+                                    </li>
+                                    <li class="imgclassd">
+                                        <a id="lnkcritical" title="Critical" onclick="BindPartialInventoryStatusGrid('lnkcritical','Critical')"
+                                           class="lia">@ResDashboard.SubTabItemCritical</a>@if (intCritical != 0)
+                                           { <span>@intCritical</span>}
+                                    </li>
+                                    <li class="imgclassd">
+                                        <a id="lnkimnimum" title="Minimum" onclick="BindPartialInventoryStatusGrid('lnkimnimum','Minimum')"
+                                           class="lia">@ResDashboard.SubTabItemMinimum</a>@if (intMinimum != 0)
+                                           { <span>@intMinimum</span>}
+                                    </li>
+                                    <li class="imgclassd">
+                                        <a id="lnkMaximum" title="Maximum" onclick="BindPartialInventoryStatusGrid('lnkMaximum','Maximum')"
+                                           class="lia">@ResDashboard.SubTabItemMaximum</a>@if (intMaximum != 0)
+                                           { <span>@intMaximum</span>}
+                                    </li>
+                                }
+                                <li class="imgclassd">
+                                    <a id="lnkslowmoving" title="Slow Moving" onclick="BindPartialInventoryStatusGrid('lnkslowmoving','Slow Moving')"
+                                       class="lia">@ResDashboard.SubTabItemSlowMoving</a>@if (intSlowMoving != 0)
+                                       {<span>@intSlowMoving</span>}
+                                </li>
+                                <li class="imgclassd">
+                                    <a id="lnkfastmoving" title="Fast Moving" onclick="BindPartialInventoryStatusGrid('lnkfastmoving','Fast Moving')"
+                                       class="lia">@ResDashboard.SubTabItemFastMoving</a>@if (intFastMoving != 0)
+                                       {<span>@intFastMoving</span>}
+                                </li>
+                                @* <li class="imgclassd"><a id="lnkInvValue" title="Inv. Value" onclick="BindPartialInventoryStatusGrid('lnkInvValue','InvValue')"
+                                    class="lia">@ResDashboard.SubTabItemInvValue</a></li>*@
+                            </ul>
+                        </div>
+                        <div style="float: left; padding-top: 4px; display: none;" id="divParametrs">
+                            <ul>
+                                <li style="border-right: none; float: left; padding-right: 5px;">
+                                    <label style="float: left; padding: 1.3% 2px;">
+                                        @Html.Label("From")
+                                    </label>
+                                    @Html.TextBox("txtInventoryFromDate", "1/1/" + eTurns.DAL.DateTimeUtility.DateTimeNow.Year, new { @class = "importtext-box", id = "txtInventoryFromDate", @readonly = "readonly", @style = "width:70px;background:white", maxlength = 128 })
+                                </li>
+                                <li style="border-right: none; float: left; padding-right: 5px;">
+                                    <label style="float: left; padding: 1.3% 2px;">
+                                        @Html.Label("To")
+                                    </label>
+                                    @Html.TextBox("txtInventoryToDate", eTurns.DAL.DateTimeUtility.DateTimeNow.ToString("MM/dd/yyyy"), new { @class = "importtext-box", id = "txtInventoryToDate", @readonly = "readonly", @style = "width:70px;background:white", maxlength = 128 })
+                                    @Html.Hidden("hdninventorystatus", new { id = "hdninventorystatus" })
+                                    @Html.Hidden("hdninventoryCurrentView", "Chart", new { id = "hdninventoryCurrentView" })
+                                </li>
+                                @*<li id="liTurns" style="border-right: none; float: left; padding-right: 5px;">
+                                        <label for="label" style="float: left; padding: 1.3% 2px;">
+                                            @Html.Label("Turns")
+                                        </label>
+                                        @Html.TextBox("txtTurns", "", new { @class = "importtext-box", id = "txtTurns", @style = "width:30px;background:white", maxlength = 3 })
+                                    </li>*@
+                                <li style="border-right: none; float: left; padding-right: 5px;">
+                                    <div class="BtnBlockform" style="margin: 0 0 0 5px;">
+                                        <input type="button" value="GO" id="btnParitalInventorygo" name="btnParitalInventorygo"
+                                               class="CreateBtn" style="float: left;" />
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        <div id="Ctab" class="tabContener">
+                            <div id="dvParitalInventoryGrid" class="userContent" style="float: left; width: 100%;">
+                                <div id="divCartOrderTab" class="Lnavd" style="float: left; width: 98%; padding-top: 10px;">
+                                    <div style="float:left; width:38%">
+                                        <span style="float:left">Supplier:&nbsp;</span><select id="ddlInventoryGridSupplier"></select>
+                                    </div>
+                                    <div style="float:left; width:38%">
+                                        <span style="float:left">Category:&nbsp;</span><select id="ddlInventoryGridCategory"></select>
+                                    </div>
+                                    @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.DashboardItemMasterList)
+                                </div>
+                                <div class="searchWrapper">
+                                    <div class="searchBlock">
+                                        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                                        <div class="searchinputB">
+                                            <input type="text" class="searchinput" id="global_filterinventoryDash" />
+                                            <a href="javascript:void(0);" class="xclose">
+                                                <img src="~/Content/images/x.png" alt="X" id="clear_global_filterinventoryDash" />
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>                                
+                                <div class="userHead" style="height: 30px;">
+                                </div>
+                                <table id="myInventoryDataTable" class="display" style="width: 561px; overflow: auto;">
+                                    <thead>
+                                        <tr>
+                                            @*<th>@eTurns.DTO.Resources.ResCommon.ID
+                                                </th>*@
+                                            <th>
+                                                @ResDashboard.ItemNumber
+                                            </th>
+                                            <th>
+                                                @ResDashboard.ItemDescription
+                                            </th>
+                                            <th>
+                                                @ResDashboard.BinNumber
+                                            </th>
+                                            <th>
+                                                @ResDashboard.ItemOnHandQuantity
+                                            </th>
+                                            <th>
+                                                @ResDashboard.ItemCriticalQuantity
+                                            </th>
+                                            <th>
+                                                @ResDashboard.ItemMinimumQuantity
+                                            </th>
+                                            <th>
+                                                @ResDashboard.ItemMaximumQuantity
+                                            </th>
+                                            <th>
+                                                @ResDashboard.ItemSuggestedOrderQuantity
+                                            </th>
+                                            <th>
+                                                @ResDashboard.ItemOnOrderQuantity
+                                            </th>
+                                            <th>
+                                                @ResDashboard.ItemOnTransferQuantity
+                                            </th>
+                                            <th>
+                                                @ResDashboard.ItemAverageUsage
+                                            </th>
+                                            <th>
+                                                @ResDashboard.ItemTurns
+                                            </th>
+                                            <th>
+                                                @ResDashboard.ItemInventoryClassification
+                                            </th>
+                                            <th>
+                                                @ResDashboard.ItemCost
+                                            </th>
+                                            <th>
+                                                @ResDashboard.ItemStockOut
+                                            </th>
+                                            
+                                            <th>@eTurns.DTO.ResItemMaster.ManufacturerNumber</th>
+                                            <th>@eTurns.DTO.ResItemMaster.UPC</th>
+                                            <th>@eTurns.DTO.ResItemMaster.UNSPSC</th>
+                                            <th>@eTurns.DTO.ResItemMaster.PricePerTerm</th>
+                                            <th>@eTurns.DTO.ResItemMaster.DefaultReorderQuantity</th>
+                                            <th>@eTurns.DTO.ResItemMaster.Markup</th>
+                                            <th>@eTurns.DTO.ResItemMaster.SellPrice</th>
+                                            <th>@eTurns.DTO.ResItemMaster.ExtendedCost</th>
+                                            <th>@eTurns.DTO.ResItemMaster.LeadTimeInDays</th>
+                                            <th>Link1</th>
+                                            <th>@eTurns.DTO.ResItemMaster.Link2</th>
+                                            <th>@eTurns.DTO.ResItemMaster.Trend</th>
+                                            <th>@eTurns.DTO.ResItemMaster.Taxable</th>
+                                            <th>@eTurns.DTO.ResItemMaster.Consignment</th>
+                                            <th>@eTurns.DTO.ResItemMaster.StagedQuantity</th>
+                                            <th>@eTurns.DTO.ResItemMaster.InTransferTransitQuantity</th>
+                                            <th>@eTurns.DTO.ResItemMaster.OnOrderInTransitQuantity</th>
+                                            <th>@eTurns.DTO.ResItemMaster.WeightPerPiece</th>
+                                            <th>@eTurns.DTO.ResItemMaster.ItemUniqueNumber</th>
+                                            <th>@eTurns.DTO.ResItemMaster.IsTransfer</th>
+                                            <th>@eTurns.DTO.ResItemMaster.IsPurchase</th>
+                                            @*<th>@eTurns.DTO.ResItemMaster.DefaultLocation</th>*@
+                                            <th>@eTurns.DTO.ResItemMaster.SerialNumberTracking</th>
+                                            <th>@eTurns.DTO.ResItemMaster.LotNumberTracking</th>
+                                            <th>@eTurns.DTO.ResItemMaster.DateCodeTracking</th>
+                                            <th>@eTurns.DTO.ResItemMaster.ItemType</th>
+                                            <th>@eTurns.DTO.ResItemMaster.ImagePath</th>
+                                            @*<th>UDF1</th>
+                                            <th>UDF2</th>
+                                            <th>UDF3</th>
+                                            <th>UDF4</th>
+                                            <th>UDF5</th>*@
+                                            <th>@eTurns.DTO.Resources.ResCommon.CreatedOn</th>
+                                            <th>@eTurns.DTO.Resources.ResCommon.UpdatedOn</th>
+                                            <th>@eTurns.DTO.Resources.ResCommon.CreatedBy</th>
+                                            <th>@eTurns.DTO.Resources.ResCommon.UpdatedBy</th>
+                                            <th>IsDeleted</th>
+                                            <th>IsArchived</th>
+                                            <th>@eTurns.DTO.ResItemMaster.IsLotSerialExpiryCost</th>
+                                            <th>PackingQuantity</th>
+                                            <th>@eTurns.DTO.ResItemMaster.IsItemLevelMinMaxQtyRequired</th>
+                                            <th>@eTurns.DTO.ResItemMaster.IsEnforceDefaultReorderQuantity</th>
+                                            <th>@eTurns.DTO.ResItemMaster.AverageCost</th>
+                                            <th>IsBuildBreak</th>
+                                            <th>@eTurns.DTO.ResItemMaster.BondedInventory</th>
+                                            <th>WhatWhereAction</th>
+                                            <th>@eTurns.DTO.ResItemMaster.OnReturnQuantity</th>
+                                            <th>IsBOMItem</th>
+                                            <th>@eTurns.DTO.ResItemMaster.TrendingSetting</th>
+                                            <th>@eTurns.DTO.ResItemMaster.PullQtyScanOverride</th>
+                                            @*<th>@eTurns.DTO.ResItemMaster.InventoryClassification</th>*@
+                                            <th>IsPackslipMandatoryAtReceive</th>
+                                            <th>@eTurns.DTO.ResItemMaster.SuggestedTransferQuantity</th>
+                                            <th>@eTurns.DTO.ResItemMaster.Cost</th>
+                                            <th>@eTurns.DTO.Resources.ResCommon.ReceivedOnDate</th>
+                                            <th>@eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate</th>
+                                            <th>@eTurns.DTO.Resources.ResCommon.AddedFrom</th>
+                                            <th>@eTurns.DTO.Resources.ResCommon.EditedFrom</th>
+                                            <th>@eTurns.DTO.ResItemMaster.OrderedDate</th>
+                                            <th>@eTurns.DTO.ResItemMaster.PulledDate</th>
+                                            <th>@eTurns.DTO.ResItemMaster.CountedDate</th>
+                                            <th>@eTurns.DTO.ResItemMaster.TrasnferedDate</th>
+                                            <th>@eTurns.DTO.ResItemMaster.PriceSavedDate</th>
+                                            <th>ItemImageExternalURL</th>
+                                            <th>@eTurns.DTO.ResItemMaster.ItemDocExternalURL</th>
+                                            <th>ImageType</th>
+                                            <th>@eTurns.DTO.ResItemMaster.QtyToMeetDemand</th>
+                                            <th>@eTurns.DTO.ResItemMaster.OutTransferQuantity</th>
+                                            <th>ItemLink2ExternalURL</th>
+                                            <th>ItemLink2ImageType</th>
+                                            <th>@eTurns.DTO.ResItemMaster.IsActive</th>
+                                            <th>@eTurns.DTO.ResItemMaster.ManufacturerName</th>
+                                            <th>DefaultLocationName</th>
+                                            <th>BinDeleted</th>
+                                            <th>CostUOMName</th>
+                                            <th>@eTurns.DTO.ResItemMaster.BPONumber</th>
+                                            <th>@eTurns.DTO.ResItemMaster.Supplier</th>
+                                            <th>@eTurns.DTO.ResItemMaster.CategoryID</th>
+                                            @Html.RenderColumnsHeader("ItemMaster", typeof(eTurns.DTO.ResItemMaster))
+                                        </tr>
+                                    </thead>
+                                </table>
+                            </div>
+                            <div id="dvParitalInventoryChart" style="float: left; width: 100%;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script language="javascript" type="text/javascript">
+    var AllowDeletePopup = true;
+    var GlogalInventorySupplierValue = '';
+    var GlogalInventoryCategoryValue = '';
+    var AllowDeletePopup = true;
+    var oTableInventory;
+    var anOpen = [];
+    var ItemName = '';
+    var ItemUniqueID = '';
+    var objColumnsInventoryDataTable = {};
+
+    //var objColumns = {}
+    function ShowHideInventoryDiv(str) {
+        if (str == 'Grid') {
+            $("#global_filterinventoryDash").val("");
+            $('#dvInventry').find('[id^="global_filter"]')[0].value = "";
+            $('#myInventoryDataTable').dataTable().fnFilter('', null, null, null)
+        }
+
+        DestroyMultiSelect('ddlInventoryChartSupplier');
+        DestroyMultiSelect('ddlInventoryChartCategory');
+        DestroyMultiSelect('ddlInventoryGridSupplier');
+        DestroyMultiSelect('ddlInventoryGridCategory');
+
+        $("#hdninventoryCurrentView").val(str);
+        if (str == 'Grid') {
+            $("#dvParitalInventoryGrid").show();
+            $("#dvParitalInventoryChart").hide();
+            ChangeImgSRC('Grid', 'imggrid', 'imgchart');
+            if (oTableInventory === undefined || oTableInventory == null || dashboardReorder == true) {
+                dashboardReorder = false;
+                TestItemGrid();
+                $('.DTTT_container').css('z-index', '-1');
+            }
+            else {
+                oTableInventory.fnDraw();
+            }            
+        }
+        else {
+            $("#dvParitalInventoryGrid").hide();
+            $("#dvParitalInventoryChart").show();
+            ChangeImgSRC('Chart', 'imggrid', 'imgchart');
+            $('#dvParitalInventoryChart').empty();
+
+            //$('#dvParitalInventoryChart').load('@ChartLoadUrl' + "?ChartType=" + encodeURIComponent($("#hdninventorystatus").val()), function () { });
+            $('#dvParitalInventoryChart').load('@ChartLoadUrl' + "?ChartType=" + encodeURIComponent($("#hdninventorystatus").val()) + '&SelectedSupplier=' + GlogalInventorySupplierValue + '&SelectedCategory=' + GlogalInventoryCategoryValue, function () { });
+        }
+    }
+
+    
+
+    $(document).ready(function () {
+        objColumnsInventoryDataTable = GetGridHeaderColumnsObject('myInventoryDataTable');
+        //objColumns = GetGridHeaderColumnsObject('myInventoryDataTable');
+        $("#dvParitalInventoryGrid").hide();
+        $("#dvParitalInventoryChart").show();
+        $('#txtInventoryFromDate').blur(function () { }).datepicker({ dateFormat: 'm/d/yy' });
+        $('#txtInventoryToDate').blur(function () { }).datepicker({ dateFormat: 'm/d/yy' });
+        $("#global_filterinventoryDash").val("");
+
+        if ('@InvBillingRoomType' != '4') {
+            $("#lnkInvValue").removeClass("lava");
+            $("#lnkInvValue").addClass("liahover");
+
+            $("#aimggrid").hide();
+            $("#hdninventorystatus").val("InvValue");
+
+            //$('#dvParitalInventoryChart').empty();
+            //$('#dvParitalInventoryChart').load('@ChartLoadUrl' + "?ChartType=" + encodeURIComponent($("#hdninventorystatus").val()), function () { });
+    
+        }
+        else {
+            $("#lnkslowmoving").removeClass("lava");
+            $("#lnkslowmoving").addClass("liahover");
+
+          
+            $("#hdninventorystatus").val("Slow Moving");
+            $("#aimggrid").show();
+           
+        }
+
+        $('#dvParitalInventoryChart').empty();
+        $('#dvParitalInventoryChart').load('@ChartLoadUrl' + "?ChartType=" + encodeURIComponent($("#hdninventorystatus").val()), function () { });
+
+        //$("#liTurns").hide();
+        
+        //TestItemGrid();
+        //HIDE PRINT CONTAINER
+        $('.DTTT_container').css('z-index', '-1');
+       
+        $("#ItemQty").dialog({
+            autoOpen: false, modal: true, draggable: true, resizable: true, width: '60%', height: 450, title: 'Quantity Detail',
+            open: function () {
+                $('#DivLoading').show();
+                var itemGuid = $(this).data("itemGuid");
+                var strUrl = $(this).data("url");
+                $.get(strUrl, { ItemGuid: itemGuid }, function (data) {
+                    $('#DivLoading').hide();
+                    $("#ItemQty").html(data);
+                });
+            },
+            close: function () {
+                $("#ItemQty").empty();
+            }
+        });
+        _Common.setGloblaSearch('global_filterinventoryDash', 'myInventoryDataTable');
+    });
+
+    $('#btnParitalInventorygo').click(function () {
+        $("#dvpartialinventory.Lnavd > ul > li").each(function () {
+            if ($(this).find('a').hasClass('liahover')) {
+                var lnk = $(this).find('a')[0];
+                var clickedid = lnk.id;
+                var clickedTitle = $(lnk).attr("title");
+                BindPartialInventoryStatusGrid(clickedid, clickedTitle);
+            }
+        });
+
+    });
+
+    function AddRemoveInventoryCSS() {
+        $("#dvpartialinventory.Lnavd > ul > li").each(function () {
+            $(this).find('a').addClass("lava");
+            $(this).find('a').removeClass("liahover");
+        });
+    }
+
+    function BindPartialInventoryStatusGrid(id, str, SelectedSupplier, SelectedCategory) {
+        
+        $('#dvInventry').find('[id^="global_filter"]')[0].value = "";
+        //$('#myInventoryDataTable').dataTable().fnFilter('', null, null, null);
+
+        if (SelectedSupplier == null || SelectedSupplier == undefined) {
+            SelectedSupplier = '';
+            GlogalInventorySupplierValue = '';
+        }
+
+        if (SelectedCategory == null || SelectedCategory == undefined) {
+            SelectedCategory = '';
+            GlogalInventoryCategoryValue = '';
+        }
+
+        AddRemoveInventoryCSS();
+        $("#" + id).removeClass("lava");
+        $("#" + id).addClass("liahover");
+
+        //        if (str == "Critical" || str == "Minimum" || str == "Maximum")
+        //            $("#liTurns").hide();
+        //        else
+        //            $("#liTurns").show();
+        $("#divParametrs").hide();
+        if (str == "InvValue") {
+            //$("#divParametrs").hide();
+            $("#aimggrid").hide();
+            $("#hdninventoryCurrentView").val("chart");
+            $("#dvParitalInventoryGrid").hide();
+            $("#dvParitalInventoryChart").show();
+        }
+        else {
+            //$("#divParametrs").show();
+            $("#aimggrid").show();
+        }
+        $("#hdninventorystatus").val(str);
+        if ($("#hdninventoryCurrentView").val() == "Grid") {
+
+            $("#global_filterinventoryDash").val("");
+            $("#global_filterinventoryDash").change();
+            oTableInventory.fnDraw();
+        }
+        else {
+            $('#dvParitalInventoryChart').empty();
+            $('#dvParitalInventoryChart').load('@ChartLoadUrl' + "?ChartType=" + encodeURIComponent($("#hdninventorystatus").val()) + '&SelectedSupplier=' + SelectedSupplier + '&SelectedCategory=' + SelectedCategory, function () { });
+        }
+
+    }
+
+    var GlobalSupplierOptions = '';
+    var GlobalSelectedSupplier = '';
+    var GlobalCategoryOptions = '';
+    var GlobalSelectedCategory = '';
+
+    function TestItemGrid() {
+        var iDecimalPlace = 2;
+        var itemName = '';
+
+        oTableInventory = $('#myInventoryDataTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "bAutoWidth": false,
+            //"sScrollX": "150%",
+            "sScrollX": "100%",
+            "sDom": 'R<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[1, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "bDestroy": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData) {
+                if (aData.IsDeleted == true && aData.IsArchived == true)
+                    nRow.className = "GridDeleatedArchivedRow";
+                else if (aData.IsDeleted == true)
+                    nRow.className = "GridDeletedRow";
+                else if (aData.IsArchived == true)
+                    nRow.className = "GridArchivedRow";
+                return nRow;
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                //if (PostCount > 1) {
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'DashboardItemMasterList' },
+                    "async": false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        o = json;
+                    }
+                });
+                //}
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'DashboardItemMasterList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Action("ItemMasterListAjax", "InventoryDashboard")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }                
+                //if (oSettings.aaSorting.length != 0)
+                //    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                //else
+                //    aoData.push({ "name": "SortingField", "value": "0" });
+                if (oSettings.aaSorting.length != 0) {
+                    var sortValue = "";
+                    for (var k = 0; k <= oSettings.aaSorting.length - 1; k++) {
+                        if (sortValue.length > 0)
+                            sortValue += ", "
+                        sortValue += arrCols[oSettings.aaSorting[k][0]] + ' ' + oSettings.aaSorting[k][1];
+
+                    }
+                    aoData.push({ "name": "SortingField", "value": sortValue });
+                }
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+                aoData.push({ "name": "FromDate", "value": $('#txtInventoryFromDate').val() });
+                aoData.push({ "name": "ToDate", "value": $('#txtInventoryToDate').val() });
+                aoData.push({ "name": "Criteria", "value": $("#hdninventorystatus").val() });
+                
+                aoData.push({ "name": "SelectedSupplier", "value": GlogalInventorySupplierValue });
+                aoData.push({ "name": "SelectedCategory", "value": GlogalInventoryCategoryValue });
+                //if ($('#lnkstockout').hasClass('liahover')) {
+                //    aoData.push({ "name": "SelectedSupplier", "value": GlogalInventorySupplierValue });
+                //    aoData.push({ "name": "SelectedCategory", "value": GlogalInventoryCategoryValue });
+                //}
+                //else {
+                //    aoData.push({ "name": "SelectedSupplier", "value": GetMultiselectSelectedValue('ddlInventoryGridSupplier') });
+                //    aoData.push({ "name": "SelectedCategory", "value": GetMultiselectSelectedValue('ddlInventoryGridCategory') });
+                //}
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": function (json) {
+                        fnCallback(json);
+                        setTimeout(function () {
+                            if ((json.SearchTerm == null || json.SearchTerm == undefined || json.SearchTerm.toString().trim() == '') && json.StartIndex == 0) {
+                                
+                                //------------------------------------------------------------------------------------------------
+                                //
+                                var SelectedSupplier = json.SelectedSupplier;
+                                if (SelectedSupplier != null || SelectedSupplier != undefined || SelectedSupplier.trim() != '')
+                                    SelectedSupplier = GlogalInventorySupplierValue;
+                                //if ($('#lnkstockout').hasClass('liahover')) {
+                                //    if (SelectedSupplier != null || SelectedSupplier != undefined || SelectedSupplier.trim() != '')
+                                //        SelectedSupplier = GlogalInventorySupplierValue;
+                                //}
+
+                                BindMultiSelect("ddlInventoryGridSupplier", json.SupplierOptions, SelectedSupplier, '')
+                                $("#ddlInventoryGridSupplier").multiselect().bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+                                    GlogalInventorySupplierValue = GetMultiselectSelectedValue('ddlInventoryGridSupplier');                                    
+                                    oTableInventory.fnDraw();
+                                });
+
+                                //------------------------------------------------------------------------------------------------
+                                //
+                                var SelectedCategory = json.SelectedCategory;
+                                if (SelectedCategory != null || SelectedCategory != undefined || SelectedCategory.trim() != '')
+                                    SelectedCategory = GlogalInventoryCategoryValue;
+                                //if ($('#lnkstockout').hasClass('liahover')) {
+                                //    if (SelectedCategory != null || SelectedCategory != undefined || SelectedCategory.trim() != '')
+                                //        SelectedCategory = GlogalInventoryCategoryValue;
+                                //}
+
+                                BindMultiSelect("ddlInventoryGridCategory", json.CategoryOptions, SelectedCategory, '')
+                                $("#ddlInventoryGridCategory").multiselect().bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+                                    GlogalInventoryCategoryValue = GetMultiselectSelectedValue('ddlInventoryGridCategory');
+                                    //if ($('#lnkstockout').hasClass('liahover')) {
+                                    //    GlogalInventoryCategoryValue = GetMultiselectSelectedValue('ddlInventoryGridCategory');
+                                    //}
+                                    oTableInventory.fnDraw();
+                                });
+                            }
+                        }, 500);
+                    },
+                    beforeSend: function () {
+                        //$('#myInventoryDataTable td').removeHighlight();
+                        removeHighlight2('myInventoryDataTable');
+                        $('#myInventoryDataTable_wrapper .dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function (json) {
+                        $('#myInventoryDataTable_wrapper .dataTables_scroll').css({ "opacity": 1 });
+                        if ($("#global_filterinventoryDash").val() != '') {
+                            $('#myInventoryDataTable td').highlight($("#global_filterinventoryDash").val());
+                        }
+
+                        $('#myInventoryDataTable tbody tr').unbind("click");
+                        $('#myInventoryDataTable tbody tr').click(function (e) {
+                            DataTableTRClickToSelect(this, e);
+                        });
+
+                        CallShowHideData();
+                    }
+                });
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+            },
+            "fnDrawCallback": function () {
+
+            },
+            "aoColumns": [
+            //			                { "mDataProp": "GUID", "sClass": "read_only" },
+			                {
+			                    "mDataProp": "ItemNumber",
+			                    "sClass": "read_only NotHide",
+			                    "sDefaultContent": '',
+			                    "bSortable": true,
+			                    "bSearchable": false,
+			                    "fnRender": function (obj) {
+			                        itemName = obj.aData.ItemNumber;
+			                        return "<a id='aEditLink' onclick='return OpenItemEdit(&quot;" + obj.aData.GUID.toString() + "&quot;)' href='JavaScript:void(0);'>" + itemName + "</a>" + 
+			                               "<input type='hidden' id='hdnExportId' value='" + obj.aData.GUID.toString() + "' />";
+			                    }
+			                },
+                        { "mDataProp": "Description", "sClass": "read_only" },
+                           { "mDataProp": "BinNumber", "sClass": "read_only" },
+                        {
+                            "mDataProp": "OnHandQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (obj.aData.OnHandQuantity != null && obj.aData.OnHandQuantity != NaN)
+                                    return FormatedCostQtyValues(obj.aData.OnHandQuantity, 2);
+                                else
+                                    return FormatedCostQtyValues(0, 2);
+                            }
+                        },
+                        {
+                            "mDataProp": "CriticalQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (obj.aData.CriticalQuantity != null && obj.aData.CriticalQuantity != NaN)
+                                    return FormatedCostQtyValues(obj.aData.CriticalQuantity, 2);
+                                else
+                                    return FormatedCostQtyValues(0, 2);
+                            }
+                        },
+                        {
+                            "mDataProp": "MinimumQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (obj.aData.MinimumQuantity != null && obj.aData.MinimumQuantity != NaN)
+                                    return FormatedCostQtyValues(obj.aData.MinimumQuantity, 2);
+                                else
+                                    return FormatedCostQtyValues(0, 2);
+                            }
+                        },
+                        {
+                            "mDataProp": "MaximumQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (obj.aData.MaximumQuantity != null && obj.aData.MaximumQuantity != NaN)
+                                    return FormatedCostQtyValues(obj.aData.MaximumQuantity, 2);
+                                else
+                                    return FormatedCostQtyValues(0, 2);
+                            }
+                        },
+                        {
+                            "mDataProp": "SuggestedOrderQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (obj.aData.SuggestedOrderQuantity != null && obj.aData.SuggestedOrderQuantity != NaN)
+                                    return FormatedCostQtyValues(obj.aData.SuggestedOrderQuantity, 2);
+                                else
+                                    return FormatedCostQtyValues(0, 2);
+                            }
+                        },
+                        {
+                            "mDataProp": "OnOrderQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                //return "" + (obj.aData.OnOrderQuantity).toFixed(iDecimalPlace); +"";
+                                var IsOrderViewRights = '@IsOrderViewrRights';
+                                var cost;
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                cost = FormatedCostQtyValues(val, 2);
+                                if (val > 0 && (IsOrderViewRights == 'true' || IsOrderViewRights == 'True' || IsOrderViewRights == 'TRUE')) {
+                                    return "<a id='aonorderLink'  onclick='javascript:return DisplayOnOrderQty(this,\"" + obj.aData.GUID.toString() + "\")' href='JavaScript:void(0);'>" + cost + "</a><input type ='hidden' id='hdnGuid' Value='" + obj.aData.GUID.toString() + "' />";
+                                }
+                                else {
+                                    return FormatedCostQtyValues(val, 2);
+                                }
+
+                            }
+                        },
+
+                        {
+                            "mDataProp": "OnTransferQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                //return "" + (obj.aData.OnTransferQuantity).toFixed(iDecimalPlace); +"";
+                                var IsTransferViewrRights = '@IsTransferViewrRights';
+                                var cost;
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                cost = FormatedCostQtyValues(val, 2);
+                                if (val > 0 && (IsTransferViewrRights == 'true' || IsTransferViewrRights == 'True' || IsTransferViewrRights == 'TRUE')) {
+                                    return "<a id='aonorderLink' onclick='javascript:return DisplayOnTransferQty(this,\"" + obj.aData.GUID.toString() + "\")'; href='JavaScript:void(0);'>" + cost + "</a>";
+                                }
+                                else {
+                                    return FormatedCostQtyValues(val, 2);
+                                }
+                            }
+                        },
+                        {
+                            "mDataProp": "AverageUsage", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                if (obj.aData.AverageUsage != null && obj.aData.AverageUsage != NaN)
+                                    return "<span>" + FormatedCostQtyValues(obj.aData.AverageUsage, 4) + "</span>";
+                                else
+                                    return "<span>" + FormatedCostQtyValues(0, 4) + "</span>";
+                            }
+                        },
+                        {
+                            "mDataProp": "Turns", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                if (obj.aData.Turns != null && obj.aData.Turns != NaN)
+                                    return "<span>" + FormatedCostQtyValues(obj.aData.Turns, 4) + "</span>";
+                                else
+                                    return "<span>" + FormatedCostQtyValues(0, 4) + "</span>";
+                            }
+                        },
+                        { "mDataProp": "InventoryClassificationName", "sClass": "read_only" },
+                        {
+                            "mDataProp": "Cost", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 1);
+                            }
+                        },
+                        { "mDataProp": "StockOutCount", "sClass": "read_only" },
+
+
+                        //{ "mDataProp": "ManufacturerID", "sClass": "read_only" },
+                        { "mDataProp": "ManufacturerNumber", "sClass": "read_only" },
+                        { "mDataProp": "UPC", "sClass": "read_only" },
+                        { "mDataProp": "UNSPSC", "sClass": "read_only" },
+                        //{ "mDataProp": "GLAccountID", "sClass": "read_only" },
+                        //{ "mDataProp": "UOMID", "sClass": "read_only" },
+                        { "mDataProp": "PricePerTerm", "sClass": "read_only" },
+                        {
+                            "mDataProp": "DefaultPullQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 2);
+                                //return "" + (obj.aData.DefaultPullQuantity).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "Markup", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 2);
+                                //return "" + (obj.aData.Markup).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "SellPrice", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 1);
+                                //return "" + (obj.aData.SellPrice).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "ExtendedCost", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 1);
+                                //return "" + (obj.aData.ExtendedCost).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "LeadTimeInDays", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 2);
+                                //return "" + (obj.aData.LeadTimeInDays).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        { "mDataProp": "Link1", "sClass": "read_only" },
+                        { "mDataProp": "Link2", "sClass": "read_only" },
+                        { "mDataProp": "Trend", "sClass": "read_only" },
+                        { "mDataProp": "Taxable", "sClass": "read_only" },
+                        { "mDataProp": "Consignment", "sClass": "read_only" },
+                        {
+                            "mDataProp": "StagedQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 2);
+                                //return "" + (obj.aData.StagedQuantity).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "InTransitquantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 2);
+                                //return "" + (obj.aData.InTransitquantity).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "OnOrderInTransitQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 2);
+                                //return "" + (obj.aData.OnOrderInTransitQuantity).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "WeightPerPiece", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 2);
+                                //return "" + (obj.aData.WeightPerPiece).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        { "mDataProp": "ItemUniqueNumber", "sClass": "read_only" },
+                        { "mDataProp": "IsTransfer", "sClass": "read_only" },
+                        { "mDataProp": "IsPurchase", "sClass": "read_only" },
+                        //{ "mDataProp": "DefaultLocation", "sClass": "read_only" },
+                        { "mDataProp": "SerialNumberTracking", "sClass": "read_only" },
+                        { "mDataProp": "LotNumberTracking", "sClass": "read_only" },
+                        { "mDataProp": "DateCodeTracking", "sClass": "read_only" },
+                        { "mDataProp": "ItemTypeName", "sClass": "read_only" },
+                        { "mDataProp": "ImagePath", "sClass": "read_only" },
+                        //{ "mDataProp": "UDF1", "sClass": "read_only" },
+                        //{ "mDataProp": "UDF2", "sClass": "read_only" },
+                        //{ "mDataProp": "UDF3", "sClass": "read_only" },
+                        //{ "mDataProp": "UDF4", "sClass": "read_only" },
+                        //{ "mDataProp": "UDF5", "sClass": "read_only" },
+                        {
+                            "mDataProp": "Created", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.CreatedStr;
+                            }
+                        },
+                        {
+                            "mDataProp": "Updated", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.UpdatedStr;
+                            }
+                        },
+                        { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                        { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                        { "mDataProp": "IsDeleted", "sClass": "read_only" },
+                        { "mDataProp": "IsArchived", "sClass": "read_only" },
+                        //{ "mDataProp": "CompanyID", "sClass": "read_only" },
+                        //{ "mDataProp": "Room", "sClass": "read_only" },
+                        { "mDataProp": "IsLotSerialExpiryCost", "sClass": "read_only" },
+                        {
+                            "mDataProp": "PackingQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 2);
+                                //return "" + (obj.aData.PackingQuantity).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        { "mDataProp": "IsItemLevelMinMaxQtyRequired", "sClass": "read_only" },
+                        { "mDataProp": "IsEnforceDefaultReorderQuantity", "sClass": "read_only" },
+                        {
+                            "mDataProp": "AverageCost", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 1);
+                                //return "" + (obj.aData.AverageCost).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        { "mDataProp": "IsBuildBreak", "sClass": "read_only" },
+                        { "mDataProp": "BondedInventory", "sClass": "read_only" },
+                        //{ "mDataProp": "CostUOMID", "sClass": "read_only" },
+                        { "mDataProp": "WhatWhereAction", "sClass": "read_only" },
+                        {
+                            "mDataProp": "OnReturnQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 2);
+                                //return "" + (obj.aData.OnReturnQuantity).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        { "mDataProp": "IsBOMItem", "sClass": "read_only" },
+                        //{ "mDataProp": "RefBomId", "sClass": "read_only" },
+                        {
+                            "mDataProp": "TrendingSetting", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 2);
+                                //return "" + (obj.aData.TrendingSetting).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        { "mDataProp": "PullQtyScanOverride", "sClass": "read_only" },
+                        //{ "mDataProp": "IsAutoInventoryClassification", "sClass": "read_only" },
+                        { "mDataProp": "IsPackslipMandatoryAtReceive", "sClass": "read_only" },
+                        {
+                            "mDataProp": "SuggestedTransferQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 2);
+                                //return "" + (obj.aData.SuggestedTransferQuantity).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "LastCost", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 1);
+                                //return "" + (obj.aData.LastCost).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "ReceivedOn", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.ReceivedOnStr;
+                            }
+                        },
+                        {
+                            "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.ReceivedOnWebStr;
+                            }
+                        },
+                        { "mDataProp": "AddedFrom", "sClass": "read_only" },
+                        { "mDataProp": "EditedFrom", "sClass": "read_only" },
+                        {
+                            "mDataProp": "ordereddate", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.OrderedDateStr;
+                            }
+                        },
+                        {
+                            "mDataProp": "pulleddate", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.PulledDateStr;
+                            }
+                        },
+                        {
+                            "mDataProp": "counteddate", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.CountedDateStr;
+                            }
+                        },
+                        {
+                            "mDataProp": "trasnfereddate", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.TrasnferedDateStr;
+                            }
+                        },
+                        {
+                            "mDataProp": "Pricesaveddate", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.PricesavedDateStr;
+                            }
+                        },
+                        { "mDataProp": "ItemImageExternalURL", "sClass": "read_only" },
+                        { "mDataProp": "ItemDocExternalURL", "sClass": "read_only" },
+                        { "mDataProp": "ImageType", "sClass": "read_only" },
+                        {
+                            "mDataProp": "QtyToMeetDemand", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 2);
+                                //return "" + (obj.aData.QtyToMeetDemand).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "OutTransferQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                return FormatedCostQtyValues(val, 2);
+                                //return "" + (obj.aData.OutTransferQuantity).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        { "mDataProp": "ItemLink2ExternalURL", "sClass": "read_only" },
+                        { "mDataProp": "ItemLink2ImageType", "sClass": "read_only" },
+                        { "mDataProp": "IsActive", "sClass": "read_only" },
+                        { "mDataProp": "ManufacturerName", "sClass": "read_only" },
+                        { "mDataProp": "DefaultLocationName", "sClass": "read_only" },
+                        //{ "mDataProp": "DefaultLocationGUID", "sClass": "read_only" },
+                        { "mDataProp": "BinDeleted", "sClass": "read_only" },
+                        { "mDataProp": "CostUOMName", "sClass": "read_only" },
+                        { "mDataProp": "BPONumber", "sClass": "read_only" },
+                        { "mDataProp": "SupplierName", "sClass": "read_only" },
+                        { "mDataProp": "CategoryName", "sClass": "read_only" }
+                        @Html.RenderColumnsArray("ItemMaster")
+            ]
+        });
+        //oTable = oTableInventory;
+
+    }
+    function DisplayOnOrderQty(obj, CurrentitemGuid) {
+
+        $("#ItemQty").empty();
+        var itemGuid = CurrentitemGuid;//$(obj).next("hdnGuid").val();
+        $('#ItemQty').data({ "itemGuid": itemGuid, "url": '/Inventory/ItemOnOrderQty' }).dialog('open');
+        return false;
+    }
+    function DisplayOnTransferQty(obj, CurrentitemGuid) {
+        $("#ItemQty").empty();
+        var itemGuid = CurrentitemGuid;
+        $('#ItemQty').data({ "itemGuid": itemGuid, "url": '/Inventory/ItemOnTransferQty' }).dialog('open');
+        return false;
+    }
+    function OpenItemEdit(guid) {
+        var url = '@Url.Action("ItemMasterList", "Inventory")';
+        url = url + '?fromdashboard=' + 'yes' + '&ItemGUID=' + guid;
+        window.location.href = url;
+        return false;
+    }
+    function OpenOnorder(itemName) {
+        var url = '@Url.Action("ReceiveList", "Receive")';
+        url = url + '?fromdashboard=' + 'yes' + '&OrderQuantity=' + 'yes' + '&ItemName=' + itemName;
+        window.location.href = url;
+        return false;
+    }
+    function OpenOnTransfer() {
+        var url = '@Url.Action("TransferList", "Transfer")';
+        url = url + '?fromdashboard=' + 'yes' + '&TransferQuantity=' + 'yes';
+        window.location.href = url;
+        return false;
+    }
+
+
+    //     @*Item Name, Item Description, On Hand Qty, Critical Qty, Min Qty, Max Qty, Cart, On Order Qty, On Transfer Qty, Average Usage*@
+    /* HISTORY related data deleated and archived START */
+    function fnGetSelected(oTableInventory) {
+        return oTableInventory.$('tr.row_selected');
+    }
+
+
+    /* Global filter JS */
+
+    var timeoutsc1;
+    $('#global_filterinventoryDash').bind('propertychange input', function () {
+        clearTimeout(timeoutsc1);
+        timeoutsc1 = setTimeout(function () {
+            fnFilterGlobal();
+        }, 200);
+    });
+    $("#global_filterinventoryDash").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            var searchtext = $("#global_filterinventoryDash").val().replace(/'/g, "''");
+
+            $('#myInventoryDataTable').dataTable().fnFilter(searchtext, null, null, null);
+
+            //HideOtherTabs();
+
+            return false;
+        }
+        return true;
+    });
+
+    function fnFilterGlobal() {
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#global_filterinventoryDash") != 'undefined' && ($("#global_filterinventoryDash").val().length > 2 || $("#global_filterinventoryDash").val().length == 0)) {
+            //clearNarrowSearchFilter();
+            var searchtext = $("#global_filterinventoryDash").val().replace(/'/g, "''");
+
+            $('#myInventoryDataTable').dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+            //$('.tab5').hide();
+        }
+        else {
+            $('#myInventoryDataTable td').removeHighlight();
+            $('#myInventoryDataTable td').highlight($("#global_filterinventoryDash").val());
+        }
+    }
+    $("#clear_global_filterinventoryDash").click(function () {
+        if ($("#global_filterinventoryDash").val().length > 0) {
+            $("#global_filterinventoryDash").val("");
+            $("#global_filterinventoryDash").change();
+        }
+        return false;
+    });
+
+    /* Global filter JS */
+
+</script>

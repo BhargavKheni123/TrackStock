@@ -1,0 +1,232 @@
+@model IList<eTurns.DTO.ToolDetailDTO>
+@{
+    bool Result = true;
+    eTurns.DAL.ToolDetailDAL objkitDal = new eTurns.DAL.ToolDetailDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    if (Model != null && Model.Count > 0)
+    {
+        if (Model[0].GUID.ToString() != "00000000-0000-0000-0000-000000000000")
+        {
+            Result = objkitDal.IsKitItemDeletable(Model[0].GUID.ToString(), Model[0].Room??0, Model[0].CompanyID ?? 0);
+        }
+    }
+}
+<div id="divitemKit" style="width: 99.5%; min-height: 140px">
+    <div>
+        <div>
+            <div style="text-align: center; float: left; width: 80%;">
+                <span id="spanErrorMsg" style="color: Green;"></span>
+            </div>
+            <div>
+                @if (Result)
+                {
+                    <input type="button" value="Add Kit Tool Component" class="CreateBtn" id="btnAddKitComponent" onclick="return AddNewToolKitComponent()" />
+                }
+            </div>
+        </div>
+    </div>
+    <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+        float: left;">
+        <table id="ToolKitComponent" class="display">
+            <thead>
+                <tr>
+                    <th>
+                        @eTurns.DTO.ResToolMaster.Type
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolMaster.ToolName
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolMaster.Serial
+            </th>
+            <th>
+                @eTurns.DTO.ResToolMaster.QuantityPerKit
+        </th>
+        <th>
+        </th>
+    </tr>
+</thead>
+<tbody>
+    @if (Model != null)
+    {
+        foreach (var item in Model)
+        {
+            <tr>
+                <td>
+                    <text>Tool</text>
+                </td>
+                <td>
+                    @item.ToolName
+                </td>
+                <td>
+                    @item.Serial
+                </td>
+            <td>
+                @if (Result == false)
+                {
+                    @Html.TextBox("txtQuantityPerKit", item.QuantityPerKit, new { @style = "width:100px;", @maxlength = "200", @class = "text-box disableBack", @readonly = "readonly" })
+                    @Html.HiddenFor(model => item.QuantityPerKit)
+                }
+                else
+                {
+                    @Html.TextBox("txtQuantityPerKit", item.QuantityPerKit, new { @style = "width:100px;", @maxlength = "200", @class = "text-box" })
+                }
+            </td>
+            <td>
+                @*<a href="JavaScript:void{0}" onclick="return SavetoSeesionItemKitComponent(this)">
+                    <img alt="Save" src="/Content/images/save.png"></a>
+                *@ 
+                <a href="JavaScript:void{0}" onclick="return DeletetoSeesionItemKitComponentSingle(this)">
+                    <img alt="@ResCommon.Save" src="/Content/images/delete.png">
+                </a>
+                <input id="hdnID" type="hidden" value="@item.ID" />
+                <input id="hdnGUID" type="hidden" value="@item.GUID" />
+                <input id="hdnToolGUID" type="hidden" value="@item.ToolGUID" />
+                <input id="hdnToolItemGUID" type="hidden" value="@item.ToolItemGUID" />
+                <input id="hdnSessionSr" type="hidden" value="@item.SessionSr" />
+            </td>
+        </tr>
+        }
+    }
+</tbody>
+</table>
+</div>
+</div>
+<div class="dialog" id="mdlQLYesNo" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+        </p>
+        <a href="JavaScript:void{}" id="btnQLModelYesSP" class="yes">
+            <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResCommon.Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no"
+               onclick="QLcloseModal()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<script type="text/javascript">
+    var oTableItemKit;
+    var deleteURL1 = "/Inventory/ItemKitDelete";
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var DTName = 'ToolKitComponent';
+    var bIsFilter = false;
+
+
+    $(document).ready(function () {
+
+        var ToolDeletedStatus = $("#IsDeleted");
+        if (ToolDeletedStatus !== undefined && ToolDeletedStatus != null && ToolDeletedStatus.val() !== undefined && ToolDeletedStatus.val() != null
+                && ToolDeletedStatus.val().length > 0 && ToolDeletedStatus.val().toLowerCase() == "true") {
+            $("#btnAddKitComponent").hide();
+        }
+
+        var gaiSelected = [];
+        oTableItemKit = $('#' + DTName).dataTable({
+            "bPaginate": false,
+            "bLengthChange": false,
+            "bFilter": false,
+            "bSort": false,
+            "bInfo": false,
+            "bAutoWidth": false,
+            "bRetrieve": true,
+            "bDestroy": true
+        });
+        $('.DTTT_container').css('z-index', '-1');
+    });
+
+
+    $('#' + DTName + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    // To adjust the print block next to colvis button
+    $('#btnblock').css({ 'margin-right': '45px' });
+
+    //    $('#' + DTName + ' tbody tr').live('tap click', function () {
+    //        $(this).toggleClass('row_selected');
+    //        return false;
+    //    });
+
+    /* Add a click handler for the delete rows multiple rows */
+
+    $('#deleteRows1').click(function () {
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+        if ($("body").hasClass('DTTT_Print')) {
+            return false;
+        }
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+
+
+        var anSelected = fnGetSelected(oTableItemKit);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            //anSelected[0].cells[0].innerHTML
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+            IsDeletePopupOpen = false;
+        }
+
+
+    });
+    function AddNewToolKitComponent() {
+        var ToolDeletedStatus = $("#IsDeleted");
+        if (ToolDeletedStatus !== undefined && ToolDeletedStatus != null && ToolDeletedStatus.val() !== undefined && ToolDeletedStatus.val() != null
+                && ToolDeletedStatus.val().length > 0 && ToolDeletedStatus.val().toLowerCase() == "true") {
+            return true;
+        }
+        var strUrl = Tool_LoadToolKitModel;
+        strUrl = strUrl + '?Parentid=' + ToolID;
+        strUrl = strUrl + '&ParentGuid=' + ToolGUID;
+        strUrl = strUrl + '&ToolType=' + '1';
+        $('#ItemModelPS').data("url", strUrl).dialog('open');
+        return false;
+    }
+
+    function DeletetoSeesionItemKitComponentSingle(obj) {
+        var vtxtQuantityPerKit = $(obj).parent().parent().find('#txtQuantityPerKit').val();
+        var vToolItemguid = $(obj).parent().parent().find('#hdnToolItemGUID').val();
+        var vKitGUID = $(obj).parent().parent().find('#hdnGUID').val();
+        var vhdnID = $(obj).parent().parent().find('#hdnID').val();
+        var vhdnGUID = $(obj).parent().parent().find('#hdnGUID').val();
+        var vhdnSessionSr = $(obj).parent().parent().find('#hdnSessionSr').val();
+        var vITEMGUID = $(obj).parent().parent().find('#hdnToolItemGUID').val();
+
+
+        $.ajax({
+            url: Tool_DeletetoSeesionToolKitComponentSingle,
+            data: { 'ID': vhdnID, 'SessionSr': vhdnSessionSr, 'GUID': vhdnGUID, 'ITEMGUID': vITEMGUID, 'KitGUID': vKitGUID, 'QuantityPerKit': vtxtQuantityPerKit },
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (response) {
+                if (response.status == 'reference') {
+                    $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                    $("#spanGlobalMessage").html('@ResItemMaster.msgKiCannotDelete');
+                    $('div#target').fadeToggle();
+                    //$("div#target").delay(2000).fadeOut(200);
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                }
+                else if (response.status == 'deleted') {
+
+                    BindKitDetails();//console 5
+                    $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                    $("#spanGlobalMessage").html('@ResMessage.DeletedSuccessfully');
+                    $('div#target').fadeToggle();
+                    //$("div#target").delay(2000).fadeOut(200);
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+
+                }
+            }
+        });
+        
+        return false;
+    }
+</script>

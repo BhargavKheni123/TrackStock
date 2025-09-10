@@ -1,0 +1,1030 @@
+﻿@model eTurns.DTO.ToolsMaintenanceDTO
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = false, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, DataTableName = "ToolsMaintenance" + Model.ID };
+    string priceformate = "N" + eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits;
+    bool isApprove = false;
+    bool isCost = false;
+    bool HasOnTheFlyEntryRight = false;
+    bool isOrderDetailsUDF = false;// new eTurns.DAL.UDFDAL().GetAllRecords(eTurnsWeb.Helper.SessionHelper.CompanyID, "OrderDetails", eTurnsWeb.Helper.SessionHelper.RoomID).Where(x => !x.IsDeleted && x.UDFControlType != null).Count() > 0;
+    List<BinMasterDTO> lstBinMaster;
+
+    //---------------------------------Calculate Total---------------------------------
+    //
+    int? PriseSelectionOption = 0;
+    string TotalCost = "0.00";
+
+    if (Model.ToolMaintenanceListItem.Count > 0)
+    {
+        double? T = null;
+
+        T = Model.ToolMaintenanceListItem.Sum(x => (x.Quantity.GetValueOrDefault(0) > 0 ? x.Quantity : (x.Quantity.GetValueOrDefault(0) > 0 ? x.Quantity : 0)) * ((x.Cost == null ? 0 : x.Cost) / (x.CostUOMValue == null || x.CostUOMValue == 0 ? 1 : x.CostUOMValue)));
+
+
+        if (T != null)
+        {
+            TotalCost = ((double)T).ToString(priceformate);
+        }
+    }
+}
+<script type="text/javascript">
+    $(document).ready(function () {
+        $('#spnTotalOrderCost').text('$ ' + '@TotalCost');
+        if ('@PriseSelectionOption.ToString()' == '1') {
+            $('#lblOrderTotalSellPrice').show();
+            $('#lblOrderTotalCost').hide();
+        }
+        else if ('@PriseSelectionOption.ToString()' == '2') {
+            $('#lblOrderTotalSellPrice').hide();
+            $('#lblOrderTotalCost').show();
+        }
+
+        if ('@isCost' == "True") {
+            $('#liOrderCostInfo').show();
+        }
+        else {
+            //alert('test else');
+            $('#liOrderCostInfo').hide();
+        }
+    });
+</script>
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="InnerItem_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_QLItem_filter" />
+                        </a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Orders)
+            <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="ToolMaintenanceLineItem@(Model.ID)" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+
+
+                            <th class="NotHide">
+                                @eTurns.DTO.ResToolMaintenanceDetails.Quantity
+                            </th>
+
+
+
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnHandQuantity
+                            </th>
+
+
+
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Cost
+                            </th>
+
+
+
+
+
+                            <th>
+                                @ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @ResCommon.LastUpdatedBy
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @ResCommon.ReceivedOnWeb
+                            </th>
+                            <th>
+                                @ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @ResCommon.ReceivedOn
+                            </th>
+
+
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.ToolMaintenanceListItem != null && Model.ToolMaintenanceListItem.Count > 0)
+                        {
+
+                            int trid = 0;
+                            foreach (var item in Model.ToolMaintenanceListItem)
+                            {
+                                lstBinMaster = new List<BinMasterDTO>();
+                                lstBinMaster.Add(new BinMasterDTO() { BinNumber = item.BinName ?? string.Empty });
+                                string strBack = "";
+                                if (item.IsCloseItem.GetValueOrDefault(false))
+                                {
+                                    strBack = "background-color:LightGray;height: 35px;";
+                                }
+                                else
+                                {
+                                    strBack = "";
+                                }
+                                <tr style='@strBack'>
+                                    <td></td>
+                                    <td>
+                                        @if (item.ID > 0)
+                                        {
+                                            @item.ID.ToString()
+                                        }
+                                    </td>
+                                    <td class="read_only control center NotHide">
+                                        @item.ItemNumber
+                                        <input id="hdnID" type="hidden" value="@item.ID" />
+                                        <input id="hdnDetailGUID" type="hidden" value="@item.GUID" />
+                                        <input id="hdnItemGUID" type="hidden" value="@item.ItemGUID" />
+                                        <input id="hdnOrderGUID" type="hidden" value="@item.MaintenanceGUID" />
+                                        <input id="hdnItemNumber" type="hidden" value="@item.ItemNumber" />
+
+
+
+
+                                    </td>
+
+                                    <td>
+                                        @item.Quantity
+                                    </td>
+
+                                    <td class="numericalign">
+                                        <label id="qtyTempOnHandQuantity_@trid">@item.OnHandQuantity</label>
+                                    </td>
+
+
+
+
+                                    <td class="numericalign">
+                                        <label id="CostTempCost_@trid">@item.ItemCost.GetValueOrDefault(0).ToString(priceformate)</label>
+                                    </td>
+
+                                    <td>
+                                        @(item.CreatedByName)
+                                    </td>
+                                    <td>
+                                        @(item.CreatedDate)
+                                    </td>
+                                    <td>
+                                        @(item.UpdatedByName)
+                                    </td>
+                                    <td>
+                                        @(item.UpdatedDate)
+                                    </td>
+                                    <td>
+                                        @(item.AddedFrom)
+                                    </td>
+                                    <td>
+                                        @(item.ReceivedOnDateWeb)
+                                    </td>
+                                    <td>
+                                        @(item.EditedFrom)
+                                    </td>
+                                    <td>
+                                        @(item.ReceivedOnDate)
+                                    </td>
+
+                                </tr>
+                                trid += 1;
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var OrdID = '@Model.ID';
+    var OrdStatus = '@Model.OrderStatus';
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var oTableOrderLineItems;
+    var bIsFilter = false;
+    var objOrdDtlGridColumns = {};
+
+    $(document).ready(function () {
+
+        $('form').areYouSure();
+        //objColumns = GetGridHeaderColumnsObject('OrderLineItem' + OrdID);
+        objOrdDtlGridColumns = GetGridChildGridColumnsObject('OrderLineItem' + OrdID);
+        $('.ShowAllOptions').click(function () {
+            $(this).siblings('.OrdDetailAuto').trigger("focus");
+            $(this).siblings(".OrdDetailAuto").autocomplete("search", " ");
+        });
+
+        var tableName = $('table[id^=OrderLineItem]').attr("id");
+        var rowno = 0;
+        $('#' + tableName + ' tr').each(function () {
+
+            var qtyTempReceivedQuantity = $('#qtyTempReceivedQuantity_' + rowno).text();
+            if (qtyTempReceivedQuantity != "" && qtyTempReceivedQuantity != NaN)
+                $('#qtyTempReceivedQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempReceivedQuantity), 2));
+            else
+                $('#qtyTempReceivedQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+            var txtQty = $("#txtQty").val();
+            if (txtQty != "" && txtQty != NaN) {
+                $("#txtQty").val(FormatedCostQtyValues(txtQty, 2));
+            }
+            else
+                $("#txtQty").val(FormatedCostQtyValues(0, 2));
+            var txtApprQty = $("#txtApprQty").val();
+
+            if (txtApprQty != "" && txtApprQty != NaN) {
+                $("#txtApprQty").val(FormatedCostQtyValues(txtApprQty, 2));
+            }
+            else
+                $("#txtApprQty").val(FormatedCostQtyValues(0, 2));
+            var qtyTempOnHandQuantity = $('#qtyTempOnHandQuantity_' + rowno).text();
+            if (qtyTempOnHandQuantity != "" && qtyTempOnHandQuantity != NaN)
+                $('#qtyTempOnHandQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempOnHandQuantity), 2));
+            else
+                $('#qtyTempOnHandQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempStagedQuantity = $('#qtyTempStagedQuantity_' + rowno).text();
+            if (qtyTempStagedQuantity != "" && qtyTempStagedQuantity != NaN)
+                $('#qtyTempStagedQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempStagedQuantity), 2));
+            else
+                $('#qtyTempStagedQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var CostTempCost = $('#CostTempCost_' + rowno).text();
+            if (CostTempCost != "" && CostTempCost != NaN)
+                $('#CostTempCost_' + rowno).text(FormatedCostQtyValues(parseFloat(CostTempCost), 1));
+            else
+                $('#CostTempCost_' + rowno).text(FormatedCostQtyValues(0, 1));
+
+            var qtyTempOnOrderQuantity = $('#qtyTempOnOrderQuantity_' + rowno).text();
+
+            if (qtyTempOnOrderQuantity != "" && qtyTempOnOrderQuantity != NaN)
+                $('#qtyTempOnOrderQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempOnOrderQuantity), 2));
+            else
+                $('#qtyTempOnOrderQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempInTransitQuantity = $('#qtyTempInTransitQuantity_' + rowno).text();
+            if (qtyTempInTransitQuantity != "" && qtyTempInTransitQuantity != NaN)
+                $('#qtyTempInTransitQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempInTransitQuantity), 2));
+            else
+                $('#qtyTempInTransitQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempMinimumQuantity = $('#qtyTempMinimumQuantity_' + rowno).text();
+            if (qtyTempMinimumQuantity != "" && qtyTempMinimumQuantity != NaN)
+                $('#qtyTempMinimumQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempMinimumQuantity), 2));
+            else
+                $('#qtyTempMinimumQuantity').text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempMaximumQuantity = $('#qtyTempMaximumQuantity_' + rowno).text();
+            if (qtyTempMaximumQuantity != "" && qtyTempMaximumQuantity != NaN)
+                $('#qtyTempMaximumQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempMaximumQuantity), 2));
+            else
+                $('#qtyTempMaximumQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var costTempSellPrice = $('#costTempSellPrice_' + rowno).text();
+            if (costTempSellPrice != "" && costTempSellPrice != NaN)
+                $('#costTempSellPrice_' + rowno).text(FormatedCostQtyValues(parseFloat(costTempSellPrice), 1));
+            else
+                $('#costTempSellPrice_' + rowno).text(FormatedCostQtyValues(0, 1));
+
+            //            var qtyTempPackingQuantity = $('#qtyTempPackingQuantity_' + rowno).text();
+            //            if (qtyTempPackingQuantity != "" && qtyTempPackingQuantity != NaN)
+            //                $('#qtyTempPackingQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempPackingQuantity), 2));
+            //            else
+            //                $('#qtyTempPackingQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempDefaultReorderQuantity = $('#qtyTempDefaultReorderQuantity_' + rowno).text();
+            if (qtyTempDefaultReorderQuantity != "" && qtyTempDefaultReorderQuantity != NaN)
+                $('#qtyTempDefaultReorderQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempDefaultReorderQuantity), 2));
+            else
+                $('#qtyTempDefaultReorderQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            rowno += 1;
+        });
+
+
+        var ColumnObject = new Array();
+        ColumnObject.push({ mDataProp: null, sClass: "read_only control center NotHide RowNo", "bSortable": false, sDefaultContent: '' });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true, });
+
+
+        ColumnObject.push({ "bSortable": true, sClass: "NotHide" }); //, "sSortDataType": "dom-text", "sType": "numeric" });
+        ColumnObject.push({ "bSortable": true, sClass: "NotHide" });
+        ColumnObject.push({ "bSortable": true, sClass: "NotHide" });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+
+
+        var gaiSelected = [];
+
+        //----------------------------------------------------
+        //
+        //$('#ToolMaintenanceLineItem' + OrdID + ' tr').each(function () {
+        //    var UDF1 = '';
+        //    var UDF2 = '';
+        //    var UDF3 = '';
+        //    var UDF4 = '';
+        //    var UDF5 = '';
+        //    if ($(this).find("input#hdnUDF1").val() != '') {
+        //        UDF1 = $(this).find("input#hdnUDF1").val();
+        //    }
+        //    if ($(this).find("input#hdnUDF2").val() != '') {
+        //        UDF2 = $(this).find("input#hdnUDF2").val();
+        //    }
+        //    if ($(this).find("input#hdnUDF3").val() != '') {
+        //        UDF3 = $(this).find("input#hdnUDF3").val();
+        //    }
+        //    if ($(this).find("input#hdnUDF4").val() != '') {
+        //        UDF4 = $(this).find("input#hdnUDF4").val();
+        //    }
+        //    if ($(this).find("input#hdnUDF5").val() != '') {
+        //        UDF5 = $(this).find("input#hdnUDF5").val();
+        //    }
+
+        //    if (UDF1 != '') {
+        //        $(this).find('#hdnSpnUDF1').text(UDF1);
+        //    }
+        //    if (UDF2 != '') {
+        //        $(this).find('#hdnSpnUDF2').text(UDF2);
+        //    }
+        //    if (UDF3 != '') {
+        //        $(this).find('#hdnSpnUDF3').text(UDF3);
+        //    }
+        //    if (UDF4 != '') {
+        //        $(this).find('#hdnSpnUDF4').text(UDF4);
+        //    }
+        //    if (UDF5 != '') {
+        //        $(this).find('#hdnSpnUDF5').text(UDF5);
+        //    }
+        //});
+
+        //----------------------------------------------------
+        //
+        oTableOrderLineItems = $('#ToolMaintenanceLineItem' + OrdID).DataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "150%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            "oColVis": {
+            },
+            //"aaSorting": [],
+            "aaSorting": [[1, "desc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                if ('@isApprove' === "True") {
+                    $(nRow).find("input.clsApprQty").removeAttr("readonly");
+                }
+                if ('@Model.IsRecordNotEditable' != 'True') {
+                    $(nRow).find('input.hasDatePicker').blur(function () { }).datepicker({
+                        dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+                        changeMonth: true,
+                        changeYear: true,
+                        clearText: 'Clear', onClose: function () { this.focus(); }
+                    });
+                }
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                return nRow;
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                //   if (!bIsFilter) {
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'OrderLineItemList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = json;
+                    }
+                });
+                //  }
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'OrderLineItemList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "fnInitComplete": function () {
+                //if (parseInt($("#ddlOrderStatus").val()) < parseInt("@((int)OrderStatus.Approved)")) {
+                //    $(".clsApprQty").attr("readonly", "readonly");
+                //    $(".clsApprQty").val("0");
+                //}
+                $('.ColVis').detach().appendTo(".setting-arrow");
+
+            }
+        , "aoColumns": ColumnObject
+
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+
+        $('#btnblock').css({ 'margin-right': '45px' });
+        $('#spnNoOfItems').text('@Model.NoOfLineItems.GetValueOrDefault(0)');
+        $('#spnTotalCost').text('$ ' + '@Model.OrderCost.GetValueOrDefault(0).ToString(priceformate)');
+
+        $(".clsApprQty").attr("readonly", "readonly");
+
+        if ('@isApprove' === "True") {
+            $(".clsApprQty").removeAttr("readonly");
+        }
+
+        $('#ToolMaintenanceLineItem' + OrdID).on('focus', "input.OrdDetailAuto", function (e) {
+
+            var ajaxURL = '/Master/GetBinForItemOrStaging';
+            var itmGuid = $(this).parent().parent().parent().find('#hdnItemGUID').val();
+            var stagingName = $('#txtStagingName').val();
+            var includeQty = false;
+            var tr = $(this).parent().parent().parent();
+
+            if ('@Model.OrderType' === '2') {
+                includeQty = true;
+            }
+            var hdnIsLoadMoreLocations = $(tr).find("#hdnIsLoadMoreLocations").val();
+            $(this).autocomplete("destroy");
+
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'ItemGuid': itmGuid, 'StagingHeaderName': stagingName, 'IncludeQty': includeQty, 'NameStartWith': request.term, 'IsLoadMoreLocations': hdnIsLoadMoreLocations }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    if (ui.item.value == "More Locations") {
+                        $(tr).find("#hdnIsLoadMoreLocations").val("true");
+                        $(this).trigger("focus");
+                        $(this).autocomplete("search", " ");
+                        return false;
+                    }
+                    else {
+                        $(this).val(ui.item.value);
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                    $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                    $('ul.ui-autocomplete').css('max-height', '300px');
+                    $('ul.ui-autocomplete').css('z-index', '99999');
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                }
+            }).bind("focus", function () {
+                $(this).autocomplete("search", " ");
+                //$(objTxtselector).autocomplete("search", $(objTxtselector).val());
+            });
+        });
+        $('#ToolMaintenanceLineItem' + OrdID + ' tr').each(function () {
+            var UDF1 = '';
+            var UDF2 = '';
+            var UDF3 = '';
+            var UDF4 = '';
+            var UDF5 = '';
+            if ($(this).find("input#hdnUDF1").val() != '') {
+                UDF1 = $(this).find("input#hdnUDF1").val();
+            }
+
+            if ($(this).find("input#hdnUDF2").val() != '') {
+                UDF2 = $(this).find("input#hdnUDF2").val();
+            }
+            if ($(this).find("input#hdnUDF3").val() != '') {
+                UDF3 = $(this).find("input#hdnUDF3").val();
+            }
+            if ($(this).find("input#hdnUDF4").val() != '') {
+                UDF4 = $(this).find("input#hdnUDF4").val();
+            }
+            if ($(this).find("input#hdnUDF5").val() != '') {
+                UDF5 = $(this).find("input#hdnUDF5").val();
+            }
+            if (UDF1 != '') {
+                $(this).find("input#UDF1OrderDetails").val(UDF1);
+                $("select#UDF1OrderDetails option").filter(function () {
+                    return this.text == UDF1;
+                }).attr('selected', true);
+            }
+            if (UDF2 != '') {
+                $(this).find("input#UDF2OrderDetails").val(UDF2);
+                $("select#UDF2OrderDetails option").filter(function () {
+                    return this.text == UDF2;
+                }).attr('selected', true);
+            }
+            if (UDF3 != '') {
+                $(this).find("input#UDF3OrderDetails").val(UDF3);
+                $("select#UDF3OrderDetails option").filter(function () {
+                    return this.text == UDF3;
+                }).attr('selected', true);
+            } if (UDF4 != '') {
+                $(this).find("input#UDF4OrderDetails").val(UDF4);
+                $("select#UDF4OrderDetails option").filter(function () {
+                    return this.text == UDF4;
+                }).attr('selected', true);
+            } if (UDF5 != '') {
+                $(this).find("input#UDF5OrderDetails").val(UDF5);
+                $("select#UDF5OrderDetails option").filter(function () {
+                    return this.text == UDF5;
+                }).attr('selected', true);
+            }
+        });
+
+        //oTableOrderLineItems.rows().invalidate().draw();
+    });
+
+
+    function CheckUnSavedItemBeforCancel() {
+
+        var IsReturn = true;
+        $('#ToolMaintenanceLineItem' + '@Model.ID' + ' tbody tr').each(function (i) {
+            var tr = $(this);
+            var id = $(tr).find('#hdnID').val();
+            if (id == '' || id == '0') {
+                $('#divOrdCancelUnsaveItemInfoDialog').modal();
+                IsReturn = false;
+                return;
+            }
+        });
+
+        return IsReturn;
+    }
+
+    $(".text-boxPriceFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+    });
+    $(".text-boxQuantityFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+    });
+    //$(".text-boxQuantityFormatSR").priceFormat({
+    //    prefix: '',
+    //    thousandsSeparator: '',
+    //    centsLimit: 0
+    //});
+
+    $('input.txtSRQtyFormat').on('keypress', function (evt) {
+        var keyCode = [evt.keyCode || evt.which];
+
+        if (keyCode == 8 || keyCode == 13 || keyCode == 9)
+            return true;
+        if (keyCode > 57 || keyCode < 48)
+            return false;
+        else
+            return true;
+    });
+
+
+
+    if ('@Model.OrderStatus' >= '@((int)OrderStatus.Transmitted)')
+        $('#deleteRows1').attr('style', 'display:none');
+
+    if ('@Model.IsRecordNotEditable' == 'True') {
+        $('select', '#ToolMaintenanceLineItem' + OrdID)
+        .attr('disabled', 'disabled');
+
+        $(':input[type=text], textarea', '#ToolMaintenanceLineItem' + OrdID)
+        .attr('readonly', 'readonly');
+
+        $('#saveRows').attr('style', 'display:none');
+        $('#deleteRows1').attr('style', 'display:none');
+
+    }
+    else {
+        //        $('#OrderLineItem' + OrdID).delegate(".myDatePicker", "focusin", function () {
+        //            $(this).datepicker({ dateFormat: 'm/d/yy' });
+        //        });
+        @*$('#ToolMaintenanceLineItem' + OrdID).find('input.hasDatePicker').blur(function () { }).datepicker({
+                                dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+                                changeMonth: true,
+                                changeYear: true,
+                                clearText: 'Clear', onClose: function () { this.focus(); }
+                            });*@
+
+    }
+
+
+    $('#ToolMaintenanceLineItem' + OrdID + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    $('#ToolMaintenanceLineItem' + OrdID + ' tbody tr').live('tap click', function () {
+        $(this).toggleClass('row_selected');
+        return false;
+    });
+
+    $('#deleteRows1').click(function () {
+        var anSelected = fnGetSelected(oTableOrderLineItems);
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+        }
+
+    });
+
+    $("#btnModelYesInnerGrid").live("click", function () {
+        var anSelected = fnGetSelected(oTableOrderLineItems);
+        var stringIDs = "";
+        var arrItems = new Array();
+
+        for (var i = 0; i < anSelected.length; i++) {
+            //stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+            var ordDtlID = $(anSelected[i]).find("#hdnID").val();
+            var ordDtlGUID = $(anSelected[i]).find("#hdnDetailGUID").val();
+            var itemGuid = $(anSelected[i]).find("#hdnItemGUID").val();
+            var ordGuid = $(anSelected[i]).find("#hdnOrderGUID").val();
+            arrItems.push({ 'ID': ordDtlID, 'GUID': ordDtlGUID, 'ItemGUID': itemGuid, 'OrderGUID': ordGuid });
+        }
+        if (anSelected.length > 0) {
+            $.ajax({
+                'url': '/Order/OrderLineItemsDelete',
+                // data: { ids: stringIDs },
+                data: JSON.stringify({ 'objDeletedItems': arrItems, 'OrderID': OrdID }),
+                dataType: 'json',
+                type: 'POST',
+                contentType: "application/json",
+                async: false,
+                cache: false,
+                success: function (response) {
+                    $("#spanGlobalMessage").text(response.Message);
+                    showNotificationDialog();
+                    if (response.Status == "ok") {
+                        for (var i = 0; i < anSelected.length; i++) {
+                            $('#ToolMaintenanceLineItem' + OrdID).dataTable().fnDeleteRow(anSelected[i]);
+
+                            if (response.OrderItems.length > 0) {
+                                $('#spnNoOfItems').text(response.OrderItems);
+                            }
+                            if (response.Ordercost.length > 0) {
+                                //$('#spnTotalCost').text(response.Ordercost);
+                                $('#spnTotalOrderCost').text(response.Ordercost);
+                            }
+                        }
+                    }
+                },
+                error: function (response) {
+                }
+            });
+            $.modal.impl.close();
+        }
+    });
+
+
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+
+        $('#OrderLToolMaintenanceLineItemineItem' + OrdID).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+    /* global search function */
+    function fnFilterOrderLineItem() {
+        bIsFilter = true;
+        var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+        $('#ToolMaintenanceLineItem' + OrdID).dataTable().fnFilter(searchtext, null, null, null);
+        $('#ToolMaintenanceLineItem' + OrdID + ' td').removeHighlight();
+        if (searchtext.length > 0)
+            $('#ToolMaintenanceLineItem' + OrdID + ' td').highlight($("#InnerItem_filter").val());
+    }
+
+    $("#InnerItem_filter").on("keyup", function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        var index = $.inArray(code, NotAllowedCharCodes);
+        if (index >= 0) return false;
+        fnFilterOrderLineItem();
+    });
+
+    $("#InnerItem_filter").on("keydown", function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            fnFilterOrderLineItem();
+        }
+    });
+
+
+    $("#clear_QLItem_filter").click(function () {
+        $("#InnerItem_filter").val('');
+        fnFilterOrderLineItem();
+        $("#InnerItem_filter").focus();
+        return false;
+    });
+
+    $('#saveRows').live("click", function () {
+        var msg = UpdateLineItemGrid(-1, '');
+        if (msg.Status == "ok") {
+            showNotificationDialog();
+            $("#spanGlobalMessage").text(msg.Message);
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+        }
+        else if (msg.Status == 'No') {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").text('No Changes');
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+        }
+        else {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").text(msg.Message);
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        }
+
+    });
+
+    function UpdateLineItemGrid(StagingID, CustomerAddressLength) {
+        var arrItems = new Array();
+        $('#DivLoading').show();
+        var ItemNodes = $('#ToolMaintenanceLineItem' + OrdID).dataTable().fnGetNodes();
+        if (ItemNodes.length <= 0)
+            return { 'Status': 'ok', 'Message': '@ResMessage.SaveMessage' };
+
+        if (StagingID == "0") {
+
+            for (var i = 0; i < ItemNodes.length; i++) {
+                var ID = $(ItemNodes[i]).find('#hdnID').val();
+                //var RequiredDate_New = $(ItemNodes[i]).find('#hiddenDatePicker' + ID).val();
+                var RequiredDate_New = $(ItemNodes[i]).find('input.hasDatePicker' + ID).val();
+                var Qty = $(ItemNodes[i]).find('#txtQty').val();
+                if ((typeof (RequiredDate_New) == "undefined" || (typeof (RequiredDate_New) == undefined))) {
+                    RequiredDate_New = $(ItemNodes[i]).find('#hdnRequiredDate').val();
+                    if ((typeof (RequiredDate_New) == "" || (typeof (RequiredDate_New) == "undefined" || (typeof (RequiredDate_New) == undefined)))) {
+                        // alert("Please select Required Date");
+                        var obj = { 'Status': "fail", 'Message': "Please select Required Date" };
+                        return obj;
+                    }
+                }
+
+                if (isNaN(Qty) === true || parseFloat(Qty) <= 0) {
+                    var obj = { 'Status': "fail", 'Message': "Required quantity must be greater than zero" };
+                    return obj;
+                }
+            }
+        }
+        for (var i = 0; i < ItemNodes.length; i++) {
+
+            var Qty = $(ItemNodes[i]).find('#txtQty').val();
+            var ApprQty = $(ItemNodes[i]).find('#txtApprQty').val();
+            var ID = $(ItemNodes[i]).find('#hdnID').val();
+            var ItemGUID = $(ItemNodes[i]).find('#hdnItemGUID').val();
+            var OrderGUID = $(ItemNodes[i]).find('#hdnOrderGUID').val();
+            //var RequiredDate = $(ItemNodes[i]).find('#hiddenDatePicker' + ID).val();
+            var RequiredDate = $(ItemNodes[i]).find('input.hasDatePicker').val();
+            if ((typeof (RequiredDate) == "undefined" || (typeof (RequiredDate) == undefined))) {
+                RequiredDate = $(ItemNodes[i]).find('#hdnRequiredDate').val();
+            }
+            var IsEDISent = $(ItemNodes[i]).find('#hdnIsEDISent').val();
+            var Comment = $(ItemNodes[i]).find('#Comment').val();
+
+            if (IsEDISent == "True") {
+                IsEDISent = true;
+            }
+            else {
+                IsEDISent = false;
+            }
+            var vUDF1 = '';
+            var vUDF2 = '';
+            var vUDF3 = '';
+            var vUDF4 = '';
+            var vUDF5 = '';
+
+            if ($(ItemNodes[i]).find('#UDF1OrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF1OrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF1OrderDetails option:selected').text() != undefined) {
+                    vUDF1 = $(ItemNodes[i]).find('#UDF1OrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF1OrderDetails').val() != undefined) {
+                        vUDF1 = $(ItemNodes[i]).find('#UDF1OrderDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF2OrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF2OrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF2OrderDetails option:selected').text() != undefined) {
+                    vUDF2 = $(ItemNodes[i]).find('#UDF2OrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF2OrderDetails').val() != undefined) {
+                        vUDF2 = $(ItemNodes[i]).find('#UDF2OrderDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF3OrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF3OrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF3OrderDetails option:selected').text() != undefined) {
+                    vUDF3 = $(ItemNodes[i]).find('#UDF3OrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF3OrderDetails').val() != undefined) {
+                        vUDF3 = $(ItemNodes[i]).find('#UDF3OrderDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF4OrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF4OrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF4OrderDetails option:selected').text() != undefined) {
+                    vUDF4 = $(ItemNodes[i]).find('#UDF4OrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF4OrderDetails').val() != undefined) {
+                        vUDF4 = $(ItemNodes[i]).find('#UDF4OrderDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF5OrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF5OrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF5OrderDetails option:selected').text() != undefined) {
+                    vUDF5 = $(ItemNodes[i]).find('#UDF5OrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF5OrderDetails').val() != undefined) {
+                        vUDF5 = $(ItemNodes[i]).find('#UDF5OrderDetails').val();
+                    }
+                }
+            }
+            var binName = $(ItemNodes[i]).find('#txtBinNumber').val();
+
+            if (isNaN(Qty) === false && parseFloat(Qty) > 0) {
+                var data = {
+                    "ID": ID
+                , "ItemGUID": ItemGUID
+                , "OrderGUID": OrderGUID
+                , "RequestedQuantity": Qty
+                , "ApprovedQuantity": ApprQty
+                , "BinName": binName
+                , "RequiredDateStr": RequiredDate
+                , "IsEDISent": IsEDISent
+                , "Comment": Comment
+                    , "UDF1": vUDF1
+                    , "UDF2": vUDF2
+                    , "UDF3": vUDF3
+                    , "UDF4": vUDF4
+                    , "UDF5": vUDF5
+                };
+                arrItems.push(data);
+
+            }
+        }
+        return SaveLineItemsGrid(arrItems);
+    }
+
+    function SaveLineItemsGrid(arrItems) {
+        var status = "No";
+        var message = "No Changes"
+        //if (arrItems.length > 0) {
+
+        var newArray = new Array();
+        var mainArray = new Array();
+        for (var i = 0; i < arrItems.length; i++) {
+            if (newArray.length < 250) {
+                newArray.push(arrItems[i]);
+            }
+            else {
+                mainArray.push(newArray);
+                newArray = null;
+                newArray = new Array();
+                newArray.push(arrItems[i]);
+            }
+        }
+        if (newArray.length > 0) {
+            mainArray.push(newArray);
+        }
+
+        $('#DivLoading').show();
+        for (var k = 0; k < mainArray.length; k++) {
+            $('#DivLoading').show();
+            $.ajax({
+                url: '@Url.Content("~/Order/AddUpdateDeleteOrderItemsToOrder")',
+                data: JSON.stringify({ 'arrDetails': mainArray[k], 'OrderID': OrdID }),
+                dataType: 'json',
+                type: 'POST',
+                contentType: "application/json",
+                async: false,
+                cache: false,
+                success: function (response) {
+                    if (response.Status == "ok") {
+                        if (k == (mainArray.length - 1)) {
+                            $.ajax({
+                                url: '@Url.Content("~/Order/SetOrderMail")',
+                                data: JSON.stringify({ 'OrderID': OrdID }),
+                                dataType: 'json',
+                                type: 'POST',
+                                contentType: "application/json",
+                                async: false,
+                                cache: false,
+                                success: function (resp) {
+                                    CallThisFunctionFromModel('success');
+                                    status = response.Status;
+                                    message = response.Message;
+                                    $('#DivLoading').hide();
+                                },
+                                error: function (exh) {
+                                    $('#DivLoading').hide();
+                                }
+                            });
+                        }
+                    }
+                    else {
+                        $('#DivLoading').hide();
+                    }
+                },
+                error: function (exh) {
+                    alert(exh.status + ' ' + exh.statusText);
+                    $('#DivLoading').hide();
+                }
+            });
+        }
+
+        var obj = { 'Status': status, 'Message': message };
+        $('#DivLoading').hide();
+        return obj;
+    }
+
+
+
+</script>

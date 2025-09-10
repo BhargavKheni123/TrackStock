@@ -1,0 +1,238 @@
+﻿@model IList<eTurns.DTO.SupplierBlanketPODetailsDTO>
+<div id="divSupplierBlanketPODetails" style="width: 99.5%; min-height: 140px">
+    <div>
+        <div>
+            <div style="text-align: center; float: left; width: 80%;">
+                <span id="spanErrorMsg" style="color: Green;"></span>
+            </div>
+            <div>
+                <input type="button" value="Add BlanketPO" class="CreateBtn" onclick="return AddBlanketPOofSupplier();" />
+            </div>
+        </div>
+    </div>
+    <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+        float: left;">
+        <table id="SupplierBlanketPO" class="display">
+            <thead>
+                <tr>
+                    <th>
+                        @eTurns.DTO.ResSupplierBlanketPODetails.BlanketPO
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResSupplierBlanketPODetails.StartDate
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResSupplierBlanketPODetails.Enddate
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResSupplierBlanketPODetails.MaxLimit
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResSupplierBlanketPODetails.IsNotExceed
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResSupplierBlanketPODetails.PullUsed
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResSupplierBlanketPODetails.OrderUsed
+                    </th>
+                    <th>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null)
+                {
+                    var CounterTemp = 0;
+                    foreach (var item in Model)
+                    {
+                        CounterTemp += 1;
+                        <tr>
+                            <td>
+                                @Html.TextBox("txtBlanketPO", item.BlanketPO, new { @style = "width:150px;", @maxlength = "22", @class = "text-box" })
+                            </td>
+                            <td>
+                                @Html.TextBoxFor(model => item.StartDate, new { @style = "width:60px;background:white", @class = "text-box datePicker", id = "txtStartDate" + (new Random(eTurns.DAL.DateTimeUtility.DateTimeNow.Millisecond)).NextDouble() + CounterTemp.ToString(), @readonly = "readonly", @maxlength = 128, @Value = string.IsNullOrEmpty(Convert.ToString(item.StartDate)) ? string.Empty : item.StartDate.Value.ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat) })
+                                @*@Html.TextBoxFor(model => item.StartDate, "mm/dd/yyyy", new { @style = "width:80px;background:white", @class = "text-box datePicker", id = "txtStartDate" + CounterTemp.ToString(), @readonly = "readonly", @maxlength = 128, @Value = item.StartDate == null ? "" : item.StartDate.Value.ToString("MM/dd/yyyy") })*@
+                            </td>
+                            <td>
+                                @Html.TextBoxFor(model => item.Enddate, new { @style = "width:60px;background:white", @class = "text-box datePicker", id = "txtEnddate" + (new Random(eTurns.DAL.DateTimeUtility.DateTimeNow.Millisecond)).NextDouble() + CounterTemp.ToString(), @readonly = "readonly", @maxlength = 128, @Value = string.IsNullOrEmpty(Convert.ToString(item.Enddate)) ? string.Empty : item.Enddate.Value.ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat) })
+                                @*@Html.TextBoxFor(model => item.Enddate, "mm/dd/yyyy", new { @style = "width:80px;background:white", @class = "text-box datePicker", id = "txtEnddate" + CounterTemp.ToString(), @readonly = "readonly", @maxlength = 128, @Value = item.Enddate == null ? "" : item.Enddate.Value.ToString("MM/dd/yyyy") })*@
+                            </td>
+                            <td>
+                                @Html.TextBoxFor(model => item.MaxLimit, new { @style = "width:50px;", @class = "text-box" })
+                            </td>
+                            <td>
+                                @Html.CheckBoxFor(model => item.IsNotExceed, new { @class = "check-box" })
+                            </td>
+                            <td>
+                                <span style="width:20px;"> @item.PulledQty</span>
+                            </td>
+                            <td>
+                                <span style="width:20px;">@item.OrderedQty</span>
+                            </td>
+                            <td>
+                                @if (item.GUID != Guid.Empty)
+                                {
+                                    <a href="JavaScript:void{0}" onclick="return DeletetoSeesionSupplierBlanketPOSingle(this)">
+                                        <img alt="@ResCommon.Save" src="/Content/images/delete.png">
+                                    </a>
+                                }
+                                <input id="hdnID" type="hidden" value="@item.ID" />
+                                <input id="hdnGUID" type="hidden" value="@item.GUID" />
+                                <input id="hdnSupplierID" type="hidden" value="@item.SupplierID" />
+                                <input id="hdnSessionSr" type="hidden" value="@item.SessionSr" />
+                            </td>
+
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="dialog" id="mdlQLYesNo" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+        </p>
+        <a href="JavaScript:void{}" id="btnQLModelYesSP" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no"
+               onclick="QLcloseModal()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<script type="text/javascript">
+    var oTableItemSupplier;
+    var deleteURL1 = "/Master/SupplierBlanketDelete";
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var DTNameSup = 'SupplierBlanketPO';
+    var bIsFilter = false;
+
+    $(document).ready(function () {
+
+        $(".datePicker").each(function () {
+            $(this).datepicker(
+            {
+                dateFormat: 'mm/dd/yy',
+                showButtonPanel: true,
+                clearText: 'Clear' //,
+                //                onClose: function () {
+                //                    this.focus();
+                //                }
+            });
+        });
+
+
+        var gaiSelected = [];
+        oTableItemSupplier = $('#' + DTNameSup).dataTable({
+            "bPaginate": false,
+            "bLengthChange": false,
+            "bFilter": false,
+            "bSort": false,
+            "bInfo": false,
+            "bAutoWidth": false,
+            "bRetrieve": true,
+            "bDestroy": true,            
+            "sScrollY": "200px"
+        });
+        $('.DTTT_container').css('z-index', '-1');
+    });
+
+
+    $('#' + DTNameSup + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    // To adjust the print block next to colvis button
+    $('#btnblock').css({ 'margin-right': '45px' });
+
+    //    $('#' + DTName + ' tbody tr').live('tap click', function () {
+    //        $(this).toggleClass('row_selected');
+    //        return false;
+    //    });
+
+    /* Add a click handler for the delete rows multiple rows */
+
+    $('#deleteRows1').click(function () {
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+        if ($("body").hasClass('DTTT_Print')) {
+            return false;
+        }
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+
+        var anSelected = fnGetSelected(oTableProjectItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            //anSelected[0].cells[0].innerHTML
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+            IsDeletePopupOpen = false;
+        }
+
+
+    });
+
+    function CheckDate(obj) {
+        if (parseInt($(obj).val()) > 0) {
+            var startdate = obj.parentNode.parentNode.childNodes[3].childNodes[1].value;
+            var enddate = $(obj).val();
+            if (!(Date.parse(startdate) < Date.parse(enddate))) {
+                $(obj).val("");
+                $(obj).focus();
+
+                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                $("#spanGlobalMessage").html('@ResSupplierBlanketPODetails.EndDategreaterthanstartDate');
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            }
+            else { }
+            // alert($(obj).val());
+        }
+
+        //        if (parseInt($(txtsup).val()) > 0) {
+        //            $.ajax({
+        //                type: "GET",
+        //                url: "/Inventory/GetNewSupplier",
+        //                data: { "SupplierID": $(txtsup).next().val(), "SupplierName": $(txtsup).val() },
+        //                dataType: "json",
+        //                success: function (response) {
+        //                    //                    var ddlBlanketPOID = $(txtsup).parent().parent().find("#BlanketPOID");
+        //                    //                    ddlBlanketPOID.empty();
+
+        //                    if (response.status == 'Ok') {
+        //                        FillSupplierBlanketPO1(txtsup);
+        //                    }
+        //                    else {
+
+        //                        //$(txtsup).next().val() = '';
+        //                        $(txtsup).val("");
+        //                        $(txtsup).focus();
+        //                        $(txtsup).parent().parent().find("#BlanketPOID").hide();
+        //                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        //                        $("#spanGlobalMessage").text('User do not have permission to add new supplier');
+        //                        $('div#target').fadeToggle();
+        //                        $("div#target").delay(2000).fadeOut(200);
+        //                    }
+        //                },
+        //                error: function (XMLHttpRequest, textStatus) {
+        //                    alert(textStatus);
+        //                }
+        //            });
+        //        }
+        //        else {
+        //            // $(txtsup).parent().parent().find("#BlanketPOID").hide();
+        //        }
+    }
+
+
+</script>

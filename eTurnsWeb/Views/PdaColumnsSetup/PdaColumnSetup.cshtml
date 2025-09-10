@@ -1,0 +1,143 @@
+﻿@{
+    ViewBag.Title = ResLayout.PDAColumnsSettingsPageTitle;
+}
+<div class="userListingWrapper">
+    <h2>
+        @ResLayout.PDAColumnsSettingsPageHeader
+    </h2> 
+    <div class="Pdablockform">
+        <div class="bordercontainer">
+            @ResLayout.ListName:&nbsp;&nbsp; @Html.DropDownList("ddlgridlist", new SelectList(ViewBag.GridColumnList, "TableName", "ListName"), ResLayout.SelectList, new { @class = "selectBox", @style = "width:190px" })&nbsp;&nbsp;&nbsp;&nbsp;<input
+                class="PdsCreateBtn" type="button" value="@ResCommon.Save" onclick="savedata();" />
+            <br />
+            <br />
+            <br />
+            <br />
+            <div id="divcolumnlist">
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        if ($("#ddlgridlist").val() != "") {
+            bindcolumns();
+        }
+    });
+    $("#ddlgridlist").change(function () {
+        $("#divcolumnlist").html('');
+        if ($("#ddlgridlist").val() != "") {
+            bindcolumns();
+        }
+    });
+    function bindcolumns() {
+        $('#DivLoading').show();
+        var selected = $("#ddlgridlist").val();
+        var selectedtext = escape($("#ddlgridlist option:selected").text());
+        $.ajax({
+            type: "POST"
+            , url: "/PdaColumnsSetup/GetGridListColumns"
+            , data: "{'listname':'" + selectedtext + "','tablename' : '" + selected + "'}"
+            , contentType: "application/json;"
+            , dataType: "html"
+            , success: function (data) {
+                $("#divcolumnlist").html(data);
+                $('#DivLoading').hide();
+            }
+        });
+    }
+
+    function savedata() {
+        if ($("#ddlgridlist").val() == "") {
+            ShowNotificationMessage("@ResLayout.PleaseSelectList");
+        }
+        else {
+            var selectedUserValues = $.map($('#lstUsers option:selected'), function (element) {
+                return element.value;
+            });
+
+            var PrevSelectedUser = $("#hPrevSelectedUser").val();
+            if (PrevSelectedUser == undefined) {
+                PrevSelectedUser = "";
+            }
+            /*if (selectedUserValues == "") {
+            alert("Please select users");
+            return;
+            }*/
+
+            $('#DivLoading').show();
+
+            var listItems = $("#divdestination li");
+            var tableArr = new Array();
+            var hididcollection = "";
+            var hidvaluecollection = "";
+            var hidtablenamecollection = "";
+            var hidlistnamecollection = "";
+            var hidcollectionwithoutalias = "";
+            listItems.each(function () {
+                var $this = $(this);
+                var id = $this.attr("id");
+                if (id != "liinvisibleid") {
+                    var hidId = $this.children("#hidId").val();
+                    var hidColumnvalue = $this.children("#hidColumnvalue").val();
+                    var hidListName = $this.children("#hidListName").val();
+                    var hidTableName = $this.children("#hidTableName").val();
+                    var hidGridColumnValueWithoutAlias = $this.children("#hidGridColumnValueWithoutAlias").val();
+                    var hidGridColumnName = $this.children("#hidGridColumnName").val();
+                    var hidGridColumnAlias = $this.children("#hidGridColumnAlias").val();
+                    var hidIsSearchFixed = $this.children("#hidIsSearchFixed").val();
+
+                    //                    (hididcollection == "") ? hididcollection = hidId : hididcollection = hididcollection + "," + hidId;
+                    //                    (hidvaluecollection == "") ? hidvaluecollection = hidColumnvalue : hidvaluecollection = hidvaluecollection + "," + hidColumnvalue;
+
+                    //                    (hidcollectionwithoutalias == "") ? hidcollectionwithoutalias = hidGridColumnValueWithoutAlias : hidcollectionwithoutalias = hidcollectionwithoutalias + "," + hidGridColumnValueWithoutAlias;
+
+                    hidlistnamecollection = hidListName;
+                    hidtablenamecollection = hidTableName;
+
+                    tableArr.push({
+                        Id: escape(hidId),
+                        GridColumnValue: escape(hidColumnvalue).replace(new RegExp("\\+", "g"), "%2B"),
+                        ListName: escape(hidListName),
+                        TableName: escape(hidTableName),
+                        GridColumnValueWithoutAlias: escape(hidGridColumnValueWithoutAlias).replace(new RegExp("\\+", "g"), "%2B"),
+                        GridColumnName: escape(hidGridColumnName),
+                        GridColumnAlias: escape(hidGridColumnAlias),
+                        IsSearch: escape(hidIsSearchFixed)
+                    });
+                }
+            });
+
+            //            tableArr.push({
+            //                ListIds: escape(hididcollection),
+            //                GridColumnValue: escape(hidvaluecollection),
+            //                ListName: escape(hidlistnamecollection),
+            //                TableName: escape(hidtablenamecollection),
+            //                GridColumnValueWithoutAlias: escape(hidcollectionwithoutalias)
+            //            });
+
+            $.ajax({
+                type: "POST",
+                url: "/PdaColumnsSetup/SavePdaSettings",
+                data: "{ 'datacollections': '" + JSON.stringify(tableArr) + "','listname': '" + hidlistnamecollection + "','tablename' : '" + hidtablenamecollection + "','UserValues' : '" + selectedUserValues + "','PreviousUserValues' : '" + PrevSelectedUser + "'  }",
+                contentType: "application/json; charset=utf-8",
+                dataType: "html",
+                success: function (data) {
+                    $("#divcolumnlist").html(data);
+                    $('#DivLoading').hide();
+                    showNotificationDialog();
+                    $("#spanGlobalMessage").html('@ResMessage.SaveMessage');
+                    $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                },
+                error: function () {
+                    $('#DivLoading').hide();
+                    showNotificationDialog();
+                    $("#spanGlobalMessage").html("@ResCommon.ErrorinSave");
+                    $("#spanGlobalMessage").removeClass('WarningIcon succesIcon').addClass('errorIcon');
+                }
+            });
+        }
+    }
+    
+</script>

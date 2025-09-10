@@ -1,0 +1,955 @@
+﻿<!DOCTYPE html>
+<html ng-app="eTurnsAppModule">
+<head>
+    <style type="text/css">
+        body {
+            display: none;
+        }
+    </style>
+    <meta charset="utf-8" />
+    @if (SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL) && ViewBag.Title!=null)
+    {
+        <title>@ViewBag.Title.ToString().Replace("eTurns:", "Border States VMI:")</title>
+    }
+    else
+    {
+        <title>@ViewBag.Title</title>
+    }
+    @{
+
+        RouteValueDictionary obj = new RouteValueDictionary();
+        obj = ViewContext.Controller.ControllerContext.RouteData.Values;
+        string ControllerName = Convert.ToString(obj["controller"]);
+        string ActionName = Convert.ToString(obj["action"]);
+        TimeZone localZone = TimeZone.CurrentTimeZone;
+        int ServerOffset = Convert.ToInt32(localZone.GetUtcOffset(DateTime.Now).TotalMinutes);
+        string requestType = HttpContext.Current.Request.HttpMethod;
+        bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+        bool isItemListVeiw = false;
+        isItemListVeiw = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.View);
+        var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+        Int32 SearchPattern = Convert.ToInt32(eTurnsWeb.Helper.SessionHelper.SearchPattern);
+        if (SearchPattern == 0)
+        {
+            SearchPattern = 2;
+        }
+    }
+
+    @Scripts.Render("~/bundles/Scripts")
+    @Scripts.Render("~/bundles/ScriptsNG")
+    @if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL))
+    {
+        @Styles.Render("~/Content/cssBS")
+        <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />
+        <link rel="icon" type="image/x-icon" href="~/Content/images/favicon_BS.ico">
+    }
+    else
+    {
+        @Styles.Render("~/Content/css")
+        <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />
+        <link rel="icon" type="image/x-icon" href="~/Content/images/favicon.ico">
+    }
+
+    @*<script src="@Url.Content("~/ScriptNG/Angular/Module/AppMain.js?v=" + version)" type="text/javascript"></script>
+        <script src="@Url.Content("~/Scripts/PageScripts/Layout.js?v=" + version)" type="text/javascript"></script>
+        <script src="@Url.Content("~/ScriptNG/Angular/Service/HtmlHelperSvc.js?v="+ version)" type="text/javascript"></script>
+
+        <script src="@Url.Content("~/Scripts/webkitdragdrop.js")" type="text/javascript"></script>
+        <script src="@Url.Content("~/Scripts/DynemicGirdFill.js?v=" + version)" type="text/javascript"></script>
+                <script src="@Url.Content("~/Scripts/DynemicMultiselect.js?v=" + version)" type="text/javascript"></script>
+
+        <script src="@Url.Content("~/Scripts/Navigate/ays-beforeunload-shim.js")" type="text/javascript"></script>
+        <script src="@Url.Content("~/Scripts/Navigate/jquery.are-you-sure.js")" type="text/javascript"></script>
+                <script src="@Url.Content("~/Scripts/PageScripts/LayoutScripts.js?v=" + version)" type="text/javascript"></script>
+                <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+                <script src="@Url.Content("~/Scripts/jquery.signalR-1.1.4.js")" type="text/javascript"></script>
+                <script src="@Url.Content("~/Scripts/PageScripts/eTurnsSignalRHelper.js?v="+ version)" type="text/javascript"></script>*@
+    <script defer src="@Url.Content("~/Scripts/moment-with-locales.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/bundles/layout?v=" + version)" type="text/javascript"></script>
+    <script defer type="text/javascript" src="@Url.Content("~/signalr/hubs")"></script>
+
+    @*<script type="text/javascript">
+            var eTurnsApp = angular.module("eTurnsAppModule", []);
+        </script>*@
+
+
+<script type="text/javascript">
+        // JavaScript Document
+        var serverUTCOffset = parseFloat('@ServerOffset')
+        var ColumnsToHideinPopUp = new Array();
+        var gblActionName = '@ActionName';
+        var gblControllerName = '@ControllerName';
+        var gblRequestType = '@requestType';
+        var gblColumnsToHideinPopUp = '@isCost';
+        var NewNameRes = '@eTurns.DTO.Resources.ResCommon.New';
+        var EditNameRes = '@eTurns.DTO.Resources.ResCommon.Edit';
+        var ViewNameRes = '@eTurns.DTO.Resources.ResCommon.View';
+        var YesRes = '@eTurns.DTO.Resources.ResMessage.ConfirmYes';
+        var NoRes = '@eTurns.DTO.Resources.ResMessage.ConfirmNo';
+        var DeleteConfirmRes = '@eTurns.DTO.Resources.ResMessage.DeleteConfirm';
+        var ReorderColumnPopupHeader = '@eTurns.DTO.Resources.ResCommon.ReorderColumnPopupHeader';
+        var NeedToOpenItemPopupNow = false;
+        var MaintenanceEdit = false;
+        var MaintenanceView = false;
+        var IsCountClosed = false;
+        var SaveConfirmationMSG = 'This page is asking you to confirm that you want to leave - data you have entered may not be saved.'; //'@eTurns.DTO.Resources.ResCommon.SaveConfirmation';
+        var interval = 60000;
+        var CounterInMin = 0;
+        var IsLoginActiveRequired = true;
+        var txtDefaultSelect = '@eTurns.DTO.Resources.ResCommon.DefaultSelect';
+        var RoomDateJSFormat = '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat';
+        var urlSetPollAllTrue = '@Url.Action("SetPollAllTrue", "Master")';
+        var urlSetTareAllTrue = '@Url.Action("SetTareAllTrue", "Master")';
+        var urlSetCalibrateAllTrue = '@Url.Action("SetCalibrateAllTrue", "Master")';
+        var urlAddNewBarcodeFromModel = '@Url.Action("AddNewBarcodeFromModel", "Barcode")';
+        var urlGetCompanyLanguage = '@Url.Action("GetCompanyLanguage", "Resources")';
+        var urlClickFromMenuNotification = '@Url.Action("ClickFromMenuNotification", "Master")';
+        var urlGetConsumeRedCount = '@Url.Action("GetConsumeRedCount", "Consume")';
+        var urlGetReplinshRedCount = '@Url.Action("GetReplinshRedCount", "Replenish")';
+        var urlCompanyLanguageChanged = '@Url.Action("CompanyLanguageChanged", "Resources")';
+        var urlSetEnterprise = '@Url.Action("SetEnterprise", "Master")';
+        var urlSetCompany = '@Url.Action("SetCompany", "Master")';
+        var urlSetStockRoom = '@Url.Action("SetStockRoom", "Master")';
+        var urlGetEnterprises = '@Url.Action("GetEnterprises", "Master")';
+        var urlGetRoomList = '@Url.Action("GetRoomList", "Master")';
+        var urlGetCompanies = '@Url.Action("GetCompanies", "Master")';
+        var urlLogoutUser = '@Url.Action("LogoutUser", "Master")';
+        var urlLoginSessionAlive = '@Url.Action("LoginSessionAlive", "Master")';
+        var BinChangeHistoryURL = '@Url.Action("GetItemBinChangeHistory", "Master")';
+        var urlLogoutUser = '@Url.Action("LogoutUser", "Master")';
+        var strReorderColumnPopupHeader = '@eTurns.DTO.Resources.ResCommon.ReorderColumnPopupHeader';
+        var strCurrentCult = '@eTurns.DTO.Resources.ResourceHelper.CurrentCult'
+        var strResLayoutRequisitions = '@eTurns.DTO.Resources.ResLayout.Requisitions';
+        var strResCommonUnsubmitted = '@eTurns.DTO.Resources.ResCommon.Unsubmitted';
+        var strResCommonRequested = '@eTurns.DTO.Resources.ResCommon.Requested';
+        var strResCommonApproved = '@eTurns.DTO.Resources.ResCommon.Approved';
+        var strResCommonPull = '@eTurns.DTO.Resources.ResCommon.Pull';
+        var strResLayoutCart = '@eTurns.DTO.Resources.ResLayout.Cart';
+        var strResLayoutOrders = '@eTurns.DTO.Resources.ResLayout.Orders';
+        var strResLayoutReturnOrders = '@eTurns.DTO.Resources.ResLayout.ReturnOrders';
+        var strResLayoutReceive = '@eTurns.DTO.Resources.ResLayout.Receive';
+        var strResLayoutTransfer = '@eTurns.DTO.Resources.ResLayout.Transfer';
+        var strResLayoutQuote = '@eTurns.DTO.Resources.ResLayout.Quote';
+        var strResLayoutQuoteToOrder = '@eTurns.DTO.Resources.ResLayout.QuoteToOrder';
+        var strResCommonReceivable = '@eTurns.DTO.Resources.ResCommon.Receivable';
+        var strResOrderChangeOrder = '@eTurns.DTO.ResOrder.ChangeOrder';
+        var strResOrderChangeQuote = '@eTurns.DTO.ResQuoteMaster.ChangeQuote';
+        var strResOrderReturnListTab = '@eTurns.DTO.ResOrder.ReturnListTab';
+        var strResOrderChangeReturnOrder = '@eTurns.DTO.ResOrder.ChangeReturnOrder';
+        var strResLayoutCartOrders = '@eTurns.DTO.Resources.ResCommon.mnuSuggestedOrders';
+        var strResLayoutCartTransfers = '@eTurns.DTO.Resources.ResCommon.mnuSuggestedTransfers';
+        var strResLayoutCartSuggestedReturn = '@eTurns.DTO.Resources.ResCommon.mnuSuggestedReturn';
+        var EID = parseInt('@eTurnsWeb.Helper.SessionHelper.EnterPriceID');
+        var CID = parseInt('@eTurnsWeb.Helper.SessionHelper.CompanyID');
+        var RID = parseInt('@eTurnsWeb.Helper.SessionHelper.RoomID');
+
+        var RoleTypeRes = '@eTurns.DTO.Resources.ResNarrowSearch.RoleType';
+        var EnterpriseRes = '@eTurns.DTO.Resources.ResNarrowSearch.Enterprise';
+        var CompanyRes = '@eTurns.DTO.Resources.ResNarrowSearch.Company';
+        var RoomRes = '@eTurns.DTO.Resources.ResNarrowSearch.Room';
+        var UserTypeRes = '@eTurns.DTO.Resources.ResNarrowSearch.UserType';
+        var RoleRes = '@eTurns.DTO.Resources.ResNarrowSearch.Role';
+        var UserCreatedRes = '@eTurns.DTO.Resources.ResNarrowSearch.UserCreatedby';
+        var UserUpdatedRes = '@eTurns.DTO.Resources.ResNarrowSearch.UserUpdatedby';
+        var InvoiceBranchRes = '@eTurns.DTO.Resources.ResNarrowSearch.InvoiceBranch';
+        var BillingRoomTypeRes = '@eTurns.DTO.Resources.ResNarrowSearch.BillingRoomType';
+
+        var BillingRoomType_AssetOnlyRES = '@ResRoomMaster.BillingRoomType_AssetOnly';
+        var BillingRoomType_eVMIRES = '@ResRoomMaster.BillingRoomType_eVMI';
+        var BillingRoomType_ManageRES = '@ResRoomMaster.BillingRoomType_Manage';
+        var BillingRoomType_ReplenishRES = '@ResRoomMaster.BillingRoomType_Replenish';
+        var BillingRoomType_RFIDRES = '@ResRoomMaster.BillingRoomType_RFID';
+        var BillingRoomType_ToolandAssetOnlyRES = '@ResRoomMaster.BillingRoomType_ToolandAssetOnly';
+        var BillingRoomType_ToolOnlyRES = '@ResRoomMaster.BillingRoomType_ToolOnly';
+    var BillingRoomType_TruckRES = '@ResRoomMaster.BillingRoomType_Truck';
+    var BillingRoomType_OptimizeRES = '@ResRoomMaster.BillingRoomType_Optimize';
+
+        var RequisitionStatusRes = '@eTurns.DTO.Resources.ResNarrowSearch.RequisitionStatus';
+        var ItemRes = '@eTurns.DTO.Resources.ResLayout.Item';
+        var varIsItemListView = '@isItemListVeiw';
+        var WarnNewBinCreatedRes = '@eTurns.DTO.Resources.ResMessage.WarnNewBinCreated';
+        var EnterpriseSessionTimoutInMinutes = 10;
+        var WarnPriortoMinutes = 1;
+        var preSearchItemText = '';
+        var IdleSessionTimout = 30;
+        var IdleSessionTimoutwarning = 2;
+        var SearchPattern = '@SearchPattern';
+        var SetIncompleteSessionURL = '@Url.Action("SetIncompleteSession", "Master")';
+        var IsSetSessionCompleted = '@eTurnsWeb.Helper.SessionHelper.SetSessionCompleted'
+        var IsUserAllowedToAccessNgNLF = '@eTurnsWeb.Helper.SessionHelper.IsNgNLFAllowed'
+        var GetNgNLFUrl = '@Url.Action("GetNgNLFUrl", "Master")';
+        var MsgUndeleteSuccessfully = '@eTurns.DTO.Resources.ResCommon.MsgUndeleteSucessfully';
+        var MsgDeleteSuccessfully = '@eTurns.DTO.Resources.ResCommon.MsgDeletedSuccessfully';
+        var MsgErrorInProcess = '@eTurns.DTO.Resources.ResCommon.ErrorInProcess';
+        var MsgSelectRowCommon = '@ResCommon.SelectRow';
+        var MsgSelectRecordForArchieve = '@ResCommon.MsgSelectRecordForArchieve';
+        var MsgSelectRecordForUnArchieve = '@ResCommon.MsgSelectRecordForUnArchieve';
+        var MsgFailToArchieve = '@ResCommon.MsgFailToArchieve';
+        var MsgFailToUnArchieve = '@ResCommon.MsgFailToUnArchieve';
+        var MsgRecordDeletedSuccessfully = '@ResCommon.RecordDeletedSuccessfully';
+        var MsgModuleInUseValidation = '@ResCommon.MsgModuleInUseValidation';
+        var MsgInvalidStringRemoved = '@ResCommon.MsgInvalidStringRemoved';
+        var ReqToEmailAddress = '@ResSchedulerReportList.ReqToEmailAddress';
+        var ReqValidToEmailAddress = '@ResSchedulerReportList.ReqValidToEmailAddress';
+        var MsgEnterValidCCEmail = '@ResSchedulerReportList.MsgEnterValidCCEmail';
+        var ReqSubject = '@ResSchedulerReportList.ReqSubject';
+        var ReqBody = '@ResSchedulerReportList.ReqBody';
+        var MsgRecordToPrint = '@ResDashboard.MsgRecordToPrint';
+        var MsgSelectRecordExport = '@ResCommon.MsgSelectRecordExport';
+        var MsgInvalidFilterCrtNotification = '@ResNarrowSearch.MsgInvalidFilterCrtNotification';
+        var MsgFilterCriteriaApplied = '@ResNarrowSearch.MsgFilterCriteriaApplied';
+        var MsgFilterCriteriaLoading = '@ResNarrowSearch.MsgFilterCriteriaLoading';
+        var lblNow = '@ResSchedulerReportList.Now';
+        var lblDone = '@ResSchedulerReportList.Done';
+        var lblChooseTime = '@ResSchedulerReportList.ChooseTime';
+        var lblTime = '@ResSchedulerReportList.Time';
+        var lblHour = '@ResSchedulerReportList.Hour';
+        var lblMinute = '@ResSchedulerReportList.Minute';
+        var lblSecond = '@ResSchedulerReportList.Seconds';
+        var lblMillisecond = '@ResSchedulerReportList.Millisecond';
+        var MsgLostChangesConfirmation = '@ResCommon.MsgLostChangesConfirmation';
+        var MsgNoDataAvailableInTable = '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable';
+        var MsgShowingNoOfEntries = '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries';
+        var MsgShowRecordsGridBtn = '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records';
+        var MsgShowingZeroEntries =  '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+    var selected = '@eTurns.DTO.Resources.ResNarrowSearch.selected';
+    var lblLabels = '@eTurns.DTO.LabelPrinting.ResLabelPrinting.Labels'
+    var SendReportInEmail = '@ResCommon.SendReportInEmail'
+    var BtnSendEmail = '@ResCommon.BtnSendEmail';
+    var BtnCancel = '@ResCommon.Cancel';
+    var Check = '@eTurns.DTO.Resources.ResNarrowSearch.Check';
+    var UnCheck = '@eTurns.DTO.Resources.ResNarrowSearch.UnCheck';
+    var Filter = '@eTurns.DTO.Resources.ResNarrowSearch.Filter';
+    var Enterkeywords = '@eTurns.DTO.Resources.ResNarrowSearch.Enterkeywords';
+    var EnterPriceAccess = '@eTurns.DTO.ResRoleMaster.lblEnterprises';
+    var CompanyAccess = '@eTurns.DTO.ResRoleMaster.lblCompanies';
+    var RoomAccess = '@eTurns.DTO.ResRoleMaster.lblRooms';
+    var ResCheckALL = '@ResCommon.CheckALL';
+    var ResUnCheckALL = '@ResCommon.UnCheckALL';
+    var ResShowAllHidden = '@ResCommon.ShowAllHidden';
+    var strResLayoutIncomplete = '@ResCommon.Incomplete';
+    var catalogReportPopupTitle = '@ResLayout.CatalogReport';
+    var lblReports = '@ResLayout.Report'
+    var lblAddNew = '@ResCommon.AddNew';
+    var lblUpdate = '@ResRoleMaster.Update';
+    var loadAllText = '@eTurns.DTO.Resources.ResNarrowSearch.LoadAll';
+    var loadMoreText = '@eTurns.DTO.Resources.ResNarrowSearch.LoadMore';
+    var ReceivedDetail = '@eTurns.DTO.ResOrder.ReceivedDetail';
+    var GuidSeparator = '@Guid.NewGuid()';
+    //
+</script>
+    @RenderSection("head", required: false)
+</head>
+<body>
+    @RenderSection("scripts", required: false)
+    @* <script src="@Url.Content("~/Scripts/jquery-1.11.1.min.js")" type="text/javascript"></script>
+        <script type="text/javascript">
+            var jq1111 = jQuery.noConflict();
+        </script>*@
+    <div style="display: none">
+        <input class="CreateBtn" type="button" value="Send Single Mail" id="bntSingleMail" />
+        <input class="CreateBtn" type="button" value="Send Multiple Mail" id="btnMultpleMail" />
+        <div id="mailResult">
+        </div>
+    </div>
+    <div class="all">
+        @Html.Hidden("hdnUserID", eTurnsWeb.Helper.SessionHelper.UserID)
+        @if (eTurnsWeb.Helper.SessionHelper.NumberDecimalDigits != null)
+        {
+            @Html.Hidden("hdQuantitycentsLimit", eTurnsWeb.Helper.SessionHelper.NumberDecimalDigits)
+            @Html.Hidden("hdNumberDecimalDigits", eTurnsWeb.Helper.SessionHelper.NumberDecimalDigits)
+        }
+        else
+        {
+            @Html.Hidden("hdQuantitycentsLimit", 2)
+            @Html.Hidden("hdNumberDecimalDigits", 2)
+        }
+        @if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits))
+        {
+            @Html.Hidden("hdCostcentsLimit", eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits)
+            @Html.Hidden("hdCurrencyDecimalDigits", eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits)
+        }
+        else
+        {
+            @Html.Hidden("hdCostcentsLimit", 0)
+            @Html.Hidden("hdCurrencyDecimalDigits", 0)
+        }
+        @if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.NumberAvgDecimalPoints))
+        {
+            @Html.Hidden("hdTurnUsageLimit", eTurnsWeb.Helper.SessionHelper.NumberAvgDecimalPoints)
+        }
+        else
+        {
+            @Html.Hidden("hdTurnUsageLimit", 2)
+        }
+        @if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.WeightDecimalPoints))
+        {
+            @Html.Hidden("hdWeightPerPieceLimit", eTurnsWeb.Helper.SessionHelper.WeightDecimalPoints)
+        }
+        else
+        {
+            @Html.Hidden("hdWeightPerPieceLimit", 0)
+        }
+        @if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat))
+        {
+            //@Html.Hidden("hdDateFormat", "m/d/yy")
+            @Html.Hidden("hdDateFormat", eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat)
+        }
+        else
+        {
+            @Html.Hidden("hdDateFormat", "m/d/yy")
+        }
+        @*@if (eTurnsWeb.Helper.SessionHelper.CompanyConfig != null)
+            {
+                @Html.Hidden("hdQuantitycentsLimit", eTurnsWeb.Helper.SessionHelper.CompanyConfig.QuantityDecimalPoints)
+                @Html.Hidden("hdCostcentsLimit", eTurnsWeb.Helper.SessionHelper.CompanyConfig.CostDecimalPoints)
+                @Html.Hidden("hdTurnUsageLimit", eTurnsWeb.Helper.SessionHelper.CompanyConfig.TurnsAvgDecimalPoints)
+                @Html.Hidden("hdWeightPerPieceLimit", eTurnsWeb.Helper.SessionHelper.CompanyConfig.WeightDecimalPoints)
+                @Html.Hidden("hdCurrencyDecimalDigits", eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits)
+                @Html.Hidden("hdNumberDecimalDigits", eTurnsWeb.Helper.SessionHelper.NumberDecimalDigits)
+
+                if (eTurnsWeb.Helper.SessionHelper.CompanyConfig.DateFormat == "" || eTurnsWeb.Helper.SessionHelper.CompanyConfig.DateFormat == null)
+                {
+                @Html.Hidden("hdDateFormat", "m/d/yy")
+                }
+                else
+                {
+                @Html.Hidden("hdDateFormat", eTurnsWeb.Helper.SessionHelper.CompanyConfig.DateFormat)
+                }
+            }
+            else
+            {
+                @Html.Hidden("hdQuantitycentsLimit", 2)
+                @Html.Hidden("hdCostcentsLimit", 3)
+                @Html.Hidden("hdTurnUsageLimit", 2)
+                @Html.Hidden("hdDateFormat", "m/d/yy")
+                @Html.Hidden("hdWeightPerPieceLimit", 0)
+            }*@
+        @Html.Partial("SiteHeaderWithMenu")
+
+        @Html.Partial("_PasswordExpirationWarning")
+        @Html.AntiForgeryToken()
+        @RenderBody()
+        <div class="footer">
+            @eTurns.DTO.Resources.ResLayout.Copyright.ToString().Replace("#YEAR#", eTurns.DAL.DateTimeUtility.DateTimeNow.Year.ToString())
+        </div>
+        @if (eTurnsWeb.Helper.SessionHelper.RoleID == -1)
+        {
+            <div class="footer">
+                <span id="lbleTurnsUsersRightNow" style="font-size:24px;font-weight:bold; display:none;">Total user Sessions Online right now On eTurns : </span><a href="javascript:;" id="clickCount" onclick="openUserDetail();"><span id="eTurnsUsersRightNow" style="font-size:24px;font-weight:bold;display:none;"></span></a>
+                <input type="hidden" id="UserNameList" />
+            </div>
+        }
+    </div>
+    <div class="popBlock" id="target" style="z-index:9999999">
+        <div class="popBlockinner">
+            <span id="spanGlobalMessage" class="WarningIcon"></span><a href="javascript:void(0);"
+                                                                       id="close" class="close">
+                <img src="~/Content/images/popup-close.png" alt="" />
+            </a>
+        </div>
+    </div>
+    <div class="dialog" id="basic-modal-content" style="display: none;">
+        <div class="inner">
+            <p class="text">
+                @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+            </p>
+            <a href="JavaScript:void{}" id="btnModelYes" class="yes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="javascript:void(0);" class="no" onclick="closeModal()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </div>
+    </div>
+    <div class="dialog" id="basic-Undelmodal-content" style="display: none;">
+        <div class="inner">
+            <p class="text">
+                @eTurns.DTO.Resources.ResMessage.UnDeleteConfirm
+            </p>
+            <a href="JavaScript:void{}" id="btnUndeleteModelYes" class="yes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="javascript:void(0);" class="no" onclick="closeModal()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </div>
+    </div>
+    <div class="dialog" id="divArchiveConfirmModel" style="display: none;">
+        <div class="inner">
+            <p class="text">
+                @eTurns.DTO.Resources.ResMessage.ArchiveConfirm
+            </p>
+            <a href="JavaScript:void{};" id="btnArchiveConfirmYes" class="yes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="javascript:void(0);" class="no" onclick="closeModal()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </div>
+    </div>
+    <div class="dialog" id="divUnArchiveConfirmModel" style="display: none;">
+        <div class="inner">
+            <p class="text">
+                @eTurns.DTO.Resources.ResMessage.UnArchiveConfirm
+            </p>
+            <a href="JavaScript:void{};" id="btnUnArchiveConfirmYes" class="yes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="javascript:void(0);" class="no" onclick="closeModal()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </div>
+    </div>
+    <div class="dialog" id="ConfirmReportDeleteModel" style="display: none;">
+        <div class="inner">
+            <p class="text">
+                @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+            </p>
+            <input type="hidden" id="hndReportID" value="" />
+            <a href="JavaScript:void{}" id="btnYesDeleteReport" class="yes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="javascript:void(0);" class="no" onclick="closeModal()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </div>
+    </div>
+    <div class="dialog" id="ListofChildReport" style="display: none;width:400px !important;">
+        <div class="inner" style="width:100% !important;">
+            <p class="text">
+                @eTurns.DTO.Resources.ResMessage.ChildReportList
+                <br />
+                <span id="spChildReports" style="font-size:14px;font-weight:bold;"></span>
+                <br />
+            </p>
+        </div>
+    </div>
+    <div class="dialog" id="Inner-Grid-basic-modal-content" style="display: none;">
+        <div class="inner">
+            <p class="text">
+                @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+            </p>
+            <a href="JavaScript:void(0)" id="btnModelYesInnerGrid" class="yes yesornooryes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="javascript:void(0)" class="no" onclick="closeModal()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </div>
+    </div>
+    <div class="dialog" id="SaveBeforeLeavePage" style="display: none;">
+        <div class="inner">
+            <p class="text">
+                This page is asking you to confirm that you want to leave - data you have entered
+                may not be saved.
+            </p>
+            <a href="JavaScript:void(0)" id="btnSaveBeforeLeavePage" class="yes yesornooryes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="javascript:void(0)" class="no" onclick="closeModalSaveBeforeLeavePage();">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </div>
+    </div>
+    <div class="dialog" id="cnfBarcodeAddmdl" style="display: none;">
+        <div class="inner">
+            <p class="text">
+                No Item found for this barcode. Would you like to assign to it?
+            </p>
+            <a href="JavaScript:void(0);" id="btnBarcodeAddYes" class="yes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="javascript:void(0)" class="no" onclick="closeBarcodeYesNoModal()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </div>
+    </div>
+    <div id="divViewBarcodeModel">
+    </div>
+    <div id="dvReportParameters">
+    </div>
+    <div id="DivDynemicPopUpContainer" style="display: none;">
+    </div>
+    <div id="DivLoading" class="DivLoadingProcessing" style="display: none;">
+    </div>
+    <div style="clear: both">
+    </div>
+    <div id="divReorderPopup" style="display: none">
+        <div class="sortableContainer">
+            <ul id="ulColumnReOrder"></ul>
+        </div>
+        <input id="btnSaveGridColumnOrder" class="CreateBtn" type="button" value="Reorder" />
+        <input type="hidden" id="hdnReOrderTitle" value="" />
+        <input type="hidden" id="hdnReOrderDataTableName" value="" />
+        <input type="hidden" id="hdnReOrderListName" value="" />
+        <input type="hidden" id="hdnReOrderExecuteFunctionString" value="" />
+    </div>
+    <div id="divDetailGridReorderPopup" style="display: none">
+        <div class="divdetailsortableContainer">
+            <ul id="ulDGColumnReOrder"></ul>
+        </div>
+        <input id="btnSaveDetailGridColumnOrder" class="CreateBtn" type="button" value="@ResGridHeader.Reorder" />
+    </div>
+    <div id="divSendReportInEmailPopUp" style="display: none">
+        <b>@ResLayout.EmailTOCCValidation</b>
+        <br />
+        <br />
+        <span style="float: left; width: 20%;">&nbsp;&nbsp;&nbsp;&nbsp;</span>@ResGridHeader.Excel<input type="checkbox" id="chkExcel" name="chkExcel" value="Excel">
+        @ResGridHeader.PDF<input type="checkbox" id="chkPdf" name="chkPdf" value="PDF">
+        <br />
+        <span style="float: left; width: 20%;">@eTurns.DTO.Resources.ResCommon.SendTo:</span>
+        <input style="float: left; width: 79%;" type="text" id="sendEmailTo" name="sendEmailTo" />
+        @*<textarea rows="1" cols="60" name="sendEmailTo" id="sendEmailTo"></textarea>*@
+        <br />
+        <span style="float: left; width: 20%;">@eTurns.DTO.Resources.ResCommon.CCAddress:</span>
+        <input style="float: left; width: 79%;" type="text" id="sendEmailCC" name="sendEmailCC" />
+        @*<textarea rows="1" cols="60" name="sendEmailCC" id="sendEmailCC"></textarea>*@
+        <br />
+        <span style="float: left; width: 20%;">@eTurns.DTO.Resources.ResCommon.Subject:</span>
+        <input type="text" style="float:left;width:79%;" id="sendEmailSubject" sendEmailSubject="subject" />
+        @*<textarea rows="1" cols="60" name="sendEmailSubject" id="sendEmailSubject"></textarea>*@
+        <br />
+        <br />
+        <span style="float: left; width: 20%;">@eTurns.DTO.Resources.ResCommon.Body:</span>
+        @*<textarea id="sendEmailBody" sendEmailBody="sendEmailBody" style="float: left; width: 79%;height:300px;" />*@
+        <textarea name="sendEmailBody" id="sendEmailBody" style="float: left; width: 79%;height:300px;"></textarea>
+        @*<br /><input type="button" id="btnSendReports" value="Send" />
+            <input type="button" id="btnCancleEmail" value="Cancle" />*@
+    </div>
+    <script type="text/javascript" language="javascript">
+
+
+        $('#bntSingleMail').click(function () {
+            $.ajax({
+                url: '@Url.Content("~/Barcode/SendTestMail")',
+                dataType: 'json',
+                success: function (result) {
+                    $('#mailResult').html(result.Message);
+                }
+            });
+        });
+
+        $('#btnMultpleMail').click(function () {
+            //alert('Multiple');
+            var msg = '';
+            for (var i = 0; i < 50; i++) {
+                $.ajax({
+                    url: '@Url.Content("~/Barcode/SendTestMail")',
+                    dataType: 'json',
+                    success: function (result) {
+                        // $('#mailResult').html(result.Message);
+                        msg = msg + ' (' + i + ') ' + result.Message + ' <br/>';
+                    }
+                });
+            }
+        });
+
+        //         function showSaveMessage() {
+        //             window.onbeforeunload = function () { return "You have unsaved changes.  Do you want to leave this page and lose your changes?"; };
+        //         }
+
+        //        function showSaveMessage(iform) {
+        //            window.onbeforeunload = function () { return "You have unsaved changes.  Do you want to leave this page and lose your changes?"; };
+        //            iform.onbeforeunload = function () { return "You have unsaved changes.  Do you want to leave this page and lose your changes?"; };
+        //        }
+        //     $(document).ready(function () {
+        //         $('.verticalText').on('click', function () {
+        //             dirtyCheck();
+        //         });
+        //     });
+        function dirtyCheck() {
+
+            if ($('form').hasClass('dirty')) {
+                var r = confirm("@Html.Raw(ResCommon.MsgLostChangesConfirmation)");
+                return r;
+            }
+            return true;
+        }
+
+        function removeDirtyclass() {
+            if ($('form').hasClass('dirty')) {
+                $('form').removeClass('dirty');
+            }
+        }
+
+        //$(window).unbind("beforeunload");
+        //$(window).bind("beforeunload", function (event) {
+        //    return "custome msg: You have some unsaved changes";
+        //});
+
+    </script>
+    @*<div id="divContextMenu" class="ContextMenu" onmouseleave="javascript:$(this).hide();">
+        <ul>
+            <li><a onclick="TabItemClickedbyContext()">
+                <img title="New" alt="New" src="/content/images/refresh.png"><span>New</span></a></li>
+            <li><a id="refreshGrid"><img title="Refresh" alt="Refresh" src="/content/images/refresh.png"><span>Refresh</span></a></li>
+            <li><a id="ColumnOrderSetup_Context">
+                <img title="Reorder" alt="Reorder" src="/content/images/column-setup.png"><span>Reorder</span></a></li>
+            <li><a id="UDFSetup_Context" href="/UDF/UDFList?t=Technicians">
+                <img title="Reorder" alt="Reorder" src="/content/images/udf-setup.png"><span>UDFSetup</span></a></li>
+        </ul>
+            </div>*@
+    <div id="divLabelPrintPopup" style="display: none;">
+        <form method="get" id="frmLabelPopup" action="@Url.Content("~/LabelPrinting/GenerateLabelsPDF")" target="_blank">
+            @Html.AntiForgeryToken()
+            <fieldset>
+                <table cellpadding="1" cellspacing="1" border="0" width="100%">
+                    <tr style="height: 25px;">
+                        <td>
+                            <label for="name">
+                                @eTurns.DTO.LabelPrinting.ResLabelPrinting.CaptionNoOfLabelCopy
+                            </label>
+                        </td>
+                        <td>
+                            <input type="text" name="txtNoOfLableCopy" onkeypress="return isNumber(event)" maxlength="2"
+                                   id="txtNoOfLableCopy" class="text ui-widget-content ui-corner-all" value="1"
+                                   style="width: 60px;" />
+                        </td>
+                    </tr>
+                    <tr style="height: 25px;">
+                        <td>
+                            <label for="name">
+                                @eTurns.DTO.LabelPrinting.ResLabelPrinting.CaptionNoOfUsedLabelOnSheet
+                            </label>
+                        </td>
+                        <td>
+                            <input type="text" name="txtNoUsedLable" id="txtNoUsedLable" maxlength="2" onkeypress="return isNumber(event)"
+                                   class="text ui-widget-content ui-corner-all" value="0" style="width: 60px;" />
+                        </td>
+                    </tr>
+                    <tr style="height: 25px;">
+                        <td>
+                            <label for="name">
+                                &nbsp;
+                            </label>
+                        </td>
+                        <td>
+                            &nbsp;
+                        </td>
+                    </tr>
+                    <tr style="height: 25px;">
+                        <td>
+                            <label for="name">
+                                <input type="hidden" name="hdnIDs" id="hdnIDs" value="" />
+                                <input type="hidden" name="hdnModuleID" id="hdnModuleID" value="" />
+                                <input type="hidden" name="hdnSortField" id="hdnSortField" value="" />
+                                <input type="hidden" name="hdnROTDIds" id="hdnROTDIds" value="" />
+                                <input type="hidden" name="hdnROTDSortField" id="hdnROTDSortField" value="" />
+                                <input type="hidden" name="hdnCallFrom" id="hdnCallFrom" value="" />
+                            </label>
+                        </td>
+                        <td>
+                            <input type="button" id="btnPrintLable" class="CreateBtn" value="@eTurns.DTO.LabelPrinting.ResLabelPrinting.ButtonGenerateLabels" />
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </form>
+    </div>
+
+    <div id="divCatalogReportPopup" style="display: none;">
+        <form method="get" id="frmRunCatalogPopup" action="@Url.Content("~/CatalogReport/GenerateCatalogReport")" target="_blank">
+            @Html.AntiForgeryToken()
+            <fieldset>
+                <table cellpadding="1" cellspacing="1" border="0" width="100%">
+                    <tr style="height: 25px;">
+                        <td>
+                            <label for="name">
+                                @ResLayout.IndexGroupBy
+                            </label>
+                        </td>
+                        <td>
+                            <select id="ddlGroupName" name="ddlGroupName" style="width:120px;">
+                                <option value=""></option>
+                                <option value="Manufacturer">@ResItemManufacturerDetails.ManufacturerName</option>
+                                <option value="Manufacturer#">@ResItemManufacturerDetails.ManufacturerNumber</option>
+                                <option value="Supplier">@ResSupplierMaster.Supplier</option>
+                                <option value="Supplier#">@ResItemSupplierDetails.SupplierNumber</option>
+                                <option value="Category">@ResCategoryMaster.Category</option>
+                                <option value="Location">@ResCommon.Location</option>
+                                <option value="BinNumber">@ResItemMaster.BinNumber</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr style="height: 25px;">
+                        <td>
+                            <label for="name">
+                                &nbsp;
+                            </label>
+                        </td>
+                        <td>
+                            &nbsp;
+                        </td>
+                    </tr>
+                    <tr style="height: 25px;">
+                        <td>
+                            <label for="name">
+                                @ResLayout.SortCatalogBy
+                            </label>
+                        </td>
+                        <td>
+                            <select id="ddlSort" name="ddlSort" style="width:120px;">
+                                <option value="ItemNumber">@ResItemMaster.ItemNumber</option>
+                                <option value="DefaultLocationName">@ResItemMaster.BinNumber</option>
+                            </select>
+                            &nbsp;&nbsp;
+                            <select id="ddlSortAscDesc" name="ddlSortAscDesc" style="width:100px;">
+                                <option value="">@ResLayout.Ascending</option>
+                                <option value="Desc">@ResLayout.Descending</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr style="height: 25px;">
+                        <td>
+                            <label for="name">
+                                &nbsp;
+                            </label>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr id="trInActiveItemChk" style="height: 25px;visibility:visible;">
+                        <td>
+                            <label for="name">
+                                &nbsp;
+                            </label>
+                        </td>
+                        <td>
+                            @Html.CheckBox("chkIncludeInactiveItems", true)
+                            <label for="name">@ResLayout.IncludeInactiveItems</label>
+                        </td>
+                    </tr>
+                    <tr style="height: 25px;">
+                        <td>
+                            <label for="name">
+                                &nbsp;
+                            </label>
+                        </td>
+                        <td>
+                            &nbsp;
+                        </td>
+                    </tr>
+                    <tr style="height: 25px;">
+                        <td>
+                            <label for="name">
+                                <input type="hidden" name="hdnCatalogReportID" id="hdnCatalogReportID" value="" />
+                                <input type="hidden" name="hdnSelectedItemIDs" id="hdnSelectedItemIDs" value="" />
+                                <input type="hidden" name="hdncallFrom" id="hdncallFrom" value="" />
+                            </label>
+                        </td>
+                        <td>
+                            <input type="button" id="btnShowReport" class="CreateBtn" value="@ResCommon.View" />
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </form>
+    </div>
+
+    <div id="GlobalReprotBuilder" style="display: none;">
+        <form>
+            <fieldset>
+                <table cellpadding="1" cellspacing="1" border="0" width="100%">
+                    <tr style="height: 25px;">
+                        <td>
+                            <label for="name">
+                                @ResLayout.ReportTitle
+                            </label>
+                        </td>
+                        <td colspan="3">
+                            <input type="text" name="name" id="textGlobalReprotBuilder" class="text ui-widget-content ui-corner-all" />
+                        </td>
+                    </tr>
+                    <tr style="height: 25px;">
+                        <td>
+                            <label for="name">
+                                @ResLayout.Company
+                            </label>
+                        </td>
+                        <td colspan="3">
+                            <select id="ComapnyGlobalReprotBuilder" multiple="multiple" name="example-basic"></select>
+                            @*<div class="accordion" id="accordion">
+                                    <a href='#' class='downarrow'>
+                                        <img src="~/Content/images/down-arrow.gif" alt="" height="24"></a>
+                                    <div class='dropcontent' id="ComapnyGlobalReprotBuilderCollapse">
+                                    </div>
+                                </div>*@
+                        </td>
+                    </tr>
+                    <tr style="height: 25px;">
+                        <td>
+                            <label for="name">
+                                @ResCommon.Room
+                            </label>
+                        </td>
+                        <td colspan="3">
+                            <select id="RoomGlobalReprotBuilder" multiple="multiple" name="example-basic"></select>
+                            @*<div class="accordion" id="accordion">
+                                    <a href='#' class='downarrow'>
+                                        <img src="~/Content/images/down-arrow.gif" alt="" height="24"></a>
+                                    <div class='dropcontent' id="RoomGlobalReprotBuilderCollapse">
+                                    </div>
+                                </div>*@
+                        </td>
+                    </tr>
+                    @if (ActionName == "PullMasterList")
+                    {
+                        <tr style="height: 25px;">
+                            <td>
+                                <label for="name">
+                                    @eTurns.DTO.Resources.ResNarrowSearch.From
+                                </label>
+                                <em style="color: Red;">*</em>
+                            </td>
+                            <td>
+                                <input type="text" name="name" id="SDGlobalReprotBuilder" class="text ui-widget-content ui-corner-all" />
+                            </td>
+                            <td>
+                                <label for="name">
+                                    @eTurns.DTO.Resources.ResNarrowSearch.To
+                                </label>
+                                <em style="color: Red;">*</em>
+                            </td>
+                            <td>
+                                <input type="text" name="name" id="EDGlobalReprotBuilder" class="text ui-widget-content ui-corner-all" />
+                            </td>
+                        </tr>
+                    }
+                    @if (ActionName == "ReceiveList")
+                    {
+                        <tr style="height: 25px;">
+                            <td>
+                                <label for="name">
+                                    @eTurns.DTO.Resources.ResNarrowSearch.From
+                                </label>
+                                <em style="color: Red;">*</em>
+                            </td>
+                            <td>
+                                <input type="text" name="name" id="SDGlobalReprotBuilder" value="@eTurns.DAL.DateTimeUtility.DateTimeNow.AddDays(-30).ToString("MM/dd/yyyy")" class="text ui-widget-content ui-corner-all" />
+                            </td>
+                            <td>
+                                <label for="name">
+                                    @eTurns.DTO.Resources.ResNarrowSearch.To
+                                </label>
+                                <em style="color: Red;">*</em>
+                            </td>
+                            <td>
+                                <input type="text" name="name" id="EDGlobalReprotBuilder" value="@eTurns.DAL.DateTimeUtility.DateTimeNow.ToString("MM/dd/yyyy")" class="text ui-widget-content ui-corner-all" />
+                            </td>
+                        </tr>
+                    }
+                    <tr style="height: 25px;">
+                        <td colspan="4">
+                            <div style="float: right;">
+                                <input id="ShowGlobalReprotBuilder" type="button" value="@ResCommon.View" class="ClearBtn" />
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </form>
+    </div>
+    <div id="sessionExpireWarning">
+    </div>
+    <div id="WarnSessionwillExpire" style="display:none;">
+        <div class="inner">
+            <p class="text">
+                Session Expiration warning
+            </p>
+            <a href="JavaScript:void();" id="btnModelYes" class="yes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a><a href="javascript:void(0);" class="no" onclick="closeModal()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+            </a>
+        </div>
+    </div>
+
+    @if (ResourceHelper.CurrentCult.Name == "nl-NL")
+    {
+        <script type="text/javascript" src="~/Scripts/i18n/datepicker-nl.js"></script>
+        <script type="text/javascript">
+            $.datepicker.setDefaults($.datepicker.regional["nl"]);
+        </script>
+    }
+    else if (ResourceHelper.CurrentCult.Name == "nl-BE")
+    {
+        <script type="text/javascript" src="~/Scripts/i18n/datepicker-nl-BE.js"></script>
+        <script type="text/javascript">
+            $.datepicker.setDefaults($.datepicker.regional["nl-BE"]);
+        </script>
+    }
+    else if (ResourceHelper.CurrentCult.Name == "en-AU")
+    {
+        <script type="text/javascript" src="~/Scripts/i18n/datepicker-en-AU.js"></script>
+        <script type="text/javascript">
+            $.datepicker.setDefaults($.datepicker.regional["en-AU"]);
+        </script>
+    }
+    else if (ResourceHelper.CurrentCult.Name == "en-GB")
+    {
+        <script type="text/javascript" src="~/Scripts/i18n/datepicker-en-GB.js"></script>
+        <script type="text/javascript">
+            $.datepicker.setDefaults($.datepicker.regional["en-GB"]);
+        </script>
+    }
+    else if (ResourceHelper.CurrentCult.Name == "fr-FR")
+    {
+        <script type="text/javascript" src="~/Scripts/i18n/datepicker-fr.js"></script>
+        <script type="text/javascript">
+            $.datepicker.setDefaults($.datepicker.regional["fr"]);
+        </script>
+    }
+    else if (ResourceHelper.CurrentCult.Name == "de-DE")
+    {
+        <script type="text/javascript" src="~/Scripts/i18n/datepicker-de.js"></script>
+        <script type="text/javascript">
+            $.datepicker.setDefaults($.datepicker.regional["de"]);
+        </script>
+    }
+    else if (ResourceHelper.CurrentCult.Name == "ru-RU")
+    {
+        <script type="text/javascript" src="~/Scripts/i18n/datepicker-ru.js"></script>
+        <script type="text/javascript">
+            $.datepicker.setDefaults($.datepicker.regional["ru"]);
+        </script>
+    }
+    else if (ResourceHelper.CurrentCult.Name == "es-MX")
+    {
+        <script type="text/javascript" src="~/Scripts/i18n/datepicker-es.js"></script>
+        <script type="text/javascript">
+            $.datepicker.setDefaults($.datepicker.regional["es"]);
+        </script>
+    }
+
+    <script type="text/javascript">
+        $.ajaxSetup({
+            cache: false,
+            beforeSend: function (xhr, settings) {
+                xhr.setRequestHeader('__RequestVerificationToken', $("input[name='__RequestVerificationToken'][type='hidden']").val());
+            }
+        });
+
+        //$(document).ajaxComplete(function (event, jqXHR, ajaxOptions) {
+        //      });
+        //      $(document).ajaxError(function (event, jqxhr, settings, thrownError) {
+        //      });
+        //      $(document).ajaxSend(function (event, jqxhr, settings) {
+        //	//jqxhr.setRequestHeader('__RequestVerificationToken', $("input[name='__RequestVerificationToken'][type='hidden']").val());
+        //      });
+        //      $(document).ajaxStart(function () {
+        //	//$('#DivLoading').show();
+        //      });
+        $(document).ajaxStop(function () {
+            $('#DivLoading').hide();
+        });
+                //$(document).ajaxSuccess(function (event, xhr, settings) {
+                //});
+    </script>
+    <script src="@Url.Content("~/Scripts/PageScripts/LayoutScripts.js?v=" + version)" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/PageScripts/eTurnsSignalRHelper.js?v="+ version)" type="text/javascript"></script>
+    @* <script src="../../Scripts/jquery.idletimer.js" type="text/javascript"></script>
+        <script src="../../Scripts/jquery.idletimeout.js" type="text/javascript"></script>*@
+    @*<script src="@Url.Content("~/Scripts/wrappers.js?v=" + version)" type="text/javascript"></script>*@
+</body>
+</html>

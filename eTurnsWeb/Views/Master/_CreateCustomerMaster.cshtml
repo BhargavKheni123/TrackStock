@@ -1,0 +1,405 @@
+﻿@model eTurns.DTO.CustomerMasterDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+
+    //System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    string ValidatePhoneNumber = eTurns.DTO.SiteSettingHelper.ValidatePhoneNumber; // Settinfile.Element("ValidatePhoneNumber").Value;
+ 
+}
+@{  
+    bool isUpdate;
+    bool isInsert;
+
+    if (ViewBag.ViewOnly == true)
+    {
+        isUpdate = false;
+        isInsert = false;
+    }
+    else
+    {
+        isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.CustomerMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+        isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.CustomerMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    }
+    
+}
+@using (Ajax.BeginForm("CustomerMasterSave", "Master", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onCustomerSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmCustomer" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="userHead">
+        @Html.ValidationSummary(true)
+        @if (Model.ID != 0)
+        {        
+            <div class="infoBlock">
+                <ul>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.RoomName)
+                        </label>
+                        : <span>@(Model.RoomName)</span></li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Created)
+                        </label>
+                        : <span>@(Model.ReceivedOnDateWeb)</span></li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.CreatedByName)
+                        </label>
+                        : <span>@(Model.CreatedByName)</span></li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.Updated)
+                        </label>
+                        : <span>@(Model.ReceivedOnDate)</span></li>
+                    <li style="border: none">
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.UpdatedByName)
+                        </label>
+                        : <span>@(Model.UpdatedByName)</span></li>
+                </ul>
+            </div>
+        }
+        <div class="editorForm">
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Customer)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.Customer, new { id = "CustomerNameNew", @class = "text-box", maxlength = 255 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Customer)</span>
+                        @Html.HiddenFor(model => model.ID, new { id = "hiddenCustomerID" })
+                        @Html.HiddenFor(model => model.GUID)
+                        @Html.HiddenFor(model => model.Created)
+                        @Html.HiddenFor(model => model.Updated)
+                        @Html.HiddenFor(model => model.CreatedBy)
+                        @Html.HiddenFor(model => model.LastUpdatedBy)
+                        @Html.HiddenFor(model => model.CompanyID)
+                        @Html.HiddenFor(model => model.Room)
+                        @Html.HiddenFor(model => model.RoomName)
+                        @Html.HiddenFor(model => model.CreatedByName)
+                        @Html.HiddenFor(model => model.UpdatedByName)
+                        @Html.HiddenFor(model => model.IsDeleted)
+                        @Html.HiddenFor(model => model.IsArchived)
+                        @Html.HiddenFor(model => model.IsOnlyFromItemUI)
+                        <input type="hidden" id="hdPhoneRegex" />
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Account)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.Account, new { @class = "text-box", maxlength = 255 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Account)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Address)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextAreaFor(model => model.Address, new { @class = "text-box", maxlength = 1024 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Address)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.City)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.City, new { @class = "text-box", maxlength = 255 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.City)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.State)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.State, new { @class = "text-box", maxlength = 255 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.State)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Country)
+                    </div>
+                    <div class="editor-field">
+                        @*@Html.DropDownListFor(model => model.Country, new SelectList(ViewBag.CountryList, "CountryName", "CountryName", Model.Country), new { @class = "selectBox" })*@
+                        <span style="position:relative">
+                            <input type="hidden" value="false" id="hdnIsLoadMoreCountry" />
+                            @Html.TextBoxFor(model => model.Country, new { @class = "selectBox", maxlength = 64 })
+                            <a id="lnkShowAllOptionsCR" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;font-size:19px;background-color:#fff;" class="ShowAllOptionsBinCR"><img src="/Content/images/arrow_down_black.png" alt="select" /></a>
+                        </span>
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Country)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.ZipCode)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.ZipCode, new { @class = "text-box", maxlength = 24 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ZipCode)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Contact)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.Contact, new { @class = "text-box", maxlength = 512 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Contact)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Email)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.Email, new { @class = "text-box", maxlength = 255 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Email)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Phone)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.Phone, new { @class = "text-box", maxlength = 20 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Phone)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Remarks)
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextAreaFor(model => model.Remarks, new { @class = "text-box", maxlength = 4000 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Remarks)</span>
+                    </div>
+                </li>
+                @Html.Partial("UDFLayout", new eTurns.DTO.ResCustomer())
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="BtnBlockform">
+                        <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCustomerCancel" class="CreateBtn" />
+                        @if (isInsert == true && Model.ID == 0)
+                        {                            
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />                            
+                        }
+                        else if (isUpdate == true)
+                        {                            
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                        }
+                        else if (isUpdate == false && isInsert == false)
+                        {                             
+                            <script>
+                                //This is the case when archived or deleted record is being viewed..
+                                disableControls('frmCustomer');
+                                $('#btnCustomerCancel').removeAttr('disabled');
+                            </script>
+                        }
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+}
+@Html.Partial("_RequiredMessages")
+<script type="text/javascript">
+    $("form").submit(function (e) {
+        $.validator.unobtrusive.parse("#frmCustomer");
+        if ($(this).valid()) {
+            rememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        }
+
+        if ('@ValidatePhoneNumber' != "" && ('@ValidatePhoneNumber' == "YES" || '@ValidatePhoneNumber' == "yes")) {
+            if ($("#Phone").val() != "" && $("#Country").val() != "" && $("#hdPhoneRegex").val() != "") {
+                var regexpattern = new RegExp($("#hdPhoneRegex").val());
+                var inputVal = $("#Phone").val();
+                if (!regexpattern.test(inputVal)) {
+
+                    showNotificationDialog();
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    $("#spanGlobalMessage").html("@ResCommon.InvalidPhoneValue");
+                    $("#ContactPhone").focus();
+                    return false;
+                }
+            }
+            else {
+                if ($("#Phone").val() != "" && $("#hdPhoneRegex").val() != "") {
+                    var regexpattern = new RegExp($("#hdPhoneRegex").val());
+                    var inputVal = $("#Phone").val();
+                    if (!regexpattern.test(inputVal)) {
+
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#spanGlobalMessage").html("@ResCommon.InvalidPhoneValue");
+                        $("#ContactPhone").focus();
+                        return false;
+                    }
+                }
+            }
+        }
+
+        e.preventDefault();
+        $('#NarroSearchClear').click();
+    });    
+@*</script>
+<script language="javascript" type="text/javascript">*@
+
+    function onCustomerSuccess(response) {
+        IsRefreshGrid = true;
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idCustomerValue = $("#hiddenCustomerID").val();
+
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#CustomerNameNew").val("");
+            $("#CustomerNameNew").focus();
+        }
+        else if (idCustomerValue == 0) {
+            //$("#CustomerNameNew").val("");
+            $("#CustomerNameNew").focus();
+            //            
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+                if ($('#NewMasterPopUP') != undefined && $('#NewMasterPopUP').length > 0) {
+                    $('#NewMasterPopUP').data("IDVal", response.NewIDForPopUp + '~' + $("#CustomerNameNew").val()).dialog('close');
+                }
+                else {
+                    clearControls('frmCustomer');
+                    setDefaultUDFValues($("#hdnPageName").val(), '@Model.ID');
+                }
+            }
+
+        }
+        else if (idCustomerValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                $("#CustomerNameNew").val("");
+                $("#CustomerNameNew").focus();
+            }
+            else
+                SwitchTextTab(0, 'CustomerMasterCreate', 'frmCustomer');
+        }
+    }
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        showNotificationDialog();
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        $("#CustomerNameNew").focus();
+    }
+
+    $(document).ready(function () {
+        $('form').areYouSure();
+
+        $('.ShowAllOptionsBinCR').click(function () {
+            $(this).siblings('#Country').trigger("focus");
+            $(this).siblings("#Country").autocomplete("search", " ");
+        });
+
+        var GetCountryURL = '@Url.Action("GetCountryList", "Master")';
+        $(".editorForm").on('focus', "input[type='text'][name='Country']", function (e) {
+            var objCurtxt = $(this);
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: GetCountryURL,
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        data: {
+                            featureClass: "P",
+                            style: "full",
+                            maxRows: 1000,
+                            NameStartWith: request.term
+                        },
+                        success: function (data) {
+                            response($.map(data, function (item) {
+                                return {
+                                    label: item.CountryName,
+                                    value: item.CountryName,
+                                    selval: item.ID
+                                }
+                            }));
+                        },
+                        error: function (err) { }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+
+                    //                    $(objCurtxt).parent().parent().find("input[type='hidden'][name='hdnStagingBinName']").val(ui.item.label);
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                    $(objCurtxt).trigger("change");
+                },
+                change: function (event, ui) {
+                    //                    $(objCurtxt).parent().parent().find("input[type='hidden'][name='hdnStagingBinName']").val($(objCurtxt).val());
+                }
+            });
+        });
+
+        GetPhoneRegex();
+        $('#btnCustomerCancel').click(function (e) {
+            //            if (IsRefreshGrid)
+            //                $('#NarroSearchClear').click();
+            if ($('#NewMasterPopUP') != undefined && $('#NewMasterPopUP').length > 0)
+                $('#NewMasterPopUP').dialog('close');
+            else {
+                SwitchTextTab(0, 'CustomerMasterCreate', 'frmCustomer');
+                if (oTable !== undefined && oTable != null) {
+                    oTable.fnDraw();
+                }
+            }
+            $('#NarroSearchClear').click();
+        });
+        checkRememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+
+        function GetPhoneRegex() {
+           // if ($("#Country").val() != "") {
+                $.ajax({
+                    url: '@Url.Action("PhoneNumberRegexFromCountry", "Master")',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: {
+                        CountryName: $("#Country").val()
+                    },
+                    success: function (Message) {
+                        if (Message.Regex != "")
+                            $("#hdPhoneRegex").val(Message.Regex);
+                        else
+                            $("#hdPhoneRegex").val("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{0,13})[-. )]*(\d{3})[-. ]*(\d{0,13})(?: *x(\d+))?\s*$");
+                    },
+                    error: function (err) {
+                        $("#hdPhoneRegex").val("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{0,13})[-. )]*(\d{3})[-. ]*(\d{0,13})(?: *x(\d+))?\s*$");
+                    }
+                });
+            //}
+            //else {
+            //    $("#hdPhoneRegex").val("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{0,13})[-. )]*(\d{3})[-. ]*(\d{0,13})(?: *x(\d+))?\s*$");
+            //}
+        }
+
+        $("#Country").change(function () {
+            GetPhoneRegex();
+        });
+    });
+
+    _Common.addRequiredSign();
+</script>

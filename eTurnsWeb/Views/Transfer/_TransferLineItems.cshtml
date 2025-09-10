@@ -1,0 +1,1562 @@
+﻿@model eTurns.DTO.TransferMasterDTO
+@{
+    string priceformate = "N" + eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits;
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = true, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = false, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, ShowSelectAll = true, DataTableName = "TransferLineItem" + Model.ID };
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    bool IsApprove = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.TransferApproval, eTurnsWeb.Helper.SessionHelper.PermissionType.Approval);
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+    List<BinMasterDTO> lstBinMaster = ViewBag.BinList;
+    bool AllApprovedIsTransferd = true;
+    string TotalCost = (Model.TotalCost ?? 0).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+    int NoOfItems = Model.NoOfItems ?? 0;
+    string PriseSelectionOption = "1";
+    bool IsShowDestinationBin = (Model.RequestType == (int)eTurns.DTO.RequestType.Out);
+    string CurrencySymbol = "";
+    if (eTurnsWeb.Helper.SessionHelper.CurrencySymbol != null
+        && !string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.CurrencySymbol))
+    {
+        CurrencySymbol = eTurnsWeb.Helper.SessionHelper.CurrencySymbol;
+    }
+}
+
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="InnerItem_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_QLItem_filter" />
+                        </a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Orders)
+            <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="TransferLineItem@(Model.ID)" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            @if (Model.TransferStatus >= (int)TransferStatus.Transmitted)
+                            {
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.ExpandCollapse
+                                </th>
+                            }
+                            @if (Model.RequestType == (int)eTurns.DTO.RequestType.Out)
+                            {
+
+                                <th>Transfer</th>
+
+                            }
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.RequireDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResBin.BinNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.RequestedQuantity
+                            </th>
+                            @if (Model.RequestType == 1 && IsApprove)
+                            {
+                                <th>
+                                    @eTurns.DTO.ResTransfer.Approved
+                                </th>
+                            }
+                            <th>
+                                @eTurns.DTO.ResTransfer.ReceivedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.InTransitQuantity
+                            </th>
+
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Cost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnHandQuantity
+                            </th>
+                            <th>
+                                @ResItemMaster.StagedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTransfer.FulFillQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnTransferQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SerialNumberTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LotNumberTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DateCodeTracking
+                            </th>
+                            @if (IsShowDestinationBin)
+                            {
+                                <th> @eTurns.DTO.ResTransfer.DestinationLocation </th>
+                            }
+                            @Html.RenderColumnsHeader("ItemMaster", typeof(eTurns.DTO.ResItemMaster), "Item")
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.TransferDetailList != null && Model.TransferDetailList.Count > 0)
+                        {
+                            int trid = 0;
+                            foreach (var item in Model.TransferDetailList)
+                            {
+                                AllApprovedIsTransferd = true;
+                                string BackGroundColorStyle = "";
+
+                                if (Model.RequestType == (int)eTurns.DTO.RequestType.Out)
+                                {
+                                    if (Model.TransferStatus == (int)TransferStatus.UnSubmitted && item.RequestedQuantity > item.OnHandQuantity)
+                                    {
+                                        BackGroundColorStyle = "background-color:#FFFF00";
+                                    }
+                                    //else if (Model.TransferStatus > (int)TransferStatus.UnSubmitted && Model.TransferStatus < (int)TransferStatus.Closed
+                                    //    && item.ApprovedQuantity.GetValueOrDefault(0) < item.RequestedQuantity)
+                                    //{
+                                    //    BackGroundColorStyle = "background-color:#FFFF00";
+                                    //}
+                                    //else if (Model.TransferStatus == (int)TransferStatus.Closed && item.RequestedQuantity > item.ApprovedQuantity.GetValueOrDefault(0))
+                                    //{
+                                    //    BackGroundColorStyle = "background-color:#FFFF00";
+                                    //}
+                                }
+                                if (AllApprovedIsTransferd && item.ApprovedQuantity.GetValueOrDefault(0) > 0
+                                                                                && (item.ApprovedQuantity.GetValueOrDefault(0) > (item.FulFillQuantity.GetValueOrDefault(0))))
+                                {
+                                    AllApprovedIsTransferd = false;
+                                }
+
+
+                                <tr id="tr_@item.ID" style="@BackGroundColorStyle">
+                                    <td></td>
+                                    @if (Model.TransferStatus >= (int)TransferStatus.Transmitted)
+                                    {
+                                        <td>
+                                            <a href="javascript:void(0);" id="aPlusMinus" onclick="return ShowHideInnerGrid(this,@item.ID);">
+                                                <img src="/Content/images/drildown_open.jpg" alt="" />
+                                            </a>
+                                        </td>
+                                    }
+                                    @if (Model.RequestType == (int)eTurns.DTO.RequestType.Out)
+                                    {
+                                        if (!AllApprovedIsTransferd && IsApprove && Model.TransferStatus >= (int)eTurns.DTO.TransferStatus.Approved
+                                                        && Model.TransferStatus < (int)eTurns.DTO.TransferStatus.Closed)
+                                        {
+                                            <td>
+                                                <input type="button" id="btnTransferSingle" name="btnTransferSingle" value="Transfer" onclick="return TransferSingleItem(this)" class="GridBtnStyle inLineBtn" />
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td>&nbsp;</td>
+                                        }
+                                    }
+                                    <td>
+                                        @item.ID
+                                    </td>
+                                    <td>
+                                        @item.ItemNumber
+                                        <input id="hdnID" type="hidden" value="@item.ID" />
+                                        <input id="hdnGUID" type="hidden" value="@item.GUID" />
+                                        <input id="hdnItemGUID" type="hidden" value="@item.ItemGUID" />
+                                        <input id="hdnTransferGUID" type="hidden" value="@item.TransferGUID" />
+                                        <input id="hdnItemNumber" type="hidden" value="@item.ItemNumber" />
+                                        @*<input id="hdnItemNumber" type="hidden" value="@item.ItemNumber" />*@
+                                        <input id="hdnIntransitQuantity" type="hidden" value="@item.IntransitQuantity" />
+                                        <input id="hdnReceivedQuantity" type="hidden" value="@item.ReceivedQuantity" />
+                                    </td>
+                                    <td>
+                                        <input type='text' style="width:80px;background:white;" readonly="readonly" class='myDatePicker text-box' value='@item.RequiredDateString' id='hiddenDatePicker@(item.ID)' />
+                                    </td>
+                                    <td>
+                                        <span style="display:none">@item.BinName</span>
+                                        @if (HasOnTheFlyEntryRight)
+                                        {
+                                            <span style='position:relative'>
+                                                @Html.TextBox("txtBinNumber", item.BinName, new { id = "txtBinNumber", @class = "OrdDetailAuto text-boxinner", @style = "width:93%;", @data_binid = @item.Bin })
+                                                <a id='lnkShowAllOptions' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptions">
+                                                    <img src='/Content/images/arrow_down_black.png' alt='select' />
+                                                </a>
+                                                <input type="hidden" value="false" id="hdnIsLoadMoreLocations" />
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span style='position:relative'>
+                                                @Html.DropDownList("slctBinNumber", new SelectList(lstBinMaster.Where(t => t.ItemGUID == item.ItemGUID).ToList(), "ID", "BinNumber", item.BinName), new { @class = "selectBox", @style = "width:93%" })
+                                                <input type="hidden" name="txtBinNumber" id="txtBinNumber" value="@item.BinName" />
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (item.SerialNumberTracking)
+                                        {
+                                            @Html.TextBox("txtQty", item.RequestedQuantity, new { @style = "width:93%;", @maxlength = "10", @class = "text-boxQuantityFormatSR text-boxinner numericalign" })
+                                        }
+                                        else
+                                        {
+                                            @Html.TextBox("txtQty", item.RequestedQuantity, new { @style = "width:93%;", @maxlength = "10", @class = "numericinput text-boxinner numericalign" })
+                                        }
+                                    </td>
+                                    @if (Model.RequestType == 1 && IsApprove)
+                                    {
+                                        <td>
+                                            @if (item.ApprovedQuantity.HasValue)
+                                            {
+                                                <input id="hdnIsApproved" type="hidden" value="true" />
+                                            }
+                                            else
+                                            {
+                                                <input id="hdnIsApproved" type="hidden" value="false" />
+                                            }
+
+                                            @if (item.SerialNumberTracking)
+                                            {
+                                                if (Model.TransferStatus < (int)TransferStatus.Approved && !item.ApprovedQuantity.HasValue && item.ApprovedQuantity.GetValueOrDefault(0) <= 0)
+                                                {
+                                                    @Html.TextBox("txtApprovedQuantity" + item.ID, item.RequestedQuantity, "{0:0}", new { @style = "width:93%;", @maxlength = "10", @class = "text-boxQuantityFormatSR text-boxinner numericalign txtApprovedQuantity" })
+                                                }
+                                                else
+                                                {
+                                                    @Html.TextBox("txtApprovedQuantity" + item.ID, item.ApprovedQuantity, "{0:0}", new { @style = "width:93%;", @maxlength = "10", @class = "text-boxQuantityFormatSR text-boxinner numericalign txtApprovedQuantity" })
+                                                }
+                                            }
+                                            else
+                                            {
+                                                if (Model.TransferStatus < (int)TransferStatus.Approved && !item.ApprovedQuantity.HasValue && item.ApprovedQuantity.GetValueOrDefault(0) <= 0)
+                                                {
+                                                    @Html.TextBox("txtApprovedQuantity" + item.ID, item.RequestedQuantity, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @style = "width:93%;", @maxlength = "10", @class = "text-boxQuantityFormat text-boxinner numericalign txtApprovedQuantity" })
+                                                }
+                                                else
+                                                {
+                                                    @Html.TextBox("txtApprovedQuantity" + item.ID, item.ApprovedQuantity, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @style = "width:93%;", @maxlength = "10", @class = "text-boxQuantityFormat text-boxinner numericalign txtApprovedQuantity" })
+                                                }
+                                            }
+                                        </td>
+                                    }
+                                    <td class="numericalign">
+                                        <label id="qtyTempReceivedQuantity_@trid">@item.ReceivedQuantity</label>
+                                    </td>
+                                    <td class="numericalign">
+                                        <label id="qtyTempIntransitQuantity_@trid">@item.IntransitQuantity</label>
+                                    </td>
+                                    <td>
+                                        @item.Description
+                                    </td>
+                                    <td class="numericalign">
+                                        <label id="CostTempCost_@trid">@item.Cost</label>
+                                    </td>
+                                    <td class="numericalign">
+                                        <label id="qtyTempOnHandQuantity_@trid">@item.OnHandQuantity</label>
+                                    </td>
+                                    <td class="numericalign">
+                                        @item.StagedQuantity
+                                    </td>
+                                    <td class="numericalign">
+                                        <label id="qtyTempFulFillQuantity_@trid">@item.FulFillQuantity</label>
+                                    </td>
+                                    <td class="numericalign">
+                                        <label id="qtyTempOnTransferQuantity_@trid">@item.OnTransferQuantity</label>
+                                    </td>
+                                    <td><label class="serialNumberTracking">@item.SerialNumberTracking</label></td>
+                                    <td><label class="lotNumberTracking">@item.LotNumberTracking</label></td>
+                                    <td><label class="dateCodeTracking">@item.DateCodeTracking</label></td>
+                                    @if (IsShowDestinationBin)
+                                    {
+                                        <td><label>@item.DestinationBin</label></td>
+                                    }
+                                    @(Html.RenderColumnsArrayForDOM("ItemMaster", item, "Item"))
+                                </tr>
+                                trid += 1;
+                            }
+                        }
+                    </tbody>
+                </table>
+
+            </div>
+
+            @Html.Partial("_TrasnferLineItemsQTYLegends")
+            <br /><br />
+            @if (Model.RequestType == (int)eTurns.DTO.RequestType.Out && IsApprove)
+            {
+                if (Model.TransferStatus >= (int)eTurns.DTO.TransferStatus.Approved && Model.TransferStatus < (int)eTurns.DTO.TransferStatus.Closed)
+                {
+                    if (!AllApprovedIsTransferd)
+                    {
+                        <input id="btnTransferALL" type="button" value="Transfer ALL" style="float: left;
+                margin-left: 5%;" class="CreateBtn" />
+                    }
+                    <input id="btnCloseTransfer" type="button" value="Close Transfer" style="float: left;
+                margin-left: 3%; margin-top: -2%" class="CreateBtn" />
+                }
+            }
+
+        </div>
+    </div>
+</div>
+
+<div class="dialog" id="TrnReceiveProcessing" style="display: none;">
+    <div class="inner">
+        <p class="text" id="TrnReceiveGWait" style="text-align: left; padding-left: 10px;">
+            <b style="color: Red;">
+                @*Kindly wait, transfer transaction is going on.....*@
+            @eTurns.DTO.Resources.ResMessage.PleaseWaitTransGoingOn
+        </b>
+    </p>
+    <p class="text" id="TrnReceiveGWaitImg" style="text-align: center; padding-left: 10px;">
+        <img src="@Url.Content("~/Content/images/ajax.gif")" alt="loding" />
+    </p>
+</div>
+</div>
+<div class="dialog" id="TrnReceivedInfoDialog" style="display: none; width: 470px;">
+    <div class="inner" style="width: 470px;">
+        <p class="text" id="TrnReceivedMSG" style="text-align: left; padding-left: 10px;">
+        </p>
+        <p class="text" style="text-align: center; padding-left: 10px;">
+            <a href="javascript:void(0)" class="no" onclick="closeTrnReceiveInfoModel()">
+                <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.InformOk" />@eTurns.DTO.Resources.ResMessage.InformOk
+            </a>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="CloseTrnDialog" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            Are you sure you want to close this transfer?
+        </p>
+        <a href="JavaScript:void(0)" id="bntCloseConfirmYes" class="yes yesornooryes">
+            <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResCommon.Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no"
+               onclick="closeModalCloseTrnDialog();">
+            <img src="~/Content/images/no.png" alt="@eTurns.DTO.Resources.ResCommon.No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+
+
+<script type="text/javascript">
+    var TrfID = '@Model.ID';
+    var TrfStatus = '@Model.TransferStatus';
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var oTableTransferLineItems;
+    var bIsFilter = false;
+    var objTrfLineItemCols = {};
+    var trfInOutQtyOpenTrList = [];
+    var anOpen = [];
+    var TrfRequestType = '@Model.RequestType';
+
+    function ShowHideInnerGrid(ctrl, id) {
+        $('#DivLoading').show();
+        var tr = $('#tr_' + id);
+        var nTr = tr[0];
+        var i = $.inArray(nTr, anOpen);
+        var dtTable = $('#TransferLineItem' + TrfID).dataTable();
+        if (i === -1) {
+            $('img', ctrl).attr('src', sImageUrl + "drildown_close.jpg");
+            dtTable.fnOpen(nTr, fnFormatDetails(dtTable, nTr), '');
+            anOpen.push(nTr);
+        }
+        else {
+
+            $('img', ctrl).attr('src', sImageUrl + "drildown_open.jpg");
+            dtTable.fnClose(nTr);
+            anOpen.splice(i, 1);
+            $('#DivLoading').hide();
+        }
+    }
+
+    function fnFormatDetails(oTable, nTr) {
+        var oData = oTable.fnGetData(nTr);
+        var sOut = '';
+        var ItemGUId = $(nTr).find('#hdnItemGUID').val();
+        var GUId = $(nTr).find('#hdnGUID').val();
+        var requestURL = '@Url.Content("~/Transfer/ItemRetrived")';
+        if ('@Model.RequestType' == '@((int)RequestType.Out)')
+            requestURL = '@Url.Content("~/Transfer/ItemTransferedQty")';
+
+        $('#DivLoading').show();
+        $.ajax({
+            "url": requestURL,
+            data: { 'ItemID': ItemGUId, 'DetailID': GUId },
+            "async": false,
+            cache: false,
+            "dataType": "text",
+            "success": function (json) {
+                sOut = json;
+                $('#DivLoading').hide();
+            },
+            error: function (response) {
+            }
+        });
+
+        return sOut;
+    }
+    $('#TransferLineItem' + TrfID).on('click', ".ShowAllOptions", function (e) {
+        $(this).siblings('.OrdDetailAuto').trigger("focus");
+        $(this).siblings(".OrdDetailAuto").autocomplete("search", " ");
+    });
+
+
+    $('#TransferLineItem' + TrfID).on('focus', "input.OrdDetailAuto", function (e) {
+        var ajaxURL = '/Master/GetBinForItemOrStaging';
+        var itmGuid = $(this).parent().parent().parent().find('#hdnItemGUID').val();
+        var stagingName = $('#txtStagingName').val();
+        var includeQty = true;
+
+        var tr = $(this).parent().parent().parent();
+
+        var hdnIsLoadMoreLocations = $(tr).find("#hdnIsLoadMoreLocations").val();
+        if ('@Model.RequestType' == '@((int)RequestType.In)') {
+            includeQty = false;
+        }
+
+        $(this).autocomplete("destroy");
+
+        $(this).autocomplete({
+            source: function (request, response) {
+                $.ajax({
+                    url: ajaxURL,
+                    type: 'POST',
+                    data: JSON.stringify({ 'ItemGuid': itmGuid, 'StagingHeaderName': stagingName, 'IncludeQty': includeQty, 'NameStartWith': request.term, 'IsLoadMoreLocations': hdnIsLoadMoreLocations }),
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    success: function (data) {
+                        response($.map(data, function (Items) {
+                            return {
+                                label: Items.Value,
+                                value: Items.Key,
+                                id: Items.ID
+                            }
+                        }));
+                    },
+                    error: function (err) {
+                    }
+                });
+            },
+            autoFocus: false,
+            minLength: 1,
+            select: function (event, ui) {
+                if (ui.item.value == MoreLocation) {
+                    $(tr).find("#hdnIsLoadMoreLocations").val("true");
+                    $(this).trigger("focus");
+                    $(this).autocomplete("search", " ");
+                    return false;
+                }
+                else {
+                    $(this).val(ui.item.value);
+                    if (!isNaN(ui.item.id)) {
+                        $(this).parent().parent().parent().find('#txtBinNumber').attr("data-binid", ui.item.id);
+                    }
+                }
+            },
+            open: function () {
+                $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                $('ul.ui-autocomplete').css('max-height', '300px');
+                $('ul.ui-autocomplete').css('z-index', '99999');
+            },
+            close: function () {
+                $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+            },
+            change: function (event, ui) {
+            }
+        });
+    });
+
+
+    $(document).ready(function () {
+        objTrfLineItemCols = GetGridChildGridColumnsObject('TransferLineItem' + TrfID);
+
+        $('#spnNoOfItems').text('@NoOfItems');
+        $('#spnTotalTransferCost').html('@CurrencySymbol' + ' ' + '@TotalCost');
+
+
+        var tableName = $('table[id^=TransferLineItem]').attr("id");
+        var rowno = 0;
+        $('#' + tableName + ' tr').each(function () {
+
+
+            var qtyTempReceivedQuantity = $('#qtyTempReceivedQuantity_' + rowno).text();
+            if (qtyTempReceivedQuantity != "" && qtyTempReceivedQuantity != NaN)
+                $('#qtyTempReceivedQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempReceivedQuantity), 2));
+            else
+                $('#qtyTempReceivedQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempIntransitQuantity = $('#qtyTempIntransitQuantity_' + rowno).text();
+            if (qtyTempIntransitQuantity != "" && qtyTempIntransitQuantity != NaN)
+                $('#qtyTempIntransitQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempIntransitQuantity), 2));
+            else
+                $('#qtyTempIntransitQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+
+            var qtyTempShippedQuantity = $('#qtyTempShippedQuantity_' + rowno).text();
+            if (qtyTempShippedQuantity != "" && qtyTempShippedQuantity != NaN)
+                $('#qtyTempShippedQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempShippedQuantity), 2));
+            else
+                $('#qtyTempShippedQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var CostTempCost = $('#CostTempCost_' + rowno).text();
+            if (CostTempCost != "" && CostTempCost != NaN)
+                $('#CostTempCost_' + rowno).text(FormatedCostQtyValues(parseFloat(CostTempCost), 1));
+            else
+                $('#CostTempCost_' + rowno).text(FormatedCostQtyValues(0, 1));
+
+
+            var qtyTempOnHandQuantity = $('#qtyTempOnHandQuantity_' + rowno).text();
+            if (qtyTempOnHandQuantity != "" && qtyTempOnHandQuantity != NaN)
+                $('#qtyTempOnHandQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempOnHandQuantity), 2));
+            else
+                $('#qtyTempOnHandQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempFulFillQuantity = $('#qtyTempFulFillQuantity_' + rowno).text();
+            if (qtyTempFulFillQuantity != "" && qtyTempFulFillQuantity != NaN)
+                $('#qtyTempFulFillQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempFulFillQuantity), 2));
+            else
+                $('#qtyTempFulFillQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempFulFillQuantity = $('#qtyTempOnTransferQuantity_' + rowno).text();
+            if (qtyTempFulFillQuantity != "" && qtyTempFulFillQuantity != NaN)
+                $('#qtyTempOnTransferQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempFulFillQuantity), 2));
+            else
+                $('#qtyTempOnTransferQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+
+            rowno += 1;
+        });
+        var gaiSelected = [];
+        oTableTransferLineItems = $('#TransferLineItem' + TrfID).dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "110%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[1, "desc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                return nRow;
+            },
+            "aoColumnDefs": [
+		        { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '', aTargets: [0] }
+            ],
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'TransferLineItemList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = json;
+                    }
+                });
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'TransferLineItemList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+
+            }
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+
+        $('#btnblock').css({ 'margin-right': '45px' });
+
+        $.fn.dataTableExt.afnSortData['dom-text'] = function (oSettings, iColumn) {
+            var aData = [];
+            $('td:eq(' + iColumn + ') input', oSettings.oApi._fnGetTrNodes(oSettings)).each(function () {
+                aData.push(this.value);
+            });
+            return aData;
+        }
+
+        $("#DivTransferSelection").dialog({
+            autoOpen: false,
+            show: "blind",
+            hide: "explode",
+            height: 700,
+            title: "Transfer Details",
+            width: 900,
+            modal: true,
+            open: function () {
+            },
+            beforeClose: function () {
+            },
+            close: function () {
+                $('#DivLoading').hide();
+                $("#DivTransferSelection").empty();
+            }
+        });
+    });
+
+    function ModelYesClick() {
+        $('#TransferLineItem' + '@Model.ID' + ' tbody tr').each(function (i) {
+            var tr = $(this);
+            var id = $(tr).find('#hdnID').val();
+            var qty = $(tr).find("#txtApprovedQuantity" + id).val();
+            if (isNaN(parseFloat(qty)) == true || parseFloat(qty) <= 0) {
+                $(tr).find("#txtApprovedQuantity" + id).val($(tr).find("#txtQty").val())
+            }
+            return true;
+        });
+        $.modal.impl.close();
+        TranserAllItemOnbyOne();
+        return true;
+    }
+
+    $('#aSelectAll').on('click', function (e) {
+        $('#TransferLineItem' + TrfID).find("tbody tr").each(function (e) {
+            if ($(this).hasClass('row_selected') == false)
+                $(this).addClass('row_selected');
+
+        });
+
+        $(this).css('display', 'none');
+        $('#aDeSelectAll').css('display', 'block');
+        return false;
+    });
+
+    $('#aDeSelectAll').on('click', function (e) {
+        $('#TransferLineItem' + TrfID).find("tbody tr").each(function (e) {
+            if ($(this).hasClass('row_selected'))
+                $(this).removeClass('row_selected');
+        });
+        $(this).css('display', 'none');
+        $('#aSelectAll').css('display', 'block');
+        return false;
+    });
+
+
+    $('#btnTransferALL').click(function () {
+        var isCheck = CheckQuantityBeforeApproved();
+        if (isCheck == true) {
+            TranserAllItemOnbyOne();
+        }
+        return false;
+    });
+
+    function DoApproveAllProcessOnMasterSave() {
+        if ($('#TransferLineItem' + '@Model.ID' + ' tbody tr').length <= 0) {
+            return false;
+        }        
+        @*$("#TransferLineItem" + '@Model.ID' + "tbody tr").each(function () {
+            if ($(this).hasClass('row_selected') == false) {
+                $(this).addClass('row_selected');
+            }
+        });*@
+
+        var transferAllItems = $('#TransferLineItem' + '@Model.ID').dataTable().fnGetNodes();
+
+        $(transferAllItems).each(function (i) {
+            if ($(this).hasClass('row_selected') == false) {
+                $(this).addClass('row_selected');
+            }
+        });
+
+        var isCheck = CheckQuantityBeforeApproved();
+
+        if (isCheck == true) {
+            UpdateLineItemGrid(0, false);
+            TranserAllItemOnbyOne();
+            SendMailForTransferApproved();
+        }
+        return false;
+    }
+
+    function TransferSingleItem(btn) {
+        var tr = $(btn).parent().parent();
+        $(tr).addClass('row_selected');
+        TranserSingleItem();
+    }
+
+    function SendMailForTransferApproved()
+    {
+        $('#DivLoading').show();
+        var obj = { 'TransferGuid': '@Model.GUID' };
+
+        $.ajax({
+            url: '@Url.Content("~/Transfer/SendMailForTransferApproved")',
+            data: { 'TransferGuid': '@Model.GUID' },
+            dataType: 'json',
+            type: 'POST',
+            success: function (response) {
+                $('#DivLoading').hide();
+            },
+            error: function (obj) {
+                $('#DivLoading').hide();
+            }
+
+        });
+    }
+
+    function CheckQuantityBeforeApproved() {
+        var IsReturn = true;
+        $('#TransferLineItem' + '@Model.ID' + ' tbody tr.row_selected').each(function (i) {
+            var tr = $(this);
+            var hdnIsApproved = $(tr).find('#hdnIsApproved').val();
+            if (hdnIsApproved == 'false') {
+                var id = $(tr).find('#hdnID').val();
+                var qty = $(tr).find("#txtApprovedQuantity" + id).val();
+                if (isNaN(parseFloat(qty)) == true) {
+
+                    $('#TransferApprdInfoDialog').modal();
+                    IsReturn = false;
+                    return;
+                }
+            }
+        });
+
+        return IsReturn;
+    }
+
+    function closeModalTransferApproveCheck() {
+        $.modal.impl.close();
+        return false;
+    }
+
+    function TranserSingleItem() {
+        if ($('#TransferLineItem' + '@Model.ID' + ' tbody tr.row_selected').length <= 0) {
+            alert('@ResTransfer.ReqRowToTransfer');
+            return false;
+        }
+        $('#TransferLineItem' + '@Model.ID' + ' tbody tr').each(function (i) {
+            $(this).removeAttr('style');
+        });
+        $('#TrnReceiveProcessing').modal();
+        $('#TrnReceiveProcessing').parent().parent().find(".modalCloseImg").css('display', 'none');
+
+        var errorMsg = '';
+        var iserror = 0;
+        var ErrorSrNo = 0;
+        var duration = 500;
+
+        var isSerialLot = false;
+        $('#TransferLineItem' + '@Model.ID').find("tbody").find("tr.row_selected").each(function (index, tr) {
+            var tr = $(this);
+            var serialNumberTracking = $(tr).find(".serialNumberTracking").text();
+            var lotNumberTracking = $(tr).find(".lotNumberTracking").text();
+            var dateCodeTracking = $(tr).find(".dateCodeTracking").text();
+            if (serialNumberTracking == "True" || lotNumberTracking == "True" || dateCodeTracking == "True") {
+                isSerialLot = true;
+            }
+        });
+
+        if (isSerialLot == true) {
+            //UpdateLineItemGrid(0, false);
+            OpenTransferLotSerialSelectionPopup(true);
+        }
+        else {
+            $('#TransferLineItem' + '@Model.ID' + ' tbody tr.row_selected').each(function (i) {
+                var tr = $(this);
+                setTimeout(function () {
+                    var isQtyExist = false;
+                    var trcolor = 'Olive';
+                    var arr = new Array();
+                    var binNumber = $(tr).find('#txtBinNumber').val();
+                    //var tmpTrfRequestType = $("#RequestType").val();
+                    var itemNumber = $(tr).find('#hdnItemNumber').val();
+
+                    if (typeof (TrfRequestType) != "undefined" && TrfRequestType != null && TrfRequestType == "1" && (typeof (binNumber) == "undefined" || binNumber == null || binNumber.length < 1)) {
+                        iserror = 1;
+                        ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                        errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': ' + MsgQuantityNotAvailableToTransfer +  ' </b> <br />';
+                        return;
+                    }
+                    var id = $(tr).find('#hdnID').val();
+                    var qty = $(tr).find("#txtApprovedQuantity" + id).val();
+                    var receiveqty = $(tr).find("#qtyTempReceivedQuantity_" + i).text();
+                    var inTransintqty = $(tr).find("#qtyTempIntransitQuantity_" + i).text();
+
+                    if (isNaN(parseFloat(receiveqty)) || parseFloat(receiveqty) < 0)
+                        receiveqty = 0;
+
+                    if (isNaN(parseFloat(inTransintqty)) || parseFloat(inTransintqty) < 0)
+                        inTransintqty = 0;
+
+                    var itemGUID = $(tr).find('#hdnItemGUID').val();
+                    var GUid = $(tr).find('#hdnGUID').val();
+                    var binNumber = $(tr).find('#txtBinNumber').val();
+
+                    if (isNaN(parseFloat(qty)) == true) {
+                        qty = 0;
+                    }
+
+                    receiveqty = parseFloat(receiveqty);
+                    inTransintqty = parseFloat(inTransintqty);
+                    qty = qty - inTransintqty;
+
+
+                    var arrLocWiseQty = new Array();
+                    var objLocWiseQty = { 'LocationID': 0, 'Quantity': qty, 'LocationName': binNumber };
+                    arrLocWiseQty.push(objLocWiseQty);
+
+                    var objMoveQty = { 'BinWiseQty': arrLocWiseQty, 'TotalQty': qty, 'ItemGUID': itemGUID, 'DetailGUID': GUid, 'ReceivedQty': receiveqty, IsSignleTransfer: true };
+                    var obj = { 'objMoveQty': objMoveQty, 'InventoryConsuptionMethod': $("#hdnInventoryConsuptionMethod").val() };
+
+                    $.ajax({
+                        url: 'ApproveQuantityToInTransit',
+                        data: JSON.stringify(obj),
+                        type: 'POST',
+                        async: false,
+                        contentType: "application/json",
+                        dataType: "json",
+                        success: function (response) {
+                            if (response.Status === "ok") {
+
+                                trcolor = 'Green';
+                                ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                                errorMsg = errorMsg + '<b style="color: Green;">' + ErrorSrNo + ') ' + itemNumber + ': Transfered Successfully. </b> <br />';
+                            }
+                            else {
+                                iserror = 1;
+                                ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                                errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': ' + response.Message + ' </b> <br />';
+
+                            }
+                        },
+                        error: function (xhr) {
+                            iserror = 1;
+                            ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                            errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': Internal Server Error. </b> <br />';
+                            var trcolor = 'Red';
+                        }
+
+                    });
+
+
+                    $(tr).css('background-color', trcolor);
+
+                }, duration * i);
+            });
+
+            setTimeout(function () {
+                if (iserror >= 1) {
+                    closeTrnReceiveInfoModel();
+                    errorMsg = '<b>Some of the Item(s) is(are) not able to approve, due to following reasons.</b><br />' + errorMsg;
+                    $('#TrnReceivedInfoDialog').find("#TrnReceivedMSG").html(errorMsg);
+                    $('#TrnReceivedInfoDialog').modal();
+                    //FillTransferDetailGrid();
+                }
+                else {
+                    closeTrnReceiveInfoModel();
+                    errorMsg = '<b>Transfered successfully</b><br />'
+                    $('#TrnReceivedInfoDialog').find("#TrnReceivedMSG").html(errorMsg);
+                    $('#TrnReceivedInfoDialog').modal();
+                    //FillTransferDetailGrid();
+                }
+
+                ShowTransferOutEditTab('TransferEdit/' + '@Model.ID', 'frmTransfer', '@Model.ID');
+
+            }, 1500);
+        }
+    }
+
+    function TranserAllItemOnbyOne() {
+
+        if ($('#TransferLineItem' + '@Model.ID' + ' tbody tr.row_selected').length <= 0) {
+            alert('@ResTransfer.ReqRowToTransfer');
+            return false;
+        }
+
+        $('#TransferLineItem' + '@Model.ID' + ' tbody tr').each(function (i) {
+            $(this).removeAttr('style');
+        });
+        $('#TrnReceiveProcessing').modal();
+        $('#TrnReceiveProcessing').parent().parent().find(".modalCloseImg").css('display', 'none');
+
+        var errorMsg = '';
+        var iserror = 0;
+        var ErrorSrNo = 0;
+        var duration = 500;
+        var loopLenth = $('#TransferLineItem' + '@Model.ID' + ' tbody tr.row_selected').length;
+        var isPartiallyTransferred = false;
+        var isSerialLot = false;
+        //var itemList = $('#TransferLineItem' + '@Model.ID').dataTable().fnGetNodes();
+        var itemList = $('#TransferLineItem' + '@Model.ID').dataTable().$('tr.row_selected');
+        //$('#TransferLineItem' + '@Model.ID').find("tbody").find("tr.row_selected").each(function (index, tr) {
+        $(itemList).each(function (i) {
+            var tr = $(this);
+            var serialNumberTracking = $(tr).find(".serialNumberTracking").text();
+            var lotNumberTracking = $(tr).find(".lotNumberTracking").text();
+            var dateCodeTracking = $(tr).find(".dateCodeTracking").text();
+            if (serialNumberTracking == "True" || lotNumberTracking == "True" || dateCodeTracking == "True") {
+                isSerialLot = true;
+            }
+            var inTransintqty = $(tr).find("#hdnIntransitQuantity").val();
+            var receiveqty = $(tr).find("#hdnReceivedQuantity").val();
+
+            if (isNaN(parseFloat(inTransintqty)) || parseFloat(inTransintqty) < 0)
+                inTransintqty = 0;
+
+            if (isNaN(parseFloat(receiveqty)) || parseFloat(receiveqty) < 0)
+                receiveqty = 0;
+
+            if (parseFloat(inTransintqty) > 0 || parseFloat(receiveqty) > 0) {
+                isPartiallyTransferred = true;
+            }
+        });
+
+        if (isSerialLot == true) {
+            if (!isPartiallyTransferred) {
+
+                UpdateLineItemGrid(0, false);
+                isFromLotSerialSelectionPopup = true;
+                $("form").submit();
+            }
+
+            OpenTransferLotSerialSelectionPopup(false);
+        }
+        else {
+            var elemets = $('#TransferLineItem' + '@Model.ID').dataTable().$('tr.row_selected');//$('#TransferLineItem' + '@Model.ID').dataTable().fnGetNodes();
+            //var elemets = $('#TransferLineItem182146').dataTable().fnGetNodes();
+            var rawCounter = 0;
+            $(elemets).each(function (i) {
+                var tr = $(this);
+                var isQtyExist = false;
+                var trcolor = 'Olive';
+                var arr = new Array();
+                var binNumber = $(tr).find('#txtBinNumber').val();
+                //var tmpTrfRequestType = $("#RequestType").val();
+                var itemNumber = $(tr).find('#hdnItemNumber').val();
+                rawCounter++;
+
+                if (typeof (TrfRequestType) != "undefined" && TrfRequestType != null && TrfRequestType == "1" && (typeof (binNumber) == "undefined" || binNumber == null || binNumber.length < 1)) {
+                    iserror = 1;
+                    ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                    errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': ' + MsgQuantityNotAvailableToTransfer +  ' </b> <br />';
+                    //return;
+                }
+                else
+                {
+                    var id = $(tr).find('#hdnID').val();
+                    var qty = $(tr).find("#txtApprovedQuantity" + id).val();
+                    var receiveqty = $(tr).find("#qtyTempReceivedQuantity_" + i).text();
+                    var inTransintqty = $(tr).find("#qtyTempIntransitQuantity_" + i).text();
+
+                    if (isNaN(parseFloat(receiveqty)) || parseFloat(receiveqty) < 0)
+                        receiveqty = 0;
+
+                    if (isNaN(parseFloat(inTransintqty)) || parseFloat(inTransintqty) < 0)
+                        inTransintqty = 0;
+                    var itemGUID = $(tr).find('#hdnItemGUID').val();
+                    var GUid = $(tr).find('#hdnGUID').val();
+
+
+                    if (isNaN(parseFloat(qty)) == true) {
+                        qty = 0;
+                    }
+
+                    receiveqty = parseFloat(receiveqty);
+                    inTransintqty = parseFloat(inTransintqty);
+                    qty = qty - inTransintqty;
+
+
+                    var arrLocWiseQty = new Array();
+                    var objLocWiseQty = { 'LocationID': 0, 'Quantity': qty, 'LocationName': binNumber };
+                    arrLocWiseQty.push(objLocWiseQty);
+
+                    var objMoveQty = { 'BinWiseQty': arrLocWiseQty, 'TotalQty': qty, 'ItemGUID': itemGUID, 'DetailGUID': GUid, 'ReceivedQty': receiveqty };
+                    var obj = { 'objMoveQty': objMoveQty, 'InventoryConsuptionMethod': $("#hdnInventoryConsuptionMethod").val() };
+
+                    $.ajax({
+                        url: 'ApproveQuantityToInTransit',
+                        data: JSON.stringify(obj),
+                        type: 'POST',
+                        async: false,
+                        contentType: "application/json",
+                        dataType: "json",
+                        success: function (response) {
+                            if (response.Status === "ok") {
+                                trcolor = 'Green';
+                                ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                                errorMsg = errorMsg + '<b style="color: Green;">' + ErrorSrNo + ') ' + itemNumber + ': Transfered Successfully. </b> <br />';
+                            }
+                            else {
+                                iserror = 1;
+                                ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                                errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': ' + response.Message + ' </b> <br />';
+
+                            }
+                        },
+                        error: function (xhr) {
+                            iserror = 1;
+                            ErrorSrNo = parseInt(ErrorSrNo) + 1;
+                            errorMsg = errorMsg + '<b style="color: Olive;">' + ErrorSrNo + ') ' + itemNumber + ': Internal Server Error. </b> <br />';
+                            var trcolor = 'Red';
+                        }
+                    });
+
+                    $(tr).css('background-color', trcolor);
+                }
+
+
+                if ((loopLenth - 1) == i) {
+                    if (iserror >= 1) {
+                        closeTrnReceiveInfoModel();
+                        errorMsg = '<b>Some of the Item(s) is(are) not able to approve, due to following reasons.</b><br />' + errorMsg;
+                        $('#TrnReceivedInfoDialog').find("#TrnReceivedMSG").html(errorMsg);
+                        $('#TrnReceivedInfoDialog').modal();
+                        //FillTransferDetailGrid();
+                    }
+                    else {
+                        closeTrnReceiveInfoModel();
+                        errorMsg = '<b>Transfered successfully</b><br />'
+                        $('#TrnReceivedInfoDialog').find("#TrnReceivedMSG").html(errorMsg);
+                        $('#TrnReceivedInfoDialog').modal();
+                        //FillTransferDetailGrid();
+                    }
+
+                    ShowTransferOutEditTab('TransferEdit/' + '@Model.ID', 'frmTransfer', '@Model.ID');
+                }
+            });
+
+            //closeTrnReceiveInfoModel();
+            //if (rawCounter >= 1 && iserror >= 1)
+            //{
+            //    errorMsg = '<b>Some of the Item(s) is(are) not able to approve, due to following reasons.</b><br />' + errorMsg;
+            //    $('#TrnReceivedInfoDialog').find("#TrnReceivedMSG").html(errorMsg);
+            //    $('#TrnReceivedInfoDialog').modal();
+            //}
+        }
+    }
+
+    function closeTrnReceiveInfoModel() {
+        $.modal.impl.close();
+    }
+
+    $('#btnCloseTransfer').click(function () {
+        $('#CloseTrnDialog').modal();
+    });
+
+    function closeModalCloseTrnDialog() {
+        $.modal.impl.close();
+    }
+
+    $('#bntCloseConfirmYes').click(function () {
+        $.ajax({
+            'url': 'UpdateTransferToClose',
+            'data': { 'TransferID': '@Model.ID' },
+            'success': function (result) {
+                closeModalCloseTrnDialog();
+                if (result.Status == "fail") {
+                    var errorMsg = '<b style="color: Olive;">' + result.Message + '</b> <br />';
+                    errorMsg = '<b> Not able to close the transfer due to following reasons.</b><br />' + errorMsg;
+                    $('#TrnReceivedInfoDialog').find("#TrnReceivedMSG").html(errorMsg);
+                    $('#TrnReceivedInfoDialog').modal();
+                    FillTransferDetailGrid();
+                }
+                else {
+                    SwitchTransferTab('CreateTransfer', 'frmTransfer');
+                }
+            },
+            'error': function (result) {
+                closeModalCloseTrnDialog();
+                alert('@ResCommon.ErrorInProcess');
+            }
+
+        });
+    });
+
+    if ('@Model.IsRecordNotEditable' === 'True') {
+        $('select', '#TransferLineItem' + TrfID)
+            .attr('disabled', 'disabled');
+
+        $(':input[type=text], textarea', '#TransferLineItem' + TrfID)
+            .attr('readonly', 'readonly');
+
+        $('#saveRows').attr('style', 'display:none');
+        $('#deleteRows1').attr('style', 'display:none');
+
+        $('#TransferLineItem' + '@Model.ID' + ' tbody tr').each(function (i) {
+            var tr = $(this);
+            var hdnIsApproved = $(tr).find('#hdnIsApproved').val();
+            var id = $(tr).find('#hdnID').val();
+
+            if (hdnIsApproved == 'false' || '@Model.TransferStatus' < '@((int)TransferStatus.Approved)')
+                $(tr).find("#txtApprovedQuantity" + id).removeAttr('readonly');
+        });
+
+    }
+    else {
+
+        $('#TransferLineItem' + TrfID).delegate(".myDatePicker", "focusin", function () {
+            $(this).datepicker({ dateFormat: RoomDateJSFormat });
+        });
+    }
+
+    $(".text-boxPriceFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+    });
+    $(".text-boxQuantityFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+    });
+    $(".text-boxQuantityFormatSR").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: 0
+    });
+
+    $('#TransferLineItem' + TrfID + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+    var lastChecked1;
+    var starttrvalue1 = "";
+    $('#TransferLineItem' + TrfID + ' tbody tr').live('tap click', function (e) {
+        //$(this).toggleClass('row_selected');
+        //return false;
+
+        if ($(e.target).hasClass("control") == true || e.target.nodeName.toLowerCase() == "img" || e.target.type == "checkbox" || e.target.type == "radio" || e.target.type == "text" || e.target.type == "button" || $(e.target).is('a') == true || $(e.target).is('span') == true
+            || $(e.target).hasClass("selectBox")
+        ) {
+            e.stopPropagation();
+        }
+        else {
+            if (lastChecked1 !== undefined && lastChecked1 != null && !lastChecked1) {
+                lastChecked1 = this;
+            }
+
+            if (e.shiftKey) {
+                var start = $('#TransferLineItem' + TrfID + ' tbody tr').index(this);
+                var end = $('#TransferLineItem' + TrfID + ' tbody tr').index(lastChecked1);
+
+                var stringval1 = readCookieforshift("selectstartindex");
+                if (stringval1 != null) {
+                    var endindex = $(this).closest('tr').attr('id');
+                    createCookieforshift("selectendindex", endindex, 1);
+                    if ($("#hdnPageName").val() !== undefined) {
+                        var pagename = '';
+                        pagename = $("#hdnPageName").val();
+                        GetOnlyIdsForPassPagesForshift(pagename, true);
+                    }
+                }
+
+                for (i = Math.min(start, end); i <= Math.max(start, end); i++) {
+                    if (!$('#TransferLineItem' + TrfID + ' tbody tr').eq(i).hasClass('row_selected')) {
+                        $('#TransferLineItem' + TrfID + ' tbody tr').eq(i).addClass("row_selected");
+                    }
+                }
+                if (window.getSelection) {
+                    if (window.getSelection().empty) {  // Chrome
+                        window.getSelection().empty();
+                    } else if (window.getSelection().removeAllRanges) {  // Firefox
+                        window.getSelection().removeAllRanges();
+                    }
+                } else if (document.selection) {  // IE?
+                    document.selection.empty();
+                }
+            } else if ((e.metaKey || e.ctrlKey)) {
+                $(this).toggleClass('row_selected');
+            } else {
+                $(this).toggleClass('row_selected');
+
+
+                if ($(this).hasClass('row_selected')) {
+                    (starttrvalue1 == "") ? starttrvalue1 = $(this).closest('tr').attr('id') : starttrvalue1 = starttrvalue1 + "," + $(this).closest('tr').attr('id');
+                    createCookieforshift("selectstartindex", starttrvalue1, 1);
+                } else {
+
+                    var stringval = readCookieforshift("selectstartindex");
+                    if (stringval != "undefined") {
+                        if (stringval != null) {
+                            var tmp = stringval.split(',');
+                            var index = tmp.indexOf($(this).closest('tr').attr('id'));
+                            if (index !== -1) {
+                                tmp.splice(index, 1);
+                                stringval = tmp.join(',');
+                                createCookieforshift("selectstartindex", stringval, 1);
+                            }
+                        }
+                    }
+
+                }
+            }
+
+            lastChecked1 = this;
+        }
+
+    });
+
+    function UpdateLineItemGrid(StagingID, NeedRefressh) {
+        var arrItems = new Array();
+        var elemets = $('#TransferLineItem' + TrfID).dataTable().fnGetNodes();
+        $(elemets).each(function (i) {
+            //$('#TransferLineItem' + TrfID + ' tbody tr').each(function () {
+            var Qty = $(this).find('#txtQty').val();
+            var ID = $(this).find('#hdnID').val();
+            var GUID = $(this).find('#hdnGUID').val();
+            var ItemGUID = $(this).find('#hdnItemGUID').val();
+            var OrderGUID = $(this).find('#hdnTransferGUID').val();
+            var RequiredDate = $(this).find('#hiddenDatePicker' + ID).val();
+            var apprQty = 0;
+            if ($(this).find('#txtApprovedQuantity' + ID).length > 0) {
+                var apprQty = $(this).find('#txtApprovedQuantity' + ID).val();
+            }
+
+            var Bin = 0;
+            var binName = '';
+            @*if (parseInt('@Model.StagingID') !== NaN && parseInt('@Model.StagingID') !== undefined && parseInt('@Model.StagingID') > 0) {
+                Bin = '@Model.StagingID';
+            }
+            else*@
+            if ($(this).find('#slctBinNumber').length > 0) {
+                Bin = $(this).find('#slctBinNumber option:selected').val();
+                binName = $(this).find('##slctBinNumber option:selected').text();
+            }
+            else if ($(this).find('#txtBinNumber').length > 0) {
+                binName = $(this).find('#txtBinNumber').val();
+            }
+
+            if (Qty !== undefined && Qty !== NaN && parseFloat(Qty) > 0) {
+                var data = { "ID": ID, "GUID": GUID, "ItemGUID": ItemGUID, "TransferGUID": OrderGUID, "RequestedQuantity": Qty, "ApprovedQuantity": apprQty, "Bin": Bin, "BinName": binName, "RequiredDateString": RequiredDate };
+                arrItems.push(data);
+            }
+        });
+
+        return SaveLineItemsGrid(arrItems, NeedRefressh);
+
+    }
+
+
+    function SaveLineItemsGrid(arrItems, NeedRefressh) {
+        var status = "No";
+        var message = "@ResCommon.NoChanges"
+        if (arrItems.length > 0) {
+            $('#DivLoading').show();
+            $.ajax({
+                url: '@Url.Content("~/Transfer/AddItemToDetailTable")',
+                data: { 'para': JSON.stringify(arrItems) },
+                dataType: 'json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (response) {
+                    if (NeedRefressh) {
+                        if (response.Status == "ok") {
+                            FillTransferDetailGrid();
+                        }
+                        status = response.Status;
+                        message = response.Message;
+                    }
+                    $('#DivLoading').hide();
+                },
+                error: function (obj) {
+                    $('#DivLoading').hide();
+                }
+
+            });
+        }
+        var obj = { 'Status': status, 'Message': message };
+        return obj;
+    }
+
+    $('#deleteRows1').click(function () {
+        var anSelected = fnGetSelected(oTableTransferLineItems);
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+        }
+
+    });
+
+    $("#btnModelYesInnerGrid").live("click", function () {
+        var anSelected = fnGetSelected(oTableTransferLineItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnGUID").val() + ",";
+        }
+        if (anSelected.length > 0) {
+            $.ajax({
+                'url': '/Transfer/TransferLineItemsDelete',
+                data: { ids: stringIDs },
+                success: function (response) {
+                    if (response == "ok") {
+                        for (var i = 0; i < anSelected.length; i++) {
+                            oTableTransferLineItems.fnDeleteRow(anSelected[i]);
+                        }
+
+                        if (anSelected.length > 0) {
+                            $("#spanGlobalMessage").html("@ResCommon.RecordDeletedSuccessfully".replace("{0}","(" + anSelected.length + ")"));
+                        }
+                        showNotificationDialog();
+                        FillTransferDetailGrid();
+                    }
+                },
+                error: function (response) {
+                }
+            });
+            $.modal.impl.close();
+        }
+    });
+
+
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+
+        $('#TransferLineItem' + TrfID).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+    /* global search function */
+    function fnFilterTransferLineItem() {
+        //set filter only if more than 2 characters are pressed
+        //if (typeof $("#InnerItem_filter") != 'undefined' && ($("#InnerItem_filter").val().length > 2 || $("#InnerItem_filter").val().length == 0)) {
+
+        bIsFilter = true;
+        var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+        $('#TransferLineItem' + TrfID).dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+
+        $('#TransferLineItem' + TrfID + ' td').removeHighlight();
+
+        if (searchtext.length > 0)
+            $('#TransferLineItem' + TrfID + ' td').highlight($("#InnerItem_filter").val());
+        // }
+    }
+
+
+    $("#InnerItem_filter").on("keyup", function (e) {
+
+        var code = (e.keyCode ? e.keyCode : e.which);
+        var index = $.inArray(code, NotAllowedCharCodes);
+        if (index >= 0) return false;
+
+        fnFilterTransferLineItem();
+
+    });
+
+    $("#InnerItem_filter").on("keydown", function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            fnFilterTransferLineItem();
+        }
+
+    });
+
+
+    $("#clear_QLItem_filter").click(function () {
+        $("#InnerItem_filter").val('');
+        fnFilterTransferLineItem();
+        $("#InnerItem_filter").focus();
+        return false;
+    });
+
+    $('#saveRows').live("click", function () {
+
+        var msg = UpdateLineItemGrid('@Model.StagingID', true);
+        if (msg.Status == "ok") {
+            showNotificationDialog();
+            $("#spanGlobalMessage").html(msg.Message);
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+        }
+        else if (msg.Status == 'No') {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html('@ResCommon.NoChanges');
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+        }
+        else {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html(msg.Message);
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        }
+
+    });
+
+    $(document).ready(function () {
+        if ($('#IsDeletedRecords').is(':checked') || $('#IsArchivedRecords').is(':checked') || $("body").hasClass('DTTT_Print')) {
+            $('#saveRows').attr('style', 'display:none');
+            $('#deleteRows1').attr('style', 'display:none');
+        }
+        $('#saveRows').attr('style', 'display:none');
+    });
+
+
+    /* DATA TABLE GRID COMMON FUNCTIONS END */
+    $("#ColumnOrderSetup1").off('click')
+    $("#ColumnOrderSetup1").on('click', function () {
+        //alert("line item reorder popup");
+        var DTName = 'TransferLineItem' + TrfID;
+        $("#divDetailGridReorderPopup").data({ 'DataTableName': DTName, 'ListName': 'TransferLineItemList', 'ColumnObjectName': 'objTrfLineItemCols' }).dialog("open");
+        return false;
+    });
+
+    function FillDetailGridDiv() {
+        $('#divLineItems').empty();
+        $('#divLineItems').load('@Url.Action("LoadTransferLineItems", new { TransferID = @Model.ID })', function () {
+            $('#DivLoading').hide();
+            $("#divDetailGridReorderPopup").dialog("close");
+        });
+    }
+
+    function OpenTransferLotSerialSelectionPopup(isForSingleItem) {
+        var errorMsg = '';
+        $('#DivLoading').show();
+
+        var transferItems = new Array();
+        var selector = "";
+
+        if (isForSingleItem) {
+            selector = $('#TransferLineItem' + '@Model.ID').dataTable().fnGetNodes();
+        }
+        else {
+            selector = $('#TransferLineItem' + TrfID).dataTable().fnGetNodes();
+        }
+        $(selector).each(function (i) {
+            var Qty = $(this).find('#txtQty').val();
+            var ID = $(this).find('#hdnID').val();
+            var GUID = $(this).find('#hdnGUID').val();
+            var ItemGUID = $(this).find('#hdnItemGUID').val();
+            var OrderGUID = $(this).find('#hdnTransferGUID').val();
+            var RequiredDate = $(this).find('#hiddenDatePicker' + ID).val();
+            var qtyToTransfer = 0;
+
+            var inTransintqty = $(this).find("#hdnIntransitQuantity").val();
+            if (isNaN(parseFloat(inTransintqty)) || parseFloat(inTransintqty) < 0)
+                inTransintqty = 0;
+            inTransintqty = parseFloat(inTransintqty);
+
+            var receiveqty = $(this).find("#hdnReceivedQuantity").val();
+            if (isNaN(parseFloat(receiveqty)) || parseFloat(receiveqty) < 0)
+                receiveqty = 0;
+            receiveqty = parseFloat(receiveqty);
+
+            if ($(this).find('#txtApprovedQuantity' + ID).length > 0) {
+                var qtyToTransfer = $(this).find('#txtApprovedQuantity' + ID).val();
+            }
+
+            qtyToTransfer = qtyToTransfer - (inTransintqty + receiveqty);
+
+            var Bin = 0;
+            var binName = '';
+
+            if ($(this).find('#slctBinNumber').length > 0) {
+                Bin = $(this).find('#slctBinNumber option:selected').val();
+                binName = $(this).find('##slctBinNumber option:selected').text();
+            }
+            else if ($(this).find('#txtBinNumber').length > 0) {
+                Bin = $(this).find('#txtBinNumber').attr('data-binid');
+                binName = $(this).find('#txtBinNumber').val();
+            }
+
+            if ((Qty !== undefined && Qty !== NaN && parseFloat(Qty) > 0) && (qtyToTransfer !== undefined && qtyToTransfer !== NaN && parseFloat(qtyToTransfer) > 0)) {
+                var data = {
+                    "ID": ID,
+                    "GUID": GUID,
+                    "ItemGUID": ItemGUID,
+                    "TransferGUID": OrderGUID,
+                    "RequestedQuantity": Qty,
+                    "ApprovedQuantity": qtyToTransfer,
+                    "Bin": Bin,
+                    "BinName": binName,
+                    "RequiredDateString": RequiredDate,
+                    'ReceivedQuantity': receiveqty,
+                    'IntransitQuantity': inTransintqty,
+                    'TransferRequestType': '@Model.RequestType'
+                };
+                transferItems.push(data);
+            }
+        });
+
+
+        if (transferItems.length > 0) {
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("TransferItemQuantity", "Transfer")',
+                dataType: 'html',
+                data: { 'para': JSON.stringify(transferItems) },
+                async: false,
+                success: function (RetData) {
+                    $('#DivLoading').hide();
+                    $.modal.impl.close();
+                    $("#DivTransferSelection").html("").html(RetData)
+                    $("#DivTransferSelection").dialog('open');
+
+                },
+                error: function (err) {
+                    console.log(err);
+                }
+            });
+        }
+        return false;
+    }
+</script>

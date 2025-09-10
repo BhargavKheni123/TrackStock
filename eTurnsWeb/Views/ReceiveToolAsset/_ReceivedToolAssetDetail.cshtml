@@ -1,0 +1,261 @@
+﻿@model ReceivableToolDTO
+@{
+    GridHeaderSettings receivesettings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = false, DisplayColumnSetupButton = false, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, DataTableName = "ReceivedItemDetail_" + Model.ToolAssetOrderDetailID };
+    if (Model.OrderStatus == (int)OrderStatus.Closed)
+    {
+        receivesettings.DisplayDeleteButton = false;
+    }
+
+    bool isCost = false;
+    isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    string strCostDeci = "N";
+    string strQtyDeci = "N";
+    string strDateFor = "MM/dd/yyyy";
+
+    if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits))
+    {
+        strCostDeci = "N" + eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits;
+    }
+    if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.NumberDecimalDigits))
+    {
+        strQtyDeci = "N" + eTurnsWeb.Helper.SessionHelper.NumberDecimalDigits;
+    }
+    if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.DateTimeFormat))
+    {
+        strDateFor = eTurnsWeb.Helper.SessionHelper.DateTimeFormat;
+    }
+    bool isUpdate = false;
+    bool isInsert = false;
+    isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ReceiveToolAsset, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ReceiveToolAsset, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+}
+<table style="width: 50%; float: left; margin-bottom: 10px;">
+    <tr>
+        <td>
+            <div class="userContentInnerGrid">
+                @Html.QuickListItemsGridTopHeader(receivesettings, eTurnsWeb.Helper.SessionHelper.ModuleList.ReceiveToolAsset)
+                <table id="ReceivedItemDetail_@Model.ToolAssetOrderDetailID" class="display">
+                    <thead>
+                        <tr>
+                            @*<th class="NotSortable">
+                                    Edit
+                                </th>*@
+                            <th>
+                                @eTurns.DTO.ResLocation.Location    
+                            </th>
+                            @if (Model.SerialNumberTracking)
+                            {
+                                <th>
+                                    @eTurns.DTO.ResToolAssetQuantityDetail.SerialNumber
+                                </th>
+                            }
+                            <th>
+                                @eTurns.DTO.ResToolAssetQuantityDetail.ReceivedDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResToolAssetQuantityDetail.Quantity
+                            </th>
+                            @if (isCost)
+                            {
+                                <th>
+                                    @eTurns.DTO.ResToolAssetQuantityDetail.Cost
+                                </th>
+                            }
+                            <th>
+                                @eTurns.DTO.ResToolAssetOrder.PackSlipNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResToolAssetQuantityDetail.Created
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResToolAssetQuantityDetail.CreatedBy
+                            </th>
+                            <th>
+                                EDI Sent
+                            </th>
+                            <th>
+                                Last EDI On
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                            </th>
+                            @Html.RenderColumnsHeader("ReceivedToolAssetOrderTransferDetail", typeof(eTurns.DTO.ResReceiveToolAssetOrderDetails), "")
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.ReceivedToolDetail != null && Model.ReceivedToolDetail.Count() > 0)
+                        {
+                            foreach (var item in Model.ReceivedToolDetail)
+                            {
+                                <tr id="tr_@item.ID">
+                                    
+                                    <td>
+                                        @item.Location
+                                        <input type='hidden' id='hdnGUID' value="@item.GUID.ToString()" />
+                                        <input type='hidden' id='hdnID' value="@item.ID.ToString()" />
+                                    </td>
+                                    @if (Model.SerialNumberTracking)
+                                    {
+                                        <td>
+                                            @item.SerialNumber
+                                        </td>
+                                    }
+                                    
+                                    <td>
+                                        @item.strReceivedDate
+                                    </td>
+                                    <td>
+                                        @item.Quantity.GetValueOrDefault(0).ToString(strQtyDeci)
+                                    </td>
+                                    @if (isCost)
+                                    {
+                                        <td>
+                                            @item.Cost.GetValueOrDefault(0).ToString(strCostDeci, eTurnsWeb.Helper.SessionHelper.RoomCulture)
+                                        </td>
+                                    }
+                                    <td>
+                                        @item.PackSlipNumber
+                                    </td>
+                                    <td>
+                                        @item.CreatedDate
+                                    </td>
+                                    <td>
+                                        @item.CreatedByName
+                                    </td>
+                                    @if (item.IsEDISent.GetValueOrDefault(false))
+                                    {
+                                        <td id="tdEDISent_@item.ID">
+                                            Yes
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        <td id="tdEDISent_@item.ID">
+                                            No
+                                        </td>
+                                    }
+                                    @if (item.LastEDIDate.GetValueOrDefault(DateTime.MinValue) > DateTime.MinValue)
+                                    {
+                                        <td>
+                                            @eTurnsWeb.Helper.CommonUtility.ToClientDateTime((item.LastEDIDate.GetValueOrDefault(DateTime.MinValue)))
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        <td></td>
+                                    }
+                                    <td>
+                                        @item.AddedFrom
+                                    </td>
+                                    <td>
+                                        @item.EditedFrom
+                                    </td>
+                                    <td>
+                                        @item.ReceivedOnDate
+                                    </td>
+                                    <td>
+                                        @item.ReceivedOnDateWeb
+                                    </td>
+                                    @Html.RenderColumnsArrayForDOM("ReceivedToolAssetOrderTransferDetail", item)
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </td>
+    </tr>
+</table>
+<div class="dialog" id="ReceivedOrderInnerGrid_@Model.ToolAssetOrderDetailID" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+        </p>
+        <a href="JavaScript:void(0)" id="btnYesReceivedItem_@Model.ToolAssetOrderDetailID" onclick="return DeleteYesSelectedRows('@Model.ToolAssetOrderDetailID.ToString()')" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no" onclick="closeModal()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<div id="divEditReceive">
+</div>
+<script language="javascript" type="text/javascript">
+
+    $(document).ready(function () {
+
+        fillReceivedToolDetailGrid('@Model.ToolAssetOrderDetailID');
+        $('#deleteRows1').attr("onclick", "return deleteRowsReceived('@Model.ToolAssetOrderDetailID.ToString()')");
+        $('#deleteRows1').attr("id", "deleteRowsRevd_@Model.ToolAssetOrderDetailID");
+
+
+        $('#divEditReceive').dialog({
+            autoOpen: false,
+            modal: true,
+            draggable: true,
+            resizable: true,
+            width: '90%',
+            height: 220,
+            title: "Edit Received",
+            open: function () {
+                $('#DivLoading').show();
+                var receiveGUID = $(this).data("ReceivedGUID");
+                $.ajax({
+                    url: '@Url.Content("~/ReceiveToolAsset/OpenEditReceiveDialog")',
+                    data: { 'ReceivedGUID': receiveGUID },
+                    type: 'Post',
+                    "async": false,
+                    "cache": false,
+                    "dataType": "text",
+                    success: function (result) {
+                        $('#DivLoading').hide();
+                        $('#divEditReceive').html(result)
+                    },
+                    error: function (xhr) {
+                        $('#DivLoading').hide();
+                    }
+
+                });
+            },
+            close: function () {
+                $(this).empty();
+                $('#divEditReceive').empty();
+                if ($(this).data("Success")) {
+                    ImageIDToOpen = "#imgPlusMinus_" + '@Model.ToolAssetOrderDetailID';
+                    $('#myDataTable').dataTable().fnStandingRedraw();
+                    $('#DivLoading').hide();
+                }
+            }
+        });
+
+    });
+
+    $('#ReceivedItemDetail_' + '@Model.ToolAssetOrderDetailID' + ' tbody tr').on('click', function (e) {
+        var id = $(this).attr('id').replace('tr_', '');
+        var td = $(this).find('#tdEDISent_' + id);
+        if ($.trim(td[0].innerHTML).toLowerCase() === 'yes') {
+            return false;
+        }
+        $(this).toggleClass('row_selected');
+        return false;
+    });
+
+
+    //$('#btnEditReceive').on('click', function () {
+    function OpenEditReceive(obj) {
+        var receivedGUID = $(obj).parent().parent().find('#hdnGUID').val();
+        $('#divEditReceive').data({ "ReceivedGUID": receivedGUID }).dialog('open');
+        return false;
+    }
+
+</script>

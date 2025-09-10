@@ -1,0 +1,1320 @@
+@model eTurnsWeb.Models.ItemModelPerameter
+@{
+    ViewBag.Title = ResToolMaster.PageTitle;
+    var settings = new GridHeaderSettings() { DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = false, dataViewType = DataViewType.None, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "ToolListInModel" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ToolMaster", IDsufix = "_Tool" };
+    bool isToolUDF = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetNonDeletedUDFCountByUDFTableName("ToolCheckInOutHistory", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID) > 0;
+
+    //System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    string UNCPathRootLink2 = eTurns.DTO.SiteSettingHelper.ToolPhoto; // Settinfile.Element("ToolPhoto").Value;
+
+    Int64 EnterpriseId = eTurnsWeb.Helper.SessionHelper.EnterPriceID;
+    Int64 CompanyID = eTurnsWeb.Helper.SessionHelper.CompanyID;
+    Int64 RoomID = eTurnsWeb.Helper.SessionHelper.RoomID;
+    UNCPathRootLink2 = UNCPathRootLink2.Replace("~", string.Empty);
+    string LogoPathImage = (UNCPathRootLink2 + EnterpriseId + "/" + CompanyID + "/" + RoomID);
+}
+<style type="text/css">
+    #tblToolsInModel_wrapper div.top:first-child div.dataTables_length:first-child {
+        top: -82px;
+    }
+
+    .dataTables_paginate {
+        top: -72px;
+    }
+
+    .td-udfs {
+        padding: 3px;
+    }
+
+    #tblToolModelCommonUDF .selectBox {
+        width: 90% !important;
+    }
+
+    #tblToolModelCommonUDF .text-boxinner {
+        width: 90% !important;
+    }
+
+    .tblPullCommonUDFthead {
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+
+
+</style>
+<script language="javascript" type="text/javascript">
+    var bIsTMFilter = false;
+    var ArrToolColumns = new Array();
+
+    ArrToolColumns.push({ mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' });
+
+    ArrToolColumns.push({
+        mDataProp: null, sClass: "read_only control center NotHide", "bSortable": false, sDefaultContent: '', fnRender: function (obj, val) {
+            var Qty = parseFloat(obj.aData.Quantity);
+            var CheckedOutQTY = parseFloat(obj.aData.CheckedOutQTY);
+            var CheckedOutMQTY = parseFloat(obj.aData.CheckedOutMQTY);
+            var availQty = 0;
+            if (!isNaN(Qty) && !isNaN(CheckedOutQTY) && !isNaN(CheckedOutMQTY)) {
+                availQty = FormatedCostQtyValues((Qty - (CheckedOutQTY + CheckedOutMQTY)), 2);
+            }
+            else if (!isNaN(Qty) && !isNaN(CheckedOutQTY)) {
+                availQty = FormatedCostQtyValues((Qty - (CheckedOutQTY)), 2);
+            }
+            else if (!isNaN(Qty) && !isNaN(CheckedOutMQTY)) {
+                availQty = FormatedCostQtyValues((Qty - (CheckedOutMQTY)), 2);
+            }
+            else if (!isNaN(Qty)) {
+                availQty = FormatedCostQtyValues((Qty), 2);
+            }
+            else {
+                availQty = FormatedCostQtyValues(0, 2);
+            }
+
+            if (!isNaN(availQty) && parseFloat(availQty) > 0) {
+                return "<input type='button' value='@ResCommon.Add' onclick='return AddTool(this)' id='btnAddTool' class='CreateBtn' style='float: none;padding: 2px 6px;margin-left: 5px;' tabindex='-1'  />" + "<input type='hidden' id='ToolGUID' value='" + obj.aData.GUID + "' /><span id='spnCost' style='display:none'>" + obj.aData.Cost + "</span>";
+            }
+            else {
+                return "<input type='button' value='@ResCommon.Add' onclick='return AddTool(this)' id='btnAddTool' class='CreateBtn' style='float: none;padding: 2px 6px;margin-left: 5px;display:none;' tabindex='-1'  />" + "<input type='hidden' id='ToolGUID' value='" + obj.aData.GUID + "' /><span id='spnCost' style='display:none'>" + obj.aData.Cost + "</span>";
+            }
+
+
+
+        }
+    });
+
+    ArrToolColumns.push({
+        mDataProp: null, bSortable: false, sClass: "read_only control center ", sDefaultContent: '', fnRender: function (obj, val) {
+            var Qty = parseFloat(obj.aData.Quantity);
+            var CheckedOutQTY = parseFloat(obj.aData.CheckedOutQTY);
+            var CheckedOutMQTY = parseFloat(obj.aData.CheckedOutMQTY);
+            var availQty = 0;
+            if (!isNaN(Qty) && !isNaN(CheckedOutQTY) && !isNaN(CheckedOutMQTY)) {
+                availQty = FormatedCostQtyValues((Qty - (CheckedOutQTY + CheckedOutMQTY)), 2);
+            }
+            else if (!isNaN(Qty) && !isNaN(CheckedOutQTY)) {
+                availQty = FormatedCostQtyValues((Qty - (CheckedOutQTY)), 2);
+            }
+            else if (!isNaN(Qty) && !isNaN(CheckedOutMQTY)) {
+                availQty = FormatedCostQtyValues((Qty - (CheckedOutMQTY)), 2);
+            }
+            else if (!isNaN(Qty)) {
+                availQty = FormatedCostQtyValues((Qty), 2);
+            }
+            else {
+                availQty = FormatedCostQtyValues(0, 2);
+            }
+            if (!isNaN(availQty) && parseFloat(availQty) > 0) {
+                return '<input type="text" id="txtQty" class="numericinput text-boxinner" maxlength="10" style="width:93%;min-width:50px;padding: 2px" />';
+            }
+            else {
+                return '<input type="text" id="txtQty" class="numericinput text-boxinner" maxlength="10" style="width:93%;min-width:50px;padding: 2px;display:none"   readonly="readonly" />';
+            }
+        }
+    });
+
+    //ArrToolColumns.push({ mDataProp: "ID", sClass: "read_only" });
+    ArrToolColumns.push({ mDataProp: "ToolName", sClass: "read_only", sDefaultContent: '', bSortable: true, "bSearchable": false });
+    ArrToolColumns.push({
+        mDataProp: "Quantity", sClass: "read_only numericalign",
+        sDefaultContent: '',
+        fnRender: function (obj, val) {
+            return FormatedCostQtyValues((obj.aData.Quantity), 2);
+        }
+    });
+    ArrToolColumns.push({
+        mDataProp: null,
+        bSortable: false,
+        sClass: "read_only center numericalign",
+        sDefaultContent: '',
+        fnRender: function (obj, val) {
+
+            //return FormatedCostQtyValues((obj.aData.Quantity - (obj.aData.CheckedOutQTY + obj.aData.CheckedOutMQTY)), 2);
+            var Qty = parseFloat(obj.aData.Quantity);
+            var CheckedOutQTY = parseFloat(obj.aData.CheckedOutQTY);
+            var CheckedOutMQTY = parseFloat(obj.aData.CheckedOutMQTY);
+            if (!isNaN(Qty) && !isNaN(CheckedOutQTY) && !isNaN(CheckedOutMQTY)) {
+                return FormatedCostQtyValues((Qty - (CheckedOutQTY + CheckedOutMQTY)), 2);
+            }
+            else if (!isNaN(Qty) && !isNaN(CheckedOutQTY)) {
+                return FormatedCostQtyValues((Qty - (CheckedOutQTY)), 2);
+            }
+            else if (!isNaN(Qty) && !isNaN(CheckedOutMQTY)) {
+                return FormatedCostQtyValues((Qty - (CheckedOutMQTY)), 2);
+            }
+            else if (!isNaN(Qty)) {
+                return FormatedCostQtyValues((Qty), 2);
+            }
+            else {
+                return FormatedCostQtyValues(0, 2);
+            }
+
+        }
+    });
+    ArrToolColumns.push({
+        mDataProp: "CheckedOutQTY", sClass: "read_only numericalign",
+        sDefaultContent: '',
+        fnRender: function (obj, val) {
+            if (obj.aData.CheckedOutQTY != null) {
+                return FormatedCostQtyValues((obj.aData.CheckedOutQTY), 2);
+            }
+            else {
+                return FormatedCostQtyValues((0), 2);
+            }
+        }
+    });
+    ArrToolColumns.push({
+        mDataProp: "CheckedOutMQTY", sClass: "read_only numericalign",
+        sDefaultContent: '',
+        fnRender: function (obj, val) {
+            if (obj.aData.CheckedOutMQTY != null) {
+                return FormatedCostQtyValues((obj.aData.CheckedOutMQTY), 2);
+            }
+            else {
+                return FormatedCostQtyValues((0), 2);
+            }
+
+        }
+    });
+    ArrToolColumns.push({
+        mDataProp: "IsGroupOfItems", sClass: "read_only"
+            , fnRender: function (obj, val) {
+                if (val == 0)
+                    return "No";
+                else if (val == 1)
+                    return "Yes";
+                else
+                    return "";
+            }
+    });
+    ArrToolColumns.push({
+        mDataProp: "Cost", sClass: "read_only numericalign isCost",
+        fnRender: function (obj, val) {
+            //return GetDateInFullFormat(val);
+
+            if (obj.aData.Cost != null && obj.aData.Cost != '') {
+                return FormatedCostQtyValues(obj.aData.Cost, 1);
+            }
+            else {
+                return '';
+            }
+        }
+    });
+    ArrToolColumns.push({ mDataProp: "Serial", sClass: "read_only" });
+    ArrToolColumns.push({ mDataProp: "Description", sClass: "read_only" });
+    ArrToolColumns.push({ mDataProp: "ToolCategory", sClass: "read_only" });
+    ArrToolColumns.push({ mDataProp: "Location", sClass: "read_only" });
+    ArrToolColumns.push({ mDataProp: "Created", sClass: "read_only", fnRender: function (obj, val) { return obj.aData.CreatedDate; } });
+    ArrToolColumns.push({ mDataProp: "Updated", sClass: "read_only", fnRender: function (obj, val) { return obj.aData.UpdatedDate; } });
+    ArrToolColumns.push({ mDataProp: "UpdatedByName", sClass: "read_only" });
+    ArrToolColumns.push({ mDataProp: "CreatedByName", sClass: "read_only" });
+    ArrToolColumns.push({
+        mDataProp: "ImagePath", sClass: "read_only", bVisible: false, fnRender: function (obj, val) {
+            if ((obj.aData.ImagePath != '' && obj.aData.ImagePath != null) || (obj.aData.ToolImageExternalURL != '' && obj.aData.ToolImageExternalURL != null)) {
+                if (obj.aData.ImagePath != '' && obj.aData.ImagePath != null) {
+                    //var path = '@(eTurnsWeb.Helper.SessionHelper.CompanyID.ToString())';
+
+                    var path = '@LogoPathImage';
+
+                    return '<img style="cursor:pointer;"  alt="' + (obj.aData.ItemNumber) + '" id="ItemImageBox" width="120px" height="120px" src="' + path + "/" + obj.aData.ID + "/" + obj.aData.ImagePath + '">';
+                    //return '<img style="cursor:pointer;"  alt="' + (obj.aData.ItemNumber) + '" id="ItemImageBox" width="120px" height="120px" src="' + "/Uploads/ToolPhoto/" + path + "/" + obj.aData.ImagePath + '">';
+                }
+                else if (obj.aData.ToolImageExternalURL != '' && obj.aData.ToolImageExternalURL != null) {
+                    return '<img style="cursor:pointer;"  alt="' + (obj.aData.ItemNumber) + '" id="ItemImageBox" width="120px" height="120px" src="' + obj.aData.ToolImageExternalURL + '">';
+                }
+            }
+            return "<img src='../Content/images/no-image.jpg' />";
+        }
+    });
+    if ('@(Model.CallingFromPageName)' == "RQ") {
+        ArrToolColumns.push({
+            "mDataProp": null,
+            "bSortable": false,
+            "sClass": "read_only control center ",
+            "sDefaultContent": '',
+            "fnRender": function (obj, val) {
+                var date = '@Model.ReqRequiredDate';
+
+                return "<input value='" + date + "' onkeypress='return false;' type='text' style='width:80px;background:white;' readonly='readonly' class='myDatePicker text-box' id='hdnRequiredDate_" + obj.aData.GUID + "' />";
+            }
+        })
+    }
+    ArrToolColumns.push({
+        mDataProp: "TechnicianList", sClass: "read_only", bSortable: false,
+        fnRender: function (obj, val) {
+            var strReturn = '<span style="position:relative"><input type="text" id="txtTechnician" class="text-boxinner AutoTechnician" style = "width:93%;" value="' + '@eTurns.DTO.Resources.ResCommon.SelectTechnicianText' + '" />';
+            strReturn = strReturn + ' <input type="hidden" id="TechnicianGUID" value="" />';
+            strReturn = strReturn + ' <a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptions" ><img src="/Content/images/arrow_down_black.png" alt="select" /></a></span>';
+            return strReturn
+
+        }
+    });
+
+    ArrToolColumns.push(@Html.RenderColumnsArray("ToolMaster", false, "Tool"));
+    ArrToolColumns.push(@Html.RenderColumnsArrayEditableObject("ToolCheckInOutHistory", false, isUDFOrderRequire:true));
+
+    var oTableToolModel;
+    var objToolListModelColumns = {}
+
+    $(document).ready(function () {
+        $('#tblToolsInModel').on('focus', "input.AutoTechnician", function (e) {
+            var ajaxURL = '/Assets/GetTechnician';
+            var tr = $(this).parent().parent().parent();
+            var itmGuid = $(tr).find('#spnItemGUID').text();
+            var stagName = '';
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $('#DivLoading').show()
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'NameStartWith': request.term }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            $('#DivLoading').hide()
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key,
+                                    id: Items.GUID
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                            $('#DivLoading').hide();
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    $(this).val(ui.item.value);
+                    if ($.trim(ui.item.value).length > 0) {
+
+                        if ($(this).parent().find('#TechnicianGUID') != undefined)
+                            $(this).parent().find('#TechnicianGUID').val(ui.item.id);
+                    }
+                    else {
+                        $(this).parent().find('#TechnicianGUID').val('');
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                    if (ui.item != null && ui.item != undefined && $.trim(ui.item.id).length > 0) {
+                        if ($(this).parent().find('#TechnicianGUID') != undefined)
+                            $(this).parent().find('#TechnicianGUID').val(ui.item.id);
+                    }
+                    else {
+                        $(this).parent().find('#TechnicianGUID').val('');
+                    }
+                }
+            });
+        });
+
+        $('body').on('focus', "input.UseThisAutoTechnician", function (e) {
+            var ajaxURL = '/Assets/GetTechnician';
+            var tr = $(this).parent().parent().parent();
+            var itmGuid = $(tr).find('#spnItemGUID').text();
+            var stagName = '';
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $('#DivLoading').show()
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'NameStartWith': request.term }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            $('#DivLoading').hide()
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key,
+                                    id: Items.GUID
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                            $('#DivLoading').hide();
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    $(this).val(ui.item.value);
+                    if ($.trim(ui.item.value).length > 0) {
+
+                        if ($(this).parent().find('#UseThisTechnicianGUID') != undefined)
+                            $(this).parent().find('#UseThisTechnicianGUID').val(ui.item.id);
+                    }
+                    else {
+                        $(this).parent().find('#UseThisTechnicianGUID').val('');
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                    if (ui.item != null && ui.item != undefined && $.trim(ui.item.id).length > 0) {
+                        if ($(this).parent().find('#UseThisTechnicianGUID') != undefined)
+                            $(this).parent().find('#UseThisTechnicianGUID').val(ui.item.id);
+                    }
+                    else {
+                        $(this).parent().find('#UseThisTechnicianGUID').val('');
+                    }
+                }
+            });
+        });
+
+        $('.UseThisShowAllOptions').click(function () {
+            $(this).siblings('.UseThisAutoTechnician').trigger("focus");
+            $(this).siblings(".UseThisAutoTechnician").autocomplete("search", " ");
+        });
+
+        objToolListModelColumns = GetGridHeaderColumnsObject('tblToolsInModel');
+        oTableToolModel = $('#tblToolsInModel').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "sScrollX": "100%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[2, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                if (aData.IsGroupOfItems == "No") {
+                    $(nRow).find('#txtQty').val('1').attr('readonly', 'readonly');
+                }
+                return nRow;
+            },
+            "fnDrawCallback": function (settings) {
+                $("table#tblToolsInModel tbody").find("input[id^='hdnRequiredDate_']").datepicker({
+                    changeMonth: true,
+                    changeYear: true, dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat'
+                });
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                if (!bIsTMFilter) {
+                        $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'ToolListInModel' },
+                        "async": false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                }
+                bIsTMFilter = false;
+
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'ToolListInModel' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Content("~/Consume/GetToolModelAjax")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting.length != 0)
+                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "IsArchived", "value": "false" });
+                aoData.push({ "name": "IsDeleted", "value": "false" });
+                aoData.push({ "name": "RequisitionGuid", "value": "@(Model.PerentGUID)" });
+                aoData.push({ "name": "ToolType", "value": "1,2" });
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    cache: false,
+                    "url": sSource,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('#tblToolsInModel').removeHighlight();
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.ShowAllOptions').click(function () {
+                            $(this).siblings('.AutoTechnician').trigger("focus");
+                            $(this).siblings(".AutoTechnician").autocomplete("search", " ");
+                        });
+                        if ($("#ToolModel_filter").val() != '') {
+                            $('#tblToolsInModel td').highlight($("#ToolModel_filter").val());
+                        }
+                        $('#DivLoading').hide();
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                    },
+                    error: function () {
+                        $('#DivLoading').hide();
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                        $('#tblToolsInModel').removeHighlight();
+                    }
+                })
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+            },
+            "aoColumns": ArrToolColumns
+        });
+        $('.DTTT_container').css('z-index', '-1');
+        //$('#DivLoading').hide();
+
+        $("#ColumnSortableModalIM").dialog({
+            autoOpen: false,
+            modal: true,
+            width: 500,
+            height: 400,
+            minHeight: 400,
+            title: '@eTurns.DTO.Resources.ResCommon.ReorderColumnPopupHeader',
+            draggable: false,
+            resizable: false,
+            open: function () {
+                GenerateColumnSortableIM();
+                $("#ColumnSortableIM").sortable({ axis: "y", containment: "parent" });
+            },
+
+        });
+
+        //Apply filter
+        //$("#ToolModel_filter").keyup(function (e) {
+        //    var code = (e.keyCode ? e.keyCode : e.which);
+        //    //var index = $.inArray(code, NotAllowedCharCodes);
+        //    if (code == 13) {
+        //    }
+        //    else {
+        //        fnFilterGlobalIM();
+        //    }
+        //});
+
+        ////Keydown event is required to handle ENTER KEY to work in IE
+        //$("#ToolModel_filter").keydown(function (e) {
+        //    var code = (e.keyCode ? e.keyCode : e.which);
+        //    if (code == 13) {
+        //        fnFilterGlobalIM();
+        //    }
+        //});
+
+        var timeoutTM;
+        $(document).on('propertychange input', "#ToolModel_filter", function () {
+            clearTimeout(timeoutTM);
+            var self = this;
+            timeoutTM = setTimeout(function () {
+
+                if (SearchPattern == 2 || SearchPattern == "2") {
+                    fnFilterGlobalIM();
+                }
+                else {
+                    $('#ToolModel_filter').unbind("keypress");
+                    $('#ToolModel_filter').keypress(function (event) {
+                        var keycode = (event.keyCode ? event.keyCode : event.which);
+                        if (keycode == 13) {
+                            fnFilterGlobalIM();
+                        }
+                    });
+                    if ($("#ToolModel_filter").val().length == 0) {
+                        setTimeout(function () { fnFilterGlobalIM(); }, 200);
+                    }
+                }
+            }, 500);
+            return false;
+        });
+
+        $("#clear_QLToolModel_filter").click(funClearFilterIM);
+        _Common.setGloblaSearch('ToolModel_filter', 'tblToolsInModel');
+    });
+
+    function funClearFilterIM() {
+        //Check length first
+        if ($("#ToolModel_filter").val().length > 0) {
+            $("#ToolModel_filter").val('');
+            $('#tblToolsInModel').dataTable().fnFilter($("#ToolModel_filter").val(), null, null, null);
+        }
+        $("#ToolModel_filter").focus();
+        return false;
+    }
+
+    function SSNarroSearch(SSDDLObject) {
+        if ($(SSDDLObject).val() != "0") {
+            ToolStatusValue = $(SSDDLObject).val();
+            DoNarrowSearchTool();
+        }
+        else {
+            ToolStatusValue = '';
+            DoNarrowSearchTool();
+        }
+    }
+
+
+</script>
+<div class="userListBlock">
+    @*<h2>
+            @ResToolMaster.PageHeader
+        </h2>*@
+   @*<div class="userListBlock">*@
+    <div id="Ctab" class="tabContener" style="width: 99%">
+        <div class="searchWrapper">
+            <div class="searchBlock">
+                <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                <div class="searchinputB">
+                    <input type="text" class="searchinput" id="ToolModel_filter" />
+                    <a href="javascript:void(0);" class="xclose">
+                        <img src="~/Content/images/x.png" alt="X" id="clear_QLToolModel_filter" />
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        @Html.ItemModelGridTopHeader(settings)
+        @Html.Partial("ToolsNarrowSearch", modelCommon)
+        <div class="userContent">
+            <table style="margin-bottom: 1px; margin-top: 1px;" id="tblToolModelCommonUDF">
+                <thead>
+                    <tr>
+
+                        <th>
+                        </th>
+                        <th>
+                            @eTurns.DTO.Resources.ResCommon.TechnicianList
+                        </th>
+                        @if (isToolUDF)
+                        {
+                            @Html.RenderColumnsHeaderByName("ToolCheckInOutHistory", typeof(eTurns.DTO.ResToolCheckInOutHistory))
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <b style="font-size: 13px;">&nbsp;&nbsp;&nbsp;@ResCommon.Usethis</b>
+                            <input type="checkbox" id="chkUseToolModelCommonUDF" />
+                        </td>
+                        <td>
+                            <span style="position:relative">
+                                <input type="text" id="txtUseThisTechnician" class="text-boxinner UseThisAutoTechnician" style="width:120px;" value="@eTurns.DTO.Resources.ResCommon.SelectTechnicianText" autocomplete="off" role="textbox" aria-autocomplete="list" aria-haspopup="true">
+                                <input type="hidden" id="UseThisTechnicianGUID" value="">
+                                <a id="UseThislnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="UseThisShowAllOptions">
+                                    <img src="/Content/images/arrow_down_black.png" alt="select">
+                                </a>
+                            </span>
+
+                        </td>
+                        @if (isToolUDF)
+                        {
+                            @Html.RenderColumnsArrayEditableObjectForDOMByName("ToolCheckInOutHistory", controlIDPostfix: "ToolCommon")
+                        }
+
+                    </tr>
+                </tbody>
+            </table>
+            <table id="tblToolsInModel" class="display">
+                <thead>
+                    <tr>
+                        <th>
+                            @eTurns.DTO.Resources.ResCommon.RowNo
+                        </th>
+                        <th>
+                            @eTurns.DTO.Resources.ResCommon.AddNew
+                        </th>
+                        <th id="tdAddQty">
+                            @eTurns.DTO.Resources.ResCommon.Qty
+                        </th>
+                        @*<th>
+                                @ResCommon.ID
+                            </th>*@
+                        <th>
+                            @ResToolMaster.ToolName
+                        </th>
+                        <th>
+                            @ResToolMaster.Quantity
+                        </th>
+                        <th>
+                            @ResToolCheckInOutHistory.AvailableQty
+                        </th>
+                        <th>
+                            @ResToolCheckInOutHistory.CheckedOutQTY
+                        </th>
+                        <th>
+                            @ResToolCheckInOutHistory.CheckedOutMQTY
+                        </th>
+                        <th>
+                            @ResToolMaster.IsGroupOfItems
+                        </th>
+                        <th>
+                            @ResToolMaster.Cost
+                        </th>
+                        <th>
+                            @ResToolMaster.Serial
+                        </th>
+                        <th>
+                            @ResToolMaster.Description
+                        </th>
+                        <th>
+                            @ResToolMaster.ToolCategory
+                        </th>
+                        <th>
+                            @ResToolMaster.Location
+                        </th>
+                        <th>
+                            @ResCommon.CreatedOn
+                        </th>
+                        <th>
+                            @ResCommon.UpdatedOn
+                        </th>
+                        <th>
+                            @ResCommon.UpdatedBy
+                        </th>
+                        <th>
+                            @ResCommon.CreatedBy
+                        </th>
+                        <th>
+                            @ResToolMaster.ToolImage
+                        </th>
+                        @if (Model.CallingFromPageName == "RQ")
+                        {
+                            <th>
+                                @eTurns.DTO.ResItemMaster.RequiredDate
+                            </th>
+                        }
+                        <th>
+                            @eTurns.DTO.Resources.ResCommon.TechnicianList
+                        </th>
+
+                        @Html.RenderColumnsHeader("ToolMaster", typeof(eTurns.DTO.ResToolMaster), "Tool")
+                        @Html.RenderColumnsHeader("ToolCheckInOutHistory", typeof(eTurns.DTO.ResToolCheckInOutHistory), "")
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <br />
+
+            <div class="editorForm" style="width: 99%">
+                <input type="button" value="@ResCommon.Add" id="btnAddAllTool" class="CreateBtn" style="float: left;
+                margin-left: 15px; margin-top: 1px;" />
+                <input type="button" value="@ResCommon.Close" id="btnModelCancle" class="CreateBtn" style="float: left;
+                margin-left: 15px; margin-top: 1px;" />
+            </div>
+        </div>
+
+    </div>
+
+    @*</div>*@
+</div>
+<script language="javascript" type="text/javascript">
+    function AddTool(btn) {
+        //alert('hi ' + $(obj).parent().find('#ToolGUID').val());
+        var arrItems = new Array();
+
+        if (btn.id == 'btnAddTool') {
+            var isSave = true;
+            if ('@(Model.CallingFromPageName)' == "WO") {
+                var vTechnician = '';
+                var vTechGuid = '';
+                if ($("#chkUseToolModelCommonUDF").is(":checked")) {
+                    vTechnician = $("table#tblToolModelCommonUDF tbody").find("input#txtUseThisTechnician").val();
+                    vTechGuid = $('table#tblToolModelCommonUDF tbody').find('input#UseThisTechnicianGUID').val();
+                }
+                else {
+                    vTechnician = $(btn).parent().parent().find('input#txtTechnician').val();
+                    vTechGuid = $(btn).parent().parent().find('input#TechnicianGUID').val();
+                }
+
+                if (vTechnician.length <= 0 || vTechGuid.length <= 0) {
+                    isSave = false;
+                    showNotificationDialog();
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    $("#spanGlobalMessage").html('@ResToolMaster.ReqTechnician');
+                    return false;
+                }
+            }
+
+            if (isSave) {
+                var tr = $(btn).parent().parent();
+                var obj = GetObject(tr);
+                if (obj !== null && obj != false) {
+                    arrItems.push(obj);
+                }
+            }
+        }
+        else if (btn.id == 'btnAddAllTool') {
+            $('#tblToolsInModel tbody tr.row_selected').each(function (indx, tr) {
+                var obj = GetObject(tr);
+                if (obj !== null && obj != false) {
+                    arrItems.push(obj);
+                }
+            });
+        }
+        if (arrItems.length != undefined && arrItems.length > 0) {
+            $.ajax({
+                url: "@(Url.Content(Model.AjaxURLAddMultipleItemToSession))",
+                data: { 'para': JSON.stringify(arrItems) },
+                dataType: 'json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (json) {
+                    //
+                    if (btn.id == 'btnAddTool') {
+                        if (json.Status == "success" || json.Status == "ok" || json.Status == "Ok" || json.Status == "OK") {
+                            $(btn).parent().parent().find('#txtQty').val('');
+                            $('#tblToolsInModel').dataTable().fnDeleteRow($(btn).parent().parent());
+                            var successMessage = (json.Message);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('successIcon succesIcon');
+                            $("#spanGlobalMessage").html(successMessage);
+                            showNotificationDialog();
+                        }
+                        else if (json.Status == "fail" || json.Status == "Error") {
+                            //$(btn).parent().parent().find('#txtQty').val('');
+                            //$('#tblToolsInModel').dataTable().fnDeleteRow($(btn).parent().parent());
+                            var successMessage = (json.Message);
+                            $("#spanGlobalMessage").removeClass('successIcon succesIcon').addClass('errorIcon WarningIcon');
+                            $("#spanGlobalMessage").html(successMessage);
+                            showNotificationDialog();
+                            $(btn).removeAttr("disabled");
+                        }
+                    }
+                    else if (btn.id === 'btnAddAllTool') {
+                        $('#btnAddAll').removeAttr("disabled");
+
+                        if (json.Status == "success" || json.Status == "ok" || json.Status == "Ok" || json.Status == "OK") {
+                            $('#tblToolsInModel tbody tr.row_selected').each(function () {
+                                $(this).find('#txtQty').val('');
+                            });
+                            $('#tblToolsInModel').dataTable().fnDeleteRow($(btn).parent().parent());
+                            $(btn).removeAttr("disabled");
+
+                            var successMessage = (json.Message);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('successIcon succesIcon');
+                            $("#spanGlobalMessage").html(successMessage);
+                            showNotificationDialog();
+                        }
+                        else {
+                            var successMessage = (json.Message);
+                            if ('@(Model.CallingFromPageName)' == "WO") {
+                                successMessage = '';
+                                for (var i = 0; i < json.StatusMessage.length; i++) {
+                                    successMessage += '<br />' + json.StatusMessage[i];
+                                }
+                            }
+
+                            $("#spanGlobalMessage").removeClass('successIcon succesIcon').addClass('errorIcon WarningIcon');
+                            $("#spanGlobalMessage").html(successMessage);
+                            showNotificationDialog();
+                            $(btn).removeAttr("disabled");
+                            //$('#tblToolsInModel tbody tr.row_selected').each(function () {
+                            //    $(this).find('#txtQty').val('');
+                            //});
+                            //$('#tblToolsInModel').dataTable().fnDeleteRow($(btn).parent().parent());
+                            //$(btn).removeAttr("disabled");
+                        }
+                    }
+                    $('#DivLoading').hide();
+                },
+                error: function (xhr) {
+                    $('#DivLoading').hide();
+                    $(btn).removeAttr("disabled");
+                    $('#btnAddAll').removeAttr("disabled");
+                }, complete: function () {
+
+                }
+            });
+        }
+        else {
+            $("#DivLoading").hide();
+            $(btn).removeAttr("disabled");
+            $('#btnAddAll').removeAttr("disabled");
+        }
+    }
+
+    $('#btnAddAllTool').on('click', function (e) {
+        if ($('#tblToolsInModel tbody tr.row_selected').length > 0) {
+            if ('@(Model.CallingFromPageName)' == "RQ")
+                AddTool(this);
+            else if ('@(Model.CallingFromPageName)' == "WO") {
+                var vTechnician = '';
+                var vTechGuid = '';
+                if ($("#chkUseToolModelCommonUDF").is(":checked")) {
+                    vTechnician = $("table#tblToolModelCommonUDF tbody").find("input#txtUseThisTechnician").val();
+                    vTechGuid = $('table#tblToolModelCommonUDF tbody').find('input#UseThisTechnicianGUID').val();
+                }
+                if (vTechnician.length > 0 && vTechGuid.length > 0) {
+                    AddTool(this);
+                }
+                else {
+                    var isSave = true;
+                    $('#tblToolsInModel tbody tr.row_selected').each(function (i) {
+                        vTechnician = $(this).find('input#txtTechnician').val();
+                        vTechGuid = $(this).find('input#TechnicianGUID').val();
+                        if (vTechnician.length <= 0 || vTechGuid.length <= 0) {
+                            isSave = false;
+                            alert('@ResToolMaster.ReqTechnician');
+                            return false;
+                        }
+                    });
+                    if (isSave)
+                        AddTool(this);
+                }
+            }
+        }
+        else {
+            alert('@ResCommon.SelectRow');
+        }
+
+    });
+
+    $("#btnModelCancle").on('click', function () {
+        if ($('#divToolModel') != undefined && $('#divToolModel').length == 1 && $('#divToolModel').parent().css('display') == "block") {
+            $("#divToolModel").dialog('close');
+        }
+        else {
+            $('.ui-dialog-titlebar-close').click();
+        }
+        //CallThisFunctionFromModel('success');
+    });
+
+    function GetObject(tr) {
+
+        var txtQty = $(tr).find('#txtQty');
+        var Qty = parseFloat($(txtQty).val());
+        var IsQuantityValid = true;
+        var ConsignedQtyVal = 0;
+        var vTechnician = '';
+        var vTechGuid = '';
+
+        if (parseInt('@Model.PerentID') <= 0) {
+            IsQuantityValid = false;
+        }
+
+        if ((isNaN(parseFloat(Qty)) || parseFloat(Qty) <= 0)) {
+            $("#spanGlobalMessage").html('@ResItemMaster.QuantitygreaterthanZero');
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            showNotificationDialog();
+            $(txtQty).focus();
+            allowSubmit = false;
+            IsQuantityValid = false;
+        }
+
+
+        if (isNaN(parseFloat(Qty)) || parseFloat(Qty) <= 0)
+            Qty = 0;
+
+        if (isNaN(parseFloat(ConsignedQtyVal)) || parseFloat(ConsignedQtyVal) <= 0)
+            ConsignedQtyVal = 0;
+
+        if (IsQuantityValid == true) {
+            var toolGUID = $(tr).find('#ToolGUID').val();
+
+            var _RequiredDate = null;
+            if ('@(Model.CallingFromPageName)' == "RQ") {
+                if ($(tr).find("[id^='hdnRequiredDate_']") != null && $(tr).find("[id^='hdnRequiredDate_']") != undefined) {
+                    if ($(tr).find("[id^='hdnRequiredDate_']").datepicker('getDate') != null && $(tr).find("[id^='hdnRequiredDate_']").datepicker('getDate') != undefined) {
+                        var _RequiredDateTmp = $(tr).find("[id^='hdnRequiredDate_']").datepicker('getDate');
+                        _RequiredDate = null;
+                        if (_RequiredDateTmp != null && _RequiredDateTmp != undefined && _RequiredDateTmp.toString() != '') {
+                            _RequiredDateTmp = new Date(_RequiredDateTmp - (_RequiredDateTmp.getTimezoneOffset() * 60000));
+                            var RequiredDateDay = _RequiredDateTmp.getUTCDate();
+                            var RequiredDateMonth = _RequiredDateTmp.getUTCMonth() + 1;
+                            var RequiredDateYear = _RequiredDateTmp.getUTCFullYear();
+                            _RequiredDate = RequiredDateYear.toString()
+                                                 + '-' + (RequiredDateMonth.toString().length == 1 ? '0' + RequiredDateMonth.toString() : RequiredDateMonth.toString())
+                                                 + '-' + (RequiredDateDay.toString().length == 1 ? '0' + RequiredDateDay.toString() : RequiredDateDay.toString());
+                        }
+                    }
+                }
+            }
+
+            var vUDF1 = ''; var vUDF2 = ''; var vUDF3 = ''; var vUDF4 = ''; var vUDF5 = '';
+
+            var vCost = $(tr).find('#spnCost').text();
+            if (vCost == null || vCost == "null")
+                vCost = 0;
+
+            if ($("#chkUseToolModelCommonUDF").is(":checked")) {
+                vTechnician = $("table#tblToolModelCommonUDF tbody").find("input#txtUseThisTechnician").val();
+                vTechGuid = $('table#tblToolModelCommonUDF tbody').find('input#UseThisTechnicianGUID').val();
+
+                if ($("table#tblToolModelCommonUDF tbody").find("#UDF1ToolCommon") != null) {
+                    if ($("table#tblToolModelCommonUDF tbody").find("#UDF1ToolCommon").attr("class") == 'selectBox') {
+                        vUDF1 = $("table#tblToolModelCommonUDF tbody").find("#UDF1ToolCommon option:selected").text();
+                    }
+                    else {
+                        vUDF1 = $("table#tblToolModelCommonUDF").find("input#UDF1ToolCommon").val();
+                    }
+                }
+                if ($("table#tblToolModelCommonUDF tbody").find("#UDF2ToolCommon") != null) {
+                    if ($("table#tblToolModelCommonUDF tbody").find("#UDF2ToolCommon").attr("class") == 'selectBox') {
+                        vUDF2 = $("table#tblToolModelCommonUDF tbody").find("#UDF2ToolCommon option:selected").text();
+                    }
+                    else {
+                        vUDF2 = $("table#tblToolModelCommonUDF tbody").find("input#UDF2ToolCommon").val();
+                    }
+                }
+                if ($("table#tblToolModelCommonUDF tbody").find("#UDF3ToolCommon") != null) {
+                    if ($("table#tblToolModelCommonUDF tbody").find("#UDF3ToolCommon").attr("class") == 'selectBox') {
+                        vUDF3 = $("table#tblToolModelCommonUDF tbody").find("#UDF3ToolCommon option:selected").text();
+                    }
+                    else {
+                        vUDF3 = $("table#tblToolModelCommonUDF tbody").find("input#UDF3ToolCommon").val();
+                    }
+                }
+                if ($("table#tblToolModelCommonUDF tbody").find("#UDF4ToolCommon") != null) {
+                    if ($("table#tblToolModelCommonUDF tbody").find("#UDF4ToolCommon").attr("class") == 'selectBox') {
+                        vUDF4 = $("table#tblToolModelCommonUDF tbody").find("#UDF4ToolCommon option:selected").text();
+                    }
+                    else {
+                        vUDF4 = $("table#tblToolModelCommonUDF tbody").find("input#UDF4ToolCommon").val();
+                    }
+                }
+                if ($("table#tblToolModelCommonUDF tbody").find("#UDF5ToolCommon") != null) {
+                    if ($("table#tblToolModelCommonUDF tbody").find("#UDF5ToolCommon").attr("class") == 'selectBox') {
+                        vUDF5 = $("table#tblToolModelCommonUDF tbody").find("#UDF5ToolCommon option:selected").text();
+                    }
+                    else {
+                        vUDF5 = $("table#tblToolModelCommonUDF tbody").find("input#UDF5ToolCommon").val();
+                    }
+                }
+            }
+            else {
+                vTechnician = $(tr).find('input#txtTechnician').val();
+                vTechGuid = $(tr).find('input#TechnicianGUID').val();
+
+                if ($(tr).find("#UDF1") != null) {
+                    if ($(tr).find("#UDF1").attr("class") == 'selectBox') {
+                        vUDF1 = $(tr).find("#UDF1 option:selected").text();
+                    }
+                    else {
+                        vUDF1 = $(tr).find("#UDF1").val();
+                    }
+                }
+                if ($(tr).find("#UDF2") != null) {
+                    if ($(tr).find("#UDF2").attr("class") == 'selectBox') {
+                        vUDF2 = $(tr).find("#UDF2 option:selected").text();
+                    }
+                    else {
+                        vUDF2 = $(tr).find("#UDF2").val();
+                    }
+                }
+                if ($(tr).find("#UDF3") != null) {
+                    if ($(tr).find("#UDF3").attr("class") == 'selectBox') {
+                        vUDF3 = $(tr).find("#UDF3 option:selected").text();
+                    }
+                    else {
+                        vUDF3 = $(tr).find("#UDF3").val();
+                    }
+                }
+                if ($(tr).find("#UDF4") != null) {
+                    if ($(tr).find("#UDF4").attr("class") == 'selectBox') {
+                        vUDF4 = $(tr).find("#UDF4 option:selected").text();
+                    }
+                    else {
+                        vUDF4 = $(tr).find("#UDF4").val();
+                    }
+                }
+                if ($(tr).find("#UDF5") != null) {
+                    if ($(tr).find("#UDF5").attr("class") == 'selectBox') {
+                        vUDF5 = $(tr).find("#UDF5 option:selected").text();
+                    }
+                    else {
+                        vUDF5 = $(tr).find("#UDF5").val();
+                    }
+                }
+            }
+
+            if ('@(Model.CallingFromPageName)' == "RQ") {
+                if (vTechnician == TechnicianText) {
+                    vTechnician = "";
+                }
+
+                if (vTechnician.indexOf('-') >= 0) {
+                    if (vTechnician.split('-')[0].trim() == '') {
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        $("#spanGlobalMessage").html('@ResTechnician.MsgInvalidTechnician');
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $('#DivLoading').hide();
+                        return false;
+                    }
+                    if (vTechnician.indexOf(" --- ") >= 0) {
+                        var technicianNameArray = vTechnician.split(" --- ");
+                        var technicianName = technicianNameArray[0];
+                        var technicianCode = technicianNameArray[1];
+
+                        if ((technicianName !== undefined && technicianName != null && technicianName != '' && technicianName.indexOf("---") >= 0)
+                            || (technicianCode !== undefined && technicianCode != null && technicianCode != '' && technicianCode.indexOf("---") >= 0)) {
+
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            $("#spanGlobalMessage").html(msgInvalidTechnician);
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            $('#DivLoading').hide();
+                            return false;
+                        }
+                    }
+                    else {
+                        if ((vTechnician !== undefined && vTechnician != null && vTechnician != '' && vTechnician.indexOf("---") >= 0)) {
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            $("#spanGlobalMessage").html(msgInvalidTechnician);
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            $('#DivLoading').hide();
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            var DetailData = {};
+
+
+            if ('@(Model.CallingFromPageName)' == "RQ") {
+                DetailData = {
+                    "ToolGUID": toolGUID, "QuantityRequisitioned": Qty, 'RequisitionID': '@Model.PerentID', 'RequisitionGUID': '@Model.PerentGUID',
+                    "ItemCost": vCost, "RequiredDate": _RequiredDate, "ToolCheckoutUDF1": vUDF1, "ToolCheckoutUDF2": vUDF2, "ToolCheckoutUDF3": vUDF3,
+                    "ToolCheckoutUDF4": vUDF4, "ToolCheckoutUDF5": vUDF5, "TechnicianGUID": vTechGuid, 'Technician': vTechnician, RequiredDate: _RequiredDate, "Technician": vTechnician
+                };
+            }
+            else if ('@(Model.CallingFromPageName)' == "WO") {
+                DetailData = {
+                    "ToolGUID": toolGUID, "PulledQuantity": Qty, 'Quantity': Qty, 'ID': '@Model.PerentID', 'WorkOrderGUID': '@Model.PerentGUID',
+                    "ItemCost": vCost, "RequiredDate": _RequiredDate, "ToolCheckoutUDF1": vUDF1, "ToolCheckoutUDF2": vUDF2, "ToolCheckoutUDF3": vUDF3,
+                    "ToolCheckoutUDF4": vUDF4, "ToolCheckoutUDF5": vUDF5, "TechnicianGUID": vTechGuid, "Technician": vTechnician
+                };
+            }
+
+            return DetailData;
+        }
+
+        return null;
+    }
+
+    var lastCheckedNewItemPopup;
+    /* Cost Narrow Search Related Code  END */
+    $("#tblToolsInModel").on("tap click", "tbody tr", function (e) {
+        if (e.target.type == "checkbox" || e.target.type == "radio" || e.target.type == "text") {
+            e.stopPropagation();
+        } else {
+            if (!lastCheckedNewItemPopup) {
+                lastCheckedNewItemPopup = this;
+            }
+
+            if (e.shiftKey) {
+                var start = $('#tblToolsInModel tbody tr').index(this);
+                var end = $('#tblToolsInModel tbody tr').index(lastCheckedNewItemPopup);
+
+                for (i = Math.min(start, end) ; i <= Math.max(start, end) ; i++) {
+                    if (!$('#tblToolsInModel tbody tr').eq(i).hasClass('row_selected')) {
+                        $('#tblToolsInModel tbody tr').eq(i).addClass("row_selected");
+                    }
+                }
+                if (window.getSelection) {
+                    if (window.getSelection().empty) {  // Chrome
+                        window.getSelection().empty();
+                    } else if (window.getSelection().removeAllRanges) {  // Firefox
+                        window.getSelection().removeAllRanges();
+                    }
+                } else if (document.selection) {  // IE?
+                    document.selection.empty();
+                }
+            } else if ((e.metaKey || e.ctrlKey)) {
+                $(this).toggleClass('row_selected');
+            } else {
+                $(this).toggleClass('row_selected');
+            }
+
+            lastCheckedNewItemPopup = this;
+        }
+
+        var IsAddAllRequired = true;
+        $('#tblToolsInModel tbody tr').each(function () {
+            if ($(this).hasClass('row_selected')) {
+                var btnAddTool = $(this).find('#btnAddTool');
+                if (typeof (btnAddTool) != undefined && btnAddTool != null
+                    && btnAddTool.length > 0)
+                {
+                    if (!btnAddTool.is(":visible")) {
+                        IsAddAllRequired = false;
+                    }
+                }
+            }
+        });
+
+        if (!IsAddAllRequired) {
+            $("#btnAddAllTool").hide();
+        }
+        else {
+            $("#btnAddAllTool").show();
+        }
+
+        return false;
+    });
+    $('#ColumnOrderSetupIM').on('click', function () {
+        $("#ColumnSortableModalIM").dialog("open");
+        $('div#ColumnSortableModalIM').css('height', '410px');
+        return false;
+    });
+
+    function GenerateColumnSortableIM() {
+        $('#ColumnSortableIM li').each(function (index) {
+            $(this).remove();
+        });
+        var div = document.createElement('div');
+        div.id = "CheckAll";
+
+        div.innerHTML = "<input type='hidden' value ='ColumnSortableIM' id='hiddenDivName' /><a href='javascript:;' onclick='CheckAll(this);'  id='CheckAll' >CheckAll</a>&nbsp;<a href='javascript:;' onclick='UnCheckAll(this);' id='UnCheckAll' >UnCheckAll</a>" +
+                        "&nbsp;&nbsp;&nbsp;<input type='checkbox' onclick='ShowAllHidden(this);' id='ShowAllHidden' checked='checked' />Show All Hidden";
+        $('div.sortableContainer').find("div#CheckAll").remove();
+        $('div.sortableContainer').prepend(div);
+
+        for (i = 0, iLen = $('#tblToolsInModel').dataTable().fnSettings().aoColumns.length; i < iLen; i++) {
+            var oColumn = $('#tblToolsInModel').dataTable().fnSettings().aoColumns[i];
+            var li = document.createElement('li');
+            li.id = GetColumnIndex1(oColumn.sTitle.trim());
+
+            li.innerHTML = oColumn.sTitle.trim();
+            var LiClassName = 'ui-state-default'
+            if (oColumn.sClass.indexOf('NotHide') >= 0) {
+                LiClassName = LiClassName + ' HiddenLi';
+            }
+            li.className = LiClassName;
+
+            //WI - 1663 change
+            if (oColumn.sTitle.trim() == "Qty" && '@Model.CallingFromPageName.Contains("MOVEMTR")' == 'True') {
+
+            }
+            else {
+                if (oColumn.sClass.indexOf('NotHide') >= 0) {
+                    li.innerHTML = '<input type="checkbox" class="checkBox" checked="checked" id="' + GetColumnIndex1(oColumn.sTitle.trim()) + '_" disabled="disabled" />' + oColumn.sTitle.trim();
+                }
+                else {
+                    if (oColumn.bVisible) {
+                        li.innerHTML = '<input type="checkbox" class="checkBox" checked="checked" id="' + GetColumnIndex1(oColumn.sTitle.trim()) + '_" />' + oColumn.sTitle.trim();
+                    }
+                    else
+                        li.innerHTML = '<input type="checkbox" class="checkBox" id="' + GetColumnIndex1(oColumn.sTitle.trim()) + '_" />' + oColumn.sTitle.trim();
+                }
+
+                $('#ColumnSortableIM').append(li);
+            }
+        }
+    }
+
+
+    var GetColumnIndex1 = function (ColumnName) {
+        return objToolListModelColumns[ColumnName];
+    };
+
+    function UpdateColumnOrderIM(_ListName) {
+        //alert('tool ');
+        var _Order = $('#ColumnSortableIM').sortable("toArray");
+        var __Order = _Order.toString().split(",");
+        for (var i = 0; i < __Order.length; i++) {
+            __Order[i] = parseInt(__Order[i], 10);
+        }
+        $('#tblToolsInModel').dataTable().fnSettings().oLoadedState.ColReorder = __Order;
+
+        var _abVisCols = [];
+        for (i = 0, iLen = $('#tblToolsInModel').dataTable().fnSettings().aoColumns.length; i < iLen; i++) {
+            //var checked = $("#" + i + "_").is(":checked");
+            var checked = $('#ColumnSortableIM').find('input.checkBox[id="' + i + '_"]').is(":checked");
+            _abVisCols.push(checked);
+        }
+
+        $('#tblToolsInModel').dataTable().fnSettings().oLoadedState.abVisCols = _abVisCols;
+
+        $.ajax({
+            "url": '@Url.Content("~/Master/SaveGridState")',
+            data: { Data: JSON.stringify($('#tblToolsInModel').dataTable().fnSettings().oLoadedState), ListName: 'ToolListInModel' },
+            "dataType": "json",
+            'cache': false,
+            "async": false,
+            "type": "POST",
+            "success": function (json) {
+                o = json;
+                $("#ColumnSortableModalIM").dialog("close");
+                $("#divToolModel").dialog("close");
+                OpenToolPopup();
+            }
+        });
+    }
+
+
+    function fnFilterGlobalIM() {
+        if (typeof $("#ToolModel_filter") != 'undefined' && ($("#ToolModel_filter").val().length > 2 || $("#ToolModel_filter").val().length == 0)) {
+            bIsTMFilter = true;
+            var searchtext = $("#ToolModel_filter").val().replace(/'/g, "''");
+
+            DoNarrowSearchTool();
+        }
+        else {
+            $('#tblToolsInModel td').removeHighlight();
+            $('#tblToolsInModel td').highlight($("#ToolModel_filter").val());
+        }
+    }
+
+    $('#PageNumberIM').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#GobtnIM").click();
+            return false;
+        }
+    });
+
+    $("#GobtnIM").click(function () {
+        var pval = $('#PageNumberIM').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+
+        if (pval == 0)
+            return;
+
+        $('#tblToolsInModel').dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumberIM').val('');
+    });
+</script>

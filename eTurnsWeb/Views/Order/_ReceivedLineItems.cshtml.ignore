@@ -1,0 +1,165 @@
+﻿@model IEnumerable<eTurns.DTO.ItemLocationDetailsDTO>
+<script src="~/Scripts/DynemicDataTable.js" type="text/javascript"></script>
+<div class="innerGrid" style="background: none repeat scroll 0 0 #F8F8F8; padding: 10px 0 0 28px">
+    <table style="width: 100%;">
+        <tr>
+            <td class="BtnBlock" style="float: none; border: 1px solid #F8F8F8; height: 2px;">
+                <div class="innerHeadSec">
+                    <div style="position: absolute; left: 470px; top: -11px; width: 350px; z-index: 10;">
+                        <a href="javascript:void(null);" onclick="DeleteInnerGridTableData();" title="@ViewBag.ItemGUID" id="btnDeleteRecords">
+                            <img src="~/Content/images/delete.png" alt="" />
+                        </a>
+                        <input type="button" id="InnerGridGobtn" class="go" value=@eTurns.DTO.Resources.ResGridHeader.Go />
+                        <input type="text" id="InnerGridPageNumber" class="inputNum" />
+                        <span class="label">@eTurns.DTO.Resources.ResGridHeader.GoToPage</span>
+                    </div>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding-top: 14px; padding-bottom: 35px; border: 1px solid #F8F8F8;">
+                <div class="userContentInnerGrid">
+                    <table id="ItemLocationTable@(ViewBag.ItemGUID)" class="display">
+                        <thead>
+                            <tr>
+                                <th>
+                                    @eTurns.DTO.ResBin.BinNumber
+                                </th>
+                                <th>@eTurns.DTO.ResItemLocationDetails.SerialNumber
+                                </th>
+                                <th>@eTurns.DTO.ResItemLocationDetails.LotNumber
+                                </th>
+                                <th>@eTurns.DTO.ResItemLocationDetails.ExpirationDate
+                                </th>
+                                <th>@eTurns.DTO.ResItemLocationDetails.ReceivedDate
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.CustomerOwnedQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.ConsignedQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.Cost
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.Created
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.Updated
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<div class="dialog" id="ReceivedOrderInnerGrid" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm</p>
+        <a href="JavaScript:void(0)" id="btnYesReceiveOrderInnerGrid" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes</a><a href="javascript:void(0)" class="no"
+                onclick="closeModal()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo</a>
+    </div>
+</div>
+<script type="text/javascript">
+
+    var ItemUniqueGUID = '';
+    ItemUniqueGUID = '@ViewBag.ItemGUID';
+    OrderDetailGUID = '@ViewBag.OrderDetailGUID';
+
+    $(function (event) {
+        var ColumnObjectInnerGrid = new Array();
+        ColumnObjectInnerGrid.push({ mDataProp: "BinNumber", sClass: "read_only" });
+        ColumnObjectInnerGrid.push({ mDataProp: "SerialNumber", sClass: "read_only" });
+        ColumnObjectInnerGrid.push({ mDataProp: "LotNumber", sClass: "read_only" });
+        ColumnObjectInnerGrid.push({ mDataProp: "ExpirationDate", sClass: "read_only" });
+        ColumnObjectInnerGrid.push({ mDataProp: "Received", sClass: "read_only" });
+        ColumnObjectInnerGrid.push({ mDataProp: "CustomerOwnedQuantity", sClass: "read_only" });
+        ColumnObjectInnerGrid.push({ mDataProp: "ConsignedQuantity", sClass: "read_only" });
+        ColumnObjectInnerGrid.push({ mDataProp: "Cost", sClass: "read_only" });
+        ColumnObjectInnerGrid.push({ mDataProp: "Created", sClass: "read_only", fnRender: function (obj, val) { return "<input type='hidden' name='hdnGUID' value='" + obj.aData.GUID + "' />" + obj.aData.CreatedDate; } });
+        ColumnObjectInnerGrid.push({ mDataProp: "Updated", sClass: "read_only", fnRender: function (obj, val) { return obj.aData.UpdatedDate; } });
+
+        PrepareItemLocationDataTable("ItemLocationTable", ItemUniqueGUID, '@Url.Content("~/Inventory/ItemLocationsListAjax")', 'ReceivedItemLocationList', ColumnObjectInnerGrid);
+
+     
+    });
+
+    $('#ItemLocationTable' + ItemUniqueGUID + ' tbody tr ').die('live');
+    $('#ItemLocationTable' + ItemUniqueGUID + ' tbody tr ').live('touchstart click', function () {
+        $(this).toggleClass('row_selected');
+        return false;
+    });
+    function DeleteInnerGridTableData() {
+        var anSelectedLocation = fnGetSelected(oTableGlobalTABLE);
+        if (anSelectedLocation.length !== 0) {
+            $('#ReceivedOrderInnerGrid').modal();
+        }
+    }
+
+
+
+    $("#btnYesReceiveOrderInnerGrid").click(function () {
+
+        var anSelectedLocation = fnGetSelected(oTableGlobalTABLE);
+
+        var stringIDs = "";
+        for (var i = 0; i <= anSelectedLocation.length - 1; i++) {
+            //stringIDs = stringIDs + anSelectedLocation[i].id + ",";
+            stringIDs = stringIDs + $(anSelectedLocation[i]).find("input[type='hidden'][name='hdnGUID']").val() + ",";
+        }
+
+        if (anSelectedLocation.length !== 0) {
+            $.ajax({
+                'url': '@Url.Content("~/Order/DeleteRecieveAndUpdateReceivedQty")',
+                'data': { 'ItemGUID': ItemUniqueGUID, 'ordDetailGUID': OrderDetailGUID, 'deleteIDs': stringIDs },
+                'async': false,
+                'cache': false,
+                'dataType': 'text',
+                'success': function (response) {
+                    closeModal();
+                    if (response == "ok") {
+
+                        for (var i = 0; i <= anSelectedLocation.length - 1; i++) {
+                            oTableGlobalTABLE.fnDeleteRow(anSelectedLocation[i]);
+                        }
+                        if (anSelectedLocation.length > 0)
+                            $("#spanGlobalMessage").text("Record(" + anSelectedLocation.length + ") deleted successfully.");
+
+                        UpdateReceiveQty(OrderDetailGUID);
+                        oTableGlobalTABLE.fnDraw();
+                        showNotificationDialog();
+                    }
+
+                },
+                'error': function (err) {
+
+                }
+            });
+        }
+    });
+
+    
+</script>
+<script type="text/javascript">
+    var objColumnsLocation = {
+        '@MvcHtmlString.Create(eTurns.DTO.ResBin.BinNumber)': 0,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.SerialNumber)': 1,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.LotNumber)': 2,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.ExpirationDate)': 3,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.ReceivedDate)': 4,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.CustomerOwnedQuantity)': 5,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.ConsignedQuantity)': 6,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.Cost)': 7,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.Created)': 8,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.Updated)': 9
+    };
+</script>

@@ -1,0 +1,400 @@
+﻿@model eTurns.DTO.OrderMasterDTO
+@{
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplayDeleteButton = true, DisplaySaveButton = false, DisplayPrintBlock = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = false, DisplayColumnSetupButton = false, ColumnSetupFor = "OrderLineItem", DisplayContextMenu = false };
+    bool isApproveLineItem = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OrderApproval, eTurnsWeb.Helper.SessionHelper.PermissionType.Approval);             
+}
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="QLItem_filter" />
+                        <a href="" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_QLItem_filter" /></a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Orders)
+            <div class="userContent11" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="OrderLineItem@(Model.ID)" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.Bin
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.RequestedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.RequiredDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.ReceivedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.PackageQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MinimumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MaximumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.GLAccountID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Cost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Markup
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SellPrice
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ManufacturerID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ManufacturerNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SupplierID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SupplierPartNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.UOMID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnOrderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.InTransitquantity
+                            </th>
+                            @Html.RenderColumnsHeader("ItemMaster", typeof(eTurns.DTO.ResItemMaster))
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <input type="text" class="myDatePicker" value="" id="hiddenDatePicker" style="display: none" />
+    <div class="dialog" id="mdlQLYesNo" style="display: none;">
+        <div class="inner">
+            <p class="text">
+                @eTurns.DTO.Resources.ResMessage.DeleteConfirm</p>
+            <a href="JavaScript:void{}" id="btnQLModelYes" class="yes">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes</a><a href="javascript:void(0)" class="no"
+                    onclick="QLcloseModal()">
+                    <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo</a>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var isHistoryRec = false;
+    $(document).ready(function () {
+        $('.myDatePicker').datepicker({ dateFormat: 'm/d/yy' });
+    });
+
+
+    var ItemUniqueID = '@Model.ID';
+    $(function (event) {
+
+        var ColumnObject = new Array();
+        ColumnObject.push({ mDataProp: "ID", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "ItemNumber", sClass: "read_only", fnRender: function (obj, val) {
+            return "<span id='spnItemNummber'>" + obj.aData.ItemNumber + "</span>" + "<span id='spnID'  style='display:none'>" + obj.aData.ID + "</span>" + "<span id='spnOrderItemID'  style='display:none'>" + obj.aData.ItemID + "</span>";
+        } 
+        });
+        ColumnObject.push({ mDataProp: "BinName", sClass: "read_only",
+            fnRender: function (obj, val) {
+                $.ajax({
+                    "url": '@Url.Content("~/Master/GetDropDownList")',
+                    data: { ID: obj.aData.ID, PageName: 'OrderItemBinList', SelectedID: obj.aData.Bin },
+                    "async": false,
+                    cache: false,
+                    "dataType": "text",
+                    "success": function (json) {
+                        if (obj.aData.IsHistory === true) {
+                            json = json.replace("<select ", "<select disabled='disabled' ");
+                        }
+                        else if ('@Model.OrderStatus' != 0 && '@Model.OrderStatus' != 2) {
+                            json = json.replace("<select ", "<select disabled='disabled' ");
+                        }
+                        else if ('@Model.OrderStatus' == 2 && '@isApproveLineItem' == 'False') {
+                            json = json.replace("<select ", "<select disabled='disabled' ");
+                        }
+
+
+                        sOut = json;
+                        $('#DivLoading').hide();
+                    },
+                    error: function (response) {
+                    }
+                });
+                return sOut;
+            }
+        });
+        ColumnObject.push({ mDataProp: "RequestedQuantity", sClass: "read_only", fnRender: function (obj, val) {
+
+            if (obj.aData.IsHistory === true) {
+
+                return "<input id='txtQuentity' disabled='disabled' onkeydown='return testKey(event,this);' type='text' value='" + val + "'/>";
+            }
+            else if ('@Model.OrderStatus' != 0 && '@Model.OrderStatus' != 2) {
+                return "<input id='txtQuentity' disabled='disabled' onkeydown='return testKey(event,this);' type='text' value='" + val + "'/>";
+            }
+            else if ('@Model.OrderStatus' == 2 && '@isApproveLineItem' == 'False') {
+                return "<input id='txtQuentity' disabled='disabled' onkeydown='return testKey(event,this);' type='text' value='" + val + "'/>";
+            }
+            else {
+                return "<input id='txtQuentity' onkeydown='return testKey(event,this);' type='text' value='" + val + "'/>";
+            }
+        }
+        });
+        ColumnObject.push({ mDataProp: "RequiredDate", fnRender: function (obj, val) {
+
+            if (obj.aData.IsHistory === true) {
+                isHistoryRec = true;
+                return "<input type='text'  disabled='disabled' class='myDatePicker' value='" + GetDateMMDDYYYYFormat(val) + "' id='hiddenDatePicker" + obj.aData.ItemID + "' />";
+            }
+            else if ('@Model.OrderStatus' != 0 && '@Model.OrderStatus' != 2) {
+                return "<input type='text' onchange='return UpdateDataOnServer(this);' disabled='disabled' class='myDatePicker' value='" + GetDateMMDDYYYYFormat(val) + "' id='hiddenDatePicker" + obj.aData.ItemID + "' />";
+            }
+            else if ('@Model.OrderStatus' == 2 && '@isApproveLineItem' == 'False') {
+                return "<input type='text' onchange='return UpdateDataOnServer(this);' disabled='disabled' class='myDatePicker' value='" + GetDateMMDDYYYYFormat(val) + "' id='hiddenDatePicker" + obj.aData.ItemID + "' />";
+            }
+            else {
+                return "<input type='text' onchange='return UpdateDataOnServer(this);' class='myDatePicker' value='" + GetDateMMDDYYYYFormat(val) + "' id='hiddenDatePicker" + obj.aData.ItemID + "' />";
+            }
+        }
+        });
+        ColumnObject.push({ mDataProp: "ReceivedQuantity", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "PackageQuantity", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "MinimumQuantity", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "MaximumQuantity", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "GLAccount", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "Cost", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "Markup", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "SellPrice", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "Manufacturer", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "ManufacturerNumber", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "Supplier", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "SupplierPartNo", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "Description", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "UOM", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "OnOrderQuantity", sClass: "read_only" });
+        ColumnObject.push({ mDataProp: "InTransitquantity", sClass: "read_only" });
+        @Html.RenderColumnsArrayCommon("ItemMaster", "Item")
+
+
+
+        var GridUpdate = {
+            fnShowError: function (errorText, action) { },
+            sUpdateURL: function (value, settings) {
+                $.ajax({ url: '@Url.Content("~/Order/UpdateOrderLineItem")'
+                                        , type: 'POST'
+                                        , cache: false
+                                        , data: { 'ItemID': '0', 'value': value, 'ColumnToUpdated': 'Q' }
+                                        , success: function (result) {
+
+                                        }
+                                        , error: function (xhr) {
+                                            alert(xhr);
+                                        }
+                });
+            }
+        };
+
+        PrepareDataTable("OrderLineItem", ItemUniqueID, '@Url.Content("~/Order/GetOrderLineItems")', 'OrderLineItem', ColumnObject, '@Url.Content("~/Order/DeleteOrderLineItem")');
+
+
+    });
+
+    function testKey(e, obj) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            UpdateDataOnServer(obj);
+            return false;
+        }
+         else if (code > 95 && code < 106) {
+        }
+        else if (code > 31 && (code < 48 || code > 57)) {
+            return false;
+        }
+    }
+
+    function UpdateDataOnServer(obj) {
+        $('#DivLoading').show();
+
+        var type = '';
+        if (obj.id == 'BinID')
+            type = 'Bin';
+        else if (obj.id == 'txtQuentity')
+            type = 'Qty';
+        else if ($(obj).attr('class') == 'myDatePicker hasDatepicker')
+            type = 'RQDate';
+        else {
+            $('#DivLoading').hide();
+            return;
+        }
+
+        var itemID = $(obj).parent().parent().find('#spnOrderItemID').text();
+
+        $.ajax({
+            url: '@Url.Content("~/Order/UpdateOrderLineItem")'
+             , type: 'POST'
+             , cache: false
+             , data: { 'ItemID': itemID, 'value': $(obj).val(), 'ColumnToUpdated': type }
+             , success: function (result) {
+                 $('#DivLoading').hide();
+             }
+             , error: function (xhr) {
+                 alert(xhr);
+             }
+        });
+    }
+
+
+
+    function CallThisFunctionFromModel(msg) {
+        if (msg == 'success') {
+            $("#" + "OrderLineItem" + ItemUniqueID).DataTable().fnDraw();
+
+            $('#' + 'OrderLineItem' + ItemUniqueID).delegate(".myDatePicker", "focusin", function () {
+                $(this).datepicker({ dateFormat: 'm/d/yy' });
+            });
+        }
+        else if (msg.Status == 'fail') {
+            alert(json.Message);
+            return false;
+        }
+    }
+
+  
+</script>
+<script type="text/javascript">
+    var objColumns1 = {
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.ID)': 0,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.ItemNumber)': 1,
+        '@MvcHtmlString.Create(eTurns.DTO.ResOrder.RequestedQuantity)': 2,
+        '@MvcHtmlString.Create(eTurns.DTO.ResOrder.RequiredDate)': 3,
+        '@MvcHtmlString.Create(eTurns.DTO.ResOrder.ReceivedQuantity)': 4,
+        '@MvcHtmlString.Create(eTurns.DTO.ResOrder.PackageQuantity)': 5,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.MinimumQuantity)': 6,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.MaximumQuantity)': 7,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.GLAccountID)': 8,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.Cost)': 9,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.Markup)': 10,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.SellPrice)': 11,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.ManufacturerID)': 12,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.ManufacturerNumber)': 13,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.SupplierID)': 14,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.SupplierPartNo)': 15,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.Description)': 16,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.UOMID)': 17,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.OnOrderQuantity)': 18,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.InTransitquantity)': 19,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.UDF1)': 20,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.UDF2)': 21,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.UDF3)': 22,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.UDF4)': 23,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemMaster.UDF5)': 25
+    };
+     
+
+</script>
+<script>
+    $(function () {
+        if ('@Model.OrderStatus' == 0) {
+            $('#' + 'OrderLineItem' + ItemUniqueID).delegate(".myDatePicker", "focusin", function () {
+                $(this).datepicker({ dateFormat: 'm/d/yy' });
+            });
+        }
+
+        if ('@Model.OrderStatus' != 0 && '@Model.OrderStatus' != 2) {
+            $('#deleteRows1').attr('disabled', 'disabled');
+        }
+        else if ('@Model.IsHistory' == 'False' && '@Model.OrderStatus' == 2 && '@isApproveLineItem' == 'False') {
+            $('#deleteRows1').attr('disabled', 'disabled');
+        }
+        else if ('@Model.IsHistory' == 'True') {
+            $('#OrderLineItem' + ItemUniqueID + ' tbody tr').live('touchstart click', function () {
+                $(this).toggleClass('row_selected');
+                return false;
+            });
+
+            $('#deleteRows1').attr('style', 'display:none');
+
+        }
+        $('#DivLoading').hide();
+    });
+
+
+
+    $('#deleteRows1').click(function () {
+        if ('@Model.OrderStatus' == 0 && !isHistoryRec) {
+            var anSelected = fnGetSelected1(oTableGlobalTABLE);
+            var stringIDs = "";
+            for (var i = 0; i <= anSelected.length - 1; i++) {
+                stringIDs = stringIDs + $(anSelected[i]).find('#spnOrderItemID').text() + ",";
+            }
+            if (anSelected.length !== 0) {
+                $('#mdlQLYesNo').modal();
+                IsDeletePopupOpen1 = true;
+            }
+        }
+    });
+
+    $("#btnQLModelYes").click(function () {
+        var anSelected = fnGetSelected1(oTableGlobalTABLE);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            stringIDs = stringIDs + $(anSelected[i]).find('#spnOrderItemID').text() + ",";
+        }
+        if (anSelected.length !== 0) {
+
+            $.ajax({ 'url': oTableDeleteURL,
+                data: { ids: stringIDs },
+                success: function (response) {
+                    if (response == "ok") {
+                        for (var i = 0; i <= anSelected.length - 1; i++) {
+                            oTableGlobalTABLE.fnDeleteRow(anSelected[i]);
+                        }
+
+                        if (anSelected.length > 0)
+                            $("#spanGlobalMessage").html("@ResCommon.RecordDeletedSuccessfully".replace("{0}","(" + anSelected.length + ")"));
+
+
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(2000).fadeOut(200);
+                    }
+                },
+                error: function (response) {
+                }
+            });
+            QLcloseModal();
+            IsDeletePopupOpen1 = false;
+        }
+    });
+      
+ 
+</script>

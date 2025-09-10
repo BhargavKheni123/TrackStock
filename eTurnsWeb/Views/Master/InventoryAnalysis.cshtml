@@ -1,0 +1,877 @@
+﻿@model DashboardParameterDTO
+@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    ViewBag.Title = ResInventoryAnalysis.PageTitle;
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "Dashboard" };
+    long[] arrorder = ViewBag.arrOrderWidget;
+    double InventoryVal = 0;
+    double Turns = 0;
+    double MTDSO = 0;
+    double YTDSO = 0;
+    double lblOptimizedInvValueUsesQOHofAvgCalcdMinMax = 0;
+    double lblOptimizedInvValueChange = 0;
+    double lblTrialCalcInvValueUsesQOHofAvgTrialMinMax = 0;
+    double lblTrialInvValueChange = 0;
+    long ItemsCount = 0;
+    long ItemsLocationCount = 0;
+    long ItemsStockOutCount = 0;
+    long ItemsWithOutCostCount = 0;
+    long ItemsTuningUpdateSettingCount = 0;
+    double lblAnnualCarryingCostPercent = 0;
+    string numberFormte = "N";
+    string priceFormte = "N";
+
+    if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.NumberAvgDecimalPoints))
+    {
+        numberFormte += eTurnsWeb.Helper.SessionHelper.NumberAvgDecimalPoints;
+    }
+
+    if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits))
+    {
+        priceFormte += eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits;
+    }
+    var CurrencySymbol = eTurnsWeb.Helper.SessionHelper.CurrencySymbol;
+    string strInventoryVal = CurrencySymbol + "  " + InventoryVal.ToString(priceFormte, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+    string strExtendedCostVal = CurrencySymbol + "  " + InventoryVal.ToString(priceFormte, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+    string strOptimizedInvValueUsesQOHofAvgCalcdMinMax = CurrencySymbol + "  " + lblOptimizedInvValueUsesQOHofAvgCalcdMinMax.ToString(numberFormte);
+    string strOptimizedInvValueChange = CurrencySymbol + "  " + lblOptimizedInvValueChange.ToString(numberFormte);
+    string strTrialCalcInvValueUsesQOHofAvgTrialMinMax = CurrencySymbol + "  " + lblTrialCalcInvValueUsesQOHofAvgTrialMinMax.ToString(numberFormte);
+    string strTrialInvValueChange = CurrencySymbol + "  " + lblTrialInvValueChange.ToString(numberFormte);
+    string strAnnualCarryingCostPercent = CurrencySymbol + "  " + lblAnnualCarryingCostPercent.ToString(priceFormte, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+    string strLargestAnnualCashSavings = CurrencySymbol + "  " + (Model != null ? Model.LargestAnnualCashSavings.ToString(priceFormte, eTurnsWeb.Helper.SessionHelper.RoomCulture) : 0.ToString(priceFormte, eTurnsWeb.Helper.SessionHelper.RoomCulture));
+    string strAnnualCashSavingsfromReducedCarryingCost = CurrencySymbol + "  " + 0.ToString(priceFormte, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+    int _decimalPointFromConfig = 0;
+    //System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(System.Web.HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    //_decimalPointFromConfig = Settinfile.Element("decimalPointFromConfig") != null ? Convert.ToInt32(Settinfile.Element("decimalPointFromConfig").Value) : 0;
+    _decimalPointFromConfig = eTurns.DTO.SiteSettingHelper.decimalPointFromConfig != string.Empty ? Convert.ToInt32(eTurns.DTO.SiteSettingHelper.decimalPointFromConfig) : 0;
+
+    //string ForWardDatesEnterpriseID = Settinfile.Element("ForWardDatesEnterpriseID") != null ? Convert.ToString(Settinfile.Element("ForWardDatesEnterpriseID").Value) : "";
+    string ForWardDatesEnterpriseID = eTurns.DTO.SiteSettingHelper.ForWardDatesEnterpriseID != string.Empty ? Convert.ToString(eTurns.DTO.SiteSettingHelper.ForWardDatesEnterpriseID) : "";
+
+    int _DisplayInventoryValueforReplenish = 0;
+    //_DisplayInventoryValueforReplenish = Settinfile.Element("DisplayInventoryValueforReplenish") != null ? Convert.ToInt32(Settinfile.Element("DisplayInventoryValueforReplenish").Value) : 0;
+    _DisplayInventoryValueforReplenish = eTurns.DTO.SiteSettingHelper.DisplayInventoryValueforReplenish != string.Empty ? Convert.ToInt32(eTurns.DTO.SiteSettingHelper.DisplayInventoryValueforReplenish) : 0;
+
+    List<SelectListItem> lstMeasureMentMethods = new List<SelectListItem>();
+    SelectListItem objSelectListItem = new SelectListItem();
+    objSelectListItem.Text = "Measurement Method";
+    objSelectListItem.Value = "0";
+    lstMeasureMentMethods.Add(objSelectListItem);
+    objSelectListItem = new SelectListItem();
+    objSelectListItem.Text = ResDashboard.MeasurementPullTransfer;
+    objSelectListItem.Value = "2";
+    lstMeasureMentMethods.Add(objSelectListItem);
+    objSelectListItem = new SelectListItem();
+    objSelectListItem.Text = ResDashboard.MeasurementOrders;
+    objSelectListItem.Value = "3";
+    lstMeasureMentMethods.Add(objSelectListItem);
+
+    SelectList lstmeasureMethods = new SelectList(lstMeasureMentMethods, "Value", "Text");
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    string ItemLocationsPeriodPullValueUsageTitle = ResDashboard.ItemLocationsPeriodPullValueUsage.Replace("[!Days of usage to sample to calculate average daily usage!]", Convert.ToString(Model.AUDayOfUsageToSample));
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL))
+{
+    <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/Dashboard/InventoryAnalysisBS.css")" />
+}
+else
+{
+    <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/Dashboard/InventoryAnalysis.css")" />
+}
+
+<div class="dashboardWrapper">
+    <h2>
+        @ResInventoryAnalysis.PageHeader
+    </h2>
+    <div class="viewBlock" style="float: right !important">
+        <a class="view" href="@Url.Action("DashboardParameters", "Master")" id="lnkShowPanel">
+            <img alt="" id="imgdashboardpara" src="@Url.Content("~/content/images/dashset.png")" />
+        </a>
+        <a class="view" href="javascript:void(0);" id="aOpenInventortyCarryingCost">
+            @ResInventoryAnalysis.InventortyCarryingCost
+        </a>
+    </div>
+    <div class="viewBlock" style="float: left; width: 100%;margin-top:5px;margin-bottom:5px;" id="dvInventoryAnalysis">
+        <table border="0" cellspacing="0" cellpadding="0" style="width:100%;">
+            <tr>
+                <td align="left" valign="top" width="150px">
+                    @ResDashboard.MeasurmentMethod
+                </td>
+                <td align="left" valign="top">
+                    @Html.DropDownListFor(model => model.MinMaxMeasureMethod, lstmeasureMethods.ToList(), new { @class = "bdr", @style = "width:125px;" })
+                </td>
+                <td align="left" valign="top" width="150px">
+                    @ResDashboard.DaysofUsagetoSample
+                </td>
+                <td align="left" valign="top">
+                    @Html.TextBoxFor(model => model.MinMaxDayOfUsageToSample, new { @class = "bdr", @style = "width:25px;", maxlength = 3 })
+                </td>
+                <td align="left" valign="top" width="100px">
+                    @ResDashboard.Minimum
+                </td>
+                <td align="left" valign="top">
+                    @Html.TextBoxFor(model => model.MinMaxDayOfAverage, new { @class = "bdr", @style = "width:25px;", maxlength = 3 })
+                </td>
+                <td align="left" valign="top" width="100px">
+                    @ResDashboard.MaximumMinimumx
+                </td>
+                <td align="left" valign="top">
+                    @Html.TextBoxFor(model => model.MinMaxMinNumberOfTimesMax, new { @class = "bdr", @style = "width:25px;", maxlength = 4 })
+                </td>
+                <td align="left" valign="top" width="150px">
+                    @ResDashboard.AnnualCarryingCostPercent
+                </td>
+                <td align="left" valign="top">
+                    @Html.HiddenFor(model => model.ID)
+                    @Html.HiddenFor(model => model.ParameterType)
+                    @Html.HiddenFor(model => model.MinMaxOptValue1)
+                    @Html.HiddenFor(model => model.MinMaxOptValue2)
+                    @Html.HiddenFor(model => model.LargestAnnualCashSavings)
+                    @Html.TextBoxFor(model => model.AnnualCarryingCostPercent, new { @class = "bdr", @style = "width:25px;", maxlength = 4 })
+                </td>
+                <td align="right" valign="top">
+                    <input type="button" style="margin-right: 70px;" value="@ResDashboard.Recalculate" name="btnRecalculateMinMaxFromDashboard"
+                           id="btnRecalculateMinMaxFromDashboard" class="recalculate" />
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div id="portlets">
+        <div style="-moz-user-select: none; min-height: 70px" class="columnfull">
+            @foreach (int item in arrorder)
+            {
+                if (item == 1)
+                {
+                    <div class="portlet ui-widget-content ui-helper-clearfix ui-corner-all" id="1">
+                        <div class="portlet-header ui-widget-header ui-corner-top" style="-moz-user-select: none;">
+                            <span class="forcolor">Chart and Slider</span><a class="closeEl ui-icon ui-icon-triangle-1-n"
+                                                                             href="#"></a>
+                        </div>
+                        <div class="portlet-content">
+                            <div id="dvChartsAndSlider">
+                                @if (ForWardDatesEnterpriseID.Contains(Convert.ToString(eTurnsWeb.Helper.SessionHelper.EnterPriceID)))
+                                {
+                                    <div style="float: right">
+                                        <input type="button" class="recalculate" value="@ResInventoryAnalysis.RegenerateData" name="btnRegenerateData"
+                                               id="btnRegenerateData" />
+                                        <input type="button" class="recalculate" value="@ResInventoryAnalysis.ForwardDate" name="btnForwardDate"
+                                               id="btnForwardDate" />
+                                        <input type="button" class="recalculate" value="@ResInventoryAnalysis.ResetMinMax" name="btnResetMinMax"
+                                               id="btnResetMinMax" />
+                                    </div>
+                                }
+                                <div class="dvpartialinventory">
+                                    <div class="maindivForTable">
+                                        <table class="mainTable" width=" 100%">
+                                            <tr>
+                                                <td colspan="2" style="text-align:center !important;padding: 5px;">
+                                                    @*<span class="TitleHeaderforcolor">Remove this cash now from inventory</span>*@
+                                                    <span class="TitleHeaderforcolor">@ResInventoryAnalysis.Removethiscashnowfrominventory</span>
+                                                </td>
+                                            </tr>
+                                            <tr id="trForInvneoryValue">
+                                                <td class="OddTD">
+                                                    @ResInventoryAnalysis.MinMaxTopLabelInvValue
+                                                </td>
+                                                <td class="EvenTD">
+                                                    <label id="lnkInventoryVal" style="color: inherit; font: inherit; vertical-align: inherit;">@strInventoryVal</label>
+                                                </td>
+                                            </tr>
+                                            <tr id="trForExtendedCost">
+                                                <td class="OddTD">
+                                                    @ResInventoryAnalysis.MinMaxTopLabelInvValue
+                                                </td>
+                                                <td class="EvenTD">
+                                                    <label id="lnkExtendedCostVal" style="color: inherit; font: inherit; vertical-align: inherit;">@strExtendedCostVal</label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="OddTD">
+                                                    @ResInventoryAnalysis.MinMaxTopLabelOptimizedInvValueUsesQOHofAvgCalcdMinMax
+                                                </td>
+                                                <td class="EvenTD">
+                                                    <label id="lblOptimizedInvValueUsesQOHofAvgCalcdMinMax" style="color: inherit; font: inherit; vertical-align: inherit;">@strOptimizedInvValueUsesQOHofAvgCalcdMinMax</label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="OddTD" style="padding-left:15px;">
+                                                    @ResInventoryAnalysis.MinMaxTopLabelOptimizedInvValueChange
+                                                </td>
+                                                <td class="EvenTD TDgreen">
+                                                    <label id="lblOptimizedInvValueChange" style="color: inherit; font: inherit; vertical-align: inherit;">@strOptimizedInvValueChange</label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="OddTD">
+                                                    @ResInventoryAnalysis.MinMaxTopLabelTrialCalcInvValueUsesQOHofAvgTrialMinMax
+                                                </td>
+                                                <td class="EvenTD">
+                                                    <label id="lblTrialCalcInvValueUsesQOHofAvgTrialMinMax" style="color: inherit; font: inherit; vertical-align: inherit;">@strTrialCalcInvValueUsesQOHofAvgTrialMinMax</label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="OddTD" style="padding-left:15px;">
+                                                    @ResInventoryAnalysis.MinMaxTopLabelTrialInvValueChange
+                                                </td>
+                                                <td class="EvenTD">
+                                                    <label id="lblTrialInvValueChange" style="color: inherit; font: inherit; vertical-align: inherit;">@strTrialInvValueChange</label>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    <div class="maindivForTable">
+                                        <table class="mainTable" width="100%">
+                                            <tr>
+                                                <td colspan="2" style="text-align:center !important;padding: 5px;">
+                                                    @*<span class="TitleHeaderforcolor">Save this cash every year</span>*@
+                                                    <span class="TitleHeaderforcolor">@ResInventoryAnalysis.Savethiscasheveryyear</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="OddTD">
+                                                    @ResDashboard.AnnualCarryingCostofInventoryValue
+                                                </td>
+                                                <td class="EvenTD">
+                                                    <label id="lblAnnualCarryingCostofInventoryValue" style="color: inherit; font: inherit; vertical-align: inherit;">@strAnnualCarryingCostPercent</label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="OddTD">
+                                                    @ResDashboard.ReductionOptimizedInvValue
+                                                </td>
+                                                <td class="EvenTD">
+                                                    <label id="lblReductionOptimizedInvValue" style="color: inherit; font: inherit; vertical-align: inherit;"></label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="OddTD">
+                                                    @ResDashboard.AnnualCashSavingsfromReducedCarryingCost
+                                                </td>
+                                                <td class="EvenTD TDgreen">
+                                                    <label id="lblAnnualCashSavingsfromReducedCarryingCost" style="color: inherit; font: inherit; vertical-align: inherit;"></label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="OddTD">
+                                                    @ResDashboard.LargestAnnualCashSavingsfromReducedCarryingCost
+                                                </td>
+                                                <td class="EvenTD">
+                                                    <label id="lblLargestAnnualCashSavingsfromReducedCarryingCost" style="color: inherit; font: inherit; vertical-align: inherit;">@strLargestAnnualCashSavings</label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="OddTD">
+                                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                                </td>
+                                                <td class="EvenTD">
+                                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div style="float: left; width: 100%;">
+                                    @{Html.RenderAction("ChartAndSlider", "Master");}
+                                </div>
+                                <div id="dvCalculatedCount" class="wrapper" style="padding-bottom: 10px; padding-left: 1px; clear:both;">
+                                    <div class="portlet ui-widget-content ui-helper-clearfix ui-corner-all" id="iditemstats">
+                                        <div class="portlet-header ui-widget-header ui-corner-top" style="-moz-user-select: none;text-align:left">
+                                            @*<span class="forcolor">Item Stats</span><a class="closeEl ui-icon ui-icon-triangle-1-n" href="#"></a>*@
+                                            <span class="forcolor">@ResInventoryAnalysis.ItemStats</span><a class="closeEl ui-icon ui-icon-triangle-1-n" href="#"></a>
+                                        </div>
+                                        <div class="portlet-content">
+                                            <div class="dvpartialinventory">
+                                                <div class="maindivForTable">
+                                                    <table class="mainTable" width="100%">
+                                                        <tr>
+                                                            <td class="OddTD" style="background-color: inherit !important">
+                                                                @ResDashboard.ItemsCount
+                                                            </td>
+                                                            <td class="EvenTD">
+                                                                <label id="lblItemsCount" style="color: inherit; font: inherit; vertical-align: inherit;">@ItemsCount</label>
+                                                                @Html.HiddenFor(model => model.ID, new { Id = "hdDashBoardParmID" })
+                                                                @Html.HiddenFor(model => model.LargestAnnualCashSavings, new { Id = "hdLargestAnnualCashSavings" })
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="OddTD">
+                                                                @ResDashboard.ItemLocationsCount
+                                                            </td>
+                                                            <td class="EvenTD">
+                                                                <label id="lblItemLocationsCount" style="color: inherit; font: inherit; vertical-align: inherit;">@ItemsLocationCount</label>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="OddTD">
+                                                                @ResDashboard.StockOutCount
+                                                            </td>
+                                                            <td class="EvenTD">
+                                                                <label id="lblStockOutCount" style="color: inherit; font: inherit; vertical-align: inherit;">@ItemsStockOutCount</label>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="OddTD">
+                                                                @ResDashboard.ItemsWithoutCostCount
+                                                            </td>
+                                                            <td class="EvenTD">
+                                                                <label id="lblItemsWithoutCostCount" style="color: inherit; font: inherit; vertical-align: inherit;">@ItemsWithOutCostCount</label>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="OddTD">
+                                                                @ResInventoryAnalysis.MinMaxTopLabelTurns
+                                                            </td>
+                                                            <td class="EvenTD">
+                                                                <label id="aTurns" style="color: inherit; font: inherit; vertical-align: inherit;">@(Turns)</label>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="OddTD">
+                                                                @ResInventoryAnalysis.MinMaxTopLabelMTDStockOuts
+                                                            </td>
+                                                            <td class="EvenTD">
+                                                                <label id="lnkMTDSO" style="color: inherit; font: inherit; vertical-align: inherit;">@MTDSO</label>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="OddTD">
+                                                                @ResInventoryAnalysis.MinMaxTopLabelYTDStockOuts
+                                                            </td>
+                                                            <td class="EvenTD">
+                                                                <label id="lnkYTDSO" style="color: inherit; font: inherit; vertical-align: inherit;">@YTDSO</label>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                                <div class="maindivForTable">
+                                                    <table class="mainTable" width="100%">
+                                                        <tr>
+                                                            <td class="OddTD" style="background-color: inherit">
+                                                                @ResDashboard.ItemLocationsPeriodOrderUsage
+                                                            </td>
+                                                            <td class="EvenTD">
+                                                                <label id="lblItemLocationsPeriodOrderUsage" style="color: inherit; font: inherit; vertical-align: inherit;"></label>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="OddTD">
+                                                                @ResDashboard.ItemLocationsPeriodPullUsage
+                                                            </td>
+                                                            <td class="EvenTD">
+                                                                <label id="lblItemLocationsPeriodPullUsage" style="color: inherit; font: inherit; vertical-align: inherit;"></label>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="OddTD">
+                                                                @ItemLocationsPeriodPullValueUsageTitle
+                                                            </td>
+                                                            <td class="EvenTD">
+                                                                <label id="lblItemLocationsPeriodPullValueUsage" style="color: inherit; font: inherit; vertical-align: inherit;"></label>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="OddTD">
+                                                                @ResDashboard.ItemsTuningUpdateSettingCount
+                                                            </td>
+                                                            <td class="EvenTD">
+                                                                <label id="lblItemsTuningUpdateSettingCount" style="color: inherit; font: inherit; vertical-align: inherit;">@ItemsTuningUpdateSettingCount</label>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                if (item == 2)
+                {
+                    <div class="portlet ui-widget-content ui-helper-clearfix ui-corner-all" id="2">
+                        <div class="portlet-header ui-widget-header ui-corner-top" style="-moz-user-select: none;">
+                            <span class="forcolor">@ResInventoryAnalysis.MinMaxTuning</span><a class="closeEl ui-icon ui-icon-triangle-1-n"
+                                                                                               href="#"></a>
+                        </div>
+                        <div class="portlet-content">
+                            <div id="dvMinMaxAnalysis">
+                                <div style="float: left; width: 100%;">
+                                    @{Html.RenderAction("MinMaxAnalysis", "Master");}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                @*if (item == 3)
+                    {
+                        <div class="portlet ui-widget-content ui-helper-clearfix ui-corner-all" id="3">
+                            <div class="portlet-header ui-widget-header ui-corner-top" style="-moz-user-select: none;">
+                                <span class="forcolor">Turns Analysis</span><a class="closeEl ui-icon ui-icon-triangle-1-n"
+                                                                               href="#"></a>
+                            </div>
+                            <div class="portlet-content">
+                                <div id="dvTurnsAnalysis">
+                                    <div style="float: left; width: 100%;">
+                                        @{Html.RenderAction("TurnsAnalysis", "Master");}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }*@
+            }
+        </div>
+    </div>
+</div>
+<div id="dvInventortyCarryingCost" style="display: none">
+    <img src="~/Content/images/DashboardInvnetoryCarryingCosts.png" alt="@ResInventoryAnalysis.InventortyCarryingCost" />
+</div>
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/jquery.slidepanel.js")"></script>
+    <script src="@Url.Content("~/Scripts/Dashboard/simple-slider.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/Dashboard/interface.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/dataTables.scroller.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/Dashboard/Dashboard.js")" type="text/javascript"></script>
+    <link href="@Url.Content("~/Content/simple-slider-volume.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/simple-slider.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/Dashboard/blue.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/dataTables.scroller.css")" rel="stylesheet" type="text/css" />
+    @if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL))
+    {
+        <link href="@Url.Content("~/Content/Dashboard/jquery.ui.themeBS.css")" rel="stylesheet" type="text/css" />
+    }
+    else
+    {
+        <link href="@Url.Content("~/Content/Dashboard/jquery.ui.theme.css")" rel="stylesheet" type="text/css" />
+    }
+    <link href="@Url.Content("~/Content/MultiSelect/jquery.multiselect.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/MultiSelect/jquery.multiselect.filter.css")" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/jquery.slidepanel.css")">
+    @*@Scripts.Render("~/bundles/AlertDashboard?v=" + version)
+        @Styles.Render("~/Content/AlertDashboardCss")*@
+    <script type="text/javascript">
+                var sImageUrl = "/Content/images/";
+                var vdecimalPointFromConfig = parseInt('@_decimalPointFromConfig');
+                var SelectedRawForSlider = [];
+                $(document).ready(function () {
+                    if ('@_DisplayInventoryValueforReplenish' == 1)
+                    {
+                        $("#trForInvneoryValue").show();
+                        $("#trForExtendedCost").hide();
+                    }
+                    else
+                    {
+                        $("#trForInvneoryValue").hide();
+                        $("#trForExtendedCost").show();
+                    }
+
+
+                    $("#lnkShowPanel").slidepanel({
+                        orientation: 'right', //default left, available: top, right, bottom, left
+                        mode: 'overlay', //default push, available: push, overlay
+                        static: false //default false, available: true, false
+                    });
+                    //var formatedturns = FormatedCostQtyValues('retVal[2]', 4)
+
+                    CallSlider();
+                    //            refreshChart("#MinSliderChart", "/Master/MinSliderChart");
+                    //            refreshChart("#MaxSliderChart", "/Master/MaxSliderChart");
+                    //            refreshChart("#ItemcategoryPieChart", "/Master/ItemcategoryPieChart");
+                    BindSecondDashboardEvents();
+
+                    @*var d = 'Turns : ' + FormatedCostQtyValues('retVal[2]', 4);
+            $('#aTurns').text(d);*@
+
+
+                    $("#dvMinMaxAnalysis").on("click", "#btnReset", function (evnt) {
+                        $.ajax({
+                            type: "POST",
+                            url: '@Url.Action("ResetMinMaxTuningGrid", "Master")',
+                            contentType: 'application/json',
+                            dataType: 'json',
+                            //                    data: "{ItemGUID:'" + aData.GUID + "',MinmumQuantity:'" + AutoCurrentMin + "',MaximumQuantity:'" + AutoCurrentMax + "'}",
+                            success: function (retdt) {
+                                if (typeof (oTableMinMaxTuning) != "undefined") {
+                                    $("#MinSlider").slider("value", 0);
+                                    $("#MaxSlider").slider("value", 0);
+                                    $("#maxSlideValue").text("0");
+                                    $("#minSlideValue").text("0");
+                                    $("div#MaxSlider a.ui-slider-handle").css({ left: "0 %" });
+                                    SelectedRawForSlider = [];
+                                    //                            oTableMinMaxTuning.fnDraw();
+                                }
+                            },
+                            error: function (err) {
+                                //                        alert("There is some Error");
+                            }
+                        });
+                    });
+
+
+                    $("#dvMinMaxAnalysis").on("click", "#btnApplyMinMaxOnSingle", function (evnt) {
+                        var curbtn = $(this);
+                        var aPos = oTableMinMaxTuning.fnGetPosition($(curbtn).parent()[0]);
+                        var aData = oTableMinMaxTuning.fnGetData(aPos[0]);
+                        var AutoCurrentMin = $(aData.AutoCurrentMin).text();
+                        var AutoCurrentMax = $(aData.AutoCurrentMax).text();
+
+
+                        $.ajax({
+                            type: "POST",
+                            url: '@Url.Action("SaveCalculatedMinMax", "Master")',
+                            contentType: 'application/json',
+                            dataType: 'json',
+                            data: "{ItemGUID:'" + aData.GUID + "',MinmumQuantity:'" + AutoCurrentMin + "',MaximumQuantity:'" + AutoCurrentMax + "'}",
+                            success: function (retdt) {
+                                if (typeof (oTableMinMaxTuning) != "undefined") {
+
+                                    $("#hdnminper").val(0);
+                                    $("#minSlideValue").text("0");
+                                    $("#MinSlider").slider("value", 0);
+                                    $("#hdnmaxper").val(0);
+                                    $("#maxSlideValue").text("0");
+                                    $("#MaxSlider").slider("value", 0);
+                                    $("div#MaxSlider a.ui-slider-handle").css({ left: 0 });
+
+                                    $('#DivLoading').hide();
+
+                                    $('div#target').fadeToggle();
+                                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                                    $("#spanGlobalMessage").html(retdt.Message);
+                                    $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                                    SelectedRawForSlider = [];
+                                    oTableMinMaxTuning.fnDraw();
+                                }
+                            },
+                            error: function (err) {
+                                alert("There is some Error");
+                            }
+                        });
+
+                    });
+                    $("#dvMinMaxAnalysis").on("click", "#btnApplyChanges", function (evnt) {
+                        $.ajax({
+                            type: "POST",
+                            url: '@Url.Action("SaveCalculatedMinMaxAll", "Master")',
+                            contentType: 'application/json',
+                            dataType: 'json',
+                            data: "{}",
+                            success: function (retdt) {
+                                if (typeof (oTableMinMaxTuning) != "undefined") {
+
+                                    $("#hdnminper").val(0);
+                                    $("#minSlideValue").text("0");
+                                    $("#MinSlider").slider("value", 0);
+                                    $("#hdnmaxper").val(0);
+                                    $("#maxSlideValue").text("0");
+                                    $("#MaxSlider").slider("value", 0);
+                                    $("div#MaxSlider a.ui-slider-handle").css({ left: 0 });
+
+                                    $('#DivLoading').hide();
+                                    $('div#target').fadeToggle();
+                                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                                    $("#spanGlobalMessage").html(retdt.Message);
+                                    $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                                    SelectedRawForSlider = [];
+                                    oTableMinMaxTuning.fnDraw();
+                                }
+                            },
+                            error: function (err) {
+                                alert("There is some Error");
+                            }
+                        });
+
+                    });
+
+                    $("#btnRecalculateMinMaxFromDashboard").click(function () {
+                        $('#DivLoading').show();
+                        $("input[type='hidden'][name='ParameterType']").val("3");
+                        $.post('@Url.Action("SaveDashboardParameters", "Master")', $("#dvInventoryAnalysis").find("select,input").serialize(), function (json) {
+                            $('#DivLoading').hide();
+                            window.location.reload();
+                        }, "json");
+                    });
+
+                    $("#btnForwardDate").click(function () {
+                        if (confirm("@ResInventoryAnalysis.AreYouWantforwaredPullAndStockOutDates")) {
+                            $('#DivLoading').show();
+                            $.post('@Url.Action("ForwardDatesofPDPForDistributorWarehouse", "Master")', function (json) {
+                                if (json) {
+                                    showNotificationDialog();
+                                    $("#spanGlobalMessage").html(json.Message);
+                                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                                }
+                                else {
+                                    $('#DivLoading').hide();
+                                    window.location.reload();
+                                }
+                            }, "json");
+                        }
+                    });
+
+                    $("#btnRegenerateData").click(function () {
+                        if (confirm("@ResInventoryAnalysis.AreYouWantRegenerateAllTheData")) {
+                            $('#DivLoading').show();
+                            $.post('@Url.Action("RegenerateDataofPDPForDistributorWarehouse", "Master")', function (json) {
+                                if (json) {
+                                    showNotificationDialog();
+                                    $("#spanGlobalMessage").html(json.Message);
+                                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                                }
+                                else {
+                                    $('#DivLoading').hide();
+                                    window.location.reload();
+                                }
+                            }, "json");
+                        }
+                    });
+
+                    $("#btnResetMinMax").click(function () {
+                        if (confirm("@ResInventoryAnalysis.AreYouWantResetMinMaxCriticalItems")) {
+                            $('#DivLoading').show();
+                            $.post('@Url.Action("ResetMinMaxCritDataofPDPForDistributorWarehouse", "Master")', function (json) {
+                                if (json) {
+                                    showNotificationDialog();
+                                    $("#spanGlobalMessage").html(json.Message);
+                                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                                }
+                                else {
+                                    $('#DivLoading').hide();
+                                    window.location.reload();
+                                }
+                            }, "json");
+                        }
+                    });
+
+                    $("#dvInventortyCarryingCost").dialog({
+                        autoOpen: false,
+                        modal: true,
+                        width: 860,
+                        title: '@ResInventoryAnalysis.InventortyCarryingCost',
+                        draggable: true,
+                        resizable: true,
+                        close: function () {
+                            $('#dvInventortyCarryingCost').dialog('close');
+                            return false;
+                        }
+                    });
+
+                    $('#aOpenInventortyCarryingCost').click(function (e) {
+                        e.preventDefault();
+                        $('#dvInventortyCarryingCost').dialog('open');
+                    });
+
+                    var itemstatstargetContent = $("#iditemstats").find('div.portlet-content');
+                    itemstatstargetContent.slideUp(300);
+                });
+                function BindSecondDashboardEvents() {
+                    $('a.closeEl').bind('click', toggleContent);
+                    $("div.columnfull").sortable(
+                    {
+                        helperclass: 'sortHelper',
+                        opacity: 0.5,
+                        activeclass: 'sortableactive',
+                        hoverclass: 'sortablehover',
+                        handle: 'div.portlet-header',
+                        tolerance: 'pointer',
+                        start: function (event, ui) {
+                        },
+                        change: function (event, ui) { },
+                        stop: function (event, ui) {
+                            var arraftersort = $(this).sortable("toArray");
+
+                        },
+                        update: function (event, ui) {
+                            var list = $(this).sortable("toArray").join(",");
+                            var widgetorder = "dtype=2&widgetorder=" + list;
+                            $.ajax({
+
+                                url: "/Master/SaveWidgetOrder?" + widgetorder,
+                                //url: "/Master/SaveWidgetOrder?",
+                                success: function () { },
+                                error: function (XMLHttpRequest, textStatus, errorThrown) {
+                                    alert(textStatus);
+                                }
+                            });
+                        }
+                    });
+
+                }
+
+                var toggleContent = function (e) {
+                    var targetContent = $('div.portlet-content', this.parentNode.parentNode);
+                    if (targetContent.css('display') == 'none') {
+                        targetContent.slideDown(300);
+                        $(this).removeClass('ui-icon-triangle-1-s').addClass('ui-icon-triangle-1-n');
+                    } else {
+                        targetContent.slideUp(300);
+                        $(this).removeClass('ui-icon-triangle-1-n').addClass('ui-icon-triangle-1-s');
+
+                    }
+                    return false;
+                };
+
+                function refreshChart(id, url) {
+                    $(id).fadeTo(1000, 0.15).attr("src", url + "?t=" + new Date().getTime()).fadeTo(1000, 1);
+                }
+
+                function CallSlider() {
+                    $("#MinSlider").slider({
+                        change: function (event, ui) {
+                            SelectedRawForSlider = [];
+                            $("#MinMaxTable").find("tbody tr.row_selected").each(function () {
+                                var SelectedRecodsID = $(this).find('#hdnItemGuid').val() + "~" + $(this).find('#hdnBinID').val();
+                                var index = -1;
+                                for (var i = 0; i < SelectedRawForSlider.length; ++i) {
+                                    if (SelectedRawForSlider[i] == SelectedRecodsID) {
+                                        index = i;
+                                        break;
+                                    }
+                                }
+                                if (index <= -1) {
+                                    SelectedRawForSlider.push(SelectedRecodsID);
+                                }
+                            });
+
+                            var OldMinPer = $("#hdnminper").val();
+                            var CurrentMinPer = ui.value.toFixed(0);
+                            $("#hdnminper").val(ui.value.toFixed(0));
+                            BlankSession();
+                            if (OldMinPer != CurrentMinPer) {
+                                $.ajax({
+                                    type: "POST",
+                                    url: '@Url.Action("InsertMinMaxActionAuditTrail", "Master")',
+                                    contentType: 'application/json',
+                                    dataType: 'json',
+                                    data: JSON.stringify({  UpdateMode: "Min Slider Change" }),
+                                    success: function (retdt) {
+                                    }
+                                });
+                            }
+                        },
+                        slide: function (event, ui) {
+                            //alert("min slide");
+                            var vMinval = parseInt(ui.value);
+                            var vMaxval = parseInt($("#maxSlideValue").text());
+                            $("#minSlideValue").text(ui.value);
+                            if (vMinval > vMaxval) {
+                                $("#hdnmaxper").val(ui.value.toFixed(0));
+                                $("#maxSlideValue").text(ui.value);
+                                $("div#MaxSlider a.ui-slider-handle").css({ left: "" + ui.value.toFixed(0) + "%" });
+                            }
+
+                        }
+                    });
+                    $("#MaxSlider").slider({
+                        change: function (event, ui) {
+                            SelectedRawForSlider = [];
+                            $("#MinMaxTable").find("tbody tr.row_selected").each(function () {
+                                var SelectedRecodsID = $(this).find('#hdnItemGuid').val() + "~" + $(this).find('#hdnBinID').val();
+
+                                var index = -1;
+                                for (var i = 0; i < SelectedRawForSlider.length; ++i) {
+                                    if (SelectedRawForSlider[i] == SelectedRecodsID) {
+                                        index = i;
+                                        break;
+                                    }
+                                }
+
+                                if (index <= -1) {
+                                    SelectedRawForSlider.push(SelectedRecodsID);
+                                }
+                            });
+
+                            var OldMaxPer = $("#hdnmaxper").val();
+                            var CurrentMaxPer = ui.value.toFixed(0);
+                            $("#hdnmaxper").val(ui.value.toFixed(0));
+                            var vMaxval = parseInt(ui.value);
+                            var vMinval = parseInt($("#minSlideValue").text());
+                            if (vMinval > vMaxval) {
+                                $("#hdnmaxper").val(vMinval);
+                                $("#maxSlideValue").text(vMinval);
+                                $("div#MaxSlider a.ui-slider-handle").css({ left: "" + vMinval + "%" });
+                            }
+                            BlankSession();
+                            if (OldMaxPer != CurrentMaxPer) {
+                                $.ajax({
+                                    type: "POST",
+                                    url: '@Url.Action("InsertMinMaxActionAuditTrail", "Master")',
+                                    contentType: 'application/json',
+                                    dataType: 'json',
+                                    data: JSON.stringify({ UpdateMode: "Max Slider Change" }),
+                                    success: function (retdt) {
+                                    }
+                                });
+                            }
+                        },
+                        slide: function (event, ui) {
+                           // alert("max slide");
+                            $("#maxSlideValue").text(ui.value);
+
+                            var vMaxval = parseInt(ui.value);
+                            var vMinval = parseInt($("#minSlideValue").text());
+                            if (vMinval > vMaxval) {
+                                $("#hdnmaxper").val(vMinval);
+                                $("#maxSlideValue").text(vMinval);
+                            }
+
+                        }
+                    });
+                    //        $("#MaxSlider").slider();
+                    $("[data-slider]").each(function () {
+                        var input = $(this);
+                        $("<span>")
+                                .addClass("output")
+                                .insertAfter($(this));
+                    }).bind("slider:changed", function (event, data) {
+                        $(this).nextAll(".output:first").html(data.value.toFixed(0) + " %");
+                        if (this.id == 'txtmin') {
+                            $("#hdnminper").val(data.value.toFixed(0));
+                            BlankSession();
+                            //oTableItemQuantityDash.fnDraw();
+                        }
+                        else {
+                            $("#hdnmaxper").val(data.value.toFixed(0));
+                            BlankSession();
+                            // oTableItemQuantityDash.fnDraw();
+                        }
+                    });
+                }
+
+                function MinMaxTuningDatatable() {
+                }
+                function TurnsAnalysisDatatable() {
+                }
+
+
+                function BlankSession() {
+                    //            var arrTest = new Array();
+                    //            var data = { '1': '1' };
+                    //            arrTest.push(data);
+                    //            $.ajax({
+                    //                url: '@Url.Content("~/InventoryDashboard/BlankSession")'
+                    //                        , type: 'POST'
+                    //                        , data: { 'para': JSON.stringify(arrTest) }
+                    //                        , cache: false
+                    //                        , success: function (response) { oTableItemQuantityDash.fnDraw(); }
+                    //                        , error: function (msg) { }
+                    //            });
+
+                    $.ajax({
+                        type: "POST",
+                        url: '@Url.Action("ResetMinMaxTableSessions", "Master")',
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (retdt) {
+                            if (typeof (oTableMinMaxTuning) != "undefined") {
+                                oTableMinMaxTuning.fnStandingRedraw();
+                            }
+                        },
+                        error: function (err) {
+                            alert("There is some Error");
+                        }
+                    });
+                }
+    </script>
+}

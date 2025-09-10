@@ -1,0 +1,202 @@
+﻿@model eTurns.DTO.ScriptTemplate
+@{
+    ViewBag.Title = "Execute Stored Procedure";
+
+}
+
+<style>
+    div.userListBlock1 {
+        float: left;
+        width: 100%;
+        background: transparent none repeat scroll 0 0;
+        border: 0 none;
+        font-size: 100%;
+        margin: 0;
+        outline: 0 none;
+        padding: 0;
+        vertical-align: baseline;
+        font-family: "Calibri",Arial,Helvetica,sans-serif;
+        height: 500px;
+    }
+
+    div#test_wrapper {
+        margin-top: 43px !important;
+    }
+</style>
+@using (Html.BeginForm("ExecuteStoredProcedure", "EnterpriseAdmin", FormMethod.Post, new { enctype = "multipart/form-data", HttpMethod = "Post" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="userListingWrapper">
+        <h2>
+            Execute Stored Procedures
+        </h2>
+        <div class="userListBlock1">
+            <div id="Ctab" class="tabContener" style="display: block;">
+                <div>
+                    <b>Note: Below list contains <span style="font-size:medium">"Eturns,EturnsDemo,EturnsMaster,EturnsMasterDemo"</span>. Please select appropriate Enterprise Only.</b><br />
+                    <br />
+                    <br />
+                    <div style="float:left;">
+                       
+                        <span>Enter Prise List</span>
+                        @Html.DropDownListFor(model => model.EnterPriceDB, new SelectList(ViewBag.EnterPriseList, "enterpriseDBName", "Name"), new { @class = "selectBox" })
+                        @Html.HiddenFor(model => model.SelectedDB, new { @id = "selectedDBS" })
+                        <div class="accordion" id="accordion">
+                            <a href='#' class='downarrow'>
+                                <img src="~/Content/images/down-arrow.gif" alt="" height="24">
+                            </a>
+                            <div class='dropcontent' id="EntepriseCollapse">
+                            </div>
+                        </div>
+                    </div>
+                    @*<ul id="NarrowUL" style="width:200px;float:left;">
+                            <li>
+                                <select id="ntfcNotificationType" multiple="multiple" name="example-basic" size="5" style=" height: 0px;"></select>
+
+                            </li>
+                        </ul>*@
+                   <div style="min-height:50px;overflow:auto;height:200px;"> <h3><span> @(Model.Message)</span></h3></div>
+                    <br />
+                    <br />
+                    <br />
+                    <div style="clear:both">
+
+                        <input type="file" id="SQLFile" name="SQLFile" />
+                    </div>
+                    <br />
+                    <div style="clear:both">
+
+                        @Html.TextAreaFor(model => model.Script, new { @class = "text-box", style = "width:1000px; height:450px; float:left; font-size:15px;" })
+                        <input type="submit" id="Submit Query" style="float:left;" runat="server" onclick="return setDBName(); "
+                               value="Submit Query" />
+                    </div>
+                </div>
+                <br />
+                <br />
+
+            </div>
+
+        </div>
+    </div>
+}
+<script>
+    var selectedDBs = '@ViewBag.SelectedDBs';
+    var UserCreatedNarroValues=''
+    $(document).ready(function () {
+        $('a.downarrow').click(function (e) {
+            e.preventDefault();
+            $(this).closest('.accordion').find('.dropcontent').slideToggle();
+        });
+        $("#EnterPriceDB").multiselect
+            (
+                {
+                    noneSelectedText: 'Enterprise:', selectedList: 5,
+                    selectedText: function (numChecked, numTotal, checkedItems) {
+                        return 'Enterprise:' + ' ' + numChecked + ' ' + 'selected';
+                    }
+                },
+                {
+                    checkAll: function (ui) {
+                        $("#EntepriseCollapse").html('');
+                        for (var i = 0; i <= ui.target.length - 1; i++) {
+                            if ($("#EntepriseCollapse").text().indexOf(ui.target[i].text) == -1) {
+                                $("#EntepriseCollapse").append("<span>" + ui.target[i].text + "</span>");
+                            }
+                        }
+                        $("#EntepriseCollapse").hide();
+                    }
+                }
+            )
+            .bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+                if (ui.checked) {
+                    if ($("#EntepriseCollapse").text().indexOf(ui.text) == -1) {
+                        $("#EntepriseCollapse").append("<span>" + ui.text + "</span>");
+                    }
+                }
+                else {
+                    if (ui.checked == undefined) {
+                        $("#EntepriseCollapse").html('');
+                    }
+                    else if (!ui.checked) {
+                        var text = $("#EntepriseCollapse").html();
+                        text = text.replace("<span>" + ui.text + "</span>", '');
+                        $("#EntepriseCollapse").html(text);
+                    }
+                    else
+                        $("#EntepriseCollapse").html('');
+                }
+                UserCreatedNarroValues = $.map($(this).multiselect("getChecked"), function (input) {
+                    return input.value;
+                })
+
+                if ($("#EntepriseCollapse").text().trim() != '')
+                    $("#EntepriseCollapse").hide();
+                else
+                    $("#EntepriseCollapse").hide();
+
+
+                if ($("#EntepriseCollapse").find('span').length <= 2) {
+                    $("#EntepriseCollapse").scrollTop(0).height(50);
+                }
+                else {
+                    $("#EntepriseCollapse").scrollTop(0).height(100);
+                }
+            }).multiselectfilter();
+        if ('@ViewBag.ResultList' != "") {
+
+            $("#test").DataTable({ "sPaginationType": "full_numbers" });
+
+        }
+        $("a.ui-multiselect-none").click();
+        setSelectedDBs();
+    });
+    function setDBName() {
+        var DBList = '';
+    
+        //$("ul.ui-multiselect-checkboxes li").each(function () {
+
+        //    if ($(this).find("input[type=checkbox]").is(":checked")) {
+        //        DBList += "," + $(this).find("input[type=checkbox]").val();
+        //    }
+
+        //});
+        $("input#selectedDBS").val(UserCreatedNarroValues);
+
+
+        return confirm('Are You sure want to proceed?');
+    }
+    function setSelectedDBs()
+    {
+        if(selectedDBs != '')
+        {
+            var dbList = selectedDBs.split(",");
+            var cnt = 0;
+            for(var i=0;i<dbList.length;i++)
+            {
+                if($.trim(dbList[i]) != '')
+                {
+                    $("ul.ui-multiselect-checkboxes li").each(function () {
+                        if($(this).find("input[type=checkbox]").val() == $.trim(dbList[i]))
+                        {
+                            $(this).find("input[type=checkbox]").attr("checked", "checked");
+                            if (UserCreatedNarroValues == '') {
+                                UserCreatedNarroValues=$(this).find("input[type=checkbox]").val();
+                            }
+                            else
+                            {
+                                UserCreatedNarroValues += "," + $(this).find("input[type=checkbox]").val();
+                            }
+                            cnt++;
+                        }
+                    });
+                }
+            }
+            $("select#EnterPriceDB").parent("div").find("button").find("span:last").text('Enterprise:'+cnt + " selected");
+        }
+        else
+        {
+            $("select#EnterPriceDB").parent("div").find("button").find("span:last").text("Select options");
+        }
+    }
+
+</script>

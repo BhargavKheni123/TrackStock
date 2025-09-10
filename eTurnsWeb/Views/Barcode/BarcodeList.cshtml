@@ -1,0 +1,722 @@
+﻿@{
+    ViewBag.Title = "Barcode";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    string BarcodePDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Barcode.pdf", DateTime.Now.Ticks);
+    if(string.IsNullOrWhiteSpace(Convert.ToString(Session["SetCurrentModule"])))
+    {
+        Session["SetCurrentModule"] = 1;
+    }
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Barcode", (int)HelpDocType.Module);
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+    <script type="text/javascript">
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+
+        $(document).ready(function () {
+
+            LoadTabs();
+        });
+        var TabsArry = [new TabClass('tab5', 'Barcode', 'CallBackTabs("tab5");', true, true)];
+        function CallBackTabs(tab) {
+            fillBarcodeGrid();
+        }
+    </script>
+}
+<style>
+    ul.ui-autocomplete {
+        overflow-y: auto;
+        max-height: 300px;
+    }
+</style>
+<form id="frmBarcodeList" method="post" action="/Barcode/BarcodeList">
+    @Html.AntiForgeryToken()
+    <div class="userListingWrapper">
+        <h2>
+            Barcode
+        </h2>
+        <div class="Infoclass" style="width:70px !important">
+            @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+            {
+                var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+                if (VideoCount > 1)
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <a href="#" style="z-index:205 !important">
+                            <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                        </a>
+                        <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                            <ul class="sub_subMenu">
+                                @foreach (var item in objHelpDocDtlDTO)
+                                {
+                                    if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                    {
+                                        <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                    }
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                    helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                    if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                    {
+                        <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                            <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                        </div>
+                    }
+                }
+            }
+            @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+            {
+                var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+                if (DocCount > 1)
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <a href="#" style="z-index:205 !important">
+                            <img src="~/Content/images/Info.png" alt="Help" />
+                        </a>
+                        <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                            <ul class="sub_subMenu">
+                                @foreach (var item in objHelpDocDtlDTO)
+                                {
+                                    if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                    {
+                                        <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                    }
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                    helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                    if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                    {
+                        <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                            <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                        </div>
+                    }
+                }
+            }
+        </div>
+        <div class="userListBlock">
+            <ul class='tabs'></ul>
+            <div id="CtabNew" class="tabContener" style="min-height: 620px;">
+            </div>
+            <div id="Ctab" class="tabContener" style="min-height: 620px;">
+                <div style="float: left; width: 99%; margin: 10px;">
+                    Modules:&nbsp;&nbsp; @Html.DropDownList("ddlModuleList", new SelectList(ViewBag.ModuleMasterList, "GUID", "ModuleName"), new { @class = "selectBox", @style = "width:120px" })
+                    @eTurns.DTO.Resources.ResCommon.Search: <span style="position:relative">
+                        <input type="text" id="txtRecords" class="text-boxinner AutoComplete ItemAutocomplete" style="width:120px;" value="" />
+                        <input type="hidden" id="AutoCompleteGUID" value="" />
+                        <span id="binspan">Bin List:</span> <a id="lnkShowAllOptions" href="javascript:void(0);" style="position: absolute; right: 186px; top: 0px;" class="ShowAllOptions"><img src="/Content/images/arrow_down_black.png" alt="select" /></a>
+                        <input type="text" id="txtRecords" class="text-boxinner AutoComplete ItemBinAutocomplete" style="width:120px;" value="" />
+                        <input type="hidden" id="AutoCompleteBinGUID" value="" />
+                        <a id="lnkShowAllBinOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllBinOptions"><img src="/Content/images/arrow_down_black.png" alt="select" /></a>
+                    </span>
+                </div>
+                <div class="searchWrapper">
+                    <div class="searchBlock">
+                        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                        <div class="searchinputB">
+                            <input type="text" class="searchinput" id="txtItemFilter" />
+                            <a href="javascript:void(0);" class="xclose">
+                                <img src="~/Content/images/x.png" alt="X" id="imgClearItemFilter" />
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="userHead" id="divSearchedItem" style="display: none">
+                    <div style="width: 60%; float: left; margin: 10px;">
+                        <ul>
+                            <li>
+                                <label for="RoomName">
+                                    Scan New Barcode:&nbsp;
+                                </label>
+                                <input type="text" id="txtNewBarcode" style="width: 200px; background: white;" value=""
+                                       class="text-box" maxlength="512" />
+                                <input type="hidden" id="Barcodeid" />
+                                &nbsp;&nbsp;&nbsp;<input type="button" id="btnAddNewBarCode" style="float: none;
+                                margin: 0px;" class="CreateBtn" value="@ResCommon.Save" />
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="infoBlock" style="width: 59%; float: left; margin: 10px 0px;">
+                        <ul>
+                            <li>
+                                <label for="RoomName">
+                                    Item Number
+                                </label>
+                                : <span id="ItemText"></span>
+                            </li>
+                            <li>
+                                <label for="RoomName">
+                                    ID
+                                </label>
+                                : <span id="spnItemID"></span>
+                            </li>
+                            <li>
+                                <label for="RoomName">
+                                    ItemGuid
+                                </label>
+                                : <span id="spnItemGuid"></span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div id="BarCodeList" style="float: left; width: 80%;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+<script type="text/javascript">
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+
+    $('#btnAddNewBarCode').click(function () {
+
+        var moduleguid = $("#ddlModuleList").val();
+        var barcodetext = $("#txtNewBarcode").val(); //.replace(/'/g, "''");
+        var ItemGuid = $('#spnItemGuid').text();
+        var moduleName = $("#ddlModuleList option:selected").text();
+        var BarcodeID = $("#Barcodeid").val();
+        var BinGuid = $("body").find('input#AutoCompleteBinGUID').val();
+        var BinName = $("body").find("input.ItemBinAutocomplete").val();
+        if (barcodetext.length > 0 && ItemGuid.length > 0) {
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("InserNewBarcodeWithBin")',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify({ 'ModuleGuid': moduleguid, 'ItemGuid': ItemGuid, "BarcopdeString": barcodetext, "strModuleName": moduleName, "BinGuid": BinGuid, "BinName": BinName, "BarcodeID": BarcodeID }),
+                success: function (response) {
+                    if (response.IsSuccess) {
+                        $("#txtNewBarcode").val('')
+                        $("input#Barcodeid").val('');
+                        fillBarcodeGrid();
+
+                        $('#txtItemFilter').focus();
+                        $('#txtItemFilter').select();
+                    }
+                    else {
+                        alert(response.Massage);
+                    }
+                },
+                error: function (err) {
+                    alert("There is some Error");
+                }
+            });
+        }
+        else {
+            alert("Please enter barcode and select Item to add new barcode.");
+        }
+    });
+
+    $(document).ready(function () {
+        $('form').areYouSure();
+        $("#ddlModuleList option").filter(function () {
+            return $(this).text() === "Item Master";
+        }).prop('selected', true);
+
+        //fillBarcodeGrid();
+        fillItemList();
+        $('.ShowAllOptions').click(function () {
+
+            $(this).parents("span").find('input.ItemAutocomplete').trigger("focus");
+            $(this).parents("span").find("input.ItemAutocomplete").autocomplete("search", " ");
+        });
+        $('.ShowAllBinOptions').click(function () {
+
+            $(this).parents("span").find('input.ItemBinAutocomplete').trigger("focus");
+            $(this).parents("span").find("input.ItemBinAutocomplete").autocomplete("search", " ");
+        });
+
+        $('#ddlModuleList').change(function () {
+            //fillBarcodeGrid();
+            $('#divSearchedItem').css('display', 'none');
+            fillAutocompleteList();
+        });
+
+    });
+    function fillAutocompleteList() {
+        var ModuleID = $('#ddlModuleList').val();
+        var CurrentIndex = $('#ddlModuleList')[0].selectedIndex;
+        $('input.ItemAutocomplete').val('');
+        $("#txtItemFilter").val('');
+        if (CurrentIndex == 0) {
+            fillAssetList();
+            HideBinAutocomplete();
+            ClearLocation();
+        }
+        else if (CurrentIndex == 1) {
+            fillItemList();
+            ShowBinAutocomplete();
+            ClearLocation();
+        }
+        else if (CurrentIndex == 2) {
+            fillToolList();
+            HideBinAutocomplete();
+            ClearLocation();
+        }
+    }
+    function ShowBinAutocomplete() {
+        $("body").find("input.ItemBinAutocomplete").show();
+        $("body").find("span#binspan").show();
+        $("body").find("input.ItemBinAutocomplete").val('');
+        $("body").find("a.ShowAllBinOptions").show();
+        $("body").find('#AutoCompleteBinGUID').val('');
+        $("body").find('a#lnkShowAllOptions').css("right", "186px");
+    }
+    function HideBinAutocomplete() {
+        $("body").find("input.ItemBinAutocomplete").hide();
+        $("body").find("a.ShowAllBinOptions").hide();
+        $("body").find("span#binspan").hide();
+        $("body").find('#AutoCompleteBinGUID').val('');
+        $("body").find("input.ItemBinAutocomplete").val('');
+        $("body").find('a#lnkShowAllOptions').css("right", "5px");
+        
+    }
+    function ClearLocation() {
+        $("body").find('#AutoCompleteBinGUID').val('');
+        $("body").find("input.ItemBinAutocomplete").val('');
+    }
+    function fillAssetList() {
+        $('body').on('focus', "input.ItemAutocomplete", function (e) {
+
+            var ajaxURL = '/Assets/GetAssetList';
+            var Value = '';
+            //var itmGuid = $(this).parents("span").find('#AutoCompleteGUID').text();
+
+            var stagName = '';
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $('#DivLoading').show();
+
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'NameStartWith': request.term }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            $('#DivLoading').hide()
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key,
+                                    id: Items.GUID
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                            $('#DivLoading').hide();
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    $(this).val(ui.item.value);
+                    Value = ui.item.value;
+                    if ($.trim(ui.item.value).length > 0) {
+
+                        if ($(this).parent().find('#AutoCompleteGUID') != undefined) {
+                            $(this).parent().find('#AutoCompleteGUID').val(ui.item.id);
+                            $("#txtItemFilter").val(Value);
+                            fnFilter();
+                        }
+                    }
+                    else {
+                        $(this).parent().find('#AutoCompleteGUID').val('');
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                    Value = ui.item.value;
+                    if (ui.item != null && ui.item != undefined && $.trim(ui.item.id).length > 0) {
+                        if ($(this).parent().find('#AutoCompleteGUID') != undefined) {
+                            $(this).parent().find('#AutoCompleteGUID').val(ui.item.id);
+                            if (Value != '')
+                                $("#txtItemFilter").val(Value);
+                            fnFilter();
+                        }
+                    }
+                    else {
+                        $(this).parent().find('#AutoCompleteGUID').val('');
+                    }
+                }
+            });
+        });
+
+    }
+    function fillToolList() {
+        $('body').on('focus', "input.ItemAutocomplete", function (e) {
+
+            var ajaxURL = '/Assets/GetToolList';
+            var Value = '';
+            //var itmGuid = $(this).parents("span").find('#AutoCompleteGUID').text();
+
+            var stagName = '';
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $('#DivLoading').show();
+
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'NameStartWith': request.term }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            $('#DivLoading').hide()
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key,
+                                    id: Items.GUID
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                            $('#DivLoading').hide();
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    $(this).val(ui.item.value);
+                    Value = ui.item.value;
+                    if ($.trim(ui.item.value).length > 0) {
+
+                        if ($(this).parent().find('#AutoCompleteGUID') != undefined) {
+                            $(this).parent().find('#AutoCompleteGUID').val(ui.item.id);
+                            $("#txtItemFilter").val(Value);
+                            fnFilter();
+                        }
+                    }
+                    else {
+                        $(this).parent().find('#AutoCompleteGUID').val('');
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                    Value = ui.item.value;
+                    if (ui.item != null && ui.item != undefined && $.trim(ui.item.id).length > 0) {
+                        if ($(this).parent().find('#AutoCompleteGUID') != undefined) {
+                            $(this).parent().find('#AutoCompleteGUID').val(ui.item.id);
+                            if (Value != '')
+                                $("#txtItemFilter").val(Value);
+                            fnFilter();
+                        }
+                    }
+                    else {
+                        $(this).parent().find('#AutoCompleteGUID').val('');
+                    }
+                }
+            });
+        });
+
+    }
+    
+    function fillItemList() {
+        $('body').on('focus', "input.ItemAutocomplete", function (e) {
+
+            var ajaxURL = '/Inventory/GetItemList';
+            var Value = '';
+            //var itmGuid = $(this).parents("span").find('#AutoCompleteGUID').text();
+
+            var stagName = '';
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $('#DivLoading').show();
+
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'NameStartWith': request.term }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            $('#DivLoading').hide()
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key,
+                                    id: Items.GUID
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                            $('#DivLoading').hide();
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    $(this).val(ui.item.value);
+                    Value = ui.item.value;
+                    if ($.trim(ui.item.value).length > 0) {
+
+                        if ($(this).parent().find('#AutoCompleteGUID') != undefined) {
+                            $(this).parent().find('#AutoCompleteGUID').val(ui.item.id);
+                            $("#txtItemFilter").val(Value);
+                            fnFilter();
+                            FillLocationList();
+                            ClearLocation();
+                        }
+                    }
+                    else {
+                        $(this).parent().find('#AutoCompleteGUID').val('');
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                    Value = ui.item.value;
+                    if (ui.item != null && ui.item != undefined && $.trim(ui.item.id).length > 0) {
+                        if ($(this).parent().find('#AutoCompleteGUID') != undefined) {
+                            $(this).parent().find('#AutoCompleteGUID').val(ui.item.id);
+                            if (Value != '') {
+                                $("#txtItemFilter").val(Value);
+                                FillLocationList();
+                                ClearLocation();
+                            }
+                            fnFilter();
+                        }
+                    }
+                    else {
+                        $(this).parent().find('#AutoCompleteGUID').val('');
+                    }
+                }
+            });
+        });
+
+    }
+
+    function FillLocationList() {
+        $('body').on('focus', "input.ItemBinAutocomplete", function (e) {
+
+            var ajaxURL = '/Inventory/GetItemBinList';
+            var Value = '';
+            var itmGuid = $('body').find('input#AutoCompleteGUID').val();
+
+            if (itmGuid != '00000000-0000-0000-0000-000000000000' && itmGuid != '') {
+                var stagName = '';
+                $(this).autocomplete({
+                    source: function (request, response) {
+                        $('#DivLoading').show();
+
+                        $.ajax({
+                            url: ajaxURL,
+                            type: 'POST',
+                            data: JSON.stringify({ 'NameStartWith': request.term, 'ItemGuid': itmGuid }),
+                            contentType: 'application/json',
+                            dataType: 'json',
+                            success: function (data) {
+                                $('#DivLoading').hide()
+                                response($.map(data, function (Items) {
+                                    return {
+                                        label: Items.Value,
+                                        value: Items.Key,
+                                        id: Items.GUID
+                                    }
+                                }));
+                            },
+                            error: function (err) {
+                                $('#DivLoading').hide();
+                            }
+                        });
+                    },
+                    autoFocus: false,
+                    minLength: 1,
+                    select: function (event, ui) {
+                        $(this).val(ui.item.value);
+
+                        if ($.trim(ui.item.value).length > 0) {
+
+                            if ($(this).parent().find('#AutoCompleteBinGUID') != undefined) {
+                                $(this).parent().find('#AutoCompleteBinGUID').val(ui.item.id);
+
+                                $("body").find('#AutoCompleteBinGUID').val(ui.item.id);
+                                $("body").find("input.ItemBinAutocomplete").val(Value);
+ fillBarcodeGrid();
+                            }
+                        }
+                        else {
+                            $(this).parent().find('#AutoCompleteBinGUID').val('');
+                        }
+                    },
+                    open: function () {
+                        $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                    },
+                    close: function () {
+                        $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                    },
+                    change: function (event, ui) {
+                        Value = ui.item.value;
+                        
+                        if (ui.item != null && ui.item != undefined && $.trim(ui.item.id).length > 0) {
+                            if ($(this).parent().find('#AutoCompleteBinGUID') != undefined) {
+                                $(this).parent().find('#AutoCompleteBinGUID').val(ui.item.id);
+                                
+                                $("body").find('#AutoCompleteBinGUID').val(ui.item.id);
+                                $("body").find("input.ItemBinAutocomplete").val(Value);
+                                fillBarcodeGrid();
+                            }
+                        }
+                        else {
+                            $(this).parent().find('#AutoCompleteBinGUID').val('');
+                        }
+                    }
+                });
+            }
+            else {
+                alert("Please Select Item..!!!");
+            }
+        });
+
+    }
+    function fillBarcodeGrid() {
+        $('#DivLoading').show();
+        $("#txtItemFilter").val().replace(/'/g, "''");
+       
+        $.post("GetBarcodeListByModuleID", { "ModuleGuid": $("#ddlModuleList").val(), "ItemGuid": $("#spnItemGuid").text() ,"Binguid":$("body").find("#AutoCompleteBinGUID").val()}, function (data) {
+            $("#BarCodeList").html(data);
+            $('#DivLoading').hide();
+        });
+    }
+
+    /* global search function */
+    function fnFilter() {
+
+        $('#DivLoading').show();
+        var searchtext = $("#txtItemFilter").val().replace(/'/g, "''");
+        var moduleguid = $("#ddlModuleList").val();
+        var moduleText = $("#ddlModuleList option:selected").text();
+
+        $.ajax({
+            type: "POST",
+            url: '@Url.Action("GetItemDetailByModuleID")',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify({ 'ModuleGuid': moduleguid, 'ModuleName': moduleText, "SearchText": searchtext }),
+            success: function (response) {
+                if (response.IsSuccess) {
+                    $('#divSearchedItem').css('display', '');
+                    $('#ItemText').text(response.RetrunDTO.ItemText);
+                    $('#spnItemID').text(response.RetrunDTO.itemID);
+                    $('#spnItemGuid').text(response.RetrunDTO.ItemGuid);
+                    $('#DivLoading').hide();
+                    $('#txtNewBarcode').focus();
+                    $("body").find('#AutoCompleteBinGUID').val(response.RetrunDTO.DefaultLocationGuid);
+                    $("body").find("input.ItemBinAutocomplete").val(response.RetrunDTO.DefaultLocationName);
+                    fillBarcodeGrid();
+                }
+                else {
+                    $('#divSearchedItem').css('display', 'none');
+                    $('#ItemText').text('');
+                    $('#spnItemID').text('');
+                    $('#spnItemGuid').text('');
+                    $('#DivLoading').hide();
+                    $("#txtNewBarcode").val('');
+                    $("input#Barcodeid").val('');
+                    $("body").find('#AutoCompleteBinGUID').val('');
+                    $("body").find('input.ItemBinAutocomplete').val('');
+                }
+            },
+            error: function (err) {
+                alert("There is some Error");
+                $('#DivLoading').hide();
+            }
+        });
+    }
+
+    $('#txtNewBarcode').keyup(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13 && $('#txtNewBarcode').val().length > 0) {
+            $('#btnAddNewBarCode').click();
+        }
+    });
+    var timeoutsc1;
+    $(document).on('propertychange input', "#txtItemFilter", function () {
+        clearTimeout(timeoutsc1);
+        var self = this;
+        timeoutsc1 = setTimeout(function () {
+            fnFilter();
+        }, 500);
+    });
+
+    $("#txtItemFilter").keypress(function (e) {
+        if (e.which == 13 && $("#txtItemFilter").val().length >= 2) {
+            fnFilter();
+        }
+    });
+
+    //$("input.searchinput").on({
+    //    keyup: function (e) {
+    //        var code = (e.keyCode ? e.keyCode : e.which);
+    //        var index = $.inArray(code, NotAllowedCharCodes);
+    //        if (index >= 0) return false;
+    //        if (code == 13) {
+    //            fnFilter();
+    //        }
+    //    }
+    //    //        ,keydown: function (e) {
+    //    //            var code = (e.keyCode ? e.keyCode : e.which);
+    //    //            if (code == 13) {
+    //    //                fnFilter();
+    //    //            }
+    //    //        }
+    //}, "#txtItemFilter");
+
+
+    $("#imgClearItemFilter").click(function () {
+        $("#txtItemFilter").val('');
+        $('#divSearchedItem').css('display', 'none');
+        $('#ItemText').text('');
+        $('#spnItemID').text('');
+        $('#spnItemGuid').text('');
+        $("#txtNewBarcode").val('');
+        $("input#Barcodeid").val('');
+        fillBarcodeGrid();
+
+        $("#txtItemFilter").focus();
+        return false;
+    });
+
+
+    function editBarCode(currentLink) {
+        var BarcodeID = $(currentLink).parents("tr").children("td:first").html();
+        var BarCodeName = $(currentLink).text();
+        BarcodeID = $.trim(BarcodeID);
+        BarCodeName = $.trim(BarCodeName);
+        $("input#txtNewBarcode").val(BarCodeName);
+        $("input#Barcodeid").val(BarcodeID);
+    }
+</script>

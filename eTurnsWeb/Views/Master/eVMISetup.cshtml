@@ -1,0 +1,590 @@
+﻿@model eTurns.DTO.eVMISetupDTO
+@{
+
+    string PollTime1 = Model.PollTime1.HasValue ? Model.PollTime1.Value.Hours + ":" + Model.PollTime1.Value.Minutes : "00:00";
+    string PollTime2 = Model.PollTime2.HasValue ? Model.PollTime2.Value.Hours + ":" + Model.PollTime2.Value.Minutes : "00:00";
+    string PollTime3 = Model.PollTime3.HasValue ? Model.PollTime3.Value.Hours + ":" + Model.PollTime3.Value.Minutes : "00:00";
+    string PollTime4 = Model.PollTime4.HasValue ? Model.PollTime4.Value.Hours + ":" + Model.PollTime4.Value.Minutes : "00:00";
+    string PollTime5 = Model.PollTime5.HasValue ? Model.PollTime5.Value.Hours + ":" + Model.PollTime5.Value.Minutes : "00:00";
+    string PollTime6 = Model.PollTime6.HasValue ? Model.PollTime6.Value.Hours + ":" + Model.PollTime6.Value.Minutes : "00:00";
+    //bool IseVMiSetup = false;
+    //if(!string.IsNullOrWhiteSpace(SiteSettingHelper.IseVMISetup))
+    //{
+    //    IseVMiSetup = Convert.ToBoolean(SiteSettingHelper.IseVMISetup);
+    //}
+    string NextPollDateTime = String.Empty;
+    bool isEVMI = false;
+    if (eTurnsWeb.Helper.SessionHelper.isEVMI != null)
+    {
+        isEVMI = (bool)eTurnsWeb.Helper.SessionHelper.isEVMI;
+    }
+    int eVMIScheduleFor = (int)eTurns.DTO.eVMIScheduleFor.eVMISchedule;
+    List<ComPortRoomMappingDTO> lstPortmappings = ViewBag.RoomCOMMap;
+    if (lstPortmappings == null)
+    {
+        lstPortmappings = new List<ComPortRoomMappingDTO>();
+    }
+    SchedulerDTO objSchedulerDTO = new SchedulerDTO();
+    if (Model != null)
+    {
+        eTurns.DAL.RegionSettingDAL objRegionSettingDAL = new eTurns.DAL.RegionSettingDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+        objSchedulerDTO = new eTurns.DAL.SupplierMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetRoomSchedule(0, eTurnsWeb.Helper.SessionHelper.RoomID, (int)eTurns.DTO.eVMIScheduleFor.eVMISchedule);
+        if (objSchedulerDTO == null)
+        {
+            objSchedulerDTO = new SchedulerDTO();
+            objSchedulerDTO.SupplierId = 0;
+            objSchedulerDTO.LoadSheduleFor = (int)eTurns.DTO.eVMIScheduleFor.eVMISchedule;
+            objSchedulerDTO.RoomId = eTurnsWeb.Helper.SessionHelper.RoomID;
+        }
+        else
+        {
+
+            objSchedulerDTO.NextRunDateTime = eTurnsWeb.Helper.CommonUtility.ConvertDateByTimeZone(objSchedulerDTO.NextRunDate, eTurnsWeb.Helper.SessionHelper.CurrentTimeZone, eTurnsWeb.Helper.SessionHelper.DateTimeFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture, true);
+            //objSchedulerDTO.ScheduleRunTime = (eTurnsWeb.Helper.CommonUtility.ConvertDateByTimeZonedt(objSchedulerDTO.ScheduleRunDateTime, eTurnsWeb.Helper.SessionHelper.CurrentTimeZone, eTurnsWeb.Helper.SessionHelper.DateTimeFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture) ?? DateTime.MinValue).ToString("HH:mm");
+            objSchedulerDTO.ScheduleRunTime = objSchedulerDTO.ScheduleTime.HasValue ? objSchedulerDTO.ScheduleTime.Value.ToString(@"hh\:mm") : "00:00";
+            //objSchedulerDTO.ScheduleRunTime = eTurnsWeb.Helper.CommonUtility.ConvertDateByTimeZonedt(objSchedulerDTO.ScheduleRunTime, eTurnsWeb.Helper.SessionHelper.CurrentTimeZone, eTurnsWeb.Helper.SessionHelper.DateTimeFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture).Value.ToShortTimeString();
+            NextPollDateTime = eTurnsWeb.Helper.CommonUtility.ConvertDateByTimeZone(Model.NextPollDate, eTurnsWeb.Helper.SessionHelper.CurrentTimeZone, eTurnsWeb.Helper.SessionHelper.DateTimeFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture, true);
+        }
+    }
+}
+<script src="~/Scripts/jquery-ui-timepicker-addon.js" type="text/javascript"></script>
+<script language="javascript" type="text/javascript">
+    var IsRefreshGrid = false;
+    var IsDeletePopupOpen = false;
+    var AllowDeletePopup = true;
+</script>
+<div class="userListingWrapper">
+    <h2>
+        @ResLayout.eVMISetup
+    </h2>
+    <div class="userListBlock">
+        <div id="Ctab" class="tabContener" style="display: block;">
+
+            @using (Ajax.BeginForm("eVMISetupSave", "Master", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmeVMISetup" }))
+            {
+                @Html.AntiForgeryToken()
+                <div class="userHead">
+                    @Html.ValidationSummary(true)
+                    @if (Model != null && Model.ID != 0)
+                    {
+                        <div class="infoBlock">
+                            <ul>
+                                <li>
+                                    <label for="RoomName">
+                                        @Html.LabelFor(model => model.RoomName)
+                                    </label>
+                                    : <span>@(Model.RoomName)</span>
+                                </li>
+                                <li>
+                                    <label for="RoomName">
+                                        @Html.LabelFor(model => model.Created)
+                                    </label>
+                                    : <span>@(Model.CreatedDate)</span>
+                                </li>
+                                <li>
+                                    <label for="RoomName">
+                                        @Html.LabelFor(model => model.CreatedByName)
+                                    </label>
+                                    : <span>@(Model.CreatedByName)</span>
+                                </li>
+                                <li>
+                                    <label for="RoomName">
+                                        @Html.LabelFor(model => model.Updated)
+                                    </label>
+                                    : <span>@(Model.UpdatedDate)</span>
+                                </li>
+                                <li style="border: none">
+                                    <label for="RoomName">
+                                        @Html.LabelFor(model => model.UpdatedByName)
+                                    </label>
+                                    : <span>@(Model.UpdatedByName)</span>
+                                </li>
+                            </ul>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="infoBlock">
+                        </div>
+                    }
+                    <div class="editorForm">
+                        <ul>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.PollType)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.RadioButtonFor(model => model.PollType, 0, new { id = "rdoNoPoll" })
+                                    <label for="rdoNoPoll">@ReseVMISetup.NoScheduledPolling</label>
+                                    @Html.RadioButtonFor(model => model.PollType, 1, new { id = "rdoTimedPoll" })
+                                    <label for="rdoTimedPoll">@ReseVMISetup.FrequentPolling</label>
+                                    @Html.RadioButtonFor(model => model.PollType, 2, new { id = "rdoPollTime" })
+                                    <label for="rdoPollTime">@ReseVMISetup.PerDayPolling</label>
+                                    @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                                    @Html.HiddenFor(model => model.GUID)
+                                    @Html.HiddenFor(model => model.Created)
+                                    @Html.HiddenFor(model => model.Updated)
+                                    @Html.HiddenFor(model => model.CreatedBy)
+                                    @Html.HiddenFor(model => model.LastUpdatedBy)
+                                    @Html.HiddenFor(model => model.Room)
+                                    @Html.HiddenFor(model => model.RoomName)
+                                    @Html.HiddenFor(model => model.CompanyID)
+                                    @Html.HiddenFor(model => model.CreatedByName)
+                                    @Html.HiddenFor(model => model.UpdatedByName)
+                                    @Html.HiddenFor(model => model.IsDeleted)
+                                    @Html.HiddenFor(model => model.IsArchived)
+                                    @*@Html.HiddenFor(model => model.PollType)*@
+                                </div>
+                            </li>
+                            <li><br /></li>
+                            <li id="liFreqpoll">
+                                <div id="dvParams">
+                                    @Html.Partial("eVMISchedulerInfo", objSchedulerDTO)
+                                </div>
+                            </li>
+
+                            <li id="liperday">
+                                <div class="editor-label">
+                                    @ReseVMISetup.PollTime
+                                </div>
+                                <div class="editor-field">
+                                    @Html.TextBoxFor(model => model.PollTime1, new { @class = "text-box ScheduleTime1", @placeholder = ReseVMISetup.PollTime1, @style = "width:6%;" })
+                                    @Html.TextBoxFor(model => model.PollTime2, new { @class = "text-box ScheduleTime2", @placeholder = ReseVMISetup.PollTime2, @style = "width:6%;" })
+                                    @Html.TextBoxFor(model => model.PollTime3, new { @class = "text-box ScheduleTime3", @placeholder = ReseVMISetup.PollTime3, @style = "width:6%;" })
+                                    @Html.TextBoxFor(model => model.PollTime4, new { @class = "text-box ScheduleTime4", @placeholder = ReseVMISetup.PollTime4, @style = "width:6%;" })
+                                    @Html.TextBoxFor(model => model.PollTime5, new { @class = "text-box ScheduleTime5", @placeholder = ReseVMISetup.PollTime5, @style = "width:6%;" })
+                                    @Html.TextBoxFor(model => model.PollTime6, new { @class = "text-box ScheduleTime6", @placeholder = ReseVMISetup.PollTime6, @style = "width:6%;" })
+                                    @Html.ValidationMessageFor(model => model.PollTime1)
+                                </div>
+                            </li>
+
+                            <li id="liactive">
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.IsScheduleActive)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.EditorFor(model => model.IsScheduleActive)
+                                    @Html.ValidationMessageFor(model => model.IsScheduleActive)
+                                </div>
+                            </li>
+                            <li id="linextrundt">
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.NextPollDate)
+                                </div>
+                                <div class="editor-field">
+                                    @NextPollDateTime
+                                </div>
+                            </li>
+                            <li>
+                                <div class="editor-label">
+                                    @Html.LabelFor(model => model.CountType)
+                                </div>
+                                <div class="editor-field">
+                                    @Html.DropDownListFor(model => model.CountType, new SelectList(ViewBag.CountTypeBag, "Value", "Text", Model.CountType), new { @class = "selectBox", @id = "dlCountType" })
+                                    <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.CountType)</span>
+                                </div>
+                            </li>
+
+                            <li><br /></li>
+
+                            @if (eTurnsWeb.Helper.SessionHelper.RoleID == -1)
+                            {
+                                <li>
+                                    <div class="editor-label">
+                                        @ReseVMISetup.ComPort
+                                    </div>
+                                    <div class="editor-field rightEdit">
+                                        <table class="display dataTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>@ReseVMISetup.ComPort</th>
+                                                    <th>@ReseVMISetup.TCPPort</th>
+                                                    <th>@ReseVMISetup.ShelfID</th>
+                                                    <th>@ReseVMISetup.GetShelfID</th>
+                                                    <th>@ReseVMISetup.ShelfID</th>
+                                                    <th>@ReseVMISetup.SetShelfID</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var item in lstPortmappings)
+                                                {
+                                                    <tr>
+                                                        <td>
+                                                            @item.ComPortName
+                                                            <input type="hidden" id="hdnmappingID_@(item.ID)" value="@item.ID" />
+                                                        </td>
+                                                        <td>@item.TCPPort</td>
+                                                        <td><span id="spnShelpID_@(item.ID)"> @item.ShelfID</span></td>
+                                                        <td><input type="button" id="btnGetShelfID_@(item.ID)" value="@ReseVMISetup.GetShelfID" onclick="return GetShelfIDRequest(this);" class="CreateBtn" /> </td>
+                                                        <td><input type="text" value="@item.ShelfID" id="txtShelfID_@(item.ID)" class="text-box" /></td>
+                                                        <td><input type="button" id="btnSetShelfID_@(item.ID)" value="@ReseVMISetup.SetShelfID" onclick="return SetShelfIDRequest(this);" class="CreateBtn" /> </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+
+
+                                        @*<select id="ddlComPort" multiple="multiple" name="example-basic" size="5" class="text-box"></select>*@
+                                        @*@Html.DropDownListFor(model => model.ComPortMasterID, new SelectList(ViewBag.ComPortBag, "ID", "ComPortName", Model.ComPortMasterID), "", new { @class = "selectBox", @id = "dlComPortID" })*@
+                                        @*@Html.HiddenFor(model => model.SelectedComPort)*@
+                                    </div>
+                                </li>
+                            }
+                            <li><br /></li>
+
+
+                            @if (isEVMI)
+                            {
+                                <li>
+                                    <div class="editor-label">
+                                        &nbsp;
+                                    </div>
+                                    <div class="BtnBlockform">
+                                        <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    $("form").submit(function (e) {
+
+        var ComPortID = $("select#dlComPortID").val();
+        $("#SelectedComPort").val(ComPortID);
+
+        $.validator.unobtrusive.parse("#frmeVMISetup");
+        e.preventDefault();
+    });
+</script>
+<script language="javascript" type="text/javascript">
+    function onSuccess(response) {
+        IsRefreshGrid = true;
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        }
+        else if (idValue == 0) {
+
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+                window.location.href = '@Url.Action("eVMISetup","Master")';
+            }
+
+        }
+        else if (idValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            }
+            else {
+                window.location.href = '@Url.Action("eVMISetup","Master")';
+            }
+        }
+        return false;
+    }
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        showNotificationDialog();
+    }
+
+    function fnEnableDisableType(objvalue) {
+        if (objvalue == '1') {
+            $("#liFreqpoll").show();
+            $("#liperday").hide();
+            $("#liactive").show();
+            $("#linextrundt").show();
+        }
+        else if (objvalue == '2') {
+            $("#liFreqpoll").hide();
+            $("#liperday").show();
+            $("#liactive").show();
+            $("#linextrundt").show();
+        }
+        else {
+            $("#liFreqpoll").hide();
+            $("#liperday").hide();
+            $("#liactive").hide();
+            $("#linextrundt").hide();
+        }
+    }
+    var sep1 = ',';
+    var selectedEps = '';
+    var eVMIPollType = '';
+    $(document).ready(function () {
+        $("input.ScheduleTime1,input.ScheduleTime2,input.ScheduleTime3,input.ScheduleTime4,input.ScheduleTime5,input.ScheduleTime6").change(function () {
+            $("input[type='hidden'][name='IsScheduleChanged']").val(1);
+        });
+        fnEnableDisableType($("input[type='radio'][name='PollType']:checked").val());
+        $("input[type='radio'][name='PollType']").change(function () {
+            fnEnableDisableType($("input[type='radio'][name='PollType']:checked").val());
+        });
+       var picker = $('.ScheduleTime1').timepicker({ timeFormat: 'HH:mm' });
+        if ($("input#PollTime1").val() != '') {
+            picker.timepicker('setTime', '@PollTime1');
+        }
+        var picker2 = $('.ScheduleTime2').timepicker({ timeFormat: 'HH:mm' });
+        if ($("input#PollTime2").val() != '') {
+            picker2.timepicker('setTime', '@PollTime2');
+        }
+        var picker3 = $('.ScheduleTime3').timepicker({ timeFormat: 'HH:mm' });
+        if ($("input#PollTime3").val() != '') {
+            picker3.timepicker('setTime', '@PollTime3');
+        }
+        var picker4 = $('.ScheduleTime4').timepicker({ timeFormat: 'HH:mm' });
+        if ($("input#PollTime4").val() != '') {
+            picker4.timepicker('setTime', '@PollTime4');
+        }
+        var picker5 = $('.ScheduleTime5').timepicker({ timeFormat: 'HH:mm' });
+        if ($("input#PollTime5").val() != '') {
+            picker5.timepicker('setTime', '@PollTime5');
+        }
+        var picker6 = $('.ScheduleTime6').timepicker({ timeFormat: 'HH:mm' });
+        if ($("input#PollTime6").val() != '') {
+            picker6.timepicker('setTime', '@PollTime6');
+        }
+
+
+        @*$("#ddlComPort").multiselect(
+            {
+                noneSelectedText: 'Com Port', selectedList: 5,
+                selectedText: function (numChecked, numTotal, checkedItems) {
+                    return 'Com Port';
+                }
+            }
+        ).unbind("multiselectclick multiselectcheckall multiselectuncheckall")
+         .bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+          CheckComPortClick(ui, event);
+        }).multiselectfilter();
+
+
+        $("#ddlComPort > option").remove();
+        $("#ddlComPort").multiselect("refresh");
+
+        $("#ddlComPort").html("");
+        var url_GetComPortMaster = '@Url.Action("GetComPortMaster", "Master")';
+        $.ajax({
+            url: url_GetComPortMaster,
+            type: 'GET',
+            success: function (response) {
+                selectedEps = '';
+                s = '';
+                if (response != null) {
+                    $.each(response.ComPortList, function (i, val) {
+
+                        if (val.IsSelected == true) {
+                            s += '<option selected="selected" value="' + val.ID + '">' + val.ComPortName + '</option>';
+
+                            if (selectedEps == '') {
+                                selectedEps = val.ID;
+                            }
+                            else {
+                                selectedEps += sep1 + val.ID;
+                            }
+
+                        }
+                        else {
+                            s += '<option value="' + val.ID + '">' + val.ComPortName + '</option>';
+                        }
+
+                    });
+                }
+
+                $("#SelectedComPort").val(selectedEps);
+                $("#ddlComPort").html(s);
+                $("#ddlComPort").multiselect("refresh");
+
+                selectedEps = '';
+                s = '';
+
+                $('#DivLoading').hide();
+            },
+            error: function (response) {
+                alert('@ResCommon.ErrorInProcess');
+                $('#DivLoading').hide();
+            }
+        });*@
+
+        var ComPortID = $("select#dlComPortID").val();
+        $("#SelectedComPort").val(ComPortID);
+
+        eVMIPollType = '@Model.PollType';
+        /*LoadScheduleparams();*/
+
+        $('form').areYouSure({ 'message': MsgLostChangesConfirmation });
+    });
+
+    function CheckComPortClick(chkDropdown, event) {
+
+        if (event.type == 'multiselectcheckall' || event.type == 'multiselectuncheckall') {
+            if (event.type == 'multiselectcheckall') {
+                $("#ddlComPort").multiselect("widget").find(":checkbox").each(function () {
+                    $(this).attr("checked", "checked");
+                });
+                $("#ddlComPort option").each(function () {
+                    $(this).attr("selected", 1);
+                });
+            }
+            else {
+                $("#ddlComPort").multiselect("widget").find(":checkbox").each(function () {
+                    $(this).removeAttr("checked");
+                });
+                $("#ddlComPort option").each(function () {
+                    $(this).removeAttr("selected");
+                });
+            }
+        }
+
+        var arrItems = new Array();
+        $("#ddlComPort > option").each(function () {
+
+            if (this.selected == true)
+                arrItems.push(this.value);
+        });
+
+        if (chkDropdown.checked == true) {
+            arrItems.push(chkDropdown.value);
+        }
+        else {
+            var selected = chkDropdown.value;
+            arrItems = jQuery.grep(arrItems, function (value) {
+                return value != selected;
+            });
+        }
+
+        if (chkDropdown.selected == true) {
+            arrItems.push(chkDropdown.value);
+        }
+        //var SelectedComPort = arrItems;
+
+
+        //$("#SelectedComPort").val(SelectedComPort.join(sep1));
+
+
+
+    }
+
+    function LoadScheduleparams() {
+        $('#DivLoading').show();
+        var ScheduleFor = '@eVMIScheduleFor'
+        $("#dvParams").load('@Url.Action("LoadScheduleParams", "eVMISetup")', { "LoadSheduleFor": ScheduleFor }, function () {
+            $('#DivLoading').hide();
+            var PollType = $("#PollType").val();
+            if (PollType == 1) {
+                $("#dvParams").show();
+                $('#divPollTime').hide();
+            }
+            else {
+                $("#dvParams").hide();
+                $('#divPollTime').show();
+            }
+
+            //ShowHideImmediateButton();
+
+
+            //if (isCopyMode == true) {
+
+            //    $("#dvParams").find("#ScheduleID").val("0");
+            //}
+
+        });
+
+    }
+
+    function GetShelfIDRequest(curobj) {
+        var _comPortRoomMappingID = $(curobj).parent().parent().find("input[type='hidden'][id*='hdnmappingID']").val();
+        $.ajax({
+                'url': "GetShelfID",
+                'data': {  'ComPortRoomMappingID': _comPortRoomMappingID  },
+                'type': 'Post',
+                'async': false,
+                'cache': false,
+                'dataType': 'json',
+                'success': function (response) {
+                    if (response.Status === "ok") {
+                        $('#DivLoading').hide();
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html("@ResCommon.success");
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        if (parseInt(response.shelfId) > 0) {
+                            /*$("#ShelfID").val(response.shelfId);*/
+                            $(curobj).parent().parent().find("span[id*='spnShelpID']").text(response.shelfId);
+                        }
+                    }
+                    else {
+                        $('#DivLoading').hide();
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html(response.Status);
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    }
+                },
+                'error': function (xhr) {
+                    $('#DivLoading').hide();
+                }
+
+            });
+
+
+        return false;
+    }
+
+    function SetShelfIDRequest(curobj) {
+
+        var _vShelfID = $(curobj).parent().parent().find("input[type='text'][id*='txtShelfID']").val();
+        var _comPortRoomMappingID = $(curobj).parent().parent().find("input[type='hidden'][id*='hdnmappingID']").val();
+
+        if (_vShelfID != undefined && _vShelfID != null && _vShelfID != '') {
+            var ShelfID = parseInt(_vShelfID);
+            if (ShelfID < 1 || ShelfID > 999) {
+                showNotificationDialog();
+                $("#spanGlobalMessage").html("@ReseVMISetup.ValidateShelfID");
+                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                return false;
+            }
+
+            $.ajax({
+                'url': "SetShelfID",
+                'data': { 'ShelfID': _vShelfID, 'ComPortRoomMappingID': _comPortRoomMappingID },
+                'type': 'Post',
+                'async': false,
+                'cache': false,
+                'dataType': 'json',
+                'success': function (response) {
+                    if (response.Status === "ok") {
+                        $('#DivLoading').hide();
+                        /*$('#ShelfID').val(_vShelfID);*/
+                        $(curobj).parent().parent().find("span[id*='spnShelpID']").text(_vShelfID);
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html("@ResCommon.success");
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                    }
+                    else {
+                        $('#DivLoading').hide();
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html(response.Status);
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    }
+                },
+                'error': function (xhr) {
+                    $('#DivLoading').hide();
+                }
+
+            });
+
+        }
+        else {
+            _notification.showError('Please enter value for SetShelfID');
+        }
+        return false;
+    }
+
+</script>

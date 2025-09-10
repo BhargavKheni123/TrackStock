@@ -1,0 +1,639 @@
+@using eTurnsWeb.Helper
+@{
+    ViewBag.Title = "eTurns: Dashboard";
+    var leftwidget = (List<string>)ViewBag.LeftWidget;
+    var rightwidget = (List<string>)ViewBag.RightWidget;
+    eTurns.DAL.ModuleMasterDAL obj = null;
+    List<ParentModuleMasterDTO> lstmasterModule = null;
+    UserWiseRoomsAccessDetailsDTO lstPermission = null;
+
+    if ((leftwidget != null && leftwidget.Any()) || (rightwidget != null && rightwidget.Any()))
+    {
+        obj = new eTurns.DAL.ModuleMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+        lstmasterModule = obj.GetParentModulePlain();
+        lstPermission = SessionHelper.RoomPermissions.Find(element => element.EnterpriseId == SessionHelper.EnterPriceID && element.CompanyId == SessionHelper.CompanyID && element.RoomID == SessionHelper.RoomID);
+    }
+}
+@*<script src="@Url.Content("~/Scripts/Dashboard/jquery.js")" type="text/javascript"></script>*@
+@*<script src="@Url.Content("~/Scripts/Dashboard/interface.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/Dashboard/jquery.sparkline.js")" type="text/javascript"></script>*@
+<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/jquery.slidepanel.css")">
+<link href="@Url.Content("~/Content/Dashboard/blue.css")" rel="stylesheet" type="text/css" />
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL))
+{
+    <link href="@Url.Content("~/Content/Dashboard/jquery.ui.themeBS.css")" rel="stylesheet" type="text/css" />
+}
+else
+{
+    <link href="@Url.Content("~/Content/Dashboard/jquery.ui.theme.css")" rel="stylesheet" type="text/css" />
+}
+
+
+
+@*EXPORT DASHBOARD GRAPH START
+        HELP LINKS :
+        -http://jsfiddle.net/5ud8jkvf/
+        -https://github.com/MrRio/jsPDF
+        -http://rawgit.com/MrRio/jsPDF/master/docs/
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.3.5/jspdf.debug.js"></script>
+    EXPORT DASHBOARD GRAPH END*@
+
+<style>
+    .divsourcelist, .divdestinationlist {
+        width: 603px;
+        float: left;
+        padding: 5px 5px 5px 5px;
+    }
+
+        .divsourcelist ul {
+            margin: 0; /*width: 605px;*/
+        }
+
+            .divsourcelist ul li {
+                margin: 0 0;
+                list-style: none;
+                color: #000;
+                cursor: pointer;
+            }
+
+        .divdestinationlist ul {
+            margin: 0; /*width: 605px;*/
+        }
+
+            .divdestinationlist ul li {
+                margin: 0 0;
+                list-style: none;
+                color: #000;
+                cursor: pointer;
+            }
+
+    div.ui-resizable-handle {
+        z-index: 1 !important;
+    }
+</style>
+<script type='text/javascript' src="@Url.Content("~/Scripts/jquery.slidepanel.js")"></script>
+<script type="text/javascript">
+
+    $(function () {
+        $('a.closeEl').bind('click', toggleContent);
+        $("ul#divsource li").each(function () {
+            if ($(this).attr("id") != '' && $(this).attr("id") != 'undefined' && $(this).attr("id") != undefined) {
+                $(this).resizable({
+                    minHeight: 375,
+                    minWidth: 603,
+                    maxWidth: 603,
+                    stop: function(event, ui) {
+                       //alert($(event.target).height());
+                        var currentID = $(this).attr("id");
+                        //if (currentID == "Inventory") {
+                            //$(this).html("");
+                        //$(this).load('/Master/InventoryDb');
+                        var currentLI = '';
+                        ///alert($(event.target).height());
+                        var height = parseFloat($(event.target).height()) - parseFloat(150);
+
+                        if (parseFloat(height) < 150)
+                        {
+                            height = parseFloat(100);
+                        }
+                        $(this).find('div#' + currentID).css("height", $(event.target).height());
+                        $(this).find("div.dataTables_scrollBody").attr("overflow: scroll;overflow-y:scroll; width: 100%;height:" + parseFloat(height)  + "px !important;max-height:3000px !impotant;");
+
+                        $(this).find("div.dataTables_scrollBody").css("height", parseFloat(height) - parseFloat(85));
+                        $(this).find("div.dataTables_scrollBody").scroll();
+                        $(this).find("div#my" + currentID + "DataTable_wrapper").css("height", parseFloat(height) - parseFloat(50));
+                        $(this).find("div#dvinner" + currentID).css("height", height);
+                        $(this).find("div.dataTables_scroll").css("height", parseFloat(height) - parseFloat(85));
+
+                        //$.get("/master/InventoryDb", function (data) { $(this).html(data); });
+                        $(this).find('div#' + currentID).css("height", $(event.target).height());
+                        $(this).find("div.dataTables_scrollBody").css("max-height", parseFloat(height) - parseFloat(50));
+
+                       // alert(height);
+                        $(currentLI).find("div.dataTables_scrollBody").attr("overflow: scroll;overflow-y:scroll; width: 100%;height:" + parseFloat(height) + "px !important;max-height:3000px !impotant;");
+                        //$(currentLI).find("div.dataTables_scrollBody").scroll();
+                        $(currentLI).find("div#my" + currentID + "DataTable_wrapper").css("height", parseFloat(height) - parseFloat(50));
+                        $(currentLI).find("div#dvinner" + currentID).css("height", height);
+                        $(currentLI).find("div.dataTables_scroll").css("height", parseFloat(height) - parseFloat(85));
+
+                          //  $(this).resizable();
+                        //}
+                       //$(this).find("div#" + currentID).css("height", $(event.target).height());
+                       //$(this).find("div#" + currentID).css("margin", "0 0em 1em 0");
+                    }
+                });
+            }
+        });
+        $("ul#divdestination li").each(function () {
+            if ($(this).attr("id") != '' && $(this).attr("id") != undefined && $(this).attr("id") != 'undefined') {
+                $(this).resizable({
+                    minHeight: 375,
+                    minWidth: 603,
+                    maxWidth: 603,
+                    stop: function (event, ui) {
+                        //alert($(event.target).height());
+                        var currentID = $(this).attr("id");
+                        //if (currentID == "Inventory") {
+                        //$(this).html("");
+                        //$(this).load('/Master/InventoryDb');
+                        var currentLI = '';
+                        ///alert($(event.target).height());
+                        var height = parseFloat($(event.target).height()) - parseFloat(150);
+
+                        if (parseFloat(height) < 150) {
+                            height = parseFloat(100);
+                        }
+                        $(this).find('div#' + currentID).css("height", $(event.target).height());
+                        $(this).find("div.dataTables_scrollBody").attr("overflow: scroll;overflow-y:scroll; width: 100%;height:" + parseFloat(height) + "px !important;max-height:3000px !impotant;");
+
+                        $(this).find("div.dataTables_scrollBody").css("height", parseFloat(height) - parseFloat(85));
+                        $(this).find("div.dataTables_scrollBody").scroll();
+                        $(this).find("div#my" + currentID + "DataTable_wrapper").css("height", parseFloat(height) - parseFloat(50));
+                        $(this).find("div#dvinner" + currentID).css("height", height);
+                        $(this).find("div.dataTables_scroll").css("height", parseFloat(height) - parseFloat(85));
+
+                        //$.get("/master/InventoryDb", function (data) { $(this).html(data); });
+                        $(this).find('div#' + currentID).css("height", $(event.target).height());
+                        $(this).find("div.dataTables_scrollBody").css("max-height", parseFloat(height) - parseFloat(50));
+
+                        // alert(height);
+                        $(currentLI).find("div.dataTables_scrollBody").attr("overflow: scroll;overflow-y:scroll; width: 100%;height:" + parseFloat(height) + "px !important;max-height:3000px !impotant;");
+                        //$(currentLI).find("div.dataTables_scrollBody").scroll();
+                        $(currentLI).find("div#my" + currentID + "DataTable_wrapper").css("height", parseFloat(height) - parseFloat(50));
+                        $(currentLI).find("div#dvinner" + currentID).css("height", height);
+                        $(currentLI).find("div.dataTables_scroll").css("height", parseFloat(height) - parseFloat(85));
+
+                        //  $(this).resizable();
+                        //}
+                        //$(this).find("div#" + currentID).css("height", $(event.target).height());
+                        //$(this).find("div#" + currentID).css("margin", "0 0em 1em 0");
+                    }
+                });
+            }
+        });
+        $("#lnkShowPanel").slidepanel({
+            orientation: 'right', //default left, available: top, right, bottom, left
+            mode: 'overlay', //default push, available: push, overlay
+            static: false //default false, available: true, false
+        });
+
+        $("#divsource, #divdestination").sortable({
+            connectWith: ".connectedSortable",
+            scroll: true,
+            handle: 'div.portlet-header',
+            start: function () {
+            },
+            change: function () {
+                //var arraftersort = $(this).sortable("toArray");
+                //alert(arraftersort);
+
+            },
+            stop: function () {
+                var currentDiv = ($(this).parents("li").attr("id"));
+                var leftwidget = $("#divsource").sortable("toArray");
+                var rightwidget = $("#divdestination").sortable("toArray");
+
+                var left = leftwidget.toString().split(",");
+                var finalleftstring = '';
+                if (leftwidget != '') {
+
+                    for (var i = 0; i < left.length; i++) {
+
+                        if (currentDiv == left[i]) {
+
+                            var t = $("li#" + left[i]).find("input#hdnCloseOpenValue").val();
+                            if (finalleftstring == '') {
+                                finalleftstring = left[i].toString() + "-" + t;
+                            }
+                            else {
+                                finalleftstring = finalleftstring + "," + left[i].toString() + "-" + t;
+                            }
+                        }
+                        else {
+
+                            var t = $("li#" + left[i]).find("input#hdnCloseOpenValue").val();
+
+                            if (finalleftstring == '') {
+                                finalleftstring = left[i].toString() + "-" + t;
+                            }
+                            else {
+                                finalleftstring = finalleftstring + "," + left[i].toString() + "-" + t;
+                            }
+
+                        }
+
+                    }
+                }
+
+                var right = rightwidget.toString().split(",");
+                var finalrightstring = '';
+                if (rightwidget != '') {
+                    for (var i = 0; i < right.length; i++) {
+
+                        if (currentDiv == right[i]) {
+
+                            var t = $("li#" + right[i]).find("input#hdnCloseOpenValue").val();
+                            if (finalrightstring == '') {
+                                finalrightstring = right[i].toString() + "-" + t;
+                            }
+                            else {
+                                finalrightstring = finalrightstring + "," + right[i].toString() + "-" + t;
+                            }
+                        }
+                        else {
+
+                            var t = $("li#" + right[i]).find("input#hdnCloseOpenValue").val();
+                            if (finalrightstring == '') {
+                                finalrightstring = right[i].toString() + "-" + t;
+                            }
+                            else {
+                                finalrightstring = finalrightstring + "," + right[i].toString() + "-" + t;
+                            }
+
+                        }
+
+                    }
+                }
+                $("ul#divsource li").each(function () {
+                    if ($(this).attr("id") != '' && $(this).attr("id") != undefined && $(this).attr("id") != 'undefined') {
+                        $(this).resizable({
+                            minHeight: 70,
+                            minWidth: 603,
+                            maxWidth: 603,
+                            stop: function (event, ui) {
+                                //alert($(event.target).height());
+                                var currentID = $(this).attr("id");
+                                //if (currentID == "Inventory") {
+                                //$(this).html("");
+                                //$(this).load('/Master/InventoryDb');
+                                var currentLI = '';
+                                ///alert($(event.target).height());
+                                var height = parseFloat($(event.target).height()) - parseFloat(150);
+
+                                if (parseFloat(height) < 150) {
+                                    height = parseFloat(100);
+                                }
+                                $(this).find('div#' + currentID).css("height", $(event.target).height());
+                                $(this).find("div.dataTables_scrollBody").attr("overflow: scroll;overflow-y:scroll; width: 100%;height:" + parseFloat(height) + "px !important;max-height:3000px !impotant;");
+
+                                $(this).find("div.dataTables_scrollBody").css("height", parseFloat(height) - parseFloat(85));
+                                $(this).find("div.dataTables_scrollBody").scroll();
+                                $(this).find("div#my" + currentID + "DataTable_wrapper").css("height", parseFloat(height) - parseFloat(50));
+                                $(this).find("div#dvinner" + currentID).css("height", height);
+                                $(this).find("div.dataTables_scroll").css("height", parseFloat(height) - parseFloat(85));
+
+                                //$.get("/master/InventoryDb", function (data) { $(this).html(data); });
+                                $(this).find('div#' + currentID).css("height", $(event.target).height());
+                                $(this).find("div.dataTables_scrollBody").css("max-height", parseFloat(height) - parseFloat(50));
+
+                                // alert(height);
+                                $(currentLI).find("div.dataTables_scrollBody").attr("overflow: scroll;overflow-y:scroll; width: 100%;height:" + parseFloat(height) + "px !important;max-height:3000px !impotant;");
+                                //$(currentLI).find("div.dataTables_scrollBody").scroll();
+                                $(currentLI).find("div#my" + currentID + "DataTable_wrapper").css("height", parseFloat(height) - parseFloat(50));
+                                $(currentLI).find("div#dvinner" + currentID).css("height", height);
+                                $(currentLI).find("div.dataTables_scroll").css("height", parseFloat(height) - parseFloat(85));
+
+                                //  $(this).resizable();
+                                //}
+                                //$(this).find("div#" + currentID).css("height", $(event.target).height());
+                                //$(this).find("div#" + currentID).css("margin", "0 0em 1em 0");
+                            }
+                        });
+                    }
+                });
+                $("ul#divdestination li").each(function () {
+                    if ($(this).attr("id") != '' && $(this).attr("id") != undefined && $(this).attr("id") != 'undefined') {
+                        $(this).resizable({
+                            minHeight: 70,
+                            minWidth: 603,
+                            maxWidth: 603,
+                            stop: function (event, ui) {
+                                //alert($(event.target).height());
+                                var currentID = $(this).attr("id");
+                                //if (currentID == "Inventory") {
+                                //$(this).html("");
+                                //$(this).load('/Master/InventoryDb');
+                                var currentLI = '';
+                                ///alert($(event.target).height());
+                                var height = parseFloat($(event.target).height()) - parseFloat(150);
+
+                                if (parseFloat(height) < 150) {
+                                    height = parseFloat(100);
+                                }
+                                $(this).find('div#' + currentID).css("height", $(event.target).height());
+                                $(this).find("div.dataTables_scrollBody").attr("overflow: scroll;overflow-y:scroll; width: 100%;height:" + parseFloat(height) + "px !important;max-height:3000px !impotant;");
+
+                                $(this).find("div.dataTables_scrollBody").css("height", parseFloat(height) - parseFloat(85));
+                                $(this).find("div.dataTables_scrollBody").scroll();
+                                $(this).find("div#my" + currentID + "DataTable_wrapper").css("height", parseFloat(height) - parseFloat(50));
+                                $(this).find("div#dvinner" + currentID).css("height", height);
+                                $(this).find("div.dataTables_scroll").css("height", parseFloat(height) - parseFloat(85));
+
+                                //$.get("/master/InventoryDb", function (data) { $(this).html(data); });
+                                $(this).find('div#' + currentID).css("height", $(event.target).height());
+                                $(this).find("div.dataTables_scrollBody").css("max-height", parseFloat(height) - parseFloat(50));
+
+                                // alert(height);
+                                $(currentLI).find("div.dataTables_scrollBody").attr("overflow: scroll;overflow-y:scroll; width: 100%;height:" + parseFloat(height) + "px !important;max-height:3000px !impotant;");
+                                //$(currentLI).find("div.dataTables_scrollBody").scroll();
+                                $(currentLI).find("div#my" + currentID + "DataTable_wrapper").css("height", parseFloat(height) - parseFloat(50));
+                                $(currentLI).find("div#dvinner" + currentID).css("height", height);
+                                $(currentLI).find("div.dataTables_scroll").css("height", parseFloat(height) - parseFloat(85));
+
+                                //  $(this).resizable();
+                                //}
+                                //$(this).find("div#" + currentID).css("height", $(event.target).height());
+                                //$(this).find("div#" + currentID).css("margin", "0 0em 1em 0");
+                            }
+                        });
+                    }
+                });
+                $.ajax({
+                    type: "POST",
+                    url: "/Master/SaveDashboardWidget",
+                    data: "{ 'leftwidget': '" + finalleftstring + "','rightwidget': '" + finalrightstring + "'}",
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "html",
+                    success: function () {
+                    },
+                    error: function () {
+                    }
+                });
+
+            },
+            update: function () {
+                //var arraftersort = $(this).sortable("toArray");
+                //alert(arraftersort);
+
+            }
+        });
+        setTimeout(function () { setToggle(); }, 7000);
+
+        $("#dvDashboardInventortyCarryingCost").dialog({
+            autoOpen: false,
+            modal: true,
+            width: 850,
+            title: '@ResInventoryAnalysis.InventortyCarryingCost',
+            draggable: true,
+            resizable: true,
+            close: function () {
+                $('#dvDashboardInventortyCarryingCost').dialog('close');
+                return false;
+            }
+        });
+
+        $('#aDashboardInventortyCarryingCost').click(function (e) {
+            e.preventDefault();
+            $('#dvDashboardInventortyCarryingCost').dialog('open');
+        });
+
+    });
+    function setToggle() {
+        $("input#hdnCloseOpenValue").each(function () {
+
+            if ($(this).val() == '0') {
+                $(this).parent("li").find("div.portlet-content").attr("style", "overflow: hidden; display: none;");
+                $(this).parent("li").find("a.closeEl").removeClass('ui-icon-triangle-1-n').addClass('ui-icon-triangle-1-s');
+                var targetContent = $(this).parent("li").find('div.portlet-content');
+                targetContent.slideUp(300);
+            }
+        });
+    }
+    var toggleContent = function () {
+        //$(this).hide();
+        var targetContent = $('div.portlet-content', this.parentNode.parentNode);
+        if (targetContent.css('display') == 'none') {
+            targetContent.slideDown(300);
+            $(this).removeClass('ui-icon-triangle-1-s').addClass('ui-icon-triangle-1-n');
+        } else {
+            targetContent.slideUp(300);
+            $(this).removeClass('ui-icon-triangle-1-n').addClass('ui-icon-triangle-1-s');
+
+        }
+
+        var currentDiv = ($(this).parents("li").attr("id"));
+        var leftwidget = $("#divsource").sortable("toArray");
+        var rightwidget = $("#divdestination").sortable("toArray");
+
+        var left = leftwidget.toString().split(",");
+        var finalleftstring = '';
+        if (leftwidget != '') {
+            for (var i = 0; i < left.length; i++) {
+
+                if (currentDiv == left[i]) {
+
+                    var t = $("li#" + left[i]).find("input#hdnCloseOpenValue").val() == "0" ? "1" : "0";
+                    $("li#" + left[i]).find("input#hdnCloseOpenValue").val(t);
+                    if (finalleftstring == '') {
+                        finalleftstring = left[i].toString() + "-" + t;
+                    }
+                    else {
+
+                        finalleftstring = finalleftstring + "," + left[i].toString() + "-" + t;
+                    }
+                }
+                else {
+
+                    var t = $("li#" + left[i]).find("input#hdnCloseOpenValue").val();
+
+                    if (finalleftstring == '') {
+                        finalleftstring = left[i].toString() + "-" + t;
+                    }
+                    else {
+
+                        finalleftstring = finalleftstring + "," + left[i].toString() + "-" + t;
+                    }
+
+                }
+
+            }
+        }
+        var right = rightwidget.toString().split(",");
+        var finalrightstring = '';
+        if (rightwidget != '') {
+            for (var i = 0; i < right.length; i++) {
+
+                if (currentDiv == right[i]) {
+
+                    var t = $("li#" + right[i]).find("input#hdnCloseOpenValue").val() == "0" ? "1" : "0";
+                    $("li#" + right[i]).find("input#hdnCloseOpenValue").val(t);
+                    if (finalrightstring == '') {
+                        finalrightstring = right[i].toString() + "-" + t;
+                    }
+                    else {
+                        finalrightstring = finalrightstring + "," + right[i].toString() + "-" + t;
+                    }
+                }
+                else {
+
+                    var t = $("li#" + right[i]).find("input#hdnCloseOpenValue").val();
+
+                    if (finalrightstring == '') {
+                        finalrightstring = right[i].toString() + "-" + t;
+                    }
+                    else {
+                        finalrightstring = finalrightstring + "," + right[i].toString() + "-" + t;
+                    }
+
+                }
+
+            }
+        }
+        $.ajax({
+            type: "POST",
+            url: "/Master/SaveDashboardWidget",
+            data: "{ 'leftwidget': '" + finalleftstring + "','rightwidget': '" + finalrightstring + "'}",
+            contentType: "application/json; charset=utf-8",
+            dataType: "html",
+            success: function () {
+            },
+            error: function () {
+            },
+            complete:function()
+            {
+               // $("li#"+currentDiv).find("a.closeEl").show();
+            }
+        });
+        return false;
+    };
+
+
+
+</script>
+<div class="refresh setup" style="display:none;">
+    <div id="ColumnSortableModal" style="display: none;">
+        <div class="sortableContainer">
+            <ul id="ColumnSortable"></ul>
+        </div>
+        <input type="submit" class="CreateBtn" id="btnSaveOrder" value="Reorder" onclick="UpdateDashboardColumnOrder()" />
+    </div>
+</div>
+<div class="dashboardWrapperNew">
+    <h2>
+        @ResDashboard.PageHeader
+    </h2>
+    @*<div class="viewBlock" style="float: none; width: 100%;">
+            <a class="view" href="javascript:void(0);">
+                <img alt="" id="imgMainGrid" src="/content/images/chart-view-active.png"></a>
+            <a class="view" href=" href="@Url.Action("InventoryAnalysis", "Master")">
+                <img alt="" id="imgMainChart" src="/content/images/list-view-inactive.png"></a>
+            <a class="view" href="@Url.Action("DashboardParameters", "Master")" id="lnkShowPanel">
+                <img alt="" id="imgMainChart" src="/content/images/list-view-inactive.png" /></a>
+        </div>*@
+    <div class="viewBlock" style="width: 100%;">
+        <a class="view" href="@Url.Action("DashboardParameters", "Master")" id="lnkShowPanel" style="float:right !important">
+            <img alt="" id="imgdashboardpara" src="@Url.Content("~/content/images/dashset.png")" />
+        </a>
+        <a class="view" href="javascript:void(0);" id="aDashboardInventortyCarryingCost" style="float:right !important">
+            @ResDashboard.InventortyCarryingCost
+        </a>
+        @*<a class="view" href="javascript:void(0);">
+            @ResDashboard.Alerts*@
+        @*<img alt="" id="imgMainGrid" src="@Url.Content("~/content/images/chart-view.png")" />*@
+        @*</a><a class="view" href="@Url.Action("InventoryAnalysis", "Master")">
+            @ResDashboard.MinMax*@
+        @*<img alt="" id="imgMainChart" src="@Url.Content("~/content/images/list-view.png")" />*@
+        @*</a>*@
+    </div>
+    <div class="divsourcelist">
+        <ul id="divsource" class="connectedSortable" style="min-height: 100px;">
+            @if (leftwidget != null)
+            {
+                if (leftwidget.Any())
+                {
+                    foreach (var item in leftwidget)
+                    {
+                        List<UserRoleModuleDetailsDTO> returval = null;
+                        var list = lstmasterModule.FirstOrDefault(c => c.ParentModuleName.Equals(item.Split('-')[0]));
+
+                        if (list != null)
+                        {
+                            Int64 itemid = list.ID;
+
+                            if (lstPermission != null && itemid != Convert.ToInt64(SessionHelper.ParentModuleList.Master))
+                            {
+                                returval = (from m in lstPermission.PermissionList
+                                            where m.ParentID == itemid && m.IsView == true
+                                            select m).OrderBy(c => c.DisplayOrderNumber).ThenBy(t => t.ModuleName).ToList();
+                            }
+                        }
+
+                        if (returval != null && returval.Any())
+                        {
+                            if (@item.Contains('-'))
+                            {
+                                <li id="@item.Split('-')[0]">
+                                    <input id="hdnCloseOpenValue" type="hidden" value="@item.Split('-')[1]" />
+                                    @{Html.RenderAction(item.Split('-')[0] + "" + "Db");}
+                                </li>
+                            }
+                            else
+                            {
+                                <li id="@item">
+                                    <input id="hdnCloseOpenValue" type="hidden" value="1" />
+                                    @{Html.RenderAction(item + "" + "Db");}
+                                </li>
+                            }
+
+                        }
+
+                    }
+                }
+            }
+        </ul>
+    </div>
+    <div class="divdestinationlist">
+        <ul id="divdestination" class="connectedSortable" style="min-height: 100px;">
+            @if (rightwidget != null)
+            {
+                if (rightwidget.Any())
+                {
+                    foreach (var item in rightwidget)
+                    {
+                        List<UserRoleModuleDetailsDTO> returval = null;
+                        var list = lstmasterModule.FirstOrDefault(c => c.ParentModuleName.Equals(Convert.ToString(item.Split('-')[0])));
+
+                        if (list != null)
+                        {
+                            Int64 itemid = list.ID;
+
+                            if (lstPermission != null && itemid != Convert.ToInt64(SessionHelper.ParentModuleList.Master))
+                            {
+                                returval = (from m in lstPermission.PermissionList
+                                            where m.ParentID == itemid && m.IsView == true
+                                            select m).OrderBy(c => c.DisplayOrderNumber).ThenBy(t => t.ModuleName).ToList();
+                            }
+                        }
+
+                        if (returval != null && returval.Any())
+                        {
+                            if (@item.Contains('-'))
+                            {
+                                <li id="@item.Split('-')[0]">
+                                    <input id="hdnCloseOpenValue" type="hidden" value="@item.Split('-')[1]" />
+                                    @{Html.RenderAction(item.Split('-')[0] + "" + "Db");}
+                                </li>
+                            }
+                            else
+                            {
+                                <li id="@item">
+                                    <input id="hdnCloseOpenValue" type="hidden" value="1" />
+                                    @{Html.RenderAction(item + "" + "Db");}
+                                </li>
+                            }
+                        }
+                    }
+                }
+            }
+            @*<li id="Count">
+                    @{Html.RenderAction("CountDb");}
+                </li>
+                 <li id="Cart">
+                    @{Html.RenderAction("CartDb");}
+                </li>*@
+        </ul>
+    </div>
+</div>
+<div id="dvDashboardInventortyCarryingCost" style="display: none">
+    <img src="~/Content/images/DashboardInvnetoryCarryingCosts.png" alt="@ResInventoryAnalysis.InventortyCarryingCost" />
+</div>

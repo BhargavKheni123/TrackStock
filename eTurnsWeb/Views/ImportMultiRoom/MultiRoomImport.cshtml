@@ -1,0 +1,861 @@
+﻿@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    string PathToCSv = Url.Content("~/Content/OpenAccess/CSV/");
+    string[] arrcolumns = !string.IsNullOrWhiteSpace(Convert.ToString(Session["ColuumnList"])) ? Convert.ToString(Session["ColuumnList"]).ToLower().Split(',') : new string[] { };
+    ViewBag.Title = ResImportMasters.PageTitle;
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ImportMasters" };
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    //bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ImportMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Approval);
+    //bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ImportMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Approval);
+    bool IsExportPermission = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ExportPermission);
+    bool IsRoomConsigned = new eTurns.DAL.RoomDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).checkRoomConsignedOrNotbyRoomId(eTurnsWeb.Helper.SessionHelper.RoomID);
+    bool IsAllowOrderCostuom = new eTurns.DAL.RoomDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).checkRoomAllowOrderCostuomOrNotbyRoomId(eTurnsWeb.Helper.SessionHelper.RoomID);
+    eTurnsWeb.Controllers.ImportMultiRoomController objimo = new eTurnsWeb.Controllers.ImportMultiRoomController();
+    List<SelectListItem> lstLanguage = objimo.GetImportModule();
+    if (lstLanguage == null)
+    {
+        lstLanguage = new List<SelectListItem>();
+    }
+    ViewBag.DDLModulelst = lstLanguage;
+
+    if (lstLanguage != null && lstLanguage.Count > 0)
+    {
+        if (Session["CurModuleValue"] == null)
+        {
+            Session["CurModuleValue"] = lstLanguage[0].Value;
+        }
+        /*
+        if (eTurnsWeb.Helper.SessionHelper.AllowToolOrdering == true)
+        {
+            lstLanguage = lstLanguage.Where(c => (!c.Text.ToLower().Contains("tools")) && (!c.Text.ToLower().Contains("toolcheckincheckout"))).ToList();
+            ViewBag.DDLModulelst = lstLanguage;
+        }
+        */
+        if (Session["CurModule"] == null)
+        {
+            if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.BinMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.BinMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.CategoryMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.CategoryMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.RoomMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.Room;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.CustomerMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.CustomerMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.FreightTypeMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.FreightTypeMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.GLAccountsMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.GLAccountMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.GXPRConsignedJobMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.GXPRConsigmentJobMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.JobTypeMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.JobTypeMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ShipViaMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ShipViaMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.TechnicianMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.TechnicianMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ManufacturerMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ManufacturerMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.MeasurementTermMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.MeasurementTermMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.UnitMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.UnitMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.SupplierMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.SupplierMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ItemMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.LocationMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.LocationMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ToolCategory).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ToolCategoryMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.CostUOMMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.CostUOMMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.InventoryClassificationMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.InventoryClassificationMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.Assets).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.AssetMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.AssetToolSchedulerMapping).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.AssetToolSchedulerMapping;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ToolMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.QuickListPermission).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.QuickListItems;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.BOMItemMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.BOMItemMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.Kits).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.kitdetail;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.eVMISetup).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ItemLocationeVMISetup;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ItemManufacturer).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ItemManufacturerDetails;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ItemSupplier).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ItemSupplierDetails;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.BarcodeMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.BarcodeMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.UDF).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.UDF;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ProjectMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ProjectMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ItemLocationQty).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ItemLocationQty;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ManualCount).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ManualCount;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.WorkOrders).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.WorkOrder;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.PullImport).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.PullMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.PullImportWithLotSerial).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.PullImportWithLotSerial;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ItemLocationChange).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ItemLocationChange;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.PullImportWithSameQty).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.PullMasterWithSameQty;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.AssetMaintenance).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.PastMaintenanceDue;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.AssetToolScheduler).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.AssetToolScheduler;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ToolCheckInCheckOut).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ToolCheckInOutHistory;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ToolAdjustmentCount).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ToolAdjustmentCount;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ToolCertificationImages).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ToolCertificationImages;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.Orders).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.OrderMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.MoveMaterial).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.MoveMaterial;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.EnterpriseMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.EnterpriseQuickList;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.Requisitions).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.Requisition;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.Suppliercatalog).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.SupplierCatalog;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ReturnOrder).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.ReturnOrders;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.EditItemMaster).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.EditItemMaster;
+            }
+            else if (lstLanguage[0].Value == ((int)eTurnsWeb.Helper.SessionHelper.ModuleList.CommonBOMToItem).ToString())
+            {
+                Session["CurModule"] = ImportMastersDTO.TableName.CommonBOMToItem;
+            }
+            else
+            {
+                Session["CurModule"] = "";
+            }
+        }
+    }
+
+    ImportModuleModel objImportmodel = new ImportModuleModel();
+    objImportmodel.arrcolumns = arrcolumns;
+    objImportmodel.CurModule = Convert.ToString(Session["CurModule"]);
+    objImportmodel.CurModulevalue = Convert.ToString(Session["CurModuleValue"]);
+}
+<script type='text/javascript' src="@Url.Content("~/Scripts/ajaxfileupload.js?v=" + version)"></script>
+<style>
+    .validationerror {
+        border: 1px solid red;
+    }
+
+    .round-button {
+        width: auto;
+        display: table-cell;
+    }
+
+    .round-button-circle {
+        width: 100%;
+        border-radius: 7%;
+        overflow: hidden;
+        background: #f8f8f8;
+        box-shadow: 0 0 3px grey;
+        border-color: black;
+        padding: 2px 10px 3px 10px;
+        border-style: solid;
+        border-width: thin;
+    }
+</style>
+<div class="userListingWrapper">
+    <h2>
+        @ResImportMasters.PageHeader
+    </h2>
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99%">
+            @*@using (Ajax.BeginForm("UploadExcelFile", "Master", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess" }, new { @id = "frmImport" }))*@
+            @using (Html.BeginForm("MultiRoomImport", "ImportMultiRoom", FormMethod.Post, new { enctype = "multipart/form-data" }))
+            {
+                @Html.AntiForgeryToken()
+                <div class="userContent" style="padding-left: 5px; width: 99%;">
+                    <div class="userHead" style="margin: 0 0.5% 0; width: 99%">
+                        <div class="editorForm" style="width: 98%">
+                            <ul>
+                                <li style="float: left;">
+
+                                    <div class="editor-field" style="width: 18%; float: left;">
+                                        @Html.DropDownList("ddlModule", (List<SelectListItem>)ViewBag.DDLModulelst, new { @style = "width:85%", @class = "selectBox" })
+                                    </div>
+                                    <div id="divddlImportRoom">
+                                        <div class="editor-label" style="width: 7%; float: left; padding: 0">
+                                            @Html.Label(ResCommon.Room)
+
+                                        </div>
+                                        <div class="editor-field" style="width: 18%; float: left;">
+                                            <select id="ddlImportRoom" multiple="multiple" width="150px" name="example-basic" size="5"
+                                                    class="text-box"></select>
+                                            <input type="hidden" id="selectedRoomsToImport" name="selectedRoomsToImport" />
+                                        </div>
+                                        <div class="editor-label" style="width: 7%; float: left; padding: 0">
+                                            @Html.Label(ResImportMasters.SelectModule)
+
+                                        </div>
+                                    </div>
+                                    <div class="editor-label" style="width: 6%; float: left; padding: 0;">
+                                        @Html.Label(ResImportMasters.SelectFile)
+                                    </div>
+                                    <div class="editor-field" style="width: 19%; float: left;">
+                                        <input name="uploadFile" id="uploadFile" type="file" style="display:none;" />
+                                        <div class='round-button' id="CustomuploadFile" style="display: inline;">
+                                            <label class="round-button-circle" for="uploadFile">@ResCommon.ChooseFile</label><label id="lblnofilechoosen" style="padding-left:5px">@ResCommon.Nofilechosen</label>
+                                        </div>
+                                    </div>
+                                    <div class="editor-label" id="dvOffline" style="width: 8%; float: left; padding: 0;">
+                                        <input name="isOffline" id="isOffline" type="checkbox" onchange="ShowHideControl();" /> @Html.Label(ResImportMasters.ImportOffline)
+                                    </div>
+                                </li>
+                                <li style="float: left;">
+                                    <div class="editor-field" style="width: 6%; float: left;">
+                                        <input type="submit" id="btnimport" style="display:none;" value="@ResCommon.Save" title="@ResCommon.Save" class="CreateBtn" onclick="return CheckFileName();" />
+                                        <input type="submit" id="btnupload" value="@ResImportMasters.Load" title="@ResImportMasters.Load" class="CreateBtn" onclick="return CheckFileName();" />
+                                    </div>
+                                    <div class="editor-field" style="width: 7%;  float: left; padding-left: 84px; ">
+                                        @*<input type="button" value="UploadFile" title="Upload File" id="btnUpload" class="CreateBtn" name="btnSave" onclick="return CheckFileName();" />*@
+                                        <input type="button" id="btnDownload" value="@ResImportMasters.DownloadEmptyTemplate" title="@ResImportMasters.DownloadEmptyTemplate" class="CreateBtn" />
+                                    </div>
+                                    @if (IsExportPermission)
+                                    {
+                                        <div class="editor-field" style="width: 6%; padding-left: 37px; float: left;">
+                                            @*<input type="button" value="UploadFile" title="Upload File" id="btnUpload" class="CreateBtn" name="btnSave" onclick="return CheckFileName();" />*@
+                                            <input type="button" id="btnAllRecordDownload" value="@ResImportMasters.DownloadData" title="@ResImportMasters.DownloadData" class="CreateBtn" />
+                                        </div>
+                                    }
+                                    <div class="editor-label" style="width: 15%; float: left; padding: 6px;">
+                                        @Html.Label(@ResImportMasters.Requiredfieldsbegin)
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        @if (Session["CurModuleValue"] != null)
+                        {
+                            <script language="javascript" type="text/javascript">
+                                var drpSelectValue = '@Session["CurModuleValue"].ToString()';
+                                var drpSelectText = '@Session["CurModule"].ToString()';
+                                $("#ddlModule").val(drpSelectValue);
+                            </script>
+                        }
+                        @if (Session["importedData"] != null)
+                        {
+
+                            <script language="javascript" type="text/javascript">
+                                $("#divbtnBlock").show();
+                                var ColumnObject = new Array();
+                                var UpdateURL;
+                                var selectedModuleVal = $('#ddlModule option:selected').attr('value');
+                            </script>
+                        }
+                        @if ((Convert.ToString(Session["CurModule"]).ToLower() == ImportMastersDTO.TableName.ItemMaster.ToString().ToLower() && Session["importedData"] != null) 
+                            || (Convert.ToString(Session["CurModule"]).ToLower() == ImportMastersDTO.TableName.EditItemMaster.ToString().ToLower() && Session["importedData"] != null)
+                            || (Convert.ToString(Session["CurModule"]).ToLower() == ImportMastersDTO.TableName.AssetMaster.ToString().ToLower() && Session["importedData"] != null)
+                            || (Convert.ToString(Session["CurModule"]).ToLower() == ImportMastersDTO.TableName.SupplierMaster.ToString().ToLower() && Session["importedData"] != null)
+                            || (Convert.ToString(Session["CurModule"]).ToLower() == ImportMastersDTO.TableName.ToolMaster.ToString().ToLower() && Session["importedData"] != null)
+                            || (Convert.ToString(Session["CurModule"]).ToLower() == ImportMastersDTO.TableName.BOMItemMaster.ToString().ToLower() && Session["importedData"] != null)
+                            || (Convert.ToString(Session["CurModule"]).ToLower() == ImportMastersDTO.TableName.ToolCertificationImages.ToString().ToLower() && Session["importedData"] != null)
+                            || (Convert.ToString(Session["CurModule"]).ToLower() == ImportMastersDTO.TableName.SupplierCatalog.ToString().ToLower() && Session["importedData"] != null))
+                        {
+                            <span id="Imapth" style="float:left;padding-right:10px;">@ResItemMaster.ImagePath:</span>
+                            <input name="uploadZIPFile" id="uploadZIPFile" type="file" style="float: left !important;display:none;" />
+                            <div class='round-button' id="CustomuploadZIPFile" style="display: inline; float: left !important;padding-bottom:5px;">
+                                <label class="round-button-circle" for="uploadZIPFile">@ResCommon.ChooseFile</label><label id="lblnouploadedZIPFile" style="padding-left:5px">@ResCommon.Nofilechosen</label>
+                            </div>
+                            <br />
+                        }
+                        @if ((Convert.ToString(Session["CurModule"]).ToLower() == ImportMastersDTO.TableName.ItemMaster.ToString().ToLower() && Session["importedData"] != null)
+                            || (Convert.ToString(Session["CurModule"]).ToLower() == ImportMastersDTO.TableName.EditItemMaster.ToString().ToLower() && Session["importedData"] != null)
+                            || (Convert.ToString(Session["CurModule"]).ToLower() == ImportMastersDTO.TableName.BOMItemMaster.ToString().ToLower() && Session["importedData"] != null))
+                        {
+                            <span id="Link2" style="float:left;padding-right:10px;padding-left:20px;">@ResItemMaster.Link2</span>
+                            <input name="uploadZIPFileForLink2" id="uploadZIPFileForLink2" type="file" style="float: left !important;display:none;" />
+                            <div class='round-button' id="CustomuploadZIPFileForLink2" style="display: inline; float: left !important;padding-left:10px;">
+                                <label class="round-button-circle" for="uploadZIPFileForLink2">@ResCommon.ChooseFile</label><label id="lblnouploadedZIPFileForLink2" style="padding-left:5px">@ResCommon.Nofilechosen</label>
+                            </div>
+                            <br />
+                        }
+                        @if (Session["importedData"] != null)
+                        {
+                            <div class="userContent" style="width: 100% !important;">
+                                <table id="myImportDataTable" class="display">
+                                    <thead>
+
+                                        @{
+                                            ImportMastersDTO.TableName curModuleEnum = ImportMastersDTO.TableName.AssetCategoryMaster;
+
+
+                                            if (Enum.TryParse<ImportMastersDTO.TableName>(Session["CurModule"].ToString(), out curModuleEnum))
+                                            {
+                                                switch (curModuleEnum)
+                                                {
+                                                    case ImportMastersDTO.TableName.BinMaster:
+                                                        Html.RenderPartial("_BinMasterImport", objImportmodel);
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ItemLocationeVMISetup:
+                                                        {
+                                                            Html.RenderPartial("_ItemLocationeVMISetupImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.LocationMaster:
+                                                        {
+                                                            Html.RenderPartial("_LocationMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ToolCategoryMaster:
+                                                        {
+                                                            Html.RenderPartial("_ToolCategoryMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.CategoryMaster:
+                                                        {
+                                                            Html.RenderPartial("_CategoryMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.CustomerMaster:
+                                                        {
+                                                            Html.RenderPartial("_CustomerMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.FreightTypeMaster:
+                                                        {
+                                                            Html.RenderPartial("_FreightTypeMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.GLAccountMaster:
+                                                        {
+                                                            Html.RenderPartial("_GLAccountMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.GXPRConsigmentJobMaster:
+                                                        {
+                                                            Html.RenderPartial("_GXPRConsigmentJobMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.JobTypeMaster:
+                                                        {
+                                                            Html.RenderPartial("_JobTypeMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ShipViaMaster:
+                                                        {
+                                                            Html.RenderPartial("_ShipViaMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.TechnicianMaster:
+                                                        {
+                                                            Html.RenderPartial("_TechnicianMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ManufacturerMaster:
+                                                        {
+                                                            Html.RenderPartial("_ManufacturerMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.MeasurementTermMaster:
+                                                        {
+                                                            Html.RenderPartial("_MeasurementTermMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.UnitMaster:
+                                                        {
+                                                            Html.RenderPartial("_UnitMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.SupplierMaster:
+                                                        {
+                                                            Html.RenderPartial("_SupplierMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ItemMaster:
+                                                        {
+                                                            Html.RenderPartial("_ItemMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.BOMItemMaster:
+                                                        {
+                                                            Html.RenderPartial("_BOMItemMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.CostUOMMaster:
+                                                        {
+                                                            Html.RenderPartial("_CostUOMMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.InventoryClassificationMaster:
+                                                        {
+                                                            Html.RenderPartial("_InventoryClassificationMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ToolMaster:
+                                                        {
+                                                            if (eTurnsWeb.Helper.SessionHelper.AllowToolOrdering == true)
+                                                            {
+                                                                Html.RenderPartial("_ToolMasterImportNew", objImportmodel);
+                                                            }
+                                                            else
+                                                            {
+                                                                Html.RenderPartial("_ToolMasterImport", objImportmodel);
+                                                            }
+
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.AssetToolSchedulerMapping:
+                                                        {
+                                                            Html.RenderPartial("_AssetToolSchedulerMappingImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.AssetMaster:
+                                                        {
+                                                            Html.RenderPartial("_AssetMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.QuickListItems:
+                                                        {
+                                                            Html.RenderPartial("_QuickListItemsImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.kitdetail:
+                                                        {
+                                                            Html.RenderPartial("_kitdetailImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ItemManufacturerDetails:
+                                                        {
+                                                            Html.RenderPartial("_ItemManufacturerDetailsImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ItemSupplierDetails:
+                                                        {
+                                                            Html.RenderPartial("_ItemSupplierDetailsImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.BarcodeMaster:
+                                                        {
+                                                            Html.RenderPartial("_BarcodeMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.UDF:
+                                                        {
+                                                            Html.RenderPartial("_UDFImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ProjectMaster:
+                                                        {
+                                                            Html.RenderPartial("_ProjectMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ItemLocationQty:
+                                                        {
+                                                            Html.RenderPartial("_ItemLocationQtyImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ManualCount:
+                                                        {
+                                                            Html.RenderPartial("_ManualCountImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.WorkOrder:
+                                                        {
+                                                            Html.RenderPartial("_WorkOrderImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.PullMaster:
+                                                    case ImportMastersDTO.TableName.PullImportWithLotSerial:
+                                                        {
+                                                            Html.RenderPartial("_PullImportImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ItemLocationChange:
+                                                        {
+                                                            Html.RenderPartial("_ItemLocationChangeImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.PullMasterWithSameQty:
+                                                        {
+                                                            Html.RenderPartial("_PullImportWithSameQtyImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.AssetToolScheduler:
+                                                        {
+                                                            Html.RenderPartial("_AssetToolSchedulerImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.PastMaintenanceDue:
+                                                        {
+                                                            Html.RenderPartial("_PastMaintenanceDueImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ToolCheckInOutHistory:
+                                                        {
+                                                            Html.RenderPartial("_ToolCheckInCheckOutImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ToolAdjustmentCount:
+                                                        {
+                                                            Html.RenderPartial("_ToolAdjustmentCountImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ToolCertificationImages:
+                                                        {
+                                                            Html.RenderPartial("_ToolCertificationImagesImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.OrderMaster:
+                                                        {
+                                                            Html.RenderPartial("_OrderMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.MoveMaterial:
+                                                        {
+                                                            Html.RenderPartial("_MoveMaterialImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.EnterpriseQuickList:
+                                                        {
+                                                            Html.RenderPartial("_EnterpriseQLImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.Requisition:
+                                                        {
+                                                            Html.RenderPartial("_RequisitionImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.QuoteMaster:
+                                                        {
+                                                            Html.RenderPartial("_QuoteMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.SupplierCatalog:
+                                                        {
+                                                            Html.RenderPartial("_SupplierCatalogImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.ReturnOrders:
+                                                        {
+                                                            Html.RenderPartial("_ReturnOrderMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.EditItemMaster:
+                                                        {
+                                                            Html.RenderPartial("_EditItemMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                    case ImportMastersDTO.TableName.CommonBOMToItem:
+                                                        {
+                                                            Html.RenderPartial("_CommonBOMItemMasterImport", objImportmodel);
+                                                        }
+                                                        break;
+                                                }
+                                            }// if parse
+                                        }
+
+
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        }
+                        <div class="editorForm" id="divbtnBlock" style="display: none; width: 98.5% !important;">
+                            <ul>
+                                <li>
+                                    <div class="BtnBlockform" style="margin-left: 5px;">
+                                        <input type="button" value="@ResImportMasters.Save" id="btnSave" name="btnSave" class="CreateBtn" style="float: left;" onclick="return CheckZIPFileName();" />
+                                        <input type="button" value="@ResImportMasters.Cancel" id="btnCancel" name="btnCancel" class="CreateBtn"
+                                               style="float: left;" />
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="dialog" id="ImportErrorDialog" style="display: none; width: 470px;">
+                            <div class="inner" style="width: 470px;">
+                                <p class="text" id="ImportErrorMSG" style="text-align: left; padding-left: 10px;">
+                                </p>
+                                <p class="text btnA" style="text-align: center; padding-left: 10px;">
+                                    <a href="javascript:void(0)" class="no" onclick="javascript:return closeErrorDialog()">
+                                        <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.InformOk" />@eTurns.DTO.Resources.ResMessage.InformOk
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="dialog" id="ImportInfoDialog" style="display: none; width: 470px;">
+                            <div class="inner" style="width: 470px;">
+                                <p class="text" id="ImportMSG" style="text-align: left; padding-left: 10px;max-height:200px;overflow:auto;">
+                                </p>
+                                <p class="text btnA" style="text-align: center; padding-left: 10px;">
+                                    <a href="javascript:void(0)" class="no" onclick="closeFromOk()">
+                                        <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.InformOk" />@eTurns.DTO.Resources.ResMessage.InformOk
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="dialog" id="ImportProcessing" style="display: none;">
+                            <div class="inner">
+                                <p class="text" id="ImportWait" style="text-align: left; padding-left: 10px;">
+                                    <b style="color: Red;">
+                                        @ResImportMasters.MsgImportProcessing
+                                    </b>
+                                </p>
+                                <p class="text" id="ImportWaitImg" style="text-align: center; padding-left: 10px;">
+                                    <img src="@Url.Content("~/Content/images/ajax.gif")" alt="loding" />
+                                </p>
+                            </div>
+                        </div>
+                        <div id="DivGridLoading" class="DivLoadingProcessing" style="display: none;">
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    $('#DivGridLoading').hide();
+                                                var AllowDeletePopup = false;
+                                                var oTable;
+                                                var PathToCSv = '@PathToCSv';
+                                                var BinMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.BinMaster)';
+                                                var eVMISetupselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.eVMISetup)';
+                                                var LocationMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.LocationMaster)';
+                                                var ToolCategoryselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ToolCategory)';
+                                                var CategoryMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.CategoryMaster)';
+                                                var CustomerMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.CustomerMaster)';
+                                                var FreightTypeMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.FreightTypeMaster)';
+                                                var GLAccountsMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.GLAccountsMaster)';
+                                                var GXPRConsignedJobMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.GXPRConsignedJobMaster)';
+                                                var JobTypeMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.JobTypeMaster)';
+                                                var ShipViaMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ShipViaMaster)';
+                                                var TechnicianMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.TechnicianMaster)';
+                                                var ManufacturerMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ManufacturerMaster)';
+                                                var MeasurementTermMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.MeasurementTermMaster)';
+                                                var UnitMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.UnitMaster)';
+                                                var SupplierMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.SupplierMaster)';
+                                                var ItemMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster)';
+                                                var EditItemMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.EditItemMaster)';
+                                                var BOMItemMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.BOMItemMaster)';
+                                                var CostUOMMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.CostUOMMaster)';
+                                                var InventoryClassificationMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.InventoryClassificationMaster)';
+                                                var ToolMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster)';
+                                                var AssetToolSchedulerMappingval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.AssetToolSchedulerMapping)';
+                                                var Assetsselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.Assets)';
+                                                var QuickListPermissionselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.QuickListPermission)';
+                                                var Kitsselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.Kits)';
+                                                var ItemManufacturerselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ItemManufacturer)';
+                                                var ItemSupplierselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ItemSupplier)';
+                                                var BarcodeMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.BarcodeMaster)';
+                                                var UDFselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.UDF)';
+                                                var ProjectMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ProjectMaster)';
+                                                var ItemLocationQtyval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ItemLocationQty)';
+                                                var ManualCountval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ManualCount)';
+                                                var WorkOrderval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.WorkOrders)';
+                                                var PullImport = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.PullImport)';
+                                                var PullImportWithLotSerialVal = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.PullImportWithLotSerial)';
+                                                var ItemLocationChangeImport = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ItemLocationChange)';
+                                                var PullImportWithSameQty = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.PullImportWithSameQty)';
+                                                var AssetToolScheduler = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.AssetToolScheduler)';
+                                                var PastMaintenanceDue = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.AssetMaintenance)';
+                                                var ToolCheckInCheckOut = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ToolCheckInCheckOut)';
+                                                var ToolAdjustmentCountval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ToolAdjustmentCount)';
+                                                var ToolCertificationImagesval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ToolCertificationImages)';
+                                                var ToolCertificationImages = '@eTurnsWeb.Helper.ResImportModule.ToolCertificationImages';
+                                                var OrderMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.Orders)';
+                                                var MoveMaterialval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.MoveMaterial)';
+                                                var EnterpriseQuickListval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.EnterpriseQuickList)';
+                                                var Requisitionval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.Requisitions)';
+                                                var QuoteMasterselval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.Quote)';
+                                                var SupplierCatalogVal = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.Suppliercatalog)';
+                                                var ReturnOrderimportval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.ReturnOrder)';
+                                                var CommonBOMToItemimportval = '@((int)eTurnsWeb.Helper.SessionHelper.ModuleList.CommonBOMToItem)';
+                                                var ImportLoadURL = '@Url.Content("~/ImportMultiRoom/MultiRoomImport")';
+                                                var SaveImportURL = '@Url.Content("~/ImportMultiRoom/SaveImport")';
+                                                var CurModuleval = '@Session["CurModule"]';
+                                                var AssetMasterval = '@ImportMastersDTO.TableName.AssetMaster';
+                                                var ImportBrowseFileMsg = '@ResImportMasters.ImportBrowseFileMsg';
+                                                var minmaxmsg = '@ResItemMaster.MinimumQuantity' + ' ' + '@ResImportMasters.mustbegreaterthanorequalto' + ' ' + '@ResItemMaster.CriticalQuantity';
+                                                var minmaxmsg1 = '@ResItemMaster.MaximumQuantity' + ' ' + '@ResImportMasters.mustbegreaterthanorequalto' + ' ' + '@ResItemMaster.MinimumQuantity';
+                                                var minmaxmsg2 = '@ResItemMaster.MaximumQuantity' + ' ' + '@ResImportMasters.mustbegreaterthanorequalto' + ' ' + '@ResItemMaster.MinimumQuantity';
+                                                var ImagePathProper = '@ResItemMaster.ImagePathProper';
+                                                var ClearCurrentResourceListURL = '@Url.Content("~/ImportMultiRoom/ClearCurrentResourceList")';
+                                                var SetSelectedModuleURL = '@Url.Content("~/ImportMultiRoom/SetSelectedModule")';
+                                                var gridlbl = '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records';
+                                                var NoDataAvailableInTable = '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable';
+                                                var ShowingNoOfEntries = '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries';
+                                                var ShowingZeroEntries = '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries';
+                                                var ShowingErrorMessage = '@eTurns.DTO.Resources.ResMessage.ShowingErrorMessage';
+                                                var SaveGridStateURL = '@Url.Content("~/Master/SaveGridState")';
+                                                var LoadGridStateURL = '@Url.Content("~/Master/LoadGridState")';
+                                                var GetImportListURL = '@Url.Content("~/ImportMultiRoom/GetImportList")';
+                                                var IsCurrentRoomConsigned = '@IsRoomConsigned';
+                                                var IsCurrentRoomOrderCostUOM = '@IsAllowOrderCostuom';
+                                                var ConsignedItemMessage = '@ResItemMaster.ConsignedItemMessage';
+                                                var OrderCostuomItem = '@ResItemMaster.IsAllowOrderCostuomItemMessage';
+                                                var GenerateTableCall = false;
+                                                var AllowToolOrderingval = '@eTurnsWeb.Helper.SessionHelper.AllowToolOrdering';
+                                                var isAllowToolOrdering = '@eTurnsWeb.Helper.SessionHelper.AllowToolOrdering';
+                                                var msgZipFileIsRequired = '@ResMessage.ZipFileIsRequired';
+                                                var msgInvalidFileType = '@ResMessage.InvalidFileType';
+                                                var MsgDownloadDataNotAvailable = '@ResImportMasters.MsgDownloadDataNotAvailable';
+                                                var MsgInvalidFileValidation = '@ResImportMasters.MsgInvalidFileValidation';
+                                                var MsgInvalidFileZipValidation = '@ResImportMasters.MsgInvalidFileZipValidation';
+                                                var MsgSupplierDefaultAccountValidation = '@ResImportMasters.MsgSupplierDefaultAccountValidation';
+                                                var MsgSelectDefaultAccount = '@ResSupplierMaster.MsgSelectDefaultAccount';
+                                                var MsgModuleNameValidation = '@ResImportMasters.MsgModuleNameValidation';
+                                                var MsgSerialblankValidation = '@ResImportMasters.MsgSerialblankValidation';
+                                                var MsgPurchaseDateFormat = '@ResImportMasters.MsgPurchaseDateFormat';
+                                                var MsgEnterQuantitySerialTypeItem = '@ResImportMasters.MsgEnterQuantitySerialTypeItem';
+                                                var MsgEnterCustomerOwnQuantity = '@ResImportMasters.MsgEnterCustomerOwnQuantity';
+                                                var MsgEnterConsignedOwnQuantity = '@ResImportMasters.MsgEnterConsignedOwnQuantity';
+                                                var MsgEnterUniqueSerial = '@ResImportMasters.MsgEnterUniqueSerial';
+                                                var MsgImportedSuccessfully = '@ResImportMasters.MsgImportedSuccessfully';
+                                                var MsgImportError = '@ResImportMasters.MsgImportError';
+    var MsgEnterUniqueBinNymber = '@ResImportMasters.MsgEnterUniqueBinNumber';
+    var MsgEnterUniqueSupplierNumber = '@ResImportMasters.MsgEnterUniqueSupplierNumber';
+    var textNofilechosen = "@(eTurns.DTO.Resources.ResCommon.Nofilechosen)";
+    var ImportModuleReceiptAddNewRecipt = "@eTurnsWeb.Helper.ResImportModule.ImportReceiptAddNewReceipt";
+    var selectedCompanyId = '@eTurnsWeb.Helper.SessionHelper.CompanyID';
+    var selectedRoomId = '';
+
+</script>
+
+@if (Session["importedData"] != null)
+{
+    <script language="javascript" type="text/javascript">
+        //setTimeout(function () { GenerateDataTable(); }, 1000);
+        GenerateTableCall = true;
+    </script>
+}
+
+@if (Session["ErrorMessage"] != null)
+{
+    <script language="javascript" type="text/javascript">
+        alert('@(eTurns.DTO.ResImportMasters.ErrorInvalidFile)');
+    </script>
+    Session["ErrorMessage"] = null;
+}
+@if (TempData["SuccessMessage"] != null)
+{
+    <script language="javascript" type="text/javascript">
+        alert('@ResResourceEditor.ImportSuccess');
+    </script>
+}
+@if (Session["importedData"] != null && Session["importedRoomIds"] != null)
+{
+    var selectedRoomId = Session["importedRoomIds"];
+    <script language="javascript" type="text/javascript">
+        selectedRoomId = '@selectedRoomId';
+    </script>
+}
+@{Html.RenderPartial("_AllModuleValidations", objImportmodel);}
+<script src="@Url.Content("~/Scripts/PageScripts/MultiRoomImport.js?v=" + version)" type="text/javascript"></script>

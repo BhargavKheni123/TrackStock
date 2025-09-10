@@ -1,0 +1,207 @@
+﻿using eTurns.DTO.Resources;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace eTurns.DTO
+{
+
+    public enum eVMICalibrationWeightRequestType
+    {
+        GetCalibrationWeight = 1,
+        GetCalibrationWeightImmediate = 2,
+        SetCalibrationWeight = 3,
+        SetCalibrationWeightImmediate = 4,
+    }
+
+    public class eVMICalibrationWeightRequestDTO
+    {
+        public System.Int64 ID { get; set; }
+
+        public long ComPortMasterID { get; set; }
+        public string ComPortName { get; set; }
+        public double? CalibrationWeight { get;set;}
+        public Nullable<Int32> ScaleID { get; set; }
+        //public int ChannelID { get; set; }
+        public Guid ItemGUID { get; set; }
+        public System.Int64 BinID { get; set; }
+        public System.Int64 RoomID { get; set; }
+        public System.Int64 CompanyID { get; set; }
+
+        public System.Int32 RequestType { get; set; }
+
+        public System.Boolean IsCalWeightStarted { get; set; }
+
+        public Nullable<System.DateTime> CalWeightStartTime { get; set; }
+
+        public System.Boolean IsCalWeightCompleted { get; set; }
+
+        public Nullable<System.DateTime> CalWeightCompletionTime { get; set; }
+
+        public string ErrorDescription { get; set; }
+
+        public System.DateTime Created { get; set; }
+        public System.DateTime Updated { get; set; }
+
+        public string RoomName { get; set; }
+
+        public string CompanyName { get; set; }
+        public string ItemNumber { get; set; }
+        public string BinNumber { get; set; }
+
+        public Int64 CreatedBy { get; set; }
+
+        public Int64 UpdatedBy { get; set; }
+
+        public string CreatedByName { get; set; }
+        public string UpdatedByName { get; set; }
+
+        public int? TotalRecords { get; set; }
+
+        public string CreatedDate { get; set; }
+
+        public string UpdatedDate { get; set; }
+
+        public string RequestTypes { get; set; }
+
+        public long ComPortRoomMappingID { get; set; }
+        
+    }
+
+    public class eVMICalRequestRooms
+    {
+        public long RoomID { get; set; }
+        public long CompanyID { get; set; }
+    }
+
+    public class eVMICalReqDTO : eVMICalibrationWeightRequestDTO
+    {
+        public int TotalRequest { get; set; }
+        public int RecordsPerPage { get; set; }
+
+        public int NoOfPages { get; set; }
+    }
+
+    public class eVMICalRequestRoomsDTO 
+    {
+        public long RoomID { get; set; }
+        public long CompanyID { get; set; }
+    }
+
+
+    public class ReseVMICALWRRequest
+    {
+        private static string resourceFile = "ReseVMICALWRRequest";
+        public static string PageHeader
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("PageHeader", resourceFile);
+            }
+        }
+
+        public static string PageTitle
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("PageTitle", resourceFile);
+            }
+        }
+
+        public static string ComPortMasterID
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("ComPortMasterID", resourceFile);
+            }
+        }
+
+
+
+        public static string ComPortName
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("ComPort", resourceFile);
+            }
+        }
+
+        public static string IsComReqStarted
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("IsComReqStarted", resourceFile);
+            }
+        }
+
+        public static string IsComCompleted
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("IsComCompleted", resourceFile);
+            }
+        }
+
+        public static string ComStartTime
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("ComStartTime", resourceFile);
+            }
+        }
+
+        public static string ComCompletionTime
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("ComCompletionTime", resourceFile);
+            }
+        }
+
+        public static string ErrorDescription
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("ErrorDescription", resourceFile);
+            }
+        }
+
+        public static string RequestType
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("RequestType", resourceFile);
+            }
+        }
+        public static string CalibrationWeight
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("CalibrationWeight", resourceFile);
+            }
+        }
+        public static string ItemNumber
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("ItemNumber", resourceFile);
+            }
+        }
+        public static string BinNumber
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("BinNumber", resourceFile);
+            }
+        }
+        public static string ScaleID
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("ScaleID", resourceFile);
+            }
+        }
+
+    }
+}

@@ -1,0 +1,1089 @@
+﻿@model eTurns.DTO.InventoryDashboardDTO
+@{
+    var model = new InventoryDashboardDTO
+    {
+        //Year = DateTime.Now.Year.ToString()
+        Year = "2010",
+        SelectedMonth = 6
+    };
+
+    eTurnsWeb.Controllers.InventoryDashboardController objinvenrotyDash = new eTurnsWeb.Controllers.InventoryDashboardController();
+    int NODaysBack = Convert.ToInt32(objinvenrotyDash.GetCompanyInventoryConfig(eTurnsWeb.Helper.SessionHelper.CompanyID, "NOBackDays"));
+    int NODaysAve = Convert.ToInt32(objinvenrotyDash.GetCompanyInventoryConfig(eTurnsWeb.Helper.SessionHelper.CompanyID, "NODaysAve"));
+    decimal NOTimes = Convert.ToDecimal(objinvenrotyDash.GetCompanyInventoryConfig(eTurnsWeb.Helper.SessionHelper.CompanyID, "NOTimes"));
+    int MaxPer = Convert.ToInt32(objinvenrotyDash.GetCompanyInventoryConfig(eTurnsWeb.Helper.SessionHelper.CompanyID, "MaxPer"));
+    int MinPer = Convert.ToInt32(objinvenrotyDash.GetCompanyInventoryConfig(eTurnsWeb.Helper.SessionHelper.CompanyID, "MinPer"));
+  
+}
+<script src="@Url.Content("~/Scripts/Dashboard/jquery.sparkline.js")" type="text/javascript"></script>
+<script src="@Url.Content("~/Scripts/FixedColumns.js")" type="text/javascript"></script>
+<script src="@Url.Content("~/Scripts/Dashboard/simple-slider.js")" type="text/javascript"></script>
+<link href="@Url.Content("~/Content/simple-slider-volume.css")" rel="stylesheet" type="text/css" />
+<link href="@Url.Content("~/Content/simple-slider.css")" rel="stylesheet" type="text/css" />
+<style>
+    .dataTables_scrollBody
+    {
+        max-height: 600px !important;
+    }
+    
+    
+    [class^=slider]
+    {
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+    .output
+    {
+        color: #888;
+        font-size: 14px;
+        padding-top: 1px;
+        margin-left: 5px;
+        vertical-align: top;
+    }
+    
+    h2:first-of-type
+    {
+        margin-top: 0;
+    }
+    .mincellcolor
+    {
+        background-color: #FFFEC4;
+    }
+    .maxcellcolor
+    {
+        background-color: #FFA17F;
+    }
+    .Autocellcolor
+    {
+        background-color: #E3E3E3;
+    }
+    .dvchart
+    {
+        padding-left: 10px;
+        width: 35%;
+        float: left;
+        border-bottom: 1px solid;
+        border-left: 1px solid;
+        margin-left: 10px;
+    }
+    .headerfont
+    {
+        /*font-size: 17px;*/
+        font-size: 15px;
+    }
+    .dvheader
+    {
+        width: 20%;
+        float: left;
+        border-right: 1px solid;
+        margin: 3px;
+    }
+</style>
+<div>
+    <div style="float: left; width: 40%;">
+        Category Wise Cost
+        <div id="nodata">
+            No data available
+        </div>
+        <div id="dvCategoryChart">
+        </div>
+    </div>
+    <div style="float: right; width: 60%;">
+        <div style="padding-left: 0px; border: 1px solid; height: 30px; margin-bottom: 10px;">
+            <div style="width: 33%; float: left; border-right: 1px solid; margin: 3px;">
+                <label title="Turns:" class="headerfont">
+                    Inventory Value:
+                </label>
+                <label id="lblTotalInventory" class="headerfont">
+                </label>
+            </div>
+            <div style="width: 14%; float: left; border-right: 1px solid; margin: 3px;">
+                <label title="Turns:" class="headerfont">
+                    Turns:
+                </label>
+                <label id="lblTotalTurn" class="headerfont">
+                </label>
+            </div>
+            <div style="width: 25%; float: left; border-right: 1px solid; margin: 3px;">
+                <label title="MTD:" class="headerfont">
+                    MTD Stockouts:
+                </label>
+                <label id="lblMTD" class="headerfont">
+                </label>
+            </div>
+            <div style="width: 24%; float: right; margin: 3px;">
+                <label title="YTD:" class="headerfont">
+                    YTD Stockouts:
+                </label>
+                <label id="lblYTD" class="headerfont">
+                </label>
+            </div>
+        </div>
+        <div id="minTab" style="width: 50%; float: left;">
+            <div style="width: 100%; float: left; margin-left: 27px;">
+                <div style="padding-bottom: 5px; padding-left: 2px; float: left; min-width: 30px;">
+                    <img src="@Url.Content("~/Content/images/Red.png")" alt="Red" style="padding-right: 2px;" />@Html.Label("0", new { id = "lblMinRed" })
+                </div>
+                <div style="padding-bottom: 5px; padding-left: 2px; float: left; min-width: 30px;">
+                    <img src="@Url.Content("~/Content/images/Yellow.png")" alt="Yellow" style="padding-right: 2px;" />@Html.Label("0", new { id = "lblMinYellow" })
+                </div>
+                <div style="padding-bottom: 5px; padding-left: 2px; float: left; min-width: 30px;">
+                    <img src="@Url.Content("~/Content/images/Green.png")" alt="Green" style="padding-right: 2px;" />@Html.Label("0", new { id = "lblMinGreen" })
+                </div>
+            </div>
+            <div id="minbarchart" class="dvchart">
+            </div>
+            <div style="float: left; width: 80%;">
+                @Html.Label("Minimum Percentage")
+                @*  <input id="txtmin" type="text" data-slider="true" data-slider-range="0,100" data-slider-step="2"
+                    data-slider-highlight="true" />*@
+                <div id="MinSlider" style="width: 90%;">
+                </div>
+                <span id="minSlideValue" style="float: left; width: 5%;">0</span>
+            </div>
+        </div>
+        <div id="maxtab" style="width: 50%; float: left;">
+            <div style="width: 100%; float: left; margin-left: 27px;">
+                <div style="padding-bottom: 5px; padding-left: 2px; float: left; min-width: 30px;">
+                    <img src="@Url.Content("~/Content/images/Red.png")" alt="Red" style="padding-right: 2px;" />@Html.Label("0", new { id = "lblMaxRed" })
+                </div>
+                <div style="padding-bottom: 5px; padding-left: 2px; float: left; min-width: 30px;">
+                    <img src="@Url.Content("~/Content/images/Yellow.png")" alt="Yellow" style="padding-right: 2px;" />@Html.Label("0", new { id = "lblMaxYellow" })
+                </div>
+                <div style="padding-bottom: 5px; padding-left: 2px; float: left; min-width: 30px;">
+                    <img src="@Url.Content("~/Content/images/Green.png")" alt="Green" style="padding-right: 2px;" />@Html.Label("0", new { id = "lblMaxGreen" })
+                </div>
+            </div>
+            <div id="maxbarchart" class="dvchart">
+            </div>
+            <div style="float: left; width: 80%;">
+                @Html.Label("Maximum Percentage")
+                @*<input id="txtmax" type="text" data-slider="true" data-slider-range="0,100" data-slider-step="2"
+                    data-slider-highlight="true" />*@
+                <div id="MaxSlider" style="width: 90%;">
+                </div>
+                <span id="maxSlideValue" style="float: left; width: 5%;">0</span>
+            </div>
+        </div>
+        <dl style="float: left; width: 713px;">
+            <dd style="float: left; width: 237px;">
+                <label class="headerfont">
+                    <img style="padding-right: 2px;" alt="Red" src="@Url.Content("~/Content/images/Red.png")">:
+                    Above optimization</label></dd>
+            <dd style="float: left; width: 237px;">
+                <label class="headerfont">
+                    <img style="padding-right: 2px;" alt="Red" src="@Url.Content("~/Content/images/Yellow.png")">
+                    : Between Optimization
+                </label>
+            </dd>
+            <dd style="float: left; width: 237px;">
+                <label class="headerfont">
+                    <img style="padding-right: 2px;" alt="Red" src="@Url.Content("~/Content/images/Green.png")">
+                    : Below Optimization
+                </label>
+            </dd>
+        </dl>
+    </div>
+</div>
+<div style="float: left; padding-top: 4px;">
+    <ul>
+        <li style="border-right: none; float: left; padding-right: 5px;">
+            <label for="label" style="float: left; padding: 1.3% 2px;">
+                @Html.Label("From Year")
+            </label>
+            @Html.DropDownListFor(x => x.Year, new SelectList(model.Years, "Value", "Text", ""), new { @style = "width:85%", @class = "selectBox", @id = "txtFromYears" })
+        </li>
+        <li style="border-right: none; float: left; padding-right: 5px;">
+            <label for="label" style="float: left; padding: 1.3% 2px;">
+                @Html.Label("From Month")
+            </label>
+            @Html.DropDownListFor(x => x.SelectedMonth, new SelectList(model.AllMonths, "Value", "Text", 1), new { @style = "width:85%", @class = "selectBox", @id = "txtFromMonth" })
+        </li>
+        <li style="border-right: none; float: left; padding-right: 5px;">
+            <label for="label" style="float: left; padding: 1.3% 2px;">
+                @Html.Label("To Year")
+            </label>
+            @Html.DropDownListFor(x => x.Year, new SelectList(model.Years, "Value", "Text", eTurns.DAL.DateTimeUtility.DateTimeNow.Year.ToString()), new { @style = "width:85%", @class = "selectBox", @id = "txtToYears" })
+        </li>
+        <li style="border-right: none; float: left; padding-right: 5px;">
+            <label for="label" style="float: left; padding: 1.3% 2px;">
+                @Html.Label("To Month")
+            </label>
+            @Html.DropDownListFor(x => x.SelectedMonth, new SelectList(model.AllMonths, "Value", "Text", eTurns.DAL.DateTimeUtility.DateTimeNow.Month.ToString()), new { @style = "width:85%", @class = "selectBox", @id = "txtToMonth" })
+        </li>
+        <li style="border-right: none; float: left; padding-right: 5px; width: 120px;">
+            <label for="label" style="float: left; padding: 1.3% 2px;">
+                @Html.Label("Number of days back")
+            </label>
+            @Html.TextBox("txtdaysback", NODaysBack.ToString(), new { @class = "importtext-box", id = "txtdaysback", @style = "width:30px;background:white", maxlength = 3 })
+        </li>
+        <li style="border-right: none; float: left; padding-right: 5px; width: 150px;">
+            <label for="label" style="float: left; padding: 1.3% 2px;">
+                @Html.Label("Number of days of Average")
+            </label>
+            @Html.TextBox("txtdaysavg", NODaysAve.ToString(), new { @class = "importtext-box", id = "txtdaysavg", @style = "width:30px;background:white", maxlength = 3 })
+        </li>
+        <li style="border-right: none; float: left; padding-right: 5px; width: 95px;">
+            <label for="label" style="float: left; padding: 1.3% 2px;">
+                @Html.Label("Number of times")
+            </label>
+            @Html.TextBox("txttime", NOTimes.ToString(), new { @class = "importtext-box", id = "txttime", @style = "width:30px;background:white", maxlength = 3 })
+        </li>
+        <li style="border-right: none; float: left; padding-right: 5px; width: 93px;">
+            <label for="label" style="float: left; padding: 1.3% 2px;">
+                @Html.Label("Minimum Range")
+            </label>
+            @Html.TextBox("txtMinPer", MinPer.ToString(), new { @class = "importtext-box", id = "txtMinPer", @style = "width:30px;background:white", maxlength = 3 })
+        </li>
+        <li style="border-right: none; float: left; padding-right: 5px; width: 100px;">
+            <label for="label" style="float: left; padding: 1.3% 2px;">
+                @Html.Label("Maximum Range")
+            </label>
+            @Html.TextBox("txtMaxPer", MaxPer.ToString(), new { @class = "importtext-box", id = "txtMaxPer", @style = "width:30px;background:white", maxlength = 3 })
+            @Html.Hidden("hdnminper")
+            @Html.Hidden("hdnmaxper")
+        </li>
+        <li style="border-right: none; float: left; padding-right: 5px; padding-top: 15px;">
+            <div class="BtnBlockform" style="margin: 0px 0px 0px 5px;">
+                <input type="button" value="GO" id="btninventoryqtyGo" name="btninventoryqtyGo" class="CreateBtn"
+                    style="float: left;" />
+            </div>
+        </li>
+    </ul>
+</div>
+<div id="itemTab" class="tabContener">
+    <div id="dvItemGrid" class="userContent" style="float: left; width: 100%;">
+        <div class="searchWrapper">
+            <div class="searchBlock" style="width: 100%;">
+                <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                <div class="searchinputB">
+                    <input type="text" class="searchinput" id="global_filterDashItem" />
+                    <a href="javascript:void(0);" class="xclose">
+                        <img src="~/Content/images/x.png" alt="X" id="clear_global_filterDashItem" /></a>
+                </div>
+            </div>
+        </div>
+        @*<div class="userHead" style="height: 30px;">
+        </div>*@
+        <div style="float: right;">
+            <ul>
+                <li style="border-right: none; float: left; padding-right: 5px; width: 100%;">
+                    <div class="BtnBlockform" style="margin: 0px 0px 0px 5px; width: 100%;">
+                        <select name="selctItemreplenishType" id="selctItemreplenishType" class="selectBox"
+                            style="margin: 2% 0% 1% 0%;">
+                            <option value="@Boolean.TrueString">Item level replenishment</option>
+                            <option value="@Boolean.FalseString">Location level replenishment</option>
+                        </select>
+                        <input type="button" value="Apply Changes" id="btnApplyChanges" name="btnApplyChanges"
+                            class="CreateBtn" style="float: left;" />
+                    </div>
+                </li>
+            </ul>
+        </div>
+        <table id="myDataTableItemDash" class="display">
+            <thead>
+                <tr>
+                    <th>
+                    </th>
+                    <th>
+                        Min Analysis
+                    </th>
+                    <th>
+                        Max Analysis
+                    </th>
+                    <th>
+                        Item #
+                    </th>
+                    <th>
+                        Bin number
+                    </th>
+                    <th>
+                        Description
+                    </th>
+                    <th>
+                        Category
+                    </th>
+                    <th>
+                        Available Quantity
+                    </th>
+                    <th>
+                        Inventory Value
+                    </th>
+                    <th>
+                        Turns
+                    </th>
+                    <th>
+                        Pull Turns Amt
+                    </th>
+                    <th>
+                        Order Turns Amt
+                    </th>
+                    <th>
+                        Current Min
+                    </th>
+                    <th>
+                        Calculated Min
+                    </th>
+                    <th>
+                        Absolute Min Per
+                    </th>
+                    <th>
+                        Auto Current Min
+                    </th>
+                    <th>
+                        Auto Min Per
+                    </th>
+                    <th>
+                        Current Max
+                    </th>
+                    <th>
+                        Calculated Max
+                    </th>
+                    <th>
+                        Absolute Max Per
+                    </th>
+                    <th>
+                        Auto Current Max
+                    </th>
+                    <th>
+                        Auto Max Per
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+<script language="javascript" type="text/javascript">
+
+
+
+    var oTableItemQuantityDash;
+    var IsRefreshGrid = false;
+    var SelectedHistoryRecordID = 0;
+    var deleteURL = "/Inventory/DeleteRecords";
+    var sImageUrl = "/Content/images/";
+    var anOpen = [];
+    var IsDeletePopupOpen = false;
+    var AllowDeletePopup = true;
+    var ItemName = '';
+    var ItemUniqueID = '';
+
+    //var CostNarroSearchValue = '';
+    $(document).ready(function () {
+        $("#hdnminper").val(0);
+        $("#hdnmaxper").val(0);
+        GenerateItemQuantity();
+        GenerateCategory();
+        //new FixedColumns(oTableItemQuantityDash);
+        $('.DTTT_container').css('z-index', '-1');
+        CallSlider();
+        GoButton();
+        ApplyChanges();
+        $("#selctItemreplenishType").change(function () {
+            BlankSession();
+        });
+
+    });
+
+    function GoButton() {
+        $('#btninventoryqtyGo').click(function () {
+            $("#hdnminper").val(0);
+            $("#hdnmaxper").val(0);
+            $("#MinSlider").slider("value", 0);
+            $("#MaxSlider").slider("value", 0);
+            $("#maxSlideValue").text("0");
+            $("#minSlideValue").text("0");
+            //$("#txtmin").simpleSlider("setValue", 0);
+            //$("#txtmax").simpleSlider("setValue", 0);
+            GenerateCategory();
+            BlankSession();
+        });
+    }
+    function ApplyChanges() {
+        $('#btnApplyChanges').click(function () {
+            var arrItems = new Array();
+            $('#DivLoading').show();
+            $('#myDataTableItemDash tbody tr').each(function () {
+                if (this.cells.length > 1) {
+                    var vGUID = $(this).find('#txtGUID').val();
+                    var vItemName = $(this).find('#txtItemNumber').val();
+                    var vAutoMin = $(this).find('#txtAutoCurMin').val();
+                    var vAutoMax = $(this).find('#txtAutoCurMax').val();
+                    //alert(vGUID + '  ' + vItemName + '   ' + vAutoMin + '  ' + vAutoMax);
+                    var data = { "GUID": vGUID, "ItemNumber": vItemName, "MinimumQuantity": vAutoMin, "MaximumQuantity": vAutoMax };
+                    arrItems.push(data);
+                }
+            });
+
+            $.ajax({
+                url: '@Url.Content("~/InventoryDashboard/SaveCalculatedMinMax")'
+                        , type: 'POST'
+                        , data: { 'para': JSON.stringify(arrItems) }
+                        , cache: false
+                        , success: function (response) {
+                            $("#hdnminper").val(0);
+                            $("#hdnmaxper").val(0);
+                            oTableItemQuantityDash.fnDraw();
+                            $('#DivLoading').hide();
+                            $("#MinSlider").slider("value", 0);
+                            $("#MaxSlider").slider("value", 0);
+                            $("#maxSlideValue").text("0");
+                            $("#minSlideValue").text("0");
+                            //$("#txtmin").simpleSlider("setValue", 0);
+                            //$("#txtmax").simpleSlider("setValue", 0);
+                            showNotificationDialog();
+                            $("#spanGlobalMessage").html(response.Message);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        }
+                        , error: function (message) {
+                            $('#DivLoading').hide();
+                            $("#spanGlobalMessage").html(message.statusText);
+                            showNotificationDialog();
+                        }
+            });
+
+
+
+
+        });
+    }
+
+    var timeoutsc1;
+    function fnFilterItemGlobal() {
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#global_filterDashItem") != 'undefined' && ($("#global_filterDashItem").val().length > 2 || $("#global_filterDashItem").val().length == 0)) {
+            var searchtext = $("#global_filterDashItem").val().replace(/'/g, "''");
+
+            $('#myDataTableItemDash').dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+            $("#global_filterDashItem").select();
+        }
+        else {
+            $('#myDataTableItemDash td').removeHighlight();
+            $('#myDataTableItemDash td').highlight($("#global_filterDashItem").val());
+        }
+
+    }
+
+    $('#global_filterDashItem').bind('textchange', function () {
+        clearTimeout(timeoutsc1);
+        var self = this;
+        timeoutsc1 = setTimeout(function () {
+            fnFilterItemGlobal();
+        }, 200);
+    });
+    $("#global_filterDashItem").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+
+            var searchtext = $("#global_filterDashItem").val().replace(/'/g, "''");
+
+            $('#myDataTableItemDash').dataTable().fnFilter(searchtext, null, null, null);
+            return false;
+        }
+    });
+    $("#clear_global_filterDashItem").click(function () {
+        if ($("#global_filterDashItem").val().length > 0) {
+            $("#global_filterDashItem").val("");
+            $("#global_filterDashItem").change();
+        }
+        return false;
+    });
+
+    function funClearFilter() {
+        if ($("#global_filterDashItem").val().length > 0) {
+            $("#global_filterDashItem").val('');
+            $('#myDataTableItemDash').dataTable().fnFilter(
+                            $("#global_filterDashItem").val(),
+                            null,
+                            null,
+                            null
+                        );
+        }
+        $("#global_filterDashItem").focus();
+        return false;
+    }
+
+    function GenerateItemQuantity() {
+
+        var iDecimalPlace = 2;
+        var gaiSelected = [];
+        $("#global_filterDashItem").val("");
+
+        oTableItemQuantityDash = $('#myDataTableItemDash').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "sScrollX": "100%",
+            "sDom": 'R<"top"l<"clear">>rt<"bottom"i<"clear">>',
+            "oColVis": {},
+            "aaSorting": [[1, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            //"bStateSave": true,            
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                if (aData.IsDeleted == true && aData.IsArchived == true)
+                    nRow.className = "GridDeleatedArchivedRow";
+                else if (aData.IsDeleted == true)
+                    nRow.className = "GridDeletedRow";
+                else if (aData.IsArchived == true)
+                    nRow.className = "GridArchivedRow";
+                return nRow;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Content("~/InventoryDashboard/ItemMasterQuantityListAjax")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                //PostCount = PostCount + 1;
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting.length != 0)
+                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                aoData.push({ "name": "FromYear", "value": $('#txtFromYears option:selected').attr('value') });
+                aoData.push({ "name": "ToYear", "value": $('#txtToYears option:selected').attr('value') });
+                aoData.push({ "name": "FromMonth", "value": $('#txtFromMonth option:selected').attr('value') });
+                aoData.push({ "name": "ToMonth", "value": $('#txtToMonth option:selected').attr('value') });
+                aoData.push({ "name": "NOBackDays", "value": $('#txtdaysback').val() });
+                aoData.push({ "name": "NODaysAve", "value": $('#txtdaysavg').val() });
+                aoData.push({ "name": "NOTimes", "value": $('#txttime').val() });
+                aoData.push({ "name": "MinPer", "value": $('#txtMinPer').val() });
+                aoData.push({ "name": "MaxPer", "value": $('#txtMaxPer').val() });
+                aoData.push({ "name": "AutoMinPer", "value": $("#hdnminper").val() });
+                aoData.push({ "name": "AutoMaxPer", "value": $("#hdnmaxper").val() });
+                aoData.push({ "name": "IsItemLevelMinMax", "value": $("#selctItemreplenishType").val() });
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('#myDataTableItemDash td').removeHighlight();
+                        $('#myDataTableItemDash .dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                        if ($("#global_filterDashItem").val() != '') {
+                            $('#myDataTableItemDash td').highlight($("#global_filterDashItem").val());
+                        }
+                        CallShowHideData();
+                        GetAllCount();
+                        GetTurnsMTDYTD();
+                    }
+                })
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+                $('#divQTYLegends').show(1000);
+
+            },
+            "aoColumns": [
+                           {
+                               "mDataProp": null,
+                               "sClass": "read_only control center",
+                               "bSortable": false,
+                               "sDefaultContent": '',
+                               "fnRender": function (obj, val) {
+                                   var ID = obj.aData.GUID;
+                                   //alert(ID);
+                                   //return "<input type='button' value='Save Changes' onclick='return SaveMinMaxQuanity('"+obj.aData.GUID+"');' class='CreateBtn' style='float: none;padding: 2px 6px;margin-left: 5px;' />";
+                                   return "<input type='button' value='Save Changes' onclick='return SaveMinMaxQuanity(this);' class='CreateBtn' />" + "<span id='spnItemGUID' style='display:none'>" + obj.aData.GUID + "</span>";
+                               }
+                           },
+                            {
+                                "mDataProp": "MinAnalysis",
+                                "sClass": "read_only",
+                                "sDefaultContent": '',
+                                "bSortable": true,
+                                "bSearchable": false,
+                                "fnRender": function (obj, val) {
+                                    if (val == 'Green') {
+                                        return "<img src='" + sImageUrl + "Green.png' ><input type='hidden' id='txtGUID' value='" + obj.aData.GUID + "' />";
+                                    }
+                                    else if (val == 'Red') {
+                                        return "<img src='" + sImageUrl + "Red.png' ><input type='hidden' id='txtGUID' value='" + obj.aData.GUID + "' />";
+                                    }
+                                    else {
+                                        return "<img src='" + sImageUrl + "Yellow.png' ><input type='hidden' id='txtGUID' value='" + obj.aData.GUID + "' />";
+                                    }
+                                }
+                            },
+                            {
+                                "mDataProp": "MaxAnalysis",
+                                "sClass": "read_only",
+                                "sDefaultContent": '',
+                                "bSortable": true,
+                                "bSearchable": false,
+                                "fnRender": function (obj, val) {
+                                    if (val == 'Green') {
+                                        return "<img src='" + sImageUrl + "Green.png' >";
+                                    }
+                                    else if (val == 'Red') {
+                                        return "<img src='" + sImageUrl + "Red.png' >";
+                                    }
+                                    else {
+                                        return "<img src='" + sImageUrl + "Yellow.png' >";
+                                    }
+                                }
+                            },
+			                {
+			                    "mDataProp": "ItemNumber",
+			                    "sClass": "read_only",
+			                    "sDefaultContent": '',
+			                    "bSortable": true,
+			                    "bSearchable": false,
+			                    "fnRender": function (obj, val) {
+			                        return "" + val + "<input type='hidden' id='txtItemNumber' value='" + val + "' />";
+			                    }
+			                },
+			                {
+			                    "mDataProp": "BinNumber",
+			                    "sClass": "read_only",
+			                    "sDefaultContent": '',
+			                    "bSortable": true,
+			                    "bSearchable": false,
+			                    "fnRender": function (obj, val) {
+			                        return "" + val + "<input type='hidden' id='hdnBinNumber' value='" + val + "' />";
+			                    }
+			                },
+                            { "mDataProp": "Description", "sClass": "read_only" },
+                            { "mDataProp": "Category", "sClass": "read_only" },
+                            {
+                                "mDataProp": "AvailableQty", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                        var cost = val.toFixed(iDecimalPlace);
+                                        return cost;
+                                    }
+                                    else
+                                        return "0.00";
+                                    // return "" + (obj.aData.AvailableQty).toFixed(iDecimalPlace); +"";
+                                }
+                            },
+                        {
+                            "mDataProp": "InventoryValue", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                    var cost = val.toFixed(iDecimalPlace);
+                                    return cost;
+                                }
+                                else
+                                    return "0.00";
+                                //return "" + (obj.aData.InventoryValue).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "Turns", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                    var cost = val.toFixed(iDecimalPlace);
+                                    return cost;
+                                }
+                                else
+                                    return "0.00";
+                                //return "" + (obj.aData.Turns).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "PullTurnsAmt", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                    var cost = val.toFixed(iDecimalPlace);
+                                    return cost;
+                                }
+                                else
+                                    return "0.00";
+                                //return "" + (obj.aData.PullTurnsAmt).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "OrderTurnsAmt", "sClass": "read_only", "fnRender": function (obj, val) {
+                                if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                    var cost = val.toFixed(iDecimalPlace);
+                                    return cost;
+                                }
+                                else
+                                    return "0.00";
+                                //return "" + (obj.aData.OrderTurnsAmt).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "CurrentMin", "sClass": "read_only mincellcolor", "fnRender": function (obj, val) {
+                                if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                    var cost = val.toFixed(iDecimalPlace);
+                                    return cost;
+                                }
+                                else
+                                    return "0.00";
+                                //return "" + (obj.aData.CurrentMin).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                        {
+                            "mDataProp": "CalculatedMin", "sClass": "read_only mincellcolor", "fnRender": function (obj, val) {
+                                if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                    var cost = val.toFixed(iDecimalPlace);
+                                    return "<span id='spCalculatedMin'>" + cost + "</span>";
+                                }
+                                else
+                                    return "<span id='spCalculatedMin'>0.00</span>";
+                                //return "" + (obj.aData.CalculatedMin).toFixed(iDecimalPlace); +"";
+                            }
+                        },
+                         {
+                             "mDataProp": "MinPercentage", "sClass": "read_only mincellcolor", "fnRender": function (obj, val) {
+                                 if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                     var cost = val.toFixed(iDecimalPlace);
+                                     return cost + "<input type='hidden' id='txtAutoCurMin' value='" + obj.aData.AutoCurrentMin + "' />";
+                                 }
+                                 else
+                                     return "0.00" + "<input type='hidden' id='txtAutoCurMin' value='0.00' />";
+                                 //return "" + (obj.aData.MinPercentage).toFixed(iDecimalPlace); +"";
+                             }
+                         },
+            //                         { "mDataProp": "AutoCurrentMin", "sClass": "Autocellcolor",  "sDefaultContent": ''
+            //                         },
+                         {
+                         "mDataProp": "AutoCurrentMin", "sClass": "Autocellcolor", "sDefaultContent": '', "fnRender": function (obj, val) {
+                             if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                 var cost = val.toFixed(iDecimalPlace);
+                                 return cost;
+                             }
+                             else
+                                 return "0.00";
+                             //return "" + (obj.aData.AutoCurrentMin).toFixed(iDecimalPlace); +"";
+                         }
+                     },
+                         {
+                             "mDataProp": "AutoMinPercentage", "sClass": "read_only Autocellcolor", "fnRender": function (obj, val) {
+                                 if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                     var cost = val.toFixed(iDecimalPlace);
+                                     //return cost + "<span id='sAutoMinPer'>";
+                                     return cost;
+                                 }
+                                 else
+                                     return "0.00";
+                                 //return "" + (obj.aData.AutoMinPercentage).toFixed(iDecimalPlace); +"";
+                             }
+                         },
+                          {
+                              "mDataProp": "CurrentMax", "sClass": "read_only maxcellcolor", "fnRender": function (obj, val) {
+                                  if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                      var cost = val.toFixed(iDecimalPlace);
+                                      return cost;
+                                  }
+                                  else
+                                      return "0.00";
+                                  //return "" + (obj.aData.CurrentMax).toFixed(iDecimalPlace); +"";
+                              }
+                          },
+                           {
+                               "mDataProp": "CalculatedMax", "sClass": "read_only maxcellcolor", "fnRender": function (obj, val) {
+                                   if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                       var cost = val.toFixed(iDecimalPlace);
+                                       return "<span id='spCalculatedMax'>" + cost + "</span>";
+                                   }
+                                   else
+                                       return "<span id='spCalculatedMin'>0.00</span>";
+                                   //return "" + (obj.aData.CalculatedMax).toFixed(iDecimalPlace); +"";
+                               }
+                           },
+                            {
+                                "mDataProp": "MaxPercentage", "sClass": "read_only maxcellcolor", "fnRender": function (obj, val) {
+                                    if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                        var cost = val.toFixed(iDecimalPlace);
+                                        return cost + "<input type='hidden' id='txtAutoCurMax' value='" + obj.aData.AutoCurrentMax + "' />";
+                                    }
+                                    else
+                                        return "0.00" + "<input type='hidden' id='txtAutoCurMax' value='0.00' />"; ;
+                                    //return "" + (obj.aData.MaxPercentage).toFixed(iDecimalPlace); +"";
+                                }
+                            },
+                            {
+                                "mDataProp": "AutoCurrentMax", "sClass": "Autocellcolor", "sDefaultContent": '', "fnRender": function (obj, val) {
+                                    if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                        var cost = val.toFixed(iDecimalPlace);
+                                        return cost;
+                                    }
+                                    else
+                                        return "0.00";
+                                    //return "" + (obj.aData.AutoCurrentMax).toFixed(iDecimalPlace); +"";
+                                }
+                            },
+                            {
+                                "mDataProp": "AutoMaxPercentage", "sClass": "read_only Autocellcolor", "fnRender": function (obj, val) {
+                                    if (parseFloat(val) != NaN && parseFloat(val) > 0) {
+                                        var cost = val.toFixed(iDecimalPlace);
+                                        return cost;
+                                    }
+                                    else
+                                        return "0.00";
+                                    //return "" + (obj.aData.AutoMaxPercentage).toFixed(iDecimalPlace); +"";
+                                }
+                            },
+            ]
+        })
+        .makeEditable({
+            fnShowError: function (errorText, action) {
+            },
+            sUpdateURL: function (value, settings) {
+
+                var MinOrMax = oTableItemQuantityDash.fnSettings().aoColumns[oTableItemQuantityDash.fnGetPosition(this)[2]].mDataProp;
+                var AutoMin = parseFloat(value);
+                var AutoMax = parseFloat(value);
+                //var id = $(this.parentNode).find('#spnID').text();
+                var spCalculatedMin = $(this.parentNode).find('#spCalculatedMin').text();
+                var spCalculatedMax = $(this.parentNode).find('#spCalculatedMax').text();
+                var vGUID = $(this.parentNode).find('#txtGUID').val();
+                $.ajax({
+                    url: '@Url.Content("~/InventoryDashboard/UpdateInventoryQuantity")'
+                                    , type: 'POST'
+                                    , cache: false
+                                    , data: { 'MinOrMax': MinOrMax, 'GUID': vGUID, 'Automin': AutoMin, 'CalMin': spCalculatedMin, 'Automax': AutoMax, 'CalMax': spCalculatedMax, 'MinPer': $('#txtMinPer').val(), 'MaxPer': $('#txtMaxPer').val() }
+                                    , success: function (response) { }
+                                    , error: function (msg) { }
+                });
+            }
+        });
+        //       new FixedColumns( oTableItemQuantityDash, {
+        //         		"iLeftColumns": 3,
+        //        		"iLeftWidth": 181
+        //       } );
+
+    }
+    function CallSlider() {
+        $("#MinSlider").slider({
+            change: function (event, ui) {
+                $("#hdnminper").val(ui.value.toFixed(0));
+                BlankSession();
+            },
+            slide: function (event, ui) {
+                $("#minSlideValue").text(ui.value);
+            }
+        });
+        $("#MaxSlider").slider({
+            change: function (event, ui) {
+                $("#hdnmaxper").val(ui.value.toFixed(0));
+                BlankSession();
+            },
+            slide: function (event, ui) {
+                $("#maxSlideValue").text(ui.value);
+            }
+        });
+        //        $("#MaxSlider").slider();
+        $("[data-slider]").each(function () {
+            var input = $(this);
+            $("<span>")
+                        .addClass("output")
+                        .insertAfter($(this));
+        }).bind("slider:changed", function (event, data) {
+            $(this).nextAll(".output:first").html(data.value.toFixed(0) + " %");
+            if (this.id == 'txtmin') {
+                $("#hdnminper").val(data.value.toFixed(0));
+                BlankSession();
+                //oTableItemQuantityDash.fnDraw();
+            }
+            else {
+                $("#hdnmaxper").val(data.value.toFixed(0));
+                BlankSession();
+                // oTableItemQuantityDash.fnDraw();
+            }
+        });
+    }
+    function BlankSession() {
+        var arrTest = new Array();
+        var data = { '1': '1' };
+        arrTest.push(data);
+        $.ajax({
+            url: '@Url.Content("~/InventoryDashboard/BlankSession")'
+                        , type: 'POST'
+                        , data: { 'para': JSON.stringify(arrTest) }
+                        , cache: false
+                        , success: function (response) { oTableItemQuantityDash.fnDraw(); }
+                        , error: function (msg) { }
+        });
+
+
+        //        $.ajax({ url: '@Url.Content("~/InventoryDashboard/BlankSession")'
+        //                                    , type: 'POST'
+        //                                    , dataType: 'json'
+        //            , contentType: "application/json"
+        //                                    , success: function (result) {
+        //                                        oTableItemQuantityDash.fnDraw();
+        //                                    },
+        //            error: function (msg) {
+        //            }
+        //        });
+    }
+    function GetAllCount() {
+        $.ajax({
+            url: '@Url.Content("~/InventoryDashboard/GetAllRecordsWithoutPaging")'
+                        , type: 'GET'
+                        , data: { 'RoomID': '@eTurnsWeb.Helper.SessionHelper.RoomID', 'CompanyID': '@eTurnsWeb.Helper.SessionHelper.CompanyID', 'FromYear': $("#txtFromYears option:selected").attr("value"), 'ToYear': $("#txtToYears option:selected").attr("value"), 'FromMonth': $("#txtFromMonth option:selected").attr("value"), 'ToMonth': $("#txtToMonth option:selected").attr("value"), 'NOBackDays': $("#txtdaysback").val(), 'NODaysAve': $("#txtdaysavg").val(), 'NOTimes': $("#txttime").val(), 'MinPer': $("#txtMinPer").val(), 'MaxPer': $("#txtMaxPer").val(), 'AutoMinPer': $("#hdnminper").val(), 'AutoMaxPer': $("#hdnmaxper").val(), 'IsItemLevelMinMax': $("#selctItemreplenishType").val() }
+                        , cache: false
+                        , success: function (response) {
+                            var strarr = (response.StatusValue).split('$$');
+                            var strMinArr = (strarr[0]).split('#');
+                            var strMaxArr = (strarr[1]).split('#');
+
+                            $("#lblMinRed").html(strMinArr[0]);
+                            $("#lblMinYellow").html(strMinArr[1]);
+                            $("#lblMinGreen").html(strMinArr[2]);
+
+                            $("#lblMaxRed").html(strMaxArr[0]);
+                            $("#lblMaxYellow").html(strMaxArr[1]);
+                            $("#lblMaxGreen").html(strMaxArr[2]);
+
+                            var arrMinCount = new Array();
+                            arrMinCount.push(strMinArr[0]);
+                            arrMinCount.push(strMinArr[1]);
+                            arrMinCount.push(strMinArr[2]);
+
+                            var arrMaxCount = new Array();
+                            arrMaxCount.push(strMaxArr[0]);
+                            arrMaxCount.push(strMaxArr[1]);
+                            arrMaxCount.push(strMaxArr[2]);
+
+
+                            var range_map = $.range_map(arrMinCount);
+
+
+                            $('#minbarchart').sparkline([[strMinArr[0], 0, 0], [0, strMinArr[1], 0], [0, 0, strMinArr[2]]], { type: 'bar', height: '100', barWidth: 30, barSpacing: 4, stackedBarColor: ['#d62a2f', '#fec427', '#269345'] });
+                            $('#maxbarchart').sparkline([[strMaxArr[0], 0, 0], [0, strMaxArr[1], 0], [0, 0, strMaxArr[2]]], { type: 'bar', height: '100', barWidth: 30, barSpacing: 4, stackedBarColor: ['#d62a2f', '#fec427', '#269345'] });
+                        }
+                        , error: function (message) {
+
+                        }
+        });
+
+    }
+
+    function GetTurnsMTDYTD() {
+
+        $.ajax({
+            url: '@Url.Content("~/InventoryDashboard/GetHeaderCount")'
+                        , type: 'GET'
+                        , data: { 'RoomID': '@eTurnsWeb.Helper.SessionHelper.RoomID', 'CompanyID': '@eTurnsWeb.Helper.SessionHelper.CompanyID', 'FromYear': $("#txtFromYears option:selected").attr("value"), 'ToYear': $("#txtToYears option:selected").attr("value"), 'FromMonth': $("#txtFromMonth option:selected").attr("value"), 'ToMonth': $("#txtToMonth option:selected").attr("value"), 'NOBackDays': $("#txtdaysback").val(), 'NODaysAve': $("#txtdaysavg").val(), 'NOTimes': $("#txttime").val(), 'MinPer': $("#txtMinPer").val(), 'MaxPer': $("#txtMaxPer").val(), 'AutoMinPer': $("#hdnminper").val(), 'AutoMaxPer': $("#hdnmaxper").val() }
+                        , cache: false
+                        , success: function (response) {
+                            var strarr = (response.Message).split('##');
+                            $("#lblTotalInventory").html(strarr[0]);
+                            $("#lblTotalTurn").html(strarr[1]);
+                            $("#lblMTD").html(strarr[2]);
+                            $("#lblYTD").html(strarr[3]);
+                        }
+        });
+
+
+    }
+
+    function SaveMinMaxQuanity(btn) {
+
+        var tr = $(btn).parent().parent();
+        var GUID = $(tr).find('#spnItemGUID').text();
+        //alert(GUID);
+        $('#DivLoading').show();
+        var arrItems = new Array();
+        $('#myDataTableItemDash tbody tr').each(function () {
+            if (this.cells.length > 1) {
+                var vGUID = $(this).find('#txtGUID').val();
+                if (vGUID == GUID) {
+                    var vItemName = $(this).find('#txtItemNumber').val();
+                    var vAutoMin = $(this).find('#txtAutoCurMin').val();
+                    var vAutoMax = $(this).find('#txtAutoCurMax').val();
+                    var data = { "GUID": vGUID, "ItemNumber": vItemName, "MinimumQuantity": vAutoMin, "MaximumQuantity": vAutoMax };
+                    arrItems.push(data);
+                    //alert(vItemName );
+                }
+
+            }
+        });
+
+        $.ajax({
+            url: '@Url.Content("~/InventoryDashboard/SaveCalculatedMinMax")'
+                        , type: 'POST'
+                        , data: { 'para': JSON.stringify(arrItems) }
+                        , cache: false
+                        , success: function (response) {
+                            $("#hdnminper").val(0);
+                            $("#hdnmaxper").val(0);
+                            oTableItemQuantityDash.fnDraw();
+                            $('#DivLoading').hide();
+                            //$("#txtmin").simpleSlider("setValue", 0);
+                            //$("#txtmax").simpleSlider("setValue", 0);
+                            $("#MinSlider").slider("value", 0);
+                            $("#MaxSlider").slider("value", 0);
+                            $("#maxSlideValue").text("0");
+                            $("#minSlideValue").text("0");
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            $("#spanGlobalMessage").html(response.Message);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        }
+                        , error: function (message) {
+                            $('#DivLoading').hide();
+                            $("#spanGlobalMessage").html(message.statusText);
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        }
+        });
+    }
+    function GenerateCategory() {
+        $.ajax({
+            type: "GET",
+            url: "/Master/GenerateCategoryChart",
+            data: "{'RoomID': '1' }",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (widget) {
+                $("#dvCategoryChart").html(widget.LeftWidget);
+                BindCategoryChartEvents();
+            },
+            error: function (response) {
+                // through errror message
+            }
+        });
+    }
+
+    function BindCategoryChartEvents() {
+        $("#nodata").hide();
+        if ($("#hdnCategory").length) {
+
+            var arry = new Array();
+            arry = $('#hdnCategory').val().split(',');
+            var range_map = $.range_map(arry);
+
+            var colorarry = new Array();
+            colorarry = $('#hdnCategoryColor').val().split(',');
+
+            $('#spCategoryCost').sparkline('html', { type: 'pie', height: '200', borderWidth: '1', borderColor: '#F0F0F0F0', enableTagOptions: true, tooltipValueLookups: { piemap: range_map }, sliceColors: colorarry });
+
+        }
+        else {
+            $("#nodata").show();
+        }
+    }
+</script>

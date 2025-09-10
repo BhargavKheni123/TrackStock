@@ -1,0 +1,201 @@
+﻿@model List<eTurns.DTO.BarcodeMasterDTO>
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = false, DisplayColumnSetupButton = false, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, DataTableName = "BarcodeItems" };
+
+}
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%;  min-height: 300px;">
+            <div style="float: left; width: 99%; margin: 5px">
+                @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Orders)
+            </div>
+            <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="BarcodeItems" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.BarCode
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.BarCodeAdded
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Count > 0)
+                        {
+                            foreach (var item in Model)
+                            { 
+                            <tr>
+                                <td>@item.ID
+                                </td>
+                                <td>
+                                    @if(item.BarcodeAdded.ToString() == "Manual")
+                                    {
+                                        <a onclick="editBarCode(this);" href="javascript:;">@item.BarcodeString</a>
+                                        <input id="hdnID" type="hidden" value="@item.ID" />
+                                        <input id="hdnRefGUID" type="hidden" value="@item.RefGUID" />
+                                        <input id="hdnModuleGUID" type="hidden" value="@item.ModuleGUID" />
+                                    }
+                                    else
+                                    {
+                                        @item.BarcodeString
+                                    }
+                                </td>
+                                <td>
+                                    @item.BarcodeAdded
+                                </td>
+                            </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+   
+    var oTableBarcodeLineItems;
+    var bIsFilter = false;
+    $(document).ready(function () {
+        $('form').areYouSure();
+        var gaiSelected = [];
+        oTableBarcodeLineItems = $('#BarcodeItems').dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "95%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[0, "desc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+               // if (!bIsFilter) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'BarcodeItemList' },
+                        "async": true,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = json;
+                        }
+                    });
+               // }
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'BarcodeItemList' },
+                    "async": true,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            }
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+        $('#btnblock').css({ 'margin-right': '45px' });
+
+        $.fn.dataTableExt.afnSortData['dom-text'] = function (oSettings, iColumn) {
+            var aData = [];
+            $('td:eq(' + iColumn + ') input', oSettings.oApi._fnGetTrNodes(oSettings)).each(function () {
+                aData.push(this.value);
+            });
+            return aData;
+        }
+    });
+
+
+    $('#BarcodeItems tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    $('#BarcodeItems tbody tr').live('tap click', function () {
+        if ($(this).find("input#hdnID").length > 0) {
+            $(this).toggleClass('row_selected');
+        }
+        //else
+        //{
+        //  //  alert("select only manuallly added barcode..!!")
+        //}
+        
+        return false;
+    });
+
+
+    $('#deleteRows1').click(function () {
+        var anSelected = fnGetSelected(oTableBarcodeLineItems);
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+        }
+
+    });
+
+    $("#btnModelYesInnerGrid").live("click", function () {
+        var anSelected = fnGetSelected(oTableBarcodeLineItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+        if (anSelected.length > 0) {
+            var moduleText = $("#ddlModuleList option:selected").text();
+            $.ajax({ "url": "/Barcode/DeleteRecords",
+                contentType: "application/json",
+                dataType: "json",
+                type: "POST",
+                data: JSON.stringify({ 'IDs': stringIDs, 'ModuleName': moduleText }),
+                success: function (response) {
+                    if (response.IsSuccess) {
+                        for (var i = 0; i < anSelected.length; i++) {
+                            oTableBarcodeLineItems.fnDeleteRow(anSelected[i]);
+                        }
+                        if (anSelected.length > 0) {
+                            $("#spanGlobalMessage").html('@ResCommon.RecordDeletedSuccessfully'.replace("{0}","(" + anSelected.length + ")"));
+                        }
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        fillBarcodeGrid();
+                    }
+                },
+                error: function (response) {
+                }
+            });
+            $.modal.impl.close();
+        }
+    });
+
+
+
+     
+
+</script>

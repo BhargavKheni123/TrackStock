@@ -1,0 +1,916 @@
+﻿@{
+
+    Session["IsInsert"] = "";
+
+    eTurnsWeb.Controllers.InventoryDashboardController objRequisitionCount = new eTurnsWeb.Controllers.InventoryDashboardController();
+
+
+    Int32 IsNotSubmitted = objRequisitionCount.GetRequisitionStatusCount("Unsubmitted");
+    Int32 IsNotApproved = objRequisitionCount.GetRequisitionStatusCount("Submitted");
+    Int32 IsNotConsumed = objRequisitionCount.GetRequisitionStatusCount("Approved");
+
+    Int32 ProjectExceedCount = objRequisitionCount.GetProjectSpendCount("Project Amount Exceeds");
+    Int32 ItemQuantityExceedCount = objRequisitionCount.GetProjectSpendCount("Item Quantity Exceeds");
+    Int32 ItemAmountExceedCount = objRequisitionCount.GetProjectSpendCount("Item Amount Exceeds");
+    
+}
+<style>
+    .dataTables_scrollBody
+    {
+        max-height: 90px !important;
+    }
+    .Lnavd
+    {
+        float: left;
+        padding-left: 1px;
+    }
+    
+    .Lnavd li
+    {
+        float: left;
+        padding: 2px 4px 1px 0px;
+        position: relative;
+        list-style: none;
+    }
+    .Lnavd li.clear
+    {
+        width: 100%;
+        height: 1px;
+        float: left;
+        margin: 0;
+        padding: 0;
+    }
+    .lia
+    {
+        background: none repeat scroll 0 0 #F3F9FF;
+        border: 1px solid #C7E3FF;
+        border-radius: 5px 5px 5px 5px;
+        color: #1971BD;
+        float: left;
+        font-size: 12px;
+        padding: 1px 5px;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none; /* width: 50px;*/
+    }
+    .liahover
+    {
+        background: no-repeat scroll 90px center #1971BD;
+        border: 1px solid #1971BD;
+        border-radius: 5px 5px 5px 5px;
+        color: #FFFFFF !important;
+        cursor: auto;
+        text-decoration: none;
+    }
+    /*  .Lnavd li a
+    {
+        background: none repeat scroll 0 0 #F3F9FF;
+        border: 1px solid #C7E3FF;
+        border-radius: 5px 5px 5px 5px;
+        color: #1971BD;
+        float: left;
+        font-size: 12px;
+        padding: 1px 5px;
+        text-align: center;
+        text-decoration: none; 
+    }*/
+    .Lnavd li a:hover
+    {
+        text-decoration: none;
+    }
+    .imgclassd span
+    {
+        background: url("../../content/images/num-selected.png") no-repeat scroll 0 0 transparent;
+        color: #FFFFFF;
+        float: right;
+        font-size: 12px;
+        font-weight: bold;
+        height: 18px;
+        margin: -12px 0 0 -6px;
+        padding: 6px 0;
+        text-align: center;
+        width: 29px;
+    }
+    .gridchartclass
+    {
+        float: right;
+        margin-right: 0;
+        margin-top: -25px;
+        padding-bottom: 0;
+        padding-left: 0;
+        padding-top: 0;
+        width: auto;
+    }
+</style>
+<div style="float: left; width: 100%;">
+    <div id="dvmain" class="Lnavd">
+        <ul>
+            <li class="imgclassd"><a id="lnkRequisition" title="Requisition" onclick="BindConsumeStatusGrid('lnkRequisition','Requisition')"
+                class="lia">@eTurns.DTO.Resources.ResLayout.Requisitions</a></li>
+            <li class="imgclassd"><a id="lnkProjectspend" title="Project Spend" onclick="BindProjectStatusGrid('lnkProjectspend','Project Spend')"
+                class="lia">@eTurns.DTO.Resources.ResLayout.ProjectSpend</a></li>
+        </ul>
+    </div>
+    <div id="divMainRequisitionTab" style="float: left; width: 100%;">
+        <div id="divRequisitionTab" class="Lnavd" style="float: left; width: 80%; padding-top: 10px;">
+            <ul>
+                <li class="imgclassd"><a id="lnknotsubmitted" title="Unsubmitted" onclick="BindConsumeStatusGrid('lnknotsubmitted','Unsubmitted')"
+                    class="lia">To be Submitted</a>@if (IsNotSubmitted != 0)
+                                                   { <span>@IsNotSubmitted</span>}</li>
+                <li class="imgclassd"><a id="lnknotapproved" title="Submitted" onclick="BindConsumeStatusGrid('lnknotapproved','Submitted')"
+                    class="lia">To be Approved</a>@if (IsNotApproved != 0)
+                                                  { <span>@IsNotApproved</span>}</li>
+                <li class="imgclassd"><a id="lnknotconsumed" title="Approved" onclick="BindConsumeStatusGrid('lnknotconsumed','Approved')"
+                    class="lia">To be Pulled</a>@if (IsNotConsumed != 0)
+                                                { <span>@IsNotConsumed</span>}</li>
+            </ul>
+        </div>
+        <div class="viewBlock gridchartclass">
+            <span class="label">View:</span> 
+            <a class="view" href="javascript:void(0);" onclick="ShowHideConsumeDiv('Chart');">
+                <img alt="" id="imgRChart" src="/content/images/chart-view-active.png"></a>
+                <a class="view" href="javascript:void(0);" onclick="ShowHideConsumeDiv('Grid');">
+                <img alt="" id="imgRGrid" src="/content/images/list-view-inactive.png"></a>
+        </div>
+        <div style="float: left; padding-top: 4px;">
+            <ul>
+                <li style="border-right: none; float: left; padding-right: 5px;">
+                    <label for="label" style="float: left; padding: 1.3% 2px;">
+                        @Html.Label("From")
+                    </label>
+                    @Html.TextBox("txtConsumeFromDate", "1/1/" + eTurns.DAL.DateTimeUtility.DateTimeNow.Year, new { @class = "importtext-box", id = "txtConsumeFromDate", @readonly = "readonly", @style = "width:70px;background:white", maxlength = 128 })
+                </li>
+                <li style="border-right: none; float: left; padding-right: 5px;">
+                    <label for="label" style="float: left; padding: 1.3% 2px;">
+                        @Html.Label("To")
+                    </label>
+                    @Html.TextBox("txtConsumeToDate", eTurns.DAL.DateTimeUtility.DateTimeNow.ToString("MM/dd/yyyy"), new { @class = "importtext-box", id = "txtConsumeToDate", @readonly = "readonly", @style = "width:70px;background:white", maxlength = 128 })
+                    @Html.Hidden("hdnstatusConsume", new { id = "hdnstatusConsume" })
+                </li>
+                <li style="border-right: none; float: left; padding-right: 5px;">
+                    <div class="BtnBlockform" style="margin: 0px 0px 0px 5px;">
+                        <input type="button" value="GO" id="btnConsumego" name="btnConsumego" class="CreateBtn"
+                            style="float: left;" />
+                    </div>
+                </li>
+            </ul>
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div id="dvConsumeGrid" class="userContent" style="float: left; width: 100%;">
+                <div class="searchWrapper">
+                    <div class="searchBlock">
+                        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                        <div class="searchinputB">
+                            <input type="text" class="searchinput" id="global_filterDashConsume" />
+                            <a href="javascript:void(0);" class="xclose">
+                                <img src="~/Content/images/x.png" alt="X" id="clear_global_filterDashConsume" /></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="userHead" style="height: 30px;">
+                </div>
+                <table id="myRequisitionDataTable" class="display" style="width: 561px; overflow: auto;">
+                    <thead>
+                        <tr>
+                            <th>@eTurns.DTO.ResRequisitionMaster.RequisitionNumber
+                            </th>
+                            <th>@eTurns.DTO.ResRequisitionMaster.Description
+                            </th>
+                            <th>@eTurns.DTO.ResRequisitionMaster.RequiredDate
+                            </th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+            <div id="dvConsumeChart" style="float: left; width: 100%;">
+                Chart
+            </div>
+        </div>
+    </div>
+    <div id="divMainProjectspend" style="float: left; width: 100%;">
+        <div id="divProjectspendTab" class="Lnavd" style="float: left; width: 80%; padding-top: 10px;">
+            <ul>
+                <li class="imgclassd"><a id="lnkPAexceeds" title="Project Amount Exceeds" onclick="BindProjectStatusGrid('lnkPAexceeds','Project Amount Exceeds')"
+                    class="lia">Amount Exceeds</a>@if (ProjectExceedCount != 0)
+                                                  { <span>@ProjectExceedCount</span>}</li>
+                <li class="imgclassd"><a id="lnkIQexceeds" title="Item Quantity Exceeds" onclick="BindProjectStatusGrid('lnkIQexceeds','Item Quantity Exceeds')"
+                    class="lia">Quantity Exceeds</a>@if (ItemQuantityExceedCount != 0)
+                                                    { <span>@ItemQuantityExceedCount</span>}</li>
+                <li class="imgclassd"><a id="lnkIAexceeds" title="Item Amount Exceeds" onclick="BindProjectStatusGrid('lnkIAexceeds','Item Amount Exceeds')"
+                    class="lia">Item Amount Exceeds</a>@if (ItemAmountExceedCount != 0)
+                                                       { <span>@ItemAmountExceedCount</span>}</li>
+            </ul>
+        </div>
+        <div class="viewBlock gridchartclass">
+            <span class="label">View:</span> 
+            <a class="view" href="javascript:void(0);" onclick="ShowHideProjectDiv('Chart');">
+                <img alt="" id="imgPChart" src="/content/images/chart-view-active.png"></a>
+                <a class="view" href="javascript:void(0);" onclick="ShowHideProjectDiv('Grid');">
+                <img alt="" id="imgPGrid" src="/content/images/list-view-inactive.png"></a>
+        </div>
+        <div style="float: left; padding-top: 4px;">
+            <ul>
+                <li style="border-right: none; float: left; padding-right: 5px;">
+                    <label for="label" style="float: left; padding: 1.3% 2px;">
+                        @Html.Label("From")
+                    </label>
+                    @Html.TextBox("txtProjectFromDate", "1/1/" + eTurns.DAL.DateTimeUtility.DateTimeNow.Year, new { @class = "importtext-box", id = "txtProjectFromDate", @readonly = "readonly", @style = "width:70px;background:white", maxlength = 128 })
+                </li>
+                <li style="border-right: none; float: left; padding-right: 5px;">
+                    <label for="label" style="float: left; padding: 1.3% 2px;">
+                        @Html.Label("To")
+                    </label>
+                    @Html.TextBox("txtProjectToDate", eTurns.DAL.DateTimeUtility.DateTimeNow.ToString("MM/dd/yyyy"), new { @class = "importtext-box", id = "txtProjectToDate", @readonly = "readonly", @style = "width:70px;background:white", maxlength = 128 })
+                    @Html.Hidden("hdnstatusProject", new { id = "hdnstatusProject" })
+                </li>
+                <li id="liLimits" style="border-right: none; float: left; padding-right: 5px;">
+                    <label for="label" style="float: left; padding: 1.3% 2px;">
+                        @Html.Label("Limits(%)")
+                    </label>
+                    @Html.TextBox("txtLimits", "", new { @class = "importtext-box", id = "txtLimits", @style = "width:30px;background:white", maxlength = 3 })
+                </li>
+                <li style="border-right: none; float: left; padding-right: 5px;">
+                    <div class="BtnBlockform" style="margin: 0px 0px 0px 5px;">
+                        <input type="button" value="GO" id="btnProjectgo" name="btnProjectgo" class="CreateBtn"
+                            style="float: left;" />
+                    </div>
+                </li>
+            </ul>
+        </div>
+        <div id="Ptab" class="tabContener">
+            <div id="dvProjectGrid" class="userContent" style="float: left; width: 100%;">
+                <div class="searchWrapper">
+                    <div class="searchBlock">
+                        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                        <div class="searchinputB">
+                            <input type="text" class="searchinput" id="global_filterDashProject" />
+                            <a href="javascript:void(0);" class="xclose">
+                                <img src="~/Content/images/x.png" alt="X" id="clear_global_filterDashProject" /></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="userHead" style="height: 30px;">
+                </div>
+                <table id="myProjectDataTable" class="display" style="width: 561px; overflow: auto;">
+                    <thead>
+                        <tr>
+                            <th>@eTurns.DTO.ResProjectMaster.ProjectSpendName
+                            </th>
+                            <th>@eTurns.DTO.ResProjectMaster.Description
+                            </th>
+                            <th>@eTurns.DTO.ResProjectMaster.DollarLimitAmount
+                            </th>
+                            <th>@eTurns.DTO.ResProjectMaster.DollarUsedAmount
+                            </th>
+                            <th>Spend %
+                            </th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+            <div id="dvProjectChart" style="float: left; width: 100%;">
+                Chart
+            </div>
+        </div>
+    </div>
+</div>
+<script language="javascript" type="text/javascript">
+    var oTableRequisition;
+    var oProjectTable;
+    var AllowDeletePopup = true;
+    function ShowHideConsumeDiv(str) {
+        if (str == 'Grid') {
+            $("#dvConsumeGrid").show();
+            $("#dvConsumeChart").hide();
+            ChangeImgSRC('Grid', 'imgRGrid', 'imgRChart');
+            oTableRequisition.fnDraw();
+        }
+        else {
+            $("#dvConsumeGrid").hide();
+            $("#dvConsumeChart").show();
+
+            ChangeImgSRC('Chart', 'imgRGrid', 'imgRChart');
+
+            $('#dvConsumeChart').empty();
+            $('#dvConsumeChart').load('/ConsumeChart/LoadChart', function () { });
+        }
+    }
+
+    function ShowHideProjectDiv(str) {
+        if (str == 'Grid') {
+            $("#dvProjectGrid").show();
+            $("#dvProjectChart").hide();
+            ChangeImgSRC('Grid', 'imgPGrid', 'imgPChart');
+            oProjectTable.fnDraw();
+        }
+        else {
+            $("#dvProjectGrid").hide();
+            $("#dvProjectChart").show();
+            ChangeImgSRC('Chart', 'imgPGrid', 'imgPChart');
+            $('#dvProjectChart').empty();
+            $('#dvProjectChart').load('/ProjectChart/LoadChart', function () { });
+        }
+    }
+
+    //    function ChangeImgSRC(CG, GridImage, ChartImage) {        
+    //        if (CG == 'Grid') {
+    //            $("#" + GridImage).attr("src", "/content/images/list-view.png");
+    //            $("#" + ChartImage).attr("src", "/content/images/chart-view.png");
+    //        }
+    //        else {
+    //            $("#" + GridImage).attr("src", "/content/images/list-view-inactive.png");
+    //            $("#" + ChartImage).attr("src", "/content/images/chart-view-active.png");
+    //        }
+    //    }
+
+    $(document).ready(function () {
+        var gaiSelected = [];
+        $("#divMainRequisitionTab").show();
+        $("#divMainProjectspend").hide();
+        $("#dvConsumeGrid").hide();
+        $("#dvConsumeChart").show();
+
+        $("#dvProjectGrid").hide();
+        $("#dvProjectChart").show();
+
+
+
+        $('#txtConsumeFromDate').blur(function () { }).datepicker({ dateFormat: 'm/d/yy' });
+        $('#txtConsumeToDate').blur(function () { }).datepicker({ dateFormat: 'm/d/yy' });
+
+        $('#txtProjectFromDate').blur(function () { }).datepicker({ dateFormat: 'm/d/yy' });
+        $('#txtProjectToDate').blur(function () { }).datepicker({ dateFormat: 'm/d/yy' });
+
+        $("#global_filterDashConsume").val("");
+        $("#global_filterDashProject").val("");
+
+
+        $("#lnkRequisition").removeClass("lava");
+        $("#lnkRequisition").addClass("liahover");
+
+        $("#lnknotsubmitted").removeClass("lava");
+        $("#lnknotsubmitted").addClass("liahover");
+        $("#hdnstatusConsume").val("Unsubmitted"); // Not Approved
+        GenerateItemGrid();
+        $('.DTTT_container').css('z-index', '-1');
+        FilterRecordsByStatus($("#hdnstatusConsume").val());
+
+
+
+        $("#lnkProjectspend").removeClass("liahover");
+        $("#lnkProjectspend").addClass("lava");
+        $("#lnkPAexceeds").removeClass("lava");
+        $("#lnkPAexceeds").addClass("liahover");
+        $("#hdnstatusProject").val("Project Amount Exceeds");
+
+
+        $('#dvConsumeChart').empty();
+        $('#dvConsumeChart').load('/ConsumeChart/LoadChart', function () { });
+        $('#dvProjectChart').empty();
+        $('#dvProjectChart').load('/ProjectChart/LoadChart', function () { });
+
+    });
+
+    $('#btnConsumego').click(function () {
+
+        if ($("#lnkRequisition").hasClass("liahover")) {
+            $("#divRequisitionTab.Lnavd > ul > li").each(function () {
+                if ($(this).find('a').hasClass('liahover')) {
+                    var lnk = $(this).find('a')[0];
+                    var Clickedid = lnk.id;
+                    var ClickedTitle = $(lnk).attr("title");
+                    // alert(Clickedid + '  ' + ClickedTitle);
+                    BindConsumeStatusGrid(Clickedid, ClickedTitle);
+                }
+            });
+        }
+        else if ($("#lnkProjectspend").hasClass("liahover")) {
+            alert('@ResLayout.ProjectSpend');
+        }
+
+    });
+
+    $('#btnProjectgo').click(function () {
+
+        if ($("#lnkProjectspend").hasClass("liahover")) {
+            $("#divProjectspendTab.Lnavd > ul > li").each(function () {
+                if ($(this).find('a').hasClass('liahover')) {
+                    var lnk = $(this).find('a')[0];
+                    var Clickedid = lnk.id;
+                    var ClickedTitle = $(lnk).attr("title");
+                    //alert(Clickedid + '  ' + ClickedTitle);
+                    BindProjectStatusGOClick(Clickedid, ClickedTitle);
+                }
+            });
+        }
+    });
+
+    function AddRemoveProjectCSS() {
+        $("#divProjectspendTab.Lnavd > ul > li").each(function () {
+            $(this).find('a').addClass("lava");
+            $(this).find('a').removeClass("liahover");
+        });
+    }
+
+    function BindPercentageValue() {
+        //  alert($("#hdnstatusProject").val());
+        $.ajax({ url: '@Url.Content("~/InventoryDashboard/GetCompanyConfig")'
+                        , type: 'POST'
+                        , data: { 'CompanyID': '@eTurnsWeb.Helper.SessionHelper.CompanyID', 'Status': $("#hdnstatusProject").val() }
+                        , cache: false
+                        , success: function (response) {
+                            $("#txtLimits").val(response.StatusValue);
+                            $("#global_filterDashProject").val("");
+                            $("#global_filterDashProject").change();
+
+                            FilterRecordsByStatusProject($("#hdnstatusProject").val());
+                            $('#dvProjectChart').empty();
+                            $('#dvProjectChart').load('/ProjectChart/LoadChart', function () { });
+                            //$('.DTTT_container').css('z-index', '-1');
+                        }
+                        , error: function (message) {
+                            $("#txtLimits").val(0);
+                        }
+        });
+
+    }
+
+    function BindProjectStatusGOClick(id, str) {
+
+        AddRemoveProjectCSS();
+        if (id == "lnkProjectspend") {
+
+            $("#lnkRequisition").addClass("lava");
+            $("#lnkRequisition").removeClass("liahover");
+            $("#divMainRequisitionTab").hide();
+            $("#divMainProjectspend").show();
+
+            $("#lnkPAexceeds").removeClass("lava");
+            $("#lnkPAexceeds").addClass("liahover");
+
+            $("#hdnstatusProject").val("Project Amount Exceeds");
+
+
+        }
+        else {
+            $("#hdnstatusProject").val(str);
+        }
+
+        $("#" + id).removeClass("lava");
+        $("#" + id).addClass("liahover");
+        $("#global_filterDashProject").val("");
+        $("#global_filterDashProject").change();
+
+        FilterRecordsByStatusProject($("#hdnstatusProject").val());
+        $('.DTTT_container').css('z-index', '-1');
+
+        $('#dvProjectChart').empty();
+        $('#dvProjectChart').load('/ProjectChart/LoadChart', function () { });
+
+    }
+
+    function BindProjectStatusGrid(id, str) {
+
+        AddRemoveProjectCSS();
+        if (id == "lnkProjectspend") {
+
+            $("#lnkRequisition").addClass("lava");
+            $("#lnkRequisition").removeClass("liahover");
+            $("#divMainRequisitionTab").hide();
+            $("#divMainProjectspend").show();
+
+            $("#lnkPAexceeds").removeClass("lava");
+            $("#lnkPAexceeds").addClass("liahover");
+
+            $("#hdnstatusProject").val("Project Amount Exceeds");
+            ShowHideProjectDiv('Chart');
+
+        }
+        else {
+            $("#hdnstatusProject").val(str);
+        }
+
+        $("#" + id).removeClass("lava");
+        $("#" + id).addClass("liahover");
+
+        BindPercentageValue();
+
+    }
+    function AddRemoveConsumeCSS() {
+        $("#divRequisitionTab.Lnavd > ul > li").each(function () {
+            $(this).find('a').addClass("lava");
+            $(this).find('a').removeClass("liahover");
+        });
+    }
+    function BindConsumeStatusGrid(id, str) {
+
+        AddRemoveConsumeCSS();
+        if (id == "lnkRequisition")//,'Requisition
+        {
+            $("#lnkProjectspend").addClass("lava");
+            $("#lnkProjectspend").removeClass("liahover");
+
+            $("#divMainRequisitionTab").show();
+            $("#divMainProjectspend").hide();
+
+            $("#lnknotsubmitted").removeClass("lava");
+            $("#lnknotsubmitted").addClass("liahover");
+            $("#hdnstatusConsume").val("Unsubmitted");
+            ShowHideConsumeDiv('Chart');
+        }
+        else {
+            $("#hdnstatusConsume").val(str);
+        }
+        $("#" + id).removeClass("lava");
+        $("#" + id).addClass("liahover");
+
+        $("#global_filterDashConsume").val("");
+        $("#global_filterDashConsume").change();
+
+        FilterRecordsByStatus($("#hdnstatusConsume").val());
+
+        $('#dvConsumeChart').empty();
+        $('#dvConsumeChart').load('/ConsumeChart/LoadChart', function () { });
+    }
+
+
+    function GenerateItemGrid() {
+
+        oTableRequisition = $('#myRequisitionDataTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "bAutoWidth": false,
+            //"sScrollX": "150%",
+            "sScrollX": "100%",
+            "sDom": 'R<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[1, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            //"bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                if (aData.IsDeleted == true && aData.IsArchived == true)
+                    nRow.className = "GridDeleatedArchivedRow";
+                else if (aData.IsDeleted == true)
+                    nRow.className = "GridDeletedRow";
+                else if (aData.IsArchived == true)
+                    nRow.className = "GridArchivedRow";
+
+                return nRow;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Content("~/InventoryDashboard/RequisitionMasterListAjax")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                //PostCount = PostCount + 1;
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting.length != 0)
+                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+                aoData.push({ "name": "FromDate", "value": $('#txtConsumeFromDate').val() });
+                aoData.push({ "name": "ToDate", "value": $('#txtConsumeToDate').val() });
+                aoData.push({ "name": "Criteria", "value": $("#hdnstatusConsume").val() });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('#myRequisitionDataTable td').removeHighlight();
+                        $('#myRequisitionDataTable_wrapper .dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('#myRequisitionDataTable_wrapper .dataTables_scroll').css({ "opacity": 1 });
+                        if ($("#global_filterDashConsume").val() != '') {
+                            $('#myRequisitionDataTable td').highlight($("#global_filterDashConsume").val());
+                        }
+                        CallShowHideData();
+                        //CallNarrowfunctions();
+                    }
+                })
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+                GenerateProjectGrid();
+                BindPercentageValue();
+            },
+            "aoColumns": [
+                            {
+                                "mDataProp": "RequisitionNumber",
+                                "sClass": "read_only",
+                                "sDefaultContent": '',
+                                "bSortable": true,
+                                "bSearchable": false,
+                                "fnRender": function (obj, val) {
+                                    return "<a id='aEditLink' onclick='return OpenRequisitionEdit(&quot;" + obj.aData.GUID + "&quot;)' href='JavaScript:void(0);'>" + obj.aData.RequisitionNumber + "</a>" + " <input type='hidden' id='RequisitionGUID' value='" + obj.aData.GUID.toString() + "' />";
+                                    //return "<a id='aEditLink' onclick='return ShowEditTabGUID(&quot;RequisitionEdit?RequisitionGUID=" + obj.aData.GUID + "&quot;,&quot;frmRequisitionMaster&quot;)' href='JavaScript:void(0);'>" + obj.aData.RequisitionNumber + "</a>" + " <input type='hidden' id='RequisitionGUID' value='" + obj.aData.GUID.toString() + "' />";
+                                    //return "" + obj.aData.RequisitionNumber + "";
+                                }
+                            },
+			                { "mDataProp": "Description", "sClass": "read_only", "sDefaultContent": '',
+			                    "fnRender": function (obj, val) {
+			                        return "<div class='comment more'>" + val + "</div>" + " <span id='spnRequisitionStatus' style='display:none'>" + obj.aData.RequisitionStatus + "</span>"; ;
+			                    }
+			                },
+                            { "mDataProp": "RequiredDate", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return GetDateInFullFormat(val);
+                                }
+                            }
+
+
+		    ]
+        });
+
+    }
+
+    function OpenRequisitionEdit(GUID) {
+        var url = '@Url.Action("RequisitionList", "Consume")';
+        url = url + '?fromdashboard=' + 'yes' + '&RequisitionGUID=' + GUID;
+        window.location.href = url;
+        return false;
+    }
+
+    function GenerateProjectGrid() {
+        oProjectTable = $('#myProjectDataTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": false,
+            "bAutoWidth": false,
+            "sScrollX": "100%",
+            "sDom": 'R<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            //"oColVis": {},
+            "aaSorting": [[0, "asc"]],
+            //"oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            //"bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                if (aData.IsDeleted == true && aData.IsArchived == true)
+                    nRow.className = "GridDeleatedArchivedRow";
+                else if (aData.IsDeleted == true)
+                    nRow.className = "GridDeletedRow";
+                else if (aData.IsArchived == true)
+                    nRow.className = "GridArchivedRow";
+
+                return nRow;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Content("~/InventoryDashboard/ProjectMasterListAjax")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                //endFor
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting.length != 0)
+                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+                aoData.push({ "name": "FromDate", "value": $('#txtProjectFromDate').val() });
+                aoData.push({ "name": "ToDate", "value": $('#txtProjectToDate').val() });
+                aoData.push({ "name": "Status", "value": $("#hdnstatusProject").val() });
+                aoData.push({ "name": "StatusValue", "value": $("#txtLimits").val() });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('#myProjectDataTable td').removeHighlight();
+                        $('#myProjectDataTable_wrapper .dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('#myProjectDataTable_wrapper .dataTables_scroll').css({ "opacity": 1 });
+                        if ($("#global_filterDashProject").val() != '') {
+                            $('#myProjectDataTable td').highlight($("#global_filterDashProject").val());
+                        }
+
+                        CallShowHideData();
+                    }
+                })
+            }, // fnServerData : required to pass the custom parameter before fetching data from DB
+            //            "fnInitComplete": function () {
+            //                $('.ColVis').detach().appendTo(".setting-arrow");
+            //            },
+            "aoColumns": [
+                                {
+                                    "sClass": "read_only",
+                                    "sDefaultContent": '',
+                                    "bSortable": true,
+                                    "bSearchable": false,
+                                    "fnRender": function (obj, val) {
+                                        //return "" + obj.aData.ProjectSpendName + "";
+                                        return "<a onclick='return OpenProjectSpendEdit(&quot;" + obj.aData.ID + "&quot;)' href='JavaScript:void(0);'>" + obj.aData.ProjectSpendName + "</a>";
+                                        //return "<a onclick='BlankSession(); return ShowEditTab(&quot;ProjectEdit/" + obj.aData.ID + "&quot;,&quot;frmProject&quot;)' href='JavaScript:void(0);'>" + obj.aData.ProjectSpendName + "</a>";
+                                    }
+                                },
+                                { "mDataProp": "Description", "sClass": "read_only" },
+                                { "mDataProp": "DollarLimitAmount", "sClass": "read_only" },
+                                { "mDataProp": "DollarUsedAmount", "sClass": "read_only" },
+                                {
+                                    "sClass": "read_only",
+                                    "sDefaultContent": '',
+                                    "bSortable": true,
+                                    "bSearchable": false,
+                                    "fnRender": function (obj, val) {
+                                        //return "" + obj.aData.ProjectSpendName + "";
+
+                                        //                                        var Limit = obj.aData.DollarLimitAmount;
+                                        //                                        var Used = obj.aData.DollarUsedAmount;
+                                        //                                        var UsedPer = ((100 / obj.aData.DollarLimitAmount) * obj.aData.DollarUsedAmount)
+                                        return "" + GetUsedPer(obj.aData.DollarLimitAmount, obj.aData.DollarUsedAmount); +"";
+                                        //return "<a onclick='BlankSession(); return ShowEditTab(&quot;ProjectEdit/" + obj.aData.ID + "&quot;,&quot;frmProject&quot;)' href='JavaScript:void(0);'>" + obj.aData.ProjectSpendName + "</a>";
+                                    }
+                                },
+		    ]
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+    }
+    function GetUsedPer(Limit, Used) {
+        var iDecimalPlace = 2;
+        var PerUsed = ((100 / Limit) * Used);
+        //alert(PerUsed);
+        return PerUsed.toFixed(iDecimalPlace); ;
+    }
+    function OpenProjectSpendEdit(ID) {
+        var url = '@Url.Action("ProjectList", "ProjectSpend")';
+        url = url + '?fromdashboard=' + 'yes' + '&ProjectID=' + ID;
+        window.location.href = url;
+        return false;
+    }
+
+    function FilterRecordsByStatusProject(StatusValue) {
+
+        var searchtext = StatusValue.replace(/'/g, "''");
+        var globalSearch = $("#global_filterDashProject").val().replace(/'/g, "''");
+        if (globalSearch == '')
+            ProjectTabFilter = "[####]" + searchtext;
+        else {
+            ProjectTabFilter = globalSearch + "[####]" + searchtext;
+        }
+        $('#myProjectDataTable').dataTable().fnFilter(
+                            ProjectTabFilter,
+                            null,
+                            null,
+                            null
+                        );
+
+        //$('.DTTT_container').css('z-index', '-1');
+    }
+
+    function FilterRecordsByStatus(StatusValue) {
+
+        var searchtext = StatusValue.replace(/'/g, "''");
+        var globalSearch = $("#global_filterDashConsume").val().replace(/'/g, "''");
+        if (globalSearch == '')
+            RequisitionTabFilter = "[####]" + searchtext;
+        else {
+            RequisitionTabFilter = globalSearch + "[####]" + searchtext;
+        }
+        $('#myRequisitionDataTable').dataTable().fnFilter(
+                            RequisitionTabFilter,
+                            null,
+                            null,
+                            null
+                        );
+    }
+
+    /* Global filter JS */
+
+    var timeoutsc1;
+    $('#global_filterDashConsume').bind('textchange', function () {
+        clearTimeout(timeoutsc1);
+        var self = this;
+        timeoutsc1 = setTimeout(function () {
+            fnFilterConsumeGlobal();
+        }, 200);
+    });
+    $("#global_filterDashConsume").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            var searchtext = $("#global_filterDashConsume").val().replace(/'/g, "''");
+
+            FilterRecordsByStatus($("#hdnstatusConsume").val());
+
+            //HideOtherTabs();
+
+            return false;
+        }
+    });
+
+    function fnFilterConsumeGlobal() {
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#global_filterDashConsume") != 'undefined' && ($("#global_filterDashConsume").val().length > 2 || $("#global_filterDashConsume").val().length == 0)) {
+
+            var searchtext = $("#global_filterDashConsume").val().replace(/'/g, "''");
+            FilterRecordsByStatus($("#hdnstatusConsume").val());
+
+        }
+        else {
+            $('#myRequisitionDataTable td').removeHighlight();
+            $('#myRequisitionDataTable td').highlight($("#global_filterDashConsume").val());
+        }
+    }
+    $("#clear_global_filterDashConsume").click(function () {
+        if ($("#global_filterDashConsume").val().length > 0) {
+            $("#global_filterDashConsume").val("");
+            $("#global_filterDashConsume").change();
+        }
+        return false;
+    });
+
+    /* Global filter JS */
+
+
+
+    /* Global filter JS FOR Project Spend */
+
+    var timeoutsc1;
+    $('#global_filterDashProject').bind('textchange', function () {
+        clearTimeout(timeoutsc1);
+        var self = this;
+        timeoutsc1 = setTimeout(function () {
+            fnFilterProjectGlobal();
+        }, 200);
+    });
+    $("#global_filterDashProject").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            var searchtext = $("#global_filterDashProject").val().replace(/'/g, "''");
+
+            FilterRecordsByStatusProject($("#hdnstatusProject").val());
+
+
+            //HideOtherTabs();
+
+            return false;
+        }
+    });
+
+    function fnFilterProjectGlobal() {
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#global_filterDashProject") != 'undefined' && ($("#global_filterDashProject").val().length > 2 || $("#global_filterDashProject").val().length == 0)) {
+
+            var searchtext = $("#global_filterDashProject").val().replace(/'/g, "''");
+            FilterRecordsByStatusProject($("#hdnstatusProject").val());
+
+        }
+        else {
+            $('#myProjectDataTable td').removeHighlight();
+            $('#myProjectDataTable td').highlight($("#global_filterDashProject").val());
+        }
+    }
+    $("#clear_global_filterDashProject").click(function () {
+        if ($("#global_filterDashProject").val().length > 0) {
+            $("#global_filterDashProject").val("");
+            $("#global_filterDashProject").change();
+        }
+        return false;
+    });
+
+    /* Global filter JS */
+</script>

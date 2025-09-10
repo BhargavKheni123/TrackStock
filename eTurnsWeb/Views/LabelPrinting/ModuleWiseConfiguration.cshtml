@@ -1,0 +1,172 @@
+﻿@model Dictionary<eTurns.DTO.LabelPrinting.LabelModuleMasterDTO, List<eTurns.DTO.LabelPrinting.LabelFieldModuleTemplateDetailDTO>>
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+}
+<div class="userHead">
+    @{
+        bool isUpdate;
+        bool isInsert;
+        if (ViewBag.ViewOnly == true)
+        {
+            isUpdate = false;
+            isInsert = false;
+        }
+        else
+        {
+            isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.LabelPrinting, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+            isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.LabelPrinting, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+        }
+    }
+    @using (Ajax.BeginForm("LabelModuleTemplateSave", "LabelPrinting", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmModuleTemplate" }))
+    {
+        @Html.ValidationSummary(true)
+        @Html.AntiForgeryToken()
+        <div class="editorForm" style="float: left; width: 40%;">
+            <ul>
+                @foreach (var item in Model)
+                {                   
+                    <li>
+                        <div class="editor-label">
+                            @Html.Label(item.Key.ModuleName)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownList("ddlModelTemplateDetail_" + item.Key.ID, new SelectList(item.Value, "ID", "Name"), new { id = "ddlModelTemplateDetail_" + item.Key.ID, @class = "selectBox", @style = "width:150px;" })
+                            <a style="display:inline" href="javascript:void(0);" title="@eTurns.DTO.LabelPrinting.ResLabelPrinting.ToolTipLabelPreview" class="previewlnk" id="aShowLabelDesign_@item.Key.ID">
+                                <img alt="preview" src="@Url.Content("~/Content/images/search.png")" style="margin-top: 5px;
+                                    width: 10px;" />
+                            </a>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                        <div class="editor-field">
+                            &nbsp;
+                        </div>
+                    </li>
+                }
+            </ul>
+        </div>
+        <div id="divFieldsDetails" class="editorForm padRightNone" style="width: 55%;">
+        </div>
+
+        <div class="editorForm" style="width: 100%; float: left; text-align: center;">
+            <ul>
+                <li>
+                    @*<div class="editor-label">
+                            &nbsp;
+                        </div>*@
+                <div class="BtnBlockform" style="width: 50%;">
+                    <input type="button" value="@eTurns.DTO.LabelPrinting.ResLabelPrinting.ButtonCancel" id="btnLCCancel" class="CreateBtn" />
+                    @if (isInsert == true)
+                    {
+                        <input type="submit" value="@eTurns.DTO.LabelPrinting.ResLabelPrinting.ButtonSave" id="btnLCSave" class="CreateBtn" />
+                    }
+                    else if (isUpdate == true)
+                    {
+                        <input type="submit" value="@eTurns.DTO.LabelPrinting.ResLabelPrinting.ButtonSave" id="btnLCSave" class="CreateBtn" />
+                    }
+                    else if (isUpdate == false && isInsert == false)
+                    {
+                        <script type="text/javascript">
+                            disableControls('frmModuleTemplate');
+                            $('#btnLCCancel').removeAttr('disabled');
+                        </script>
+                    }
+                </div>
+            </li>
+        </ul>
+    </div>
+    }
+</div>
+<div id="divPreview">
+    <div id="divInnerPrev">
+    </div>
+</div>
+<script type="text/javascript">
+    $("form").submit(function (e) {
+        $('#DivLoading').show();
+        $.validator.unobtrusive.parse("#frmModuleTemplate");
+        if ($(this).valid()) {
+
+        }
+        e.preventDefault();
+    });
+</script>
+<script type="text/javascript">
+    function onSuccess(response) {
+        IsRefreshGrid = true;
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+        $('#DivLoading').hide();
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        }
+        //else {
+        //    $('#tab5').click();
+        //    //SwitchTextTab(0, 'LabelConfigurationCreate', 'frmModuleTemplate');
+        //}
+    }
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        showNotificationDialog();
+    }
+
+    $('#btnLCCancel').click(function (e) {
+        $('#tab5').click();
+        $('#txtLPFilter').val('');
+        fnFilterLPList('');
+    });
+
+    $(document).ready(function () {
+        $.get('GetModuleWiseTemplatedID', function (result) {
+            var obj = result.TemplateDetailList;
+            for (var i = 0; i < obj.length; i++) {
+                $('#ddlModelTemplateDetail_' + obj[i].ModuleID).val(obj[i].TemplateDetailID);
+            }
+        });
+
+
+    });
+
+    $(".previewlnk").click(function (e) {
+        var aid = $(this).attr('id').split('_')[1];
+        var ddlID = $('#ddlModelTemplateDetail_' + aid).val();
+        if (!isNaN(ddlID) && parseInt(ddlID) > 0) {
+            $('#DivLoading').show();
+            $('#divInnerPrev').html('');
+            $.get('GetLabelHTMLByDetailID', { ID: ddlID }, function (result) {
+                $('#divInnerPrev').html(result.HTMLString);
+                $('#divInnerPrev').css('width', $('#divInnerPrev').find('#tblDynamic').css('width'));
+                $('#divInnerPrev').find('.ui-resizable-handle').remove();
+                $('#divInnerPrev').find('#spnLabelWidth').remove();
+                $('#divInnerPrev').find('#spnLabelHeight').remove();
+                $("#divPreview").dialog("option", "position", [e.clientX + 10, e.clientY - 5]);
+                $('#divPreview').dialog('open');
+            });
+        }
+    });
+
+    $("#divPreview").dialog({
+        autoOpen: false, modal: true, draggable: false, resizable: false, title: '',
+        open: function () {
+            var wdith = $('#divInnerPrev').find('#tblDynamic').find('tbody').css('width');
+            wdith = (parseFloat(wdith.replace('px', '')) + 5) + 'px';
+            $(this).parent().css('width', wdith);
+            $('.ui-dialog-titlebar').find('span.ui-dialog-title').remove();
+            $('.ui-dialog-content').css('padding', '0px');
+            $('.ui-dialog-content').css('overflow', 'hidden');
+            $('#divPreview').css('overflow', 'hidden');
+            $('#divPreview').css('min-height', '0px');
+            $('.ui-dialog').css('border', '0px solid #176DB8');
+            $('.ui-widget-overlay').css('opacity', '0.1');
+            $('#DivLoading').hide();
+        },
+        close: function () {
+            $('#divInnerPrev').empty();
+        }
+    });
+</script>

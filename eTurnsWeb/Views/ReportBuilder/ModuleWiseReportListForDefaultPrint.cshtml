@@ -1,0 +1,198 @@
+﻿@{
+
+    ViewBag.Title = eTurns.DTO.ResReportMaster.PageHeaderForDefaultReportSetup;
+
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Reports, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Reports, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);   
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+}
+
+@model IEnumerable<eTurns.DTO.ModuleWiseReportListForDefaultPrintDTO>
+@{
+    ViewBag.Title = eTurns.DTO.ResReportMaster.PageHeaderForDefaultReportSetup;
+}
+@section head{
+    @if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+    <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/OpenAccess/PageStyle/UserPage.css")" />
+}
+
+<div class="userListingWrapper">
+    <h2 style="padding: 0% 0 0 3%;">
+        @eTurns.DTO.ResReportMaster.PageHeaderForDefaultReportSetup
+    </h2>
+    <div class="userHead">
+        <div class="mainForm" style="padding: 0% 0 0 0%;">
+            @Html.Hidden("hdnInsertRights", isInsert)
+            @Html.Hidden("hdnUpdateRights", isUpdate)
+            <div style="width:48%">
+                <ul>
+                    <li>
+                        <table id="tblModuleWise" class="display">
+                            <thead>
+                            </thead>
+                            <tbody>
+                                @foreach (var Module in Model)
+                                {
+                                <tr id="tr_@Module.ModuleName">
+                                    <td style="border:none">
+                                        <div class="editor-label">
+                                            <input id="hdnModuleID" type="hidden" value="@Module.ModuleID" />
+                                            @Module.ModuleName
+                                        </div>
+                                    </td>
+                                    <td style="border:none">
+                                        <div class="editor-field">
+                                            @if (Module.lstModuleWiseMasterReport != null)
+                                            {
+                                                <select id="selReport" name="selReport" class="selectBox">
+                                                    <option value="0">@ResReportMaster.SelectOne</option>
+                                                    @foreach (ModuleWiseMasterReportList objMasterReport in Module.lstModuleWiseMasterReport)
+                                                    {
+                                                        <optgroup label="@objMasterReport.MasterReportName">
+                                                            <option value="@objMasterReport.MasterReportID">@objMasterReport.MasterReportName</option>
+                                                            @foreach (ModuleWiseChildReportList objChildreport in objMasterReport.lstModuleWiseChildReport)
+                                                            {   
+                                                                if (objChildreport.ChildReportName != null && objChildreport.ChildReportName != "")
+                                                                {
+                                                                    <option value="@objChildreport.ChildReportID" ISEnterpriseReport="@Convert.ToString(objChildreport.ISEnterpriseReport)">@objChildreport.ChildReportName</option>                                                                    
+                                                                }
+                                                            }
+                                                        </optgroup>
+                                                    }
+                                                </select>
+                                            }
+                                        </div>
+                                        <div class="editor-field" id="tdchkSetAsDefaultPrintReportForAllRoom" style="display:none;">
+                                            @ResReportMaster.SetAsDefaultPrintForAllEntConfirm &nbsp;&nbsp;
+                                            <input type="checkbox" id="chkSetAsDefaultPrintReportForAllRoom" class="check-box" />
+                                        </div>
+                                    </td>
+                                </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </li>
+                </ul>
+                <div id="processing_message" style="display: none" title="Processing">
+                    @eTurns.DTO.Resources.ResMessage.RequestProcessMessage
+                </div>
+                <input type="button" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+            </div>
+        </div>
+    </div>
+</div>
+
+<script language="javascript" type="text/javascript">
+
+    $(document).ready(function () {
+
+        var objList = '';
+
+        $.ajax({
+            url: "/ReportBuilder/GetReportForDefaultPrintByModuleID",
+            data: JSON.stringify({ "ModuleID": 0 }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            async: false,
+            success: function (response) {
+                objList = response.ModuleWiseDefaultPrintList;
+                if (objList != null && objList.length > 0) {
+                    for (var itr = 0; itr < $("#tblModuleWise").find("tr").length ; itr++) {
+                        var trRow = $("#tblModuleWise").find("tr")[itr];
+
+                        var hdModuleIDvalue = 0;
+                        var DefaultPrintReportID = 0;
+                        var setSelected = false;
+
+                        for (var itd = 0; itd < $(trRow).find("td").length ; itd++) {
+                            var hdnModuleID = $($(trRow).find("td")[itd]).find("#hdnModuleID");
+                            if ($(hdnModuleID).val() != undefined) {
+                                hdModuleIDvalue = $(hdnModuleID).val();
+                                for (var iobj = 0 ; iobj < objList.length ; iobj++)
+                                {
+                                    if(objList[iobj].ModuleID == hdModuleIDvalue)
+                                    {
+                                        DefaultPrintReportID = objList[iobj].DefaultPrintReportID;
+                                        setSelected = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            var selectedReport = $($(trRow).find("td")[itd]).find("#selReport");
+                            if ($(selectedReport).val() != undefined) {
+                                $(selectedReport).val(DefaultPrintReportID);
+
+                                $(selectedReport).change(function (event) {                                    
+                                    if ($(this).find("option:selected").attr("ISEnterpriseReport") == "true"
+                                        || $(this).find("option:selected").attr("ISEnterpriseReport") == "True"
+                                        || $(this).find("option:selected").attr("ISEnterpriseReport") == "TRUE") {
+                                        $($(this).parents().find("td")[1]).find("#tdchkSetAsDefaultPrintReportForAllRoom").css('display', 'block');
+                                    }
+                                    else {
+                                        $($(this).parents().find("td")[1]).find("#tdchkSetAsDefaultPrintReportForAllRoom").css('display', 'none');
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+            },
+            error: function (response) {
+            }
+        });
+    });
+
+    $("#btnSave").click(function () {
+        $('#DivLoading').show();        
+        var lstDefaultPrint = new Array();
+
+        for (var itr = 0; itr < $("#tblModuleWise").find("tr").length ; itr++) {
+
+            var trRow = $("#tblModuleWise").find("tr")[itr];
+            var hdModuleIDvalue = 0;
+            var selectedReportValue = 0;
+            var SetAsDefaultPrintReportForAllRoom = false;
+
+            for (var itd = 0; itd < $(trRow).find("td").length ; itd++) {
+                var hdnModuleID = $($(trRow).find("td")[itd]).find("#hdnModuleID");
+                if ($(hdnModuleID).val() != undefined) {
+                    hdModuleIDvalue = $(hdnModuleID).val();
+
+                }
+                var selectedReport = $($(trRow).find("td")[itd]).find("#selReport");
+                if ($(selectedReport).val() != undefined) {
+                    selectedReportValue = $(selectedReport).val();
+                }
+
+                var chkSetAsDefaultPrintReportForAllRoom = $($(trRow).find("td")[itd]).find("#chkSetAsDefaultPrintReportForAllRoom");
+                if ($(chkSetAsDefaultPrintReportForAllRoom).is(':checked') != undefined) {
+                    SetAsDefaultPrintReportForAllRoom = $(chkSetAsDefaultPrintReportForAllRoom).is(':checked');
+                }
+            }
+            // if (selectedReportValue > 0) {
+            lstDefaultPrint.push({
+                ModuleID: hdModuleIDvalue, DefaultPrintReportID: selectedReportValue, SetAsDefaultPrintReportForAllRoom: SetAsDefaultPrintReportForAllRoom
+            });
+            //}
+        }
+
+        $.ajax({
+            type: "POST",
+            url: "/ReportBuilder/ModuleWiseReportSaveForDefaultPrint",
+            data: JSON.stringify(lstDefaultPrint),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            async: false,
+            success: function (result) {                
+                $('#DivLoading').hide();
+                ShowNotificationMessage(result.Message);
+                window.location.reload(true);
+            },
+            error: function (result) {
+                $('#DivLoading').hide();
+            }
+        });
+    });
+
+</script>

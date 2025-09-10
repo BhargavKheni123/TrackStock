@@ -1,0 +1,2361 @@
+@model eTurnsWeb.Models.ItemModelPerameter
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    var settings = new GridHeaderSettings() { DisplayContextMenu = false, DisplayPrintBlock = false, ShowSelectAll = true, DisplayDeleteButton = false, dataViewType = DataViewType.radioButtons, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "ItemLocationMasterModelList" };
+    Int64 _ParentID = (string.IsNullOrEmpty(Model.PerentID) ? 0 : Convert.ToInt64(Model.PerentID));
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ItemMaster", ListName = "ItemMasterModelIC", ControlID = Model.CallingFromPageName, ID = _ParentID };
+    if (Model.ModelHeader.ToLower() == ResInventoryCount.ModelHeader.ToLower())
+    {
+        modelCommon.Text = "inventory count";
+    }
+    InventoryCountDTO objInventoryCountDTO = (InventoryCountDTO)ViewBag.InventoryCountHeader;
+
+
+    //------------------------------------------------------------------------------
+    //
+    eTurns.DAL.InventoryCountDAL objInventoryCountDAL = new eTurns.DAL.InventoryCountDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+
+    bool IsArchived = false;
+    bool IsDeleted = false;
+
+    if (System.Web.HttpContext.Current.Request["IsArchived"] != null)
+    {
+        IsArchived = bool.Parse(System.Web.HttpContext.Current.Request["IsArchived"].ToString());
+    }
+
+    if (System.Web.HttpContext.Current.Request["IsDeleted"] != null)
+    {
+        IsDeleted = bool.Parse(System.Web.HttpContext.Current.Request["IsDeleted"].ToString());
+    }
+
+    Int64 BinID = 0;
+    Int64.TryParse(System.Web.HttpContext.Current.Request["BinID"], out BinID);
+
+    bool ShowStagingLocation = false;
+    if (System.Web.HttpContext.Current.Request["ShowStagingLocation"] != null)
+    {
+        if (System.Web.HttpContext.Current.Request["ShowStagingLocation"].ToString() == "1")
+        {
+            ShowStagingLocation = false;
+        }
+        if (System.Web.HttpContext.Current.Request["ShowStagingLocation"].ToString() == "2")
+        {
+            ShowStagingLocation = true;
+        }
+    }
+
+    string CountGUID = string.Empty;
+    long CurentParentID = 0;
+    if (System.Web.HttpContext.Current.Request["ParentID"] != null)
+    {
+        long.TryParse(Convert.ToString(System.Web.HttpContext.Current.Request["ParentID"]), out CurentParentID);
+        InventoryCountDTO objInv = new InventoryCountDTO();
+        objInv = objInventoryCountDAL.GetInventoryCountById(CurentParentID, eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID);
+        if (objInv != null)
+        {
+            CountGUID = objInv.GUID.ToString();
+        }
+    }
+
+    bool isOnTheFlyRights = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+
+    int TotalRecordCount = 0;
+    List<ItemMasterDTO> lstAllItems = objInventoryCountDAL.GetPagedItemLocationsForCount(0, int.MaxValue, out TotalRecordCount, "", "BinNumber desc", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, IsArchived, IsDeleted, BinID, ShowStagingLocation, "", eTurnsWeb.Helper.SessionHelper.UserSupplierIds, CountGUID, eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.CurrentTimeZone).ToList();
+    HttpContext.Current.Session["ItemMasterListForCount"] = lstAllItems;
+}
+
+<script type='text/javascript' src="@Url.Content(" /../Scripts/PageScripts/ItemCount.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+@*<h2>
+        @Model.ModelHeader
+    </h2>*@
+<div class="userListBlock">
+    <div id="tab7" class="tabContener" style="width: 99%">
+        <div class="searchWrapper">
+            <div class="searchBlock">
+                <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                <div class="searchinputB">
+                    <input type="text" class="searchinput" id="ItemModel_filter" />
+                    <a href="javascript:void(0);" class="xclose">
+                        <img src="~/Content/images/x.png" alt="X" id="clear_QLItemModel_filter" />
+                    </a>
+                </div>
+            </div>
+        </div>
+        @Html.ItemModelGridTopHeader(settings)
+        @*@Html.ItemModelGridTopHeaderWithContextMenu(settings)*@
+        @Html.Partial("NarrowSearchForItemCountModel", modelCommon)
+        <div class="userContent ">
+            <table id="ItemModeDataTable" class="display">
+                <thead>
+                    <tr>
+                        <th class="NotHide">
+                            @eTurns.DTO.Resources.ResCommon.Add
+                        </th>
+                        <th class="NotHide">
+                            @eTurns.DTO.ResItemMaster.CustomerOwnedQty
+                        </th>
+                        <th class="NotHide">
+                            @eTurns.DTO.ResItemMaster.ConsignedQty
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.BinNumber
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResItemMaster.ItemNumber
+                        </th>
+                        <th>
+                            @eTurns.DTO.Resources.ResCommon.Add  @ResInventoryCountDetail.CountLineItemDescription
+                        </th>
+                        @*
+                            <th>
+                                Customer owned quantity
+                            </th>
+                            <th>
+                                Consigned quantity
+                            </th>*@
+                        <th>
+                            @eTurns.DTO.ResItemMaster.Item  @eTurns.DTO.ResItemMaster.Description
+                        </th>
+                        @*
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Cost
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RoomName
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ManufacturerNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SupplierPartNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.UPC
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.UNSPSC
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LongDescription
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResCategoryMaster.Category
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResGLAccount.GLAccount
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResUnitMaster.Unit
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.PricePerTerm
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DefaultReorderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DefaultPullQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Markup
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SellPrice
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ExtendedCost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LeadTimeInDays
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Trend
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Taxable
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Consignment
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.StagedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.InTransitquantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnOrderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnTransferQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SuggestedOrderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.RequisitionedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.AverageUsage
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Turns
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnHandQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.CriticalQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MinimumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MaximumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.WeightPerPiece
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemUniqueNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsTransfer
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsPurchase
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.InventoryClassification
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SerialNumberTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LotNumberTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DateCodeTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemType
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ImagePath
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsLotSerialExpiryCost
+                            </th>*@
+                        @Html.RenderColumnsHeader("ItemMaster", typeof(eTurns.DTO.ResItemMaster), "Item")
+                        @*@Html.RenderColumnsHeader("InventoryCountLineItem", typeof(eTurns.DTO.ResInventoryCountDetail))*@
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <br />
+            @if (isOnTheFlyRights)
+            {
+                <div class="BtnBlockform" id="divAddLocation" style="display: none;">
+                 
+                    <input type="button" value="@ResCommon.AddLocation" id="bntAddNewLocationInCount" class="CreateBtn" />
+                 
+                </div>
+            }
+        </div>
+        <div class="editorForm" style="width: 80%">
+            <input type="button" value="@ResCommon.AddAll" id="btnAddAll" class="CreateBtn" style="float: left;
+                margin-left: 5px; margin-top: 1px;" />
+            <input type="button" value="@ResCommon.Close" id="btnModelCancle" class="CreateBtn" style="float: left;
+                margin-left: 5px; margin-top: 1px;" />
+        </div>
+        @*START : QTY Legends*@
+        @Html.Partial("_QTYLegends")
+        @*END : QTY Legends*@
+    </div>
+</div>
+@*</div>*@
+<div class="popBlock" id="targetItemModel">
+    <div class="popBlockinner">
+        <span id="spanGlobalMSGIM" class="WarningIcon"></span><a href="#" id="close" class="close">
+            <img src="~/Content/images/popup-close.png" alt="" />
+        </a>
+    </div>
+</div>
+
+<div class="dialog" id="DivConfirmBeforeAddQuicklist" style="float: left; display: none; width: 450px;">
+    <div class="inner" style="width: 450px;">
+        <p class="text" id="Message" style="float: left; text-align: left; padding-left: 10px;">
+            <b>@ResInventoryCount.ConfirmBeforeAddQuicklist</b>
+        </p>
+        <p class="text" style="float: left; text-align: center; padding-left: 10px;">
+            <a href="javascript:void(0)" class="yes" onclick="ConfirmBeforeAddQuicklistYES()">
+                <img src="~/Content/images/yes.png" alt="@ResCommon.Yes" />@ResCommon.Yes
+            </a>&nbsp;&nbsp;&nbsp;<a href="javascript:void(0)" class="no" onclick="ConfirmBeforeAddQuicklistNO()">
+                <img src="~/Content/images/no.png" alt="@ResCommon.Cancel" />@ResCommon.Cancel
+            </a>
+        </p>
+    </div>
+</div>
+
+<div id="NewMasterPopUP">
+</div>
+
+@*<div id="PopupForSerialLotItemContainer" style="display: none;">
+
+    </div>*@
+<script type="text/javascript">
+
+
+
+
+    var vcurrentPageIndx = 0;
+    var newBinID = 0;
+    var neeBinNumber = '';
+    var oTableItemModel;
+    var sImageUrl = "/Content/images/";
+    var anOpen = [];
+    var IsSaveState = false;
+    var objColumnsMI = {};
+
+
+    /* Cost Narrow Search Related Code  START */
+    function CostNarroSearch(CostDDLObject) {
+        //oTable.fnFilter($(CostDDLObject).val(),null,null,null);
+        if ($(CostDDLObject).val() != "0_-1") {
+            CostNarroSearchValue = $(CostDDLObject).val();
+            DoNarrowSearchForItemCount();
+        }
+        else {
+            CostNarroSearchValue = '';
+            DoNarrowSearchForItemCount();
+        }
+    }
+
+    var lastCheckedNewItemPopup;
+    /* Cost Narrow Search Related Code  END */
+    $("#ItemModeDataTable").on("tap click", "tbody tr", function (e) {
+        if (e.target.type == "checkbox" || e.target.type == "radio" || e.target.type == "text") {
+            e.stopPropagation();
+        } else {
+            if (!lastCheckedNewItemPopup) {
+                lastCheckedNewItemPopup = this;
+            }
+
+            if (e.shiftKey) {
+                var start = $('#ItemModeDataTable tbody tr').index(this);
+                var end = $('#ItemModeDataTable tbody tr').index(lastCheckedNewItemPopup);
+
+                for (i = Math.min(start, end) ; i <= Math.max(start, end) ; i++) {
+                    if (!$('#ItemModeDataTable tbody tr').eq(i).hasClass('row_selected')) {
+                        $('#ItemModeDataTable tbody tr').eq(i).addClass("row_selected");
+                    }
+                }
+                if (window.getSelection) {
+                    if (window.getSelection().empty) {  // Chrome
+                        window.getSelection().empty();
+                    } else if (window.getSelection().removeAllRanges) {  // Firefox
+                        window.getSelection().removeAllRanges();
+                    }
+                } else if (document.selection) {  // IE?
+                    document.selection.empty();
+                }
+            } else if ((e.metaKey || e.ctrlKey)) {
+                $(this).toggleClass('row_selected');
+            } else {
+                $(this).toggleClass('row_selected');
+            }
+
+            lastCheckedNewItemPopup = this;
+        }
+
+        var IsAddAllRequired = true;
+
+        $('#ItemModeDataTable tbody tr').each(function () {
+            if ($(this).hasClass('row_selected')) {
+                var vQuickListGUID = $(this).find('#spnQLID').text();
+                if (vQuickListGUID != '') {
+                    IsAddAllRequired = false;
+                }
+                var hdnLotNumberTracking = $(this).find('#hdnLotNumberTracking').val();
+                var hdnSerialNumberTracking = $(this).find('#hdnSerialNumberTracking').val();
+                var hdnDateCodeTracking = $(this).find('#hdnDateCodeTracking').val();
+                if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true" || hdnDateCodeTracking == "true") {
+                    IsAddAllRequired = false;
+                }
+            }
+        });
+
+        if (!IsAddAllRequired) {
+            $("#btnAddAll").hide();
+        }
+        else {
+            $("#btnAddAll").show();
+        }
+
+
+        selectCurrentRow();
+        return false;
+
+
+
+    });
+
+    $("div#ItemModel").find("div.userHead:first").find("div.BtnBlock a.clsactionSelectAll").click(function () {
+        var IsAddAllRequired = true;
+        $("#ItemModeDataTable").find("tbody tr").removeClass("row_selected").addClass("row_selected");
+        $("#ItemModeDataTable tbody tr").each(function () {
+            var hdnLotNumberTracking = $(this).find('#hdnLotNumberTracking').val();
+            var hdnSerialNumberTracking = $(this).find('#hdnSerialNumberTracking').val();
+            var hdnDateCodeTracking = $(this).find('#hdnDateCodeTracking').val();
+            if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true" || hdnDateCodeTracking == "true") {
+                IsAddAllRequired = false;
+            }
+        });
+        $(this).next("a.clsactionDeSelectAll").css('display', '');
+        $(this).css('display', 'none');
+        if (!IsAddAllRequired) {
+            $("#btnAddAll").hide();
+        }
+        else {
+            $("#btnAddAll").show();
+        }
+    });
+    $("div#ItemModel").find("div.userHead:first").find("div.BtnBlock a.clsactionDeSelectAll").click(function () {
+
+        $().find("tbody tr").removeClass("row_selected");
+        $(this).prev("a.clsactionSelectAll").css('display', '');
+        $(this).css('display', 'none');
+        $("#btnAddAll").show();
+    });
+
+    function fillItemMaster(bDestroy) {
+
+        var gaiSelected = [];
+
+        oTableItemModel = $('#ItemModeDataTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            //"bAutoWidth": false,
+            "sScrollX": "150%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[3, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                if (aData.IsDeleted == true && aData.IsArchived == true)
+                    nRow.className = "GridDeleatedArchivedRow";
+                else if (aData.IsDeleted == true)
+                    nRow.className = "GridDeletedRow";
+                else if (aData.IsArchived == true)
+                    nRow.className = "GridArchivedRow";
+                /*START : QTY Legends*/
+                aData.MinimumQuantity = aData.MinimumQuantity ? aData.MinimumQuantity : 0;
+                aData.CriticalQuantity = aData.CriticalQuantity ? aData.CriticalQuantity : 0;
+                aData.OnHandQuantity = aData.OnHandQuantity ? aData.OnHandQuantity : 0;
+                if (aData.OnHandQuantity < aData.CriticalQuantity)
+                    $(nRow).attr({ 'style': 'background-color:@eTurnsWeb.Helper.SessionHelper.CriticalQuantityBackColor !Important' });
+                else if (aData.OnHandQuantity < aData.MinimumQuantity)
+                    $(nRow).attr({ 'style': 'background-color:@eTurnsWeb.Helper.SessionHelper.MinimumQuantityBackColor !Important' });
+                /*END : QTY Legends*/
+
+                if ('@Model.CallingFromPageName.Contains("AddNewBarCode")' == 'True') {
+                    $(nRow).find('#txtQty').parent().css('display', 'none');
+                }
+                if (newBinID > 0) {
+                    var vBID = $(nRow).find("#hdnBinID").val();
+                    if (newBinID == vBID) {
+                        $(nRow).addClass("row_selected");
+                    }
+                }
+
+                return nRow;
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+
+                oData.oSearch.sSearch = "";
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'ItemLocationMasterModelList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = json;
+                        if (oTableItemModel.fnSettings().oLoadedState == null)
+                            oTableItemModel.fnSettings().oLoadedState = oData;
+                    }
+                });
+
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'ItemLocationMasterModelList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Content(Model.AjaxURLToFillItemGrid)', //'@Url.Content("~/Inventory/ItemMasterListAjax")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+
+                //PostCount = PostCount + 1;
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting != null && oSettings.aaSorting.length != 0) {
+                    var sortValue = "";
+                    for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                        if (sortValue.length > 0) {
+                            sortValue += ", "
+                        }
+                        var colName = arrCols[oSettings.aaSorting[i][0]];
+                        if (typeof colName !== 'undefined' && colName != null) {
+                            sortValue += colName + ' ' + oSettings.aaSorting[i][1];
+                        }
+                    }
+                    if (sortValue == "") {
+                        sortValue = "0";
+                    }
+                    aoData.push({ "name": "SortingField", "value": sortValue });
+                }
+                //aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else {
+                    aoData.push({ "name": "SortingField", "value": "0" });
+                }
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+                aoData.push({ "name": "SupplierID", "value": '@Model.SupplierID' });
+                aoData.push({ "name": "ParentID", "value": '@objInventoryCountDTO.ID' });
+                aoData.push({ "name": "ParentGUID", "value": '@Model.PerentGUID' });
+                aoData.push({ "name": "ShowStagingLocation", "value": $("input[type='radio'][name='ShowStagingLocation']:checked").val() });
+
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('#ItemModeDataTable td').removeHighlight();
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+
+                        if ($("#ItemModel_filter").val() != '') {
+                            $('#ItemModeDataTable td').highlight($("#ItemModel_filter").val());
+                        }
+                        if ('@Model.CallingFromPageName.Contains("AddNewBarCode")' == 'True') {
+                            $('#tdAddQty').css('display', 'none');
+                        }
+                        CallShowHideData();
+                        //CallThisFunctionFromModel('success');
+
+                        $(".text-boxQuantityFormat").priceFormat({
+                            prefix: '',
+                            thousandsSeparator: '',
+                            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+                        });
+
+                        $(".text-boxQuantityFormatSR").priceFormat({
+                            prefix: '',
+                            thousandsSeparator: '',
+                            centsLimit: 0
+                        });
+
+                        UDFfillEditableOptionsForGrid();
+                    }
+                })
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+                $('#divQTYLegends').show(1000);
+            },
+            "aoColumns": [{
+                "mDataProp": null, "sClass": "read_only", "sDefaultContent": '', "bSortable": false, "fnRender": function (obj, val) {
+                    //return "<input type='button' value='Add' onclick='return AddSingleItemToCount(this)' id='btnAdd' class='CreateBtn' style='float: none;padding: 2px 6px;margin-left: 5px;' tabindex='-1'  />" +
+                    //       "<input type='hidden' id='hdnItemType' name='hdnItemType' value='" + obj.aData.ItemType + "'>";
+
+                    if (obj.aData.SerialNumberTracking == true || obj.aData.LotNumberTracking == true || obj.aData.DateCodeTracking == true) {
+                        return "<input type='button' value='@ResCommon.Open' onclick='return OpenPopupForSerialLotItemClick(this)' id='btnOpen' class='CreateBtn' style='float: none;padding: 2px 6px;margin-left: 5px;' tabindex='-1'  />" +
+                               "<input type='hidden' id='hdnItemType' name='hdnItemType' value='" + obj.aData.ItemType + "'>" +
+                               "<input type='hidden' id='hdnItemGUID' name='hdnItemGUID' value='" + obj.aData.GUID + "'>" +
+                               "<input type='hidden' id='hdnBinID' name='hdnBinID' value='" + obj.aData.BinID + "'>" +
+                               "<input type='hidden' id='hdnLotNumberTracking' name='hdnItemGUID' value='" + obj.aData.LotNumberTracking + "'>" +
+                               "<input type='hidden' id='hdnSerialNumberTracking' name='hdnBinID' value='" + obj.aData.SerialNumberTracking + "'>" +
+                               "<input type='hidden' id='hdnDateCodeTracking' name='hdnBinID' value='" + obj.aData.DateCodeTracking + "'>";
+                    }
+                    else if (obj.aData.ItemType == 2) {
+                        return "<input type='button' value='@ResCommon.Add' onclick='return ConfirmBeforeAddQuicklist(this)' id='btnAdd' class='CreateBtn' style='float: none;padding: 2px 6px;margin-left: 5px;' tabindex='-1'  />" +
+                               "<input type='hidden' id='hdnItemType' name='hdnItemType' value='" + obj.aData.ItemType + "'>" +
+                               "<input type='hidden' id='hdnItemGUID' name='hdnItemGUID' value='" + obj.aData.GUID + "'>" +
+                               "<input type='hidden' id='hdnBinID' name='hdnBinID' value='" + obj.aData.BinID + "'>" +
+                               "<input type='hidden' id='hdnLotNumberTracking' name='hdnItemGUID' value='" + obj.aData.LotNumberTracking + "'>" +
+                               "<input type='hidden' id='hdnSerialNumberTracking' name='hdnBinID' value='" + obj.aData.SerialNumberTracking + "'>" +
+                               "<input type='hidden' id='hdnDateCodeTracking' name='hdnBinID' value='" + obj.aData.DateCodeTracking + "'>";
+                    }
+                    else {
+                        return "<input type='button' value='@ResCommon.Add' onclick='return AddSingleItemToCount(this)' id='btnAdd' class='CreateBtn' style='float: none;padding: 2px 6px;margin-left: 5px;' tabindex='-1'  />" +
+                               "<input type='hidden' id='hdnItemType' name='hdnItemType' value='" + obj.aData.ItemType + "'>" +
+                               "<input type='hidden' id='hdnItemGUID' name='hdnItemGUID' value='" + obj.aData.GUID + "'>" +
+                               "<input type='hidden' id='hdnBinID' name='hdnBinID' value='" + obj.aData.BinID + "'>" +
+                               "<input type='hidden' id='hdnLotNumberTracking' name='hdnItemGUID' value='" + obj.aData.LotNumberTracking + "'>" +
+                               "<input type='hidden' id='hdnSerialNumberTracking' name='hdnBinID' value='" + obj.aData.SerialNumberTracking + "'>" +
+                               "<input type='hidden' id='hdnDateCodeTracking' name='hdnBinID' value='" + obj.aData.DateCodeTracking + "'>";
+                    }
+                }
+            }
+                            , {
+                                "mDataProp": null, "sClass": "read_only", "sDefaultContent": '', "bSortable": false, "fnRender": function (obj, val) {
+                                    if (obj.aData.SerialNumberTracking == true || obj.aData.LotNumberTracking == true || obj.aData.DateCodeTracking == true) {
+                                        return "<input type='text' readonly='readonly' value='NA' class='numericinput disableBack' maxlength='10' name='txtCustOwnQty' onblur='CustownedCount(this);'  style='width:90%;' />";
+                                    }
+                                    if (obj.aData.SerialNumberTracking == true) {
+                                        return "<input type='text' value='' class='numericinput text-boxinner numericalign numericsonly' maxlength='10' onblur='CustownedCount(this);' name='txtCustOwnQty' style='width:90%;' />";
+                                    }
+                                    else {
+                                        return "<input type='text' value='' class='numericinput text-boxinner numericalign numericsonly' maxlength='10' onblur='CustownedCount(this);' name='txtCustOwnQty' style='width:90%;' />";
+                                    }
+                                }
+                            }
+                            , {
+                                "mDataProp": null, "sClass": "read_only", "sDefaultContent": '', "bSortable": false, "fnRender": function (obj, val) {
+                                    if (obj.aData.SerialNumberTracking == true || obj.aData.LotNumberTracking == true || obj.aData.DateCodeTracking == true) {
+                                        return "<input type='text' readonly='readonly' value='NA' class='numericinput disableBack' maxlength='10'  name='txtConsignedQuantity' onblur='ConsignedCount(this);' style='width:90%;' />";
+                                    }
+                                    if (obj.aData.Consignment == false) {
+                                        if (obj.aData.SerialNumberTracking == true) {
+                                            return "<input type='text' readonly='readonly' value='NA' class='numericinput disableBack' maxlength='10'  name='txtConsignedQuantity' onblur='ConsignedCount(this);' style='width:90%;' />";
+                                        }
+                                        else {
+                                            return "<input type='text' readonly='readonly' value='NA' class='numericinput disableBack' maxlength='10'  name='txtConsignedQuantity' onblur='ConsignedCount(this);' style='width:90%;' />";
+                                        }
+                                    }
+                                    else {
+                                        if (obj.aData.SerialNumberTracking == true) {
+                                            return "<input type='text' value='' class='numericinput text-boxinner numericalign numericsonly'  maxlength='10' name='txtConsignedQuantity' onblur='ConsignedCount(this);' style='width:90%;' />";
+                                        }
+                                        else {
+                                            return "<input type='text'  value='' class='numericinput text-boxinner numericalign numericsonly'  maxlength='10' name='txtConsignedQuantity' onblur='ConsignedCount(this);' style='width:90%;' />";
+                                        }
+                                    }
+                                }
+                            }
+                            , { "mDataProp": "BinNumber", "sClass": "read_only" }
+                            , {
+                                "mDataProp": "ItemNumber",
+                                "sClass": "read_only",
+                                "sDefaultContent": '',
+                                "bSortable": true,
+                                "bSearchable": false
+                            },
+                            {
+                                "mDataProp": null, "sClass": "read_only", "bSortable": false, "sDefaultContent": '', "fnRender": function (obj, val) {
+                                    return "<textarea name='txtCountLineItemDescription' id='txtCountLineItemDescription'  maxlength='1024' style='width:90%;' onchange='DescriptionChnages(this);' class='text-boxinner' cols='20'></textarea>";
+                                }
+                            },
+                            //{ "mDataProp": "CustomerOwnedQuantity", "sClass": "read_only numericalign" },
+                            //{ "mDataProp": "ConsignedQuantity", "sClass": "read_only numericalign" },
+                            {
+                                "mDataProp": "Description", "sClass": "read_only", "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+                                    return "<div class='comment more'>" + obj.aData.Description + "</div>";
+                                }, "bSortable": true
+                            }
+
+            //                            { "mDataProp": "Cost", "sClass": "read_only" },
+            //			                { "mDataProp": "RoomName", "sClass": "read_only" },
+            //			                { "mDataProp": "Created", "sClass": "read_only",
+            //			                    "fnRender": function (obj, val) {
+            //			                        return GetDateInFullFormat(val);
+            //			                    }
+            //			                },
+            //			                { "mDataProp": "Updated", "sClass": "read_only",
+            //			                    "fnRender": function (obj, val) {
+            //			                        return GetDateInFullFormat(val);
+            //			                    }
+            //			                },
+            //                            { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+            //                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+            //                            { "mDataProp": "ManufacturerNumber", "sClass": "read_only" },
+            //                            { "mDataProp": "SupplierPartNo", "sClass": "read_only" },
+            //                            { "mDataProp": "UPC", "sClass": "read_only" },
+            //                            { "mDataProp": "UNSPSC", "sClass": "read_only" },
+            //                            { "mDataProp": "Description", "sClass": "read_only", "sDefaultContent": '',
+            //                                "fnRender": function (obj, val) {
+            //                                    return "<div class='comment more'>" + obj.aData.Description + "</div>";
+            //                                }
+            //                            },
+            //                            {
+            //                                "mDataProp": "LongDescription", "sClass": "read_only", "sDefaultContent": '',
+            //                                "fnRender": function (obj, val) {
+            //                                    return "<div class='comment more'>" + obj.aData.LongDescription + "</div>";
+            //                                }
+            //                            },
+            //                            { "mDataProp": "CategoryName", "sClass": "read_only" },
+            //                            { "mDataProp": "GLAccount", "sClass": "read_only" },
+            //                            { "mDataProp": "Unit", "sClass": "read_only" },
+            //                            { "mDataProp": "PricePerTerm", "sClass": "read_only" },
+            //                            { "mDataProp": "DefaultReorderQuantity", "sClass": "read_only" },
+            //                            { "mDataProp": "DefaultPullQuantity", "sClass": "read_only" },
+
+            //                            { "mDataProp": "Markup", "sClass": "read_only" },
+            //                            { "mDataProp": "SellPrice", "sClass": "read_only" },
+            //                            { "mDataProp": "ExtendedCost", "sClass": "read_only" },
+            //                            { "mDataProp": "LeadTimeInDays", "sClass": "read_only" },
+            //                            { "mDataProp": "Trend", "sClass": "read_only"
+            //                                , "fnRender": function (obj, val) {
+            //                                    return GetBoolInFormat(obj, val);
+            //                                }
+            //                            },
+            //                            { "mDataProp": "Taxable", "sClass": "read_only"
+            //                                , "fnRender": function (obj, val) {
+            //                                    return GetBoolInFormat(obj, val);
+            //                                }
+            //                            },
+            //                            { "mDataProp": "Consignment", "sClass": "read_only"
+            //                                , "fnRender": function (obj, val) {
+            //                                    return GetBoolInFormat(obj, val);
+            //                                }
+            //                            },
+            //                            { "mDataProp": "StagedQuantity", "sClass": "read_only" },
+            //                            { "mDataProp": "InTransitquantity", "sClass": "read_only" },
+            //                            { "mDataProp": "OnOrderQuantity", "sClass": "read_only" },
+            //                            { "mDataProp": "OnTransferQuantity", "sClass": "read_only" },
+            //                            { "mDataProp": "SuggestedOrderQuantity", "sClass": "read_only" },
+            //                            { "mDataProp": "RequisitionedQuantity", "sClass": "read_only" },
+            //                            { "mDataProp": "AverageUsage", "sClass": "read_only" },
+            //                            { "mDataProp": "Turns", "sClass": "read_only" },
+            //                            { "mDataProp": "OnHandQuantity", "sClass": "read_only" },
+            //                            { "mDataProp": "CriticalQuantity", "sClass": "read_only" },
+            //                            { "mDataProp": "MinimumQuantity", "sClass": "read_only" },
+            //                            { "mDataProp": "MaximumQuantity", "sClass": "read_only" },
+            //                            { "mDataProp": "WeightPerPiece", "sClass": "read_only" },
+            //                            { "mDataProp": "ItemUniqueNumber", "sClass": "read_only" },
+            //                            { "mDataProp": "IsTransfer", "sClass": "read_only"
+            //                                , "fnRender": function (obj, val) {
+            //                                    return GetBoolInFormat(obj, val);
+            //                                }
+            //                            },
+            //                            { "mDataProp": "IsPurchase", "sClass": "read_only"
+            //                                , "fnRender": function (obj, val) {
+            //                                    return GetBoolInFormat(obj, val);
+            //                                }
+            //                            },
+            //                            { "mDataProp": "InventoryClassification", "sClass": "read_only"
+            //                                , "fnRender": function (obj, val) {
+            //                                    return GetBoolInFormat(obj, val);
+            //                                }
+            //                            },
+            //                            { "mDataProp": "SerialNumberTracking", "sClass": "read_only"
+            //                                , "fnRender": function (obj, val) {
+            //                                    return GetBoolInFormat(obj, val);
+            //                                }
+            //                            },
+            //                            { "mDataProp": "LotNumberTracking", "sClass": "read_only"
+            //                                , "fnRender": function (obj, val) {
+            //                                    return GetBoolInFormat(obj, val);
+            //                                }
+            //                            },
+            //                            { "mDataProp": "DateCodeTracking", "sClass": "read_only"
+            //                                , "fnRender": function (obj, val) {
+            //                                    return GetBoolInFormat(obj, val);
+            //                                }
+            //                            },
+            //                            { "mDataProp": "ItemTypeName", "sClass": "read_only" },
+            //                            { "mDataProp": "ImagePath", "sClass": "read_only" },
+            //                            { "mDataProp": "IsLotSerialExpiryCost", "sClass": "read_only" },
+                                        @(Html.RenderColumnsArray("ItemMaster", true, "Item"))
+                                        //@Html.RenderColumnsArrayEditableObject("InventoryCountLineItem")
+
+
+            ]
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+
+    }
+
+
+    $("#NewMasterPopUP").dialog({
+        autoOpen: false,
+        show: "blind",
+        hide: "explode",
+        height: 600,
+        width: 800,
+        modal: true,
+        open: function () {
+            newBinID = 0;
+            $(this).parent().find("span.ui-dialog-title").html("Add New " + $(this).data("data"));
+        },
+        close: function () {
+            $('#DivLoading').show();
+            //alert($(this).data("IDVal"));
+            //RefreshDropdownList($(this).data("data"), $(this).data("IDVal"));
+            var newBinInfo = $(this).data("IDVal");
+            if (newBinInfo != null && newBinInfo.length > 1) {
+                newBinID = newBinInfo.split('~')[0];
+                newBinNumber = newBinInfo.split('~')[1];
+
+
+                $(this).data("data", null);
+                $(this).data("IDVal", null);
+                $(this).parent().find("span.ui-dialog-title").html('');
+                if (vcurrentPageIndx > 0) {
+                    vcurrentPageIndx = vcurrentPageIndx - 1;
+                }
+                else {
+                    vcurrentPageIndx = 0;
+                }
+                oTableItemModel.fnPageChange(vcurrentPageIndx);
+                bResetDisplay = true;
+                //$('#divAddLocation').css('display', 'none');
+            }
+            else {
+                $('#DivLoading').hide();
+            }
+        }
+    });
+
+
+
+    function fnGetSelected(oTableLocal) {
+        return oTableLocal.$('tr.row_selected');
+    }
+
+    function onlyNumeric(event) {
+        var charCode = (event.which) ? event.which : event.keyCode
+
+        if (charCode > 31 && (charCode < 48 || charCode > 57 || code == 86))
+            return false;
+
+        return true;
+
+    }
+
+    function selectCurrentRow() {
+        var anSelectedRows = fnGetSelected(oTableItemModel);
+        $('#divAddLocation').css('display', 'none');
+        if (anSelectedRows.length == 1) {
+            $('#divAddLocation').css('display', '');
+        }
+    }
+
+    function fnFilterGlobalIM(keycode) {
+
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#ItemModel_filter") != 'undefined' && ($("#ItemModel_filter").val().length > 2 || $("#ItemModel_filter").val().length == 0)) {
+            newBinID = 0;
+            if (SearchPattern == 2 || SearchPattern == "2") {
+                //Incremental
+                  DoNarrowSearchForItemCount();
+            } else {
+                //Enterkey
+                if (keycode == "13") {
+                    DoNarrowSearchForItemCount();
+                }
+            }
+        }
+        else {
+            $('#ItemModeDataTable td').removeHighlight();
+            $('#ItemModeDataTable td').highlight($("#ItemModel_filter").val());
+        }
+        $('#divAddLocation').css('display', 'none');
+
+    }
+
+
+
+    //$("#ItemModel_filter").keyup(function (e) {
+    //    var code = (e.keyCode ? e.keyCode : e.which);
+    //    if (code == 13) {
+    //    }
+    //    else {
+    //        fnFilterGlobalIM();
+    //    }
+    //});
+    var timeoutsc1;
+    $("#ItemModel_filter").on('keyup', function (e) {
+        clearTimeout(timeoutsc1);
+        var self = this;
+        timeoutsc1 = setTimeout(function () {
+            fnFilterGlobalIM(e.keyCode);
+        }, 500);
+    });
+
+
+
+    $("input[type='radio'][name='ShowStagingLocation']").change(function () {
+
+        var ShowStagingLocations = false;
+        if ($(this).val() == "2") {
+            ShowStagingLocations = true;
+        }
+
+
+            $.ajax({
+                "dataType": 'json',
+                "type": "POST",
+                "async":false,
+                "url": '@Url.Action("ClearSession", "Inventory")',
+                "success": function (retdata) {
+                    GetItemLocationsForCount(ShowStagingLocations);
+                    clearNarrowSearchFilterIM();
+                    oTableItemModel.fnDraw();
+                    NSForItemModel_ExecuteOnDocReady(ShowStagingLocations);
+                }
+            })
+    });
+
+    //$("#ItemModel_filter").keydown(function (e) {
+    //    var code = (e.keyCode ? e.keyCode : e.which);
+    //    if (code == 13) {
+    //        var searchtext = $("#ItemModel_filter").val().replace(/'/g, "''");
+    //        //$('#ItemModeDataTable').dataTable().fnFilter(
+    //        //                searchtext,
+    //        //                null,
+    //        //                null,
+    //        //                null
+    //        //            );
+    //        DoNarrowSearchForItemCount();
+    //        return false;
+    //    }
+    //});
+    //$(document).on('propertychange input', "#ItemModel_filter", function () {
+
+    //    fnFilterGlobalIM();
+    //    return false;
+    //});
+
+    $("#clear_QLItemModel_filter").click(funClearFilterIM);
+
+    function funClearFilterIM() {
+        //Check length first
+        if ($("#ItemModel_filter").val().length > 0) {
+            newBinID = 0;
+            $("#ItemModel_filter").val('');
+            $('#ItemModeDataTable').dataTable().fnFilter(
+                            $("#ItemModel_filter").val(),
+                            null,
+                            null,
+                            null
+                        );
+        }
+        $("#ItemModel_filter").focus();
+        $('#divAddLocation').css('display', 'none');
+        return false;
+    }
+
+    $('#PageNumberIM').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#GobtnIM").click();
+            return false;
+        }
+    });
+
+    $("#GobtnIM").click(function () {
+        var pval = $('#PageNumberIM').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+
+        if (pval == 0)
+            return;
+
+        oTableItemModel.fnPageChange(Number(pval - 1));
+        $('#PageNumberIM').val('');
+    });
+
+    function GetObject(tr, PageName) {
+        if ($(tr).attr('class').indexOf('row_selected') != -1) {
+            var txtQty = $(tr).find('#txtQty');
+            var Qty = parseFloat($(txtQty).val());
+            if (Qty !== NaN && Qty !== undefined && Qty > 0 && parseInt('@Model.PerentID') > 0) {
+
+                var itemID = $(tr).find('#spnItemID').text();
+                var itemGUID = $(tr).find('#spnItemGUID').text();
+                var vItemNumber = $(tr).find('#spnItemNumber').text();
+                var vDescription = $(tr).find('#spnDescription').text();
+                var isEnforce = $(tr).find('#spnIsEnforce').text();
+                var reOrderQty = $(tr).find('#spnReOrderQty').text();
+
+                var vCost = $(tr).find('#spnCost').text();
+                var DetailData = {};
+                if (PageName == "QL") {
+                    DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "Quantity": Qty, 'QuickListID': '@Model.PerentID', 'QuickListGUID': '@Model.PerentGUID' };
+                }
+                else if (PageName == "PS") {
+                    DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "QuantityLimit": Qty, 'ProjectID': '@Model.PerentID', 'ProjectGUID': '@Model.PerentGUID', "ItemNumber": vItemNumber, "Description": vDescription };
+                }
+                else if (PageName == "ORD") {
+                    var modulo = -1; //  parseInt(Qty) % parseInt(reOrderQty);
+                    if (isEnforce == 'true' && modulo > 0) {
+                        var devideval = parseInt(parseInt(Qty) / parseInt(reOrderQty)) + 1;
+                        var newQty = reOrderQty * devideval;
+
+                        DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "RequestedQuantity": newQty, 'OrderID': '@Model.PerentID', 'OrderGUID': '@Model.PerentGUID', "Bin": '@Model.OrdStagingID', "RequiredDate": '@Model.OrdRequeredDate' };
+
+                        $('div#targetItemModel').fadeToggle();
+                        $("div#targetItemModel").delay(3000).fadeOut(200);
+                        $("#spanGlobalMSGIM").text("Added qty =" + Qty + "change to " + newQty + " due to enforce reorder quantity");
+                        $("#spanGlobalMSGIM").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    }
+                    else {
+                        DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "RequestedQuantity": Qty, 'OrderID': '@Model.PerentID', 'OrderGUID': '@Model.PerentGUID', "Bin": '@Model.OrdStagingID', "RequiredDate": '@Model.OrdRequeredDate' };
+                    }
+                }
+                else if (PageName == "RQ") {
+                    DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "QuantityRequisitioned": Qty, 'RequisitionID': '@Model.PerentID', 'RequisitionGUID': '@Model.PerentGUID', "ItemNumber": vItemNumber, "Description": vDescription, "ItemCost": vCost, "RequiredDate": '@Model.ReqRequiredDate' };
+                }
+                else if (PageName == "WO") {
+                    DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "Quantity": Qty, 'WorkOrderID': '@Model.PerentID', 'WorkOrderGUID': '@Model.PerentGUID', "ItemNumber": vItemNumber, "ItemCost": vCost };
+                }
+                else if (PageName == "KIT") {
+                    DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "QuantityPerKit": Qty, 'KitID': '@Model.PerentID', 'KitGUID': '@Model.PerentGUID' };
+                }
+                else if (PageName == "TRF") {
+                    DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "RequestedQuantity": Qty, 'TransferID': '@Model.PerentID', 'TransferGUID': '@Model.PerentGUID', "Bin": '@Model.OrdStagingID', "RequiredDate": '@Model.OrdRequeredDate' };
+                }
+                else if (PageName == "AS") {
+                    DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "Quantity": Qty, 'ScheduleID': '@Model.PerentID', 'ScheduleGUID': '@Model.PerentGUID', "ItemNumber": vItemNumber, "ItemCost": vCost, "Description": vDescription };
+                }
+                return DetailData;
+            }
+        }
+        return null;
+    }
+
+    function AddItemToDetailTable(btn, PageName) {
+
+        var arrItems = new Array();
+        var arrRows = new Array();
+        if (btn.id == 'btnAdd') {
+            var tr = $(btn).parent().parent();
+            if ($(tr).attr('class').indexOf('row_selected') == -1) {
+                $(tr).toggleClass('row_selected');
+            }
+            var obj = GetObject(tr, PageName);
+            if (obj !== null) {
+                arrItems.push(obj);
+            }
+        }
+        else if (btn.id === 'btnAddAll') {
+
+            $('#ItemModeDataTable tbody tr').each(function () {
+                var obj = GetObject(this, PageName);
+                if (obj !== null) {
+                    arrRows.push($(this));
+                    arrItems.push(obj);
+                }
+            });
+        }
+        if (arrItems.length != undefined && arrItems.length > 0) {
+            $.ajax({
+                url: '@Url.Content(Model.AjaxURLAddMultipleItemToSession)',
+                data: { 'para': JSON.stringify(arrItems) },
+                dataType: 'json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (json) {
+                    //oTableItemModel.fnDraw();
+                    if (btn.id == 'btnAdd') {
+                        //oTableItemModel.fnDeleteRow($(btn).parent().parent());
+                        $(btn).parent().parent().find('#txtQty').val('');
+                        $(btn).parent().parent().css('display', 'none');
+                    }
+                    else if (btn.id === 'btnAddAll') {
+                        oTableItemModel.fnDeleteRow(arrRows);
+                        $(btn).removeAttr("disabled");
+                    }
+                    $('#DivLoading').hide();
+                },
+                error: function (xhr) {
+                    $('#DivLoading').hide();
+                    $(btn).removeAttr("disabled");
+                }
+            });
+        }
+        else {
+            $("#DivLoading").hide();
+            $(btn).removeAttr("disabled");
+        }
+    }
+
+    function SaveSelectedCountItems() {
+        var AllowAddAll = true;
+        if (AllowAddAll) {
+            var arrCartItems = [];
+            $("#ItemModeDataTable").find("tbody").find("tr.row_selected").each(function () {
+                var btnAdd, slctRt, arrId, txtQty, vItemGUID = "", vItemNumber = "", ReplenishType = "", UDF1 = '', vUDF2 = '', vUDF3 = '', vUDF4 = '', vUDF5 = '', trimtxtValQ = '', slctBinName, BinID;
+                btnAdd = $(this).find("input[type='button'][id^='btnAddCartItem']");
+                slctRt = $(this).find("select[id='slctRt']");
+                slctBinName = $(this).find("select[id='slctBinName']");
+                arrId = $(btnAdd).attr("id").split("~");
+                //vItemID = arrId[1];
+                vItemGUID = arrId[1];
+                vItemNumber = $(this).find("#spnItemNumber").text();
+                txtQty = $(this).find("#txtQty");
+                if (slctBinName != undefined) {
+                    BinID = $(slctBinName).val();
+                }
+                if (slctRt != undefined) {
+                    ReplenishType = $(slctRt).val();
+                }
+                if (txtQty != undefined && vItemGUID != "") {
+                    trimtxtValQ = $(txtQty).val().replace(/ /g, '');
+                    if (trimtxtValQ > 0) {
+                        if (!isNaN(trimtxtValQ) && trimtxtValQ.length > 0 && parseFloat(trimtxtValQ) > 0) {
+                            if ($(this).find('#UDF1') != null) {
+                                if ($(this).find('#UDF1').attr("class") == 'selectBox') {
+                                    vUDF1 = $(this).find('#UDF1 option:selected').text();
+                                }
+                                else {
+                                    vUDF1 = $(this).find('#UDF1').val();
+                                }
+                            }
+
+                            if ($(this).find('#UDF2') != null) {
+                                if ($(this).find('#UDF2').attr("class") == 'selectBox') {
+                                    vUDF2 = $(this).find('#UDF2 option:selected').text();
+                                }
+                                else {
+                                    vUDF2 = $(this).find('#UDF2').val();
+                                }
+                            }
+
+                            if ($(this).find('#UDF3') != null) {
+                                if ($(this).find('#UDF3').attr("class") == 'selectBox') {
+                                    vUDF3 = $(this).find('#UDF3 option:selected').text();
+                                }
+                                else {
+                                    vUDF3 = $(this).find('#UDF3').val();
+                                }
+                            }
+
+                            if ($(this).find('#UDF4') != null) {
+                                if ($(this).find('#UDF4').attr("class") == 'selectBox') {
+                                    vUDF4 = $(this).find('#UDF4 option:selected').text();
+                                }
+                                else {
+                                    vUDF4 = $(this).find('#UDF4').val();
+                                }
+                            }
+
+                            if ($(this).find('#UDF5') != null) {
+                                if ($(this).find('#UDF5').attr("class") == 'selectBox') {
+                                    vUDF5 = $(this).find('#UDF5 option:selected').text();
+                                }
+                                else {
+                                    vUDF5 = $(this).find('#UDF5').val();
+                                }
+                            }
+                            arrCartItems.push({ ID: 0, ItemGUID: vItemGUID, ItemNumber: vItemNumber, BinId: BinID, Quantity: trimtxtValQ, ReplenishType: ReplenishType, UDF1: vUDF1, UDF2: vUDF2, UDF3: vUDF3, UDF4: vUDF4, UDF5: vUDF5 });
+                        }
+                    }
+
+                }
+            });
+
+            if (arrCartItems.length > 0) {
+                var strjson = JSON.stringify(arrCartItems);
+                //  $('#DivLoading').show();
+                $.ajax({
+                    "url": '@Url.Action("UpdateCartItemsBulk", "Replenish")',
+                    "data": { strCartItems: strjson, IsOnlyFromUI: true },
+                    "async": false,
+                    "cache": false,
+                    "dataType": "json",
+                    "type": "POST",
+                    "timeout": 0,
+                    success: function (response) {
+                        if (response.Status == "ok") {
+
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            $("#spanGlobalMessage").html(response.Message);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                            $("#ItemModeDataTable tbody tr").find("input[type='text'][id='txtQty']").val("");
+                            oTable.fnDraw();
+
+                        }
+                        else {
+                            $("#spanGlobalMessage").html(response.Message);
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        }
+                        $('#DivLoading').hide();
+                    },
+                    error: function (response) {
+                        $('#DivLoading').hide();
+                        $("#spanGlobalMessage").html(response.message);
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    }
+                });
+            }
+        }
+        else {
+            alert('@eTurns.DTO.ResCartItem.msgAddAll');
+            return false;
+        }
+    }
+
+    var btnAddQuicklistButton = null;
+    function ConfirmBeforeAddQuicklist(obj) {
+        btnAddQuicklistButton = obj;
+        $('#DivConfirmBeforeAddQuicklist').modal();
+    }
+
+    function ConfirmBeforeAddQuicklistYES() {
+        $.modal.impl.close();
+        AddSingleItemToCount(btnAddQuicklistButton);
+    }
+
+    function ConfirmBeforeAddQuicklistNO() {
+        btnAddQuicklistButton = null;
+        $.modal.impl.close();
+    }
+
+    function AddSingleItemToCount(obj) {
+        $('#divAddLocation').css('display', 'none');
+        btnAddQuicklistButton = null;
+
+        var vUDF1 = '', vUDF2 = '', vUDF3 = '', vUDF4 = '', vUDF5 = '', trimtxtValQ = '', CountLineItemDescription = '', ProjectSpendGUID = '';
+        var CustOwnQty = 0, ConsignedQty = 0;
+        var QuickListGUID = '';
+        var QuickListType = 0;
+
+        var CurrentRow = $(obj).parent().parent();
+        if ($(CurrentRow).find("textarea[name='txtCountLineItemDescription']") != null && $(CurrentRow).find("textarea[name='txtCountLineItemDescription']") != undefined) {
+            CountLineItemDescription = escape($(CurrentRow).find("textarea[name='txtCountLineItemDescription']").val());
+        }
+
+        if ($(CurrentRow).find("input[type='text'][name='txtCustOwnQty']") != null && $(CurrentRow).find("input[type='text'][name='txtCustOwnQty']") != undefined) {
+            CustOwnQty = escape($(CurrentRow).find("input[type='text'][name='txtCustOwnQty']").val().replace(/'/g, "''"));
+        }
+
+        if ($(CurrentRow).find("input[name='txtConsignedQuantity']") != null && $(CurrentRow).find("input[name='txtConsignedQuantity']") != undefined) {
+            ConsignedQty = escape($(CurrentRow).find("input[name='txtConsignedQuantity']").val().replace(/'/g, "''"));
+        }
+
+        //if (isNaN(parseFloat(CustOwnQty)) || parseFloat(CustOwnQty) < 0) {
+        //    CustOwnQty = -1;
+        //}
+        //else
+        //    CustOwnQty = parseFloat(CustOwnQty);
+
+        //if (isNaN(parseFloat(ConsignedQty)) || parseFloat(ConsignedQty) < 0) {
+        //    ConsignedQty = -1;
+        //}
+        //else
+        //    ConsignedQty = parseFloat(ConsignedQty);
+
+        var aPos = oTableItemModel.fnGetPosition($(obj).parent()[0]);
+        var aData = oTableItemModel.fnGetData(aPos[0]);
+
+        if (aData.ItemType == 1 || aData.ItemType == 2 || aData.ItemType == 3) {
+
+            if (aData.Consignment == true) {
+                if (CustOwnQty < 0) {
+                    CustOwnQty = aData.CustomerOwnedQuantity;
+                }
+
+                if (ConsignedQty < 0) {
+                    ConsignedQty = aData.ConsignedQuantity;
+                }
+            }
+
+
+            if ($(CurrentRow).find('#UDF1') != null) {
+                if ($(CurrentRow).find('#UDF1').attr("class") == 'selectBox') {
+                    vUDF1 = $(CurrentRow).find('#UDF1 option:selected').text();
+                }
+                else {
+                    vUDF1 = $(CurrentRow).find('#UDF1').val();
+                }
+            }
+
+            if ($(CurrentRow).find('#UDF2') != null) {
+                if ($(CurrentRow).find('#UDF2').attr("class") == 'selectBox') {
+                    vUDF2 = $(CurrentRow).find('#UDF2 option:selected').text();
+                }
+                else {
+                    vUDF2 = $(CurrentRow).find('#UDF2').val();
+                }
+            }
+
+            if ($(this).find('#UDF3') != null) {
+                if ($(CurrentRow).find('#UDF3').attr("class") == 'selectBox') {
+                    vUDF3 = $(CurrentRow).find('#UDF3 option:selected').text();
+                }
+                else {
+                    vUDF3 = $(CurrentRow).find('#UDF3').val();
+                }
+            }
+
+            if ($(CurrentRow).find('#UDF4') != null) {
+                if ($(CurrentRow).find('#UDF4').attr("class") == 'selectBox') {
+                    vUDF4 = $(CurrentRow).find('#UDF4 option:selected').text();
+                }
+                else {
+                    vUDF4 = $(CurrentRow).find('#UDF4').val();
+                }
+            }
+
+            if ($(CurrentRow).find('#UDF5') != null) {
+                if ($(CurrentRow).find('#UDF5').attr("class") == 'selectBox') {
+                    vUDF5 = $(CurrentRow).find('#UDF5 option:selected').text();
+                }
+                else {
+                    vUDF5 = $(CurrentRow).find('#UDF5').val();
+                }
+            }
+            ProjectSpendGUID = $("#dlProjects").val();
+            var IcDetails = new Array();
+            //        $(obj).attr("disabled", "disabled");
+            if (oTableItemModel != undefined) {
+                var aPos = oTableItemModel.fnGetPosition($(obj).parent()[0]);
+                var aData = oTableItemModel.fnGetData(aPos[0]);
+                var isstageloc = false;
+                if ((parseFloat(CustOwnQty) >= 0 || parseFloat(ConsignedQty) >= 0) || aData.ItemType == 2) {
+                    IcDetails.push({ ItemGUID: aData.GUID, BinID: aData.BinID, CustomerOwnedQuantity: aData.CountCustomerOwnedQuantityEntry, CustomerOwnedQuantity: aData.CountCustomerOwnedQuantity, ConsignedQuantity: aData.CountConsignedQuantityEntry, UDF1: escape(vUDF1), UDF2: escape(vUDF2), UDF3: escape(vUDF3), UDF4: escape(vUDF4), UDF5: escape(vUDF5) });
+                    if ($("input[type='radio'][name='ShowStagingLocation']:checked").val() == "2") {
+                        isstageloc = true;
+                    }
+                    else {
+                        isstageloc = false;
+                    }
+                }
+                else {
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html('@ResItemMaster.ReqQuantity');
+                        $("#spanGlobalMessage").removeClass('succesIcon').addClass('errorIcon WarningIcon');
+                        return false;
+                }
+
+                if (IcDetails.length > 0) {
+
+                    $.ajax({
+                        type: "POST",
+                        url: '@Url.Action("AddItemToCount", "Inventory")',
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        data: "{CountGuid:'@Convert.ToString(objInventoryCountDTO.GUID)',ItemGUID:'" + aData.GUID + "',BinId:'" + aData.BinID + "',ConsignedQuantity:'" + ConsignedQty + "',CustomerOwnedQuantity:'" + CustOwnQty + "',IsStagingLocationCount: '" + isstageloc + "',UDF1:'" + escape(vUDF1) + "',UDF2:'" + escape(vUDF2) + "',UDF3:'" + escape(vUDF3) + "',UDF4:'" + escape(vUDF4) + "',UDF5:'" + escape(vUDF5) + "',CountLineItemDescription:'" + CountLineItemDescription + "',ItemType:'" + aData.ItemType + "',ProjectSpendGUID:'" + ProjectSpendGUID + "' }",
+                        success: function (response) {
+                            if (response.Status == "ok") {
+                                $('div#target').css("z-index", 100000);
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                                $("#spanGlobalMessage").html(response.Message);
+                                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                                oTableItemModel.fnDraw();
+                            }
+                            else {
+                                $('div#target').css("z-index", 100000);
+                                $("#spanGlobalMessage").html(response.Message);
+                                $('div#target').fadeToggle();
+                                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            }
+                            $('#DivLoading').hide();
+                        },
+                        error: function (err) {
+
+                        },
+                        complete:function()
+                        {
+                            $('#divAddLocation').css('display', 'none');
+                        }
+                    });
+                    //                $.ajax({
+                    //                    type: "POST",
+                    //                    url: '@Url.Action("AddItemToCount", "Inventory")',
+                    //                    contentType: 'json',
+                    //                    data: { "CountGuid": '@objInventoryCountDTO.GUID', "ItemGUID": aData.GUID, "BinId": aData.BinID, "ConsignedQuantity": aData.CountConsignedQuantity, "CustomerOwnedQuantity": aData.CountCustomerOwnedQuantity, "IsStagingLocationCount": false },
+                    //                    dataType: 'json',
+                    //                    success: function (response) {
+                    //                        if (response.Status == "ok") {
+                    //                            $('div#target').fadeToggle();
+                    //                            $("div#target").delay(2000).fadeOut(200);
+                    //                            $("#spanGlobalMessage").text(response.Message);
+                    //                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                    //                            $("#ItemModeDataTable tbody tr").find("input[type='text'][id='txtQty']").val("");
+                    //                            oTable.fnDraw();
+
+                    //                        }
+                    //                        else {
+                    //                            $("#spanGlobalMessage").text(response.Message);
+                    //                            $('div#target').fadeToggle();
+                    //                            $("div#target").delay(2000).fadeOut(200);
+                    //                            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    //                        }
+                    //                        $('#DivLoading').hide();
+                    //                    },
+                    //                    error: function (response) {
+                    //                        $('#DivLoading').hide();
+                    //                        $("#spanGlobalMessage").text(response.message);
+                    //                        $('div#target').fadeToggle();
+                    //                        $("div#target").delay(2000).fadeOut(200);
+                    //                    }
+                    //                });
+                }
+            }
+        }
+        $('#divAddLocation').css('display', 'none');
+    }
+
+
+    //////////////////////////////////// // new added for QL///////////////////////////////////START
+
+    function AddQuickListToSelectedModule(obj) { // new added for QL
+
+        $(obj).attr("disabled", "disabled");
+        $('#DivLoading').show();
+        if ('@Model.CallingFromPageName' == 'PS' || '@Model.CallingFromPageName' == 'QL' || '@Model.CallingFromPageName' == 'ORD' || '@Model.CallingFromPageName' == 'RQ' || '@Model.CallingFromPageName' == 'WO' || '@Model.CallingFromPageName' == 'KIT' || '@Model.CallingFromPageName' == 'TRF' || '@Model.CallingFromPageName' == 'AS') {
+            AddQuickListToDetailTable(obj, '@Model.CallingFromPageName');
+            return;
+        }
+    }
+    function AddQuickListToDetailTable(btn, PageName) { // new added for QL
+
+        var vQuickListGUID = '';
+        var arrItems = new Array();
+        var arrRows = new Array();
+        if (btn.id == 'btnAdd') {
+            var tr = $(btn).parent().parent();
+            var obj = GetObjectForQLItems(tr, PageName);
+            if (obj !== null) {
+                vQuickListGUID = $(tr).find('#spnQLID').text();
+                arrItems.push(obj);
+            }
+        }
+        else if (btn.id === 'btnAddAll') {
+            $('#ItemModeDataTable tbody tr').each(function () {
+                var obj = GetObject(this, PageName);
+                if (obj !== null) {
+                    arrRows.push($(this));
+                    arrItems.push(obj);
+                }
+            });
+        }
+        if (arrItems.length != undefined && arrItems.length > 0) {
+            $.ajax({
+                url: '@Url.Content("~/Master/AddQuickListToDetailTable")', //'@Url.Content(Model.AjaxURLAddMultipleItemToSession)',
+                data: { 'para': JSON.stringify(arrItems), 'ModuleName': PageName, 'QuickListGUID': vQuickListGUID },
+                dataType: 'json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (json) {
+                    //json.Items
+                    arrItems = new Array();
+                    arrRows = new Array();
+                    $(json.Items).each(function () {
+                        var obj = GetObjectForItemPopUpFromQL(this, PageName);
+                        if (obj !== null) {
+                            arrRows.push($(this));
+                            arrItems.push(obj);
+                        }
+                    });
+
+                    if (arrItems.length != undefined && arrItems.length > 0) {
+                        $.ajax({
+                            url: '@Url.Content(Model.AjaxURLAddMultipleItemToSession)',
+                            data: { 'para': JSON.stringify(arrItems) },
+                            dataType: 'json',
+                            type: 'POST',
+                            async: false,
+                            cache: false,
+                            success: function (json) {
+                                //oTableItemModel.fnDraw();
+                                $(btn).parent().parent().css('display', 'none');
+                                $('#DivLoading').hide();
+                            },
+                            error: function (xhr) {
+                                $('#DivLoading').hide();
+                                $(btn).removeAttr("disabled");
+                            }
+                        });
+                    }
+                    else {
+                        $("#DivLoading").hide();
+                        $(btn).removeAttr("disabled");
+                    }
+                },
+                error: function (xhr) {
+                    $('#DivLoading').hide();
+                    $(btn).removeAttr("disabled");
+                }
+            });
+        }
+        else {
+            $("#DivLoading").hide();
+            $(btn).removeAttr("disabled");
+        }
+    }
+    function GetObjectForQLItems(tr, PageName) {// new added for QL
+        var itemID = $(tr).find('#spnItemID').text();
+        var itemGUID = $(tr).find('#spnItemGUID').text();
+        var vItemNumber = $(tr).find('#spnItemNumber').text();
+        var vDescription = $(tr).find('#spnDescription').text();
+        var vCost = $(tr).find('#spnCost').text();
+
+        var Qty = 0;
+
+        var DetailData = {};
+        if (PageName == "QL") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "Quantity": Qty, 'QuickListID': '@Model.PerentID', 'QuickListGUID': '@Model.PerentGUID' };
+        }
+        else if (PageName == "PS") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "QuantityLimit": Qty, 'ProjectID': '@Model.PerentID', 'ProjectGUID': '@Model.PerentGUID', "ItemNumber": vItemNumber, "Description": vDescription };
+        }
+        else if (PageName == "ORD") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "RequestedQuantity": Qty, 'OrderID': '@Model.PerentID', 'OrderGUID': '@Model.PerentGUID', "Bin": '@Model.OrdStagingID', "RequiredDate": '@Model.OrdRequeredDate' };
+        }
+        else if (PageName == "RQ") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "QuantityRequisitioned": Qty, 'RequisitionID': '@Model.PerentID', 'RequisitionGUID': '@Model.PerentGUID', "ItemNumber": vItemNumber, "Description": vDescription, "ItemCost": vCost, "RequiredDate": '@Model.ReqRequiredDate' };
+        }
+        else if (PageName == "WO") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "Quantity": Qty, 'WorkOrderID': '@Model.PerentID', 'WorkOrderGUID': '@Model.PerentGUID', "ItemNumber": vItemNumber, "ItemCost": vCost };
+        }
+        else if (PageName == "KIT") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "QuantityPerKit": Qty, 'KitID': '@Model.PerentID', 'KitGUID': '@Model.PerentGUID' };
+        }
+        else if (PageName == "TRF") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "RequestedQuantity": Qty, 'TransferID': '@Model.PerentID', 'TransferGUID': '@Model.PerentGUID', "Bin": '@Model.OrdStagingID', "RequiredDate": '@Model.OrdRequeredDate' };
+        }
+        else if (PageName == "AS") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "Quantity": Qty, 'ScheduleID': '@Model.PerentID', 'ScheduleGUID': '@Model.PerentGUID', "ItemNumber": vItemNumber, "ItemCost": vCost, "Description": vDescription };
+        }
+        return DetailData;
+    }
+
+    function GetObjectForItemPopUpFromQL(tr, PageName) {// new added for QL
+        var itemID = $(tr)[0].ID;
+        var itemGUID = $(tr)[0].GUID;
+        var vItemNumber = $(tr)[0].ItemNumber;
+        var vDescription = $(tr)[0].Description;
+        var vCost = $(tr)[0].Cost;
+
+        var Qty = $(tr)[0].QuickListItemQTY;
+
+        var DetailData = {};
+        if (PageName == "QL") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "Quantity": Qty, 'QuickListID': '@Model.PerentID', 'QuickListGUID': '@Model.PerentGUID' };
+        }
+        else if (PageName == "PS") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "QuantityLimit": Qty, 'ProjectID': '@Model.PerentID', 'ProjectGUID': '@Model.PerentGUID', "ItemNumber": vItemNumber, "Description": vDescription };
+        }
+        else if (PageName == "ORD") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "RequestedQuantity": Qty, 'OrderID': '@Model.PerentID', 'OrderGUID': '@Model.PerentGUID', "Bin": '@Model.OrdStagingID', "RequiredDate": '@Model.OrdRequeredDate' };
+        }
+        else if (PageName == "RQ") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "QuantityRequisitioned": Qty, 'RequisitionID': '@Model.PerentID', 'RequisitionGUID': '@Model.PerentGUID', "ItemNumber": vItemNumber, "Description": vDescription, "ItemCost": vCost, "RequiredDate": '@Model.ReqRequiredDate' };
+        }
+        else if (PageName == "WO") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "Quantity": Qty, 'WorkOrderID': '@Model.PerentID', 'WorkOrderGUID': '@Model.PerentGUID', "ItemNumber": vItemNumber, "ItemCost": vCost };
+        }
+        else if (PageName == "KIT") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "QuantityPerKit": Qty, 'KitID': '@Model.PerentID', 'KitGUID': '@Model.PerentGUID' };
+        }
+        else if (PageName == "TRF") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "RequestedQuantity": Qty, 'TransferID': '@Model.PerentID', 'TransferGUID': '@Model.PerentGUID', "Bin": '@Model.OrdStagingID', "RequiredDate": '@Model.OrdRequeredDate' };
+        }
+        else if (PageName == "AS") {
+            DetailData = { "ItemID": itemID, "ItemGUID": itemGUID, "Quantity": Qty, 'ScheduleID': '@Model.PerentID', 'ScheduleGUID': '@Model.PerentGUID', "ItemNumber": vItemNumber, "ItemCost": vCost, "Description": vDescription };
+        }
+        return DetailData;
+    }
+
+    //////////////////////////////////// // new added for QL///////////////////////////////////END
+
+    $('#btnAddAll').click(function () {
+        CallAddAll();
+    });
+
+    function CallAddAll() {
+
+
+        $('#divAddLocation').css('display', 'none');
+        var IcDetails = new Array();
+        $("#ItemModeDataTable").find("tbody tr.row_selected").each(function () {
+
+            var vUDF1 = '', vUDF2 = '', vUDF3 = '', vUDF4 = '', vUDF5 = '', trimtxtValQ = '', CountLineItemDescription = '', vProjectSpendGUID = '';
+            var CustOwnQty = 0, ConsignedQty = 0;
+            var _ItemType = 0;
+            var _LotNumberTracking = '';
+            var _SerialNumberTracking = '';
+            var _DateCodeTracking = '';
+
+            var CurrentRow = $(this);
+
+            if ($(CurrentRow).find("input[id='hdnLotNumberTracking']") != null && $(CurrentRow).find("input[id='hdnLotNumberTracking']") != undefined) {
+                _LotNumberTracking = escape($(CurrentRow).find("input[id='hdnLotNumberTracking']").val());
+            }
+
+            if ($(CurrentRow).find("input[id='hdnSerialNumberTracking']") != null && $(CurrentRow).find("input[id='hdnSerialNumberTracking']") != undefined) {
+                _SerialNumberTracking = escape($(CurrentRow).find("input[id='hdnSerialNumberTracking']").val());
+            }
+
+            if ($(CurrentRow).find("input[id='hdnDateCodeTracking']") != null && $(CurrentRow).find("input[id='hdnDateCodeTracking']") != undefined) {
+                _DateCodeTracking = escape($(CurrentRow).find("input[id='hdnDateCodeTracking']").val());
+            }
+
+            if (_LotNumberTracking != 'true' && _LotNumberTracking != 'True'
+                    && _SerialNumberTracking != 'true' && _SerialNumberTracking != 'True'
+                    && _DateCodeTracking != 'true' && _DateCodeTracking != 'True') {
+
+                if ($(CurrentRow).find("input[type='text'][name='txtCustOwnQty']") != null && $(CurrentRow).find("input[type='text'][name='txtCustOwnQty']") != undefined) {
+                    CustOwnQty = escape($(CurrentRow).find("input[type='text'][name='txtCustOwnQty']").val().replace(/'/g, "''"));
+                }
+
+                if ($(CurrentRow).find("input[name='txtConsignedQuantity']") != null && $(CurrentRow).find("input[name='txtConsignedQuantity']") != undefined) {
+                    ConsignedQty = escape($(CurrentRow).find("input[name='txtConsignedQuantity']").val().replace(/'/g, "''"));
+                }
+
+                if ($(CurrentRow).find("input[name='hdnItemType']") != null && $(CurrentRow).find("input[name='hdnItemType']") != undefined) {
+                    _ItemType = escape($(CurrentRow).find("input[name='hdnItemType']").val());
+                }
+
+                if (isNaN(parseFloat(CustOwnQty)) || parseFloat(CustOwnQty) < 0) {
+                    CustOwnQty = -1;
+                }
+                if (isNaN(parseFloat(ConsignedQty)) || parseFloat(ConsignedQty) < 0) {
+                    ConsignedQty = -1;
+                }
+
+                if ((parseFloat(CustOwnQty) >= 0 || parseFloat(ConsignedQty) >= 0) || _ItemType == 2) {
+                    if ($(CurrentRow).find("textarea[name='txtCountLineItemDescription']") != null) {
+                        CountLineItemDescription = escape($(CurrentRow).find("textarea[name='txtCountLineItemDescription']").val());
+                    }
+                    if ($(CurrentRow).find('#UDF1') != null) {
+                        if ($(CurrentRow).find('#UDF1').attr("class") == 'selectBox') {
+                            vUDF1 = $(CurrentRow).find('#UDF1 option:selected').text();
+                        }
+                        else {
+                            vUDF1 = $(CurrentRow).find('#UDF1').val();
+                        }
+                    }
+
+                    if ($(CurrentRow).find('#UDF2') != null) {
+                        if ($(CurrentRow).find('#UDF2').attr("class") == 'selectBox') {
+                            vUDF2 = $(CurrentRow).find('#UDF2 option:selected').text();
+                        }
+                        else {
+                            vUDF2 = $(CurrentRow).find('#UDF2').val();
+                        }
+                    }
+
+                    if ($(this).find('#UDF3') != null) {
+                        if ($(CurrentRow).find('#UDF3').attr("class") == 'selectBox') {
+                            vUDF3 = $(CurrentRow).find('#UDF3 option:selected').text();
+                        }
+                        else {
+                            vUDF3 = $(CurrentRow).find('#UDF3').val();
+                        }
+                    }
+
+                    if ($(CurrentRow).find('#UDF4') != null) {
+                        if ($(CurrentRow).find('#UDF4').attr("class") == 'selectBox') {
+                            vUDF4 = $(CurrentRow).find('#UDF4 option:selected').text();
+                        }
+                        else {
+                            vUDF4 = $(CurrentRow).find('#UDF4').val();
+                        }
+                    }
+
+                    if ($(CurrentRow).find('#UDF5') != null) {
+                        if ($(CurrentRow).find('#UDF5').attr("class") == 'selectBox') {
+                            vUDF5 = $(CurrentRow).find('#UDF5 option:selected').text();
+                        }
+                        else {
+                            vUDF5 = $(CurrentRow).find('#UDF5').val();
+                        }
+                    }
+                    //        $(obj).attr("disabled", "disabled");
+                    if (oTableItemModel != undefined) {
+                        var aPos = oTableItemModel.fnGetPosition($(this).find(":nth-child(1)")[0]);
+                        var aData = oTableItemModel.fnGetData(aPos[0]);
+                        var isstageloc = false;
+                        //                if (aData.CountLineItemDescriptionEntry == null) {
+                        //                    aData.CountLineItemDescriptionEntry = "";
+                        //                }
+                        if (CountLineItemDescription == null || CountLineItemDescription == undefined) {
+                            CountLineItemDescription = "";
+                        }
+
+                        if (vUDF1 == null || vUDF1 == undefined) {
+                            vUDF1 = "";
+                        }
+                        if (vUDF2 == null || vUDF2 == undefined) {
+                            vUDF2 = "";
+                        }
+                        if (vUDF3 == null || vUDF3 == undefined) {
+                            vUDF3 = "";
+                        }
+                        if (vUDF4 == null || vUDF4 == undefined) {
+                            vUDF4 = "";
+                        }
+                        if (vUDF5 == null || vUDF5 == undefined) {
+                            vUDF5 = "";
+                        }
+
+                        vProjectSpendGUID = $("#dlProjects").val();
+
+                        if ($("input[type='radio'][name='ShowStagingLocation']:checked").val() == "2") {
+                            isstageloc = true;
+                        }
+                        else {
+                            isstageloc = false;
+                        }
+
+                        IcDetails.push({ InventoryCountGUID: '@Convert.ToString(objInventoryCountDTO.GUID)', ItemGUID: aData.GUID, BinID: aData.BinID, CustomerOwnedQuantity: aData.CountCustomerOwnedQuantityEntry, CountCustomerOwnedQuantity: aData.CountCustomerOwnedQuantity, CountConsignedQuantity: aData.CountConsignedQuantity, ConsignedQuantity: aData.CountConsignedQuantityEntry, CountLineItemDescription: CountLineItemDescription, UDF1: escape(vUDF1), UDF2: escape(vUDF2), UDF3: escape(vUDF3), UDF4: escape(vUDF4), UDF5: escape(vUDF5), ItemType: _ItemType, ProjectSpendGUID: vProjectSpendGUID, IsStagingLocationCount: isstageloc });
+                        //IcDetails.push({ ItemGUID: aData.GUID, BinID: aData.BinID, CustomerOwnedQuantity: aData.CountCustomerOwnedQuantityEntry, CustomerOwnedQuantity: aData.CountCustomerOwnedQuantity, ConsignedQuantity: aData.CountConsignedQuantityEntry, UDF1: escape(vUDF1), UDF2: escape(vUDF2), UDF3: escape(vUDF3), UDF4: escape(vUDF4), UDF5: escape(vUDF5) });
+
+                    }
+                }
+                else {
+                    showNotificationDialog();
+                    $("#spanGlobalMessage").html('@ResItemMaster.ReqQuantity');
+                    $("#spanGlobalMessage").removeClass('succesIcon').addClass('errorIcon WarningIcon');
+                }
+
+            }
+        });
+
+        if (IcDetails.length > 0) {
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("AddAllItemToCount", "Inventory")',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify(IcDetails),
+                success: function (response) {
+
+                    if (response.Status == "ok") {
+                        $('div#target').css("z-index", 100000);
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        $("#spanGlobalMessage").html(response.Message);
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        oTableItemModel.fnDraw();
+                    }
+                    else {
+                        $('div#target').css("z-index", 100000);
+                        $("#spanGlobalMessage").html(response.Message);
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    }
+                    $('#DivLoading').hide();
+                },
+                error: function (err) {
+
+                }
+            });
+        }
+    }
+
+    //    $('#btnAddAll').click(function () {
+    //        $("#DivLoading").show();
+    //        $(this).attr("disabled", "disabled");
+
+    //        if ('@Model.CallingFromPageName' === 'PS' || '@Model.CallingFromPageName' === 'QL' || '@Model.CallingFromPageName' == 'ORD' || '@Model.CallingFromPageName' == 'RQ' || '@Model.CallingFromPageName' == 'WO' || '@Model.CallingFromPageName' == 'KIT' || '@Model.CallingFromPageName' == 'TRF' || '@Model.CallingFromPageName' == 'AS') {
+    //            AddItemToDetailTable(this, '@Model.CallingFromPageName');
+    //            return;
+    //        }
+    //        var arrItems = new Array();
+    //        $('#ItemModeDataTable tbody tr').each(function () {
+    //            var txxt = $(this).find('#txtQty');
+    //            var txtQty = txxt.val();
+    //            if (txtQty != 'undefined') {
+    //                if (txtQty.length > 0) {
+    //                    var trimtxtVal = txtQty.replace(/ /g, '');
+    //                    if (trimtxtVal.length > 0) {
+    //                        var itemID = $(this).find('#spnItemID').text();
+    //                        var itemGUID = $(this).find('#spnItemGUID').text();
+    //                        var data = { "ID": itemID, "GUID": itemGUID, "Qty": trimtxtVal };
+    //                        arrItems.push(data);
+    //                        txxt.val('');
+    //                    }
+    //                }
+    //            }
+    //        });
+
+    //        $.ajax({
+    //            url: '@Url.Content(Model.AjaxURLAddMultipleItemToSession)',
+    //            data: { 'para': JSON.stringify(arrItems) },
+    //            dataType: 'json',
+    //            type: 'POST',
+    //            async: false,
+    //            cache: false,
+    //            success: function (json) {
+    //                oTableItemModel.fnDraw();
+    //                CallThisFunctionFromModel(json.Status);
+    //            },
+    //            error: function (xhr) {
+    //                $('#DivLoading').hide();
+    //                $("#loading").hide();
+    //            }
+    //        });
+    //    });
+
+    $("#btnModelCancle").click(function () {
+        $("#ItemModel").dialog("close");
+    });
+
+    // used for refresh the grid manually...
+    $('#refreshGridIM').live('click', function () {
+        if ($("#divRefreshBlockIM").css("display").toUpperCase() == 'BLOCK')
+            $("#divRefreshBlockIM").toggle();
+
+        oTableItemModel.fnDraw();
+        //fillItemMaster(false);
+
+    });
+
+
+    //**************************** Not used Code *************************//
+
+    $("#reordersettingIM").click(function () {
+        $("#divRefreshBlockIM").toggle();
+    });
+
+    $("#ColumnSortableModalIM").dialog({
+        autoOpen: false,
+        modal: true,
+        width: 500,
+        title: '@eTurns.DTO.Resources.ResCommon.ReorderColumnPopupHeader',
+        draggable: false,
+        resizable: false,
+        open: function () {
+            GenerateColumnSortableIM();
+            $("#ColumnSortableIM").sortable({ axis: "y", containment: "parent" });
+        }
+    });
+
+    $("#ColumnOrderSetupIM").click(function () {
+        $("#ColumnSortableModalIM").dialog("open");
+
+        return false;
+    });
+    //var objColumns = {};
+    var GetColumnIndex1 = function (ColumnName) {
+        return objColumnsMI[ColumnName];
+    };
+    function GenerateColumnSortableIM() {
+
+        $('#ColumnSortableIM li').each(function (index) {
+            $(this).remove();
+        });
+        var div = document.createElement('div');
+        div.id = "CheckAll";
+        $('div.sortableContainer').find("div#CheckAll").remove();
+        div.innerHTML = "<input type='hidden' value ='ColumnSortableIM' id='hiddenDivName' /><a href='javascript:;' onclick='CheckAll(this);'  id='CheckAll' >CheckAll</a>&nbsp;<a href='javascript:;' onclick='UnCheckAll(this);' id='UnCheckAll' >UnCheckAll</a>" +
+                        "&nbsp;&nbsp;&nbsp;<input type='checkbox' onclick='ShowAllHidden(this);' id='ShowAllHidden' checked='checked' />Show All Hidden";
+        $('div.sortableContainer').prepend(div);
+
+        for (i = 0, iLen = oTableItemModel.fnSettings().aoColumns.length; i < iLen; i++) {
+            var oColumn = oTableItemModel.fnSettings().aoColumns[i];
+            var li = document.createElement('li');
+            li.id = GetColumnIndex1(oColumn.sTitle.trim());
+            li.innerHTML = oColumn.sTitle.trim();
+            var LiClassName = 'ui-state-default'
+            if (oColumn.sClass.indexOf('NotHide') >= 0 || (oColumn.nTh != null && oColumn.nTh.className.indexOf('NotHide') >= 0)) {
+                LiClassName = LiClassName + ' HiddenLi';
+            }
+            li.className = LiClassName;
+
+            if (oColumn.sClass.indexOf('NotHide') >= 0 || (oColumn.nTh != null && oColumn.nTh.className.indexOf('NotHide') >= 0)) {
+                li.innerHTML = '<input type="checkbox" class="checkBox" checked="checked" id="' + GetColumnIndex1(oColumn.sTitle.trim()) + '_" disabled="disabled" />' + oColumn.sTitle.trim();
+            }
+            else {
+                if (oColumn.bVisible) {
+                    li.innerHTML = '<input type="checkbox" class="checkBox" checked="checked" id="' + GetColumnIndex1(oColumn.sTitle.trim()) + '_" />' + oColumn.sTitle.trim();
+                }
+                else
+                    li.innerHTML = '<input type="checkbox" class="checkBox" id="' + GetColumnIndex1(oColumn.sTitle.trim()) + '_" />' + oColumn.sTitle.trim();
+            }
+            $('#ColumnSortableIM').append(li);
+        }
+    }
+
+
+    function UpdateColumnOrderIM(_ListName) {
+        if ($("#divRefreshBlockIM").css("display").toUpperCase() == 'BLOCK')
+            $("#divRefreshBlockIM").toggle();
+
+        var _Order = $('#ColumnSortableIM').sortable("toArray");
+        var __Order = _Order.toString().split(",");
+        for (var i = 0; i < __Order.length; i++) {
+            __Order[i] = parseInt(__Order[i], 10);
+        }
+
+        oTableItemModel.fnSettings().oLoadedState.ColReorder = __Order;
+
+        var _abVisCols = [];
+        for (i = 0, iLen = oTableItemModel.fnSettings().aoColumns.length; i < iLen; i++) {
+            //var checked = $("#" + i + "_").is(":checked");
+            var checked = $('#ColumnSortableIM').find('input.checkBox[id="' + i + '_"]').is(":checked");
+            _abVisCols.push(checked);
+        }
+        oTableItemModel.fnSettings().oLoadedState.abVisCols = _abVisCols;
+
+        $.ajax({
+            "url": '@Url.Content("~/Master/SaveGridState")',
+            data: { Data: JSON.stringify(oTableItemModel.fnSettings().oLoadedState), ListName: _ListName },
+            "dataType": "json",
+            cache: false,
+            "async": false,
+            "success": function (json) {
+                o = json;
+                $("#ColumnSortableModalIM").dialog("close");
+                $("#ItemModel").dialog("close");
+                OpenItemPopup();
+            }
+        });
+        //fillItemMaster(false);
+    }
+
+    function AddNewBarcodeOfItem(btn) {
+        var tr = $(btn).parent().parent();
+        var itemGUID = $(tr).find('#spnItemGUID').text();
+
+        $.ajax({
+            url: '@Url.Content(Model.AjaxURLAddMultipleItemToSession)',
+            data: JSON.stringify({ 'ItemGuid': itemGUID, 'BarcodeText': '@Model.PerentGUID' }),
+            dataType: 'json',
+            contentType: "application/json",
+            type: 'POST',
+            async: false,
+            cache: false,
+            success: function (json) {
+
+                $('.ui-dialog-titlebar-close').click();
+
+            },
+            error: function (xhr) {
+                alert('@ResCommon.ErrorInProcess');
+            }
+
+
+        });
+
+    }
+    function CustownedCount(obj) {
+        try {
+
+            if (oTableItemModel != undefined) {
+                var aPos = oTableItemModel.fnGetPosition($(obj).parent()[0]);
+                var aData = oTableItemModel.fnGetData(aPos[0]);
+                aData.CountCustomerOwnedQuantityEntry = $(obj).val();
+            }
+        } catch (e) {
+
+        }
+    }
+    function ConsignedCount(obj) {
+        try {
+
+
+            if (oTableItemModel != undefined) {
+                var aPos = oTableItemModel.fnGetPosition($(obj).parent()[0]);
+                var aData = oTableItemModel.fnGetData(aPos[0]);
+                aData.CountConsignedQuantityEntry = $(obj).val();
+            }
+        } catch (e) {
+
+        }
+    }
+
+    function DescriptionChnages(obj) {
+
+        if (oTableItemModel != undefined) {
+            var aPos = oTableItemModel.fnGetPosition($(obj).parent()[0]);
+            var aData = oTableItemModel.fnGetData(aPos[0]);
+            aData.CountLineItemDescriptionEntry = $(obj).text();
+        }
+    }
+
+    //var ItemGuid = '';
+    //var BinID = '';
+    //var SelectedDateCodeTracking = false;
+    //var SelectedItemType = 0;
+    //var SelectedCost = 0;
+    //var SelectedSerialNumberTracking = false;
+    //var SelectedLotNumberTracking = false;
+    //var SelectedReceivedDate = null;
+
+    $(document).ready(function () {
+        $("input[type='text'][name='txtConsignedQuantity']").watermark("Leave blank for USA");
+        $("input[type='text'][name='txtCustOwnQty']").watermark("Leave blank for USA");
+
+        AllowDeletePopup = false;
+        objColumnsMI = GetIMGridHeaderColumnsObject('ItemModeDataTable');
+        fillItemMaster(false);
+        $('#DivLoading').hide();
+
+        //PopupForSerialLotItemContainer = $("#PopupForSerialLotItemContainer").dialog({
+        //    autoOpen: false,
+        //    modal: true,
+        //    width: 1000,
+        //    title: '',
+        //    draggable: false,
+        //    resizable: false,
+        //    open: function () {
+        //        setTimeout(function () {
+        //            LoadLotDetailPopupForCountAjax();
+        //        }, 500);
+        //    },
+        //    close: function () {
+        //        //$('#PopupForSerialLotItemContainer').html('');
+        //        $('#PopupForSerialLotItemContainer')[0].innerHTML = '';
+        //    }
+        //});
+
+
+
+
+    });
+
+
+    $('#bntAddNewLocationInCount').click(function () {
+        //var vPGInfo = oTableItemModel.page.info();
+        var oSettingsV = oTableItemModel.fnSettings();
+        var vpage = Math.ceil(oSettingsV._iDisplayStart / oSettingsV._iDisplayLength) + 1;
+        vcurrentPageIndx = vpage;
+
+        var anSelectedRows = fnGetSelected(oTableItemModel);
+        if (anSelectedRows.length <= 0) {
+            alert('@ResItemMaster.ReqSelectItem');
+            return false;
+        }
+
+        var vItemGUID = $(anSelectedRows[0]).find('#hdnItemGUID').val();
+        var vIsStage = '';
+        if ($("input[type='radio'][name='ShowStagingLocation']:checked").val() == "2") {
+            isstage = 'True';
+        }
+        else {
+            isstage = 'False';
+        }
+        var _vURL = "../Master/BinCreate?callFor=INC&ItemGUID="+vItemGUID+"&IsStage="+isstage;
+        $('#NewMasterPopUP').load(_vURL, function () {
+            $('#NewMasterPopUP').data("data", "Item Location").dialog('open');
+            $('#DivLoading').hide();
+        });
+
+
+        ////$('#divUnCloseOrderLineItemEdit').modal();
+        ////$('.simplemodal-close').css('display', 'none');
+
+
+
+    });
+
+
+    function OpenPopupForSerialLotItemClick(CallingButton) {
+        $("#divAddLocation").hide();
+        var ItemGuid = $($(CallingButton)[0].parentNode).find('#hdnItemGUID')[0].value;
+        var BinID = $($(CallingButton)[0].parentNode).find('#hdnBinID')[0].value;
+        var Description = $($(CallingButton).closest("tr")).find('#txtCountLineItemDescription').val();
+        var isstage = 'False';
+        if ($("input[type='radio'][name='ShowStagingLocation']:checked").val() == "2") {
+            isstage = 'True';
+        }
+        else {
+            isstage = 'False';
+        }
+        OpenPopupForSerialLotItem(ItemGuid, BinID, null, Description, 'ADD', isstage);
+    }
+
+    @*function OpenPopupForSerialLotItem(CallingButton) {
+
+        ItemGuid = $($(CallingButton)[0].parentNode).find('#hdnItemGUID')[0].value;
+        BinID = $($(CallingButton)[0].parentNode).find('#hdnBinID')[0].value;
+
+        $.ajax({
+            url: '@Url.Action("LoadLotDetailPopupForCount", "Inventory")',
+            type: "POST",
+            data: "{ItemGUID:'" + ItemGuid + "',BinId:" + BinID + "}",
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                $('#PopupForSerialLotItemContainer')[0].innerHTML = data;
+                $('#PopupForSerialLotItemContainer').dialog('open');
+            },
+            error: function (data) {
+
+            }
+        });
+
+        return false;
+    }
+
+    function LoadLotDetailPopupForCountAjax() {
+        $.ajax({
+            type: "POST",
+            url: '@Url.Action("LoadLotDetailPopupForCountAjax", "Inventory")',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: "{ItemGUID:'" + ItemGuid + "',BinId:" + BinID + "}",
+            success: function (response) {
+                if (response != null && response != undefined && response.length > 0) {
+
+                    $('#tblSelectedItemData').find('#lblItemNumber').val(response[0].ItemNumber);
+                    $('#tblSelectedItemData').find('#lblItemDescription').val(response[0].ItemDescription);
+                    SelectedDateCodeTracking = response[0].DateCodeTracking;
+                    SelectedItemType = response[0].ItemType;
+                    SelectedCost = response[0].Cost;
+                    SelectedSerialNumberTracking = response[0].SerialNumberTracking;
+                    SelectedLotNumberTracking = response[0].LotNumberTracking;
+                    SelectedReceivedDate = response[0].ReceivedDate;
+
+                    var i = 0;
+                    for (i = 0; i < response.length; i++) {
+                        AddRowToLotDetail(response[i]);
+                    }
+
+                    if (SelectedDateCodeTracking == false) {
+                        $('#thExpiryDate').hide();
+                    }
+                    //-------------Add Additional Row If Last Row Bin Exists-------------
+                    //
+                    if ($('#ItemModeDataTableForLots tr:last').find("[id^='ddlItemSourceBins_']").val().trim() != '') {
+                        var NewRow = { BinNumber: '', BinID: 0, ItemGUID: ItemGuid, Comment: '', LotSerialNumber: '', CountCustomerOwnedQuantity: 0, CountConsignedQuantity: 0, Expiration: null, ItemType: SelectedItemType, Cost: SelectedCost };
+                        AddRowToLotDetail(NewRow);
+                    }
+                }
+            },
+            error: function (err) {
+            }
+        });
+    }
+
+    function AddRowToLotDetail(data) {
+        var index = $('#ItemModeDataTableForLots').find('tr').length - 1;
+        var strTR = '<tr>' +
+                    '    <td>' +
+                    '        <input type="text" id="ddlItemSourceBins_${Index}" maxlength="128" name="ddlItemSourceBins" value="${BinNumber}" autocomplete="off" role="textbox" aria-autocomplete="list" aria-haspopup="true" style="width:100px;" class="ItemPopupLoc text-boxinner95 udf-editable-dropdownbox" onfocusout="ddlItemSourceBinsFocusOut(this)"/>' +
+                    '        <input type="hidden" id="hdnItemGuid" value="${ItemGUID}" />' +
+                    '        <input type="hidden" id="hdnLocationId" value="${BinID}" />' +
+                    '        <input type="hidden" id="hdnIsLoadMoreLocations" value="false" />' +
+                    '        <input type="hidden" id="hdnselectedIDs" value="false" />' +
+                    '        <input type="hidden" id="hdnIsDateCodeTracking_${Index}" value="${DateCodeTracking}" />' +
+                    '        <input type="hidden" id="hdnCost_${Index}" value="${Cost}" />' +
+                    '        <input type="hidden" id="hdnItemType_${Index}" value="${ItemType}" />' +
+                    '        <input type="hidden" id="hdnReceivedDate_${Index}" value="${ReceivedDate}" />' +
+                    '        <a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:1px;z-index:9999 !important;" class="show-all-options">' +
+                    '           <img src="/Content/images/arrow_down_black.png" alt="select">' +
+                    '        </a>' +
+                    '    </td>' +
+                    '    <td>' +
+                    '        <input type="text" id="txtComment" maxlength="250" value="${Comment}" class="text-boxinner95" />' +
+                    '    </td>' +
+                    '    <td>' +
+                    '        <input type="text" id="ddlLotSerialNumber_${Index}" maxlength="128" value="${LotSerialNumber}" autocomplete="off" role="textbox" aria-autocomplete="list" aria-haspopup="true" style="width:100px;" class="ItemPopupLoc text-boxinner95 udf-editable-dropdownbox" />' +
+                    '        <input type="hidden" id="hdnSerialNumberTracking_${Index}" value="${SerialNumberTracking}" />' +
+                    '        <input type="hidden" id="hdnLotNumberTracking_${Index}" value="${LotNumberTracking}" />' +
+                    '    </td>' +
+                    '    <td>' +
+                    '        <input type="text" id="txtCustOwnQty_${Index}" value="${CountCustomerOwnedQuantity}" class="numericinput text-boxinner95 numericalign numericsonly" maxlength="10" onblur="CustownedCount(this);" style="width:90%;" />' +
+                    '    </td>' +
+                    '    <td>' +
+                    '        <input type="text" id="txtConsignedQuantity_${Index}" value="${CountConsignedQuantity}" class="numericinput" maxlength="10" onblur="ConsignedCount(this);" style="width:90%;" />' +
+                    '    </td>' +
+                    (SelectedDateCodeTracking == true ?
+                    '    <td>' +
+                    '        <input type="text" id="txtExpirationDate_${Index}" value="${ExpirationDate}" class="text-box" readonly="readonly" style="background:white" maxlength="128" />' +
+                    '    </td>'
+                    : '') +
+                    '</tr>';
+
+        strTR = strTR.split('${Index}').join(index);
+        strTR = strTR.split('${BinNumber}').join((data.BinNumber == null || data.BinNumber == undefined ? '' : data.BinNumber));
+        strTR = strTR.split('${ItemGUID}').join((data.ItemGUID == null || data.ItemGUID == undefined ? '' : data.ItemGUID));
+        strTR = strTR.split('${BinID}').join((data.BinID == null || data.BinID == undefined ? '' : data.BinID));
+        strTR = strTR.split('${Comment}').join((data.Comment == null || data.Comment == undefined ? '' : data.Comment));
+        strTR = strTR.split('${LotSerialNumber}').join((data.LotSerialNumber == null || data.LotSerialNumber == undefined ? '' : data.LotSerialNumber));
+        strTR = strTR.split('${CountCustomerOwnedQuantity}').join((data.CountCustomerOwnedQuantity == null || data.CountCustomerOwnedQuantity == undefined ? '' : data.CountCustomerOwnedQuantity));
+        strTR = strTR.split('${CountConsignedQuantity}').join((data.CountConsignedQuantity == null || data.CountConsignedQuantity == undefined ? '' : data.CountConsignedQuantity));
+        strTR = strTR.split('${ExpirationDate}').join((data.Expiration == null || data.Expiration == undefined ? '' : data.Expiration));
+        strTR = strTR.split('${ReceivedDate}').join((SelectedReceivedDate == null || SelectedReceivedDate == undefined ? '' : SelectedReceivedDate));
+        strTR = strTR.split('${DateCodeTracking}').join((SelectedDateCodeTracking == null || SelectedDateCodeTracking == undefined ? false : SelectedDateCodeTracking));
+        strTR = strTR.split('${SerialNumberTracking}').join((SelectedSerialNumberTracking == null || SelectedSerialNumberTracking == undefined ? false : SelectedSerialNumberTracking));
+        strTR = strTR.split('${LotNumberTracking}').join((SelectedLotNumberTracking == null || SelectedLotNumberTracking == undefined ? false : SelectedLotNumberTracking));
+        strTR = strTR.split('${Cost}').join((data.Cost == null || data.Cost == undefined ? 0 : data.Cost));
+        strTR = strTR.split('${ItemType}').join((data.ItemType == null || data.ItemType == undefined ? 0 : data.ItemType));
+
+        $('#ItemModeDataTableBody').append(strTR);
+
+        //-----------------------------------------
+        //
+        ItemLocationfillEditableOptions(1, 'ddlItemSourceBins_' + index.toString(), 0, data.ItemGUID, 'ItemModeDataTableForLots', 'IMM');
+        ItemLotSerialfillEditableOptions('ddlLotSerialNumber_' + index.toString(), data.ItemGUID, 'ItemModeDataTableForLots');
+        $("#txtExpirationDate_" + index.toString()).datepicker({ dateFormat: RoomDateJSFormat });
+    }
+
+
+    function ddlItemSourceBinsFocusOut(ddlItemSourceBins) {
+        if ($(ddlItemSourceBins).val().trim() != '' && $(ddlItemSourceBins).closest("tr").is(":last-child")) {
+            var NewRow = { BinNumber: '', BinID: 0, ItemGUID: ItemGuid, Comment: '', LotSerialNumber: '', CountCustomerOwnedQuantity: 0, CountConsignedQuantity: 0, Expiration: null, ItemType: SelectedItemType, Cost: SelectedCost };
+            AddRowToLotDetail(NewRow);
+        }
+    }
+
+    function CloseLotDetailPopupForCount() {
+        $('#PopupForSerialLotItemContainer').dialog('close');
+        return;
+    }
+
+    function SaveAndCloseLotDetailPopupForCount() {
+
+        var ArrLots = new Array();
+
+        $("table#ItemModeDataTableForLots tbody tr ").each(function () {
+
+            var _ItemGuid = $(this).find("input#hdnItemGuid").val();
+            var _ItemNumber = $('#tblSelectedItemData').find('#lblItemNumber').val();
+            var _ItemDescription = $('#tblSelectedItemData').find('#lblItemDescription').val();
+            var _ItemType = parseInt($(this).find("input[id^='hdnItemType_']").val());
+            var _Comment = $(this).find("input#txtComment").val();
+            var _BinID = ($(this).find("input#hdnLocationId").val().trim() == '' ? 0 : parseInt($(this).find("input#hdnLocationId").val().trim()));
+            var _BinNumber = $(this).find("input[id^='ddlItemSourceBins_']").val();
+            var _CountCustomerOwnedQuantity = ($(this).find("input[id^='txtCustOwnQty_']").val().trim() == '' ? 0 : parseFloat($(this).find("input[id^='txtCustOwnQty_']").val().trim()));
+            var _CountConsignedQuantity = ($(this).find("input[id^='txtConsignedQuantity_']").val().trim() == '' ? 0 : parseFloat($(this).find("input[id^='txtConsignedQuantity_']").val().trim()));
+            var _SerialNumberTracking = ($(this).find("input[id^='hdnSerialNumberTracking_']").val() == 'true' ? true : false);
+            var _LotNumberTracking = ($(this).find("input[id^='hdnLotNumberTracking_']").val() == 'true' ? true : false);
+            var _LotSerialNumber = $(this).find("input[id^='ddlLotSerialNumber_']").val();
+            var _Cost = ($(this).find("input[id^='hdnCost_']").val().trim() == '' ? 0 : parseFloat($(this).find("input[id^='hdnCost_']").val().trim()));
+            var _DateCodeTracking = ($(this).find("input[id^='hdnIsDateCodeTracking_']").val() == 'true' ? true : false);
+            var _ExpirationDate = (_DateCodeTracking == true ? $('#' + $(this).find("input[id^='txtExpirationDate_']")[0].id).datepicker('getDate') : null);
+            var _ReceivedDate = ($(this).find("input[id^='hdnReceivedDate_']").val().trim() != '' ?
+                                    new Date(parseInt($(this).find("input[id^='hdnReceivedDate_']").val().replace('/Date(', '').replace(')/', ''))) : null);
+
+            var _IsStagingLocationCount = false;
+            if ($("input[type='radio'][name='ShowStagingLocation']:checked").val() == "2")
+                _IsStagingLocationCount = true;
+            else
+                _IsStagingLocationCount = false;
+
+
+
+            if (_BinNumber != null && _BinNumber != undefined && _BinNumber.trim() != '') {
+                var NewRow = {
+                    ID: 0,
+                    ItemGUID: _ItemGuid,
+                    ItemNumber: _ItemNumber,
+                    ItemDescription: _ItemDescription,
+                    ItemType: _ItemType,
+                    Comment: _Comment,
+                    BinID: _BinID,
+                    BinNumber: _BinNumber,
+                    CustomerOwnedQuantity: '',
+                    CountCustomerOwnedQuantity: _CountCustomerOwnedQuantity,
+                    ConsignedQuantity: '',
+                    CountConsignedQuantity: _CountConsignedQuantity,
+                    SerialNumberTracking: _SerialNumberTracking,
+                    LotNumberTracking: _LotNumberTracking,
+                    LotSerialNumber: _LotSerialNumber,
+                    LotNumber: _LotSerialNumber,
+                    SerialNumber: _LotSerialNumber,
+                    Expiration: '',
+                    Received: '',
+                    DateCodeTracking: _DateCodeTracking,
+                    ExpirationDate: _ExpirationDate,
+                    ReceivedDate: _ReceivedDate,
+                    Cost: _Cost,
+                    GUID: '00000000-0000-0000-0000-000000000000',
+                    IsStagingLocationCount: _IsStagingLocationCount,
+                    CountGUID: '@objInventoryCountDTO.GUID',
+                };
+
+                ArrLots.push(NewRow);
+            }
+        });
+
+        if (ArrLots != null && ArrLots != undefined && ArrLots.length > 0) {
+
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("SaveLotDetailPopupForCount", "Inventory")',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify({ lstCountLineItemDetail: ArrLots }),
+                success: function (response) {
+
+                    if (response.Status == "ok") {
+                        $('div#target').css("z-index", 100000);
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(2000).fadeOut(200);
+                        $("#spanGlobalMessage").text(response.Message);
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        oTableItemModel.fnDraw();
+                        $('#PopupForSerialLotItemContainer').dialog('close');
+                    }
+                    else {
+                        $('div#target').css("z-index", 100000);
+                        $("#spanGlobalMessage").text(response.Message);
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(2000).fadeOut(200);
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    }
+
+                },
+                error: function (err) {
+
+                }
+            });
+        }
+
+        return false;
+    }*@
+</script>

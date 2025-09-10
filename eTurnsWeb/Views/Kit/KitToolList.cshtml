@@ -1,0 +1,1020 @@
+@{
+    ViewBag.Title = eTurns.DTO.ResKitMaster.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DisplayDeleteButton = true, DisplayUDFButton = true, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "KitToolMasterList", UDFSetupFor = "Tools&UDFHeader=" + @ResToolMaster.PageHeader };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "KitToolMaster", IDsufix = "_Tool", IDsufix2 = "_tech" };
+
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+
+    bool IsShowChangeLog = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Kits, eTurnsWeb.Helper.SessionHelper.PermissionType.ShowChangeLog);
+
+
+    //System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    //string UNCPathRootLink2 = Settinfile.Element("ToolPhoto").Value;
+    bool isToolUDF = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetNonDeletedUDFCountByUDFTableName("ToolCheckInOutHistory", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID) > 0;
+
+    //Int64 EnterpriseId = eTurnsWeb.Helper.SessionHelper.EnterPriceID;
+    //Int64 CompanyID = eTurnsWeb.Helper.SessionHelper.CompanyID;
+    //Int64 RoomID = eTurnsWeb.Helper.SessionHelper.RoomID;
+    //UNCPathRootLink2 = UNCPathRootLink2.Replace("~", string.Empty);
+    bool AllowCheckinCheckOut = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowCheckInCheckout);
+    // string LogoPathImage = (UNCPathRootLink2 + EnterpriseId + "/" + CompanyID + "/" + RoomID);
+    string TechnicianRequired = ResCommon.TechnicianRequired;
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+<style type="text/css">
+    #myDataTable_wrapper div.top:first-child div.dataTables_length:first-child {
+        top: -82px;
+    }
+
+    /*WI-2589 - Maintanance Checkbox not able to checked*/
+    #myDataTable_paginate {
+        top: -72px;
+    }
+    /*.dataTables_paginate {
+        top: -72px;
+    }*/
+    /*WI-2589 - Maintanance Checkbox not able to checked*/
+
+    .td-udfs {
+        padding: 3px;
+    }
+
+    #tblPullCommonUDF .selectBox {
+        width: 90% !important;
+    }
+
+    #tblPullCommonUDF .text-boxinner {
+        width: 90% !important;
+    }
+
+    .tblPullCommonUDFthead {
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+</style>
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script type='text/javascript' src="@Url.Content("~/Scripts/PageScripts/ToolPage.js?v=" + version)"></script>
+    <script type="text/javascript">
+        var TechnicianText = '@eTurns.DTO.Resources.ResCommon.SelectTechnicianText';
+        var TechnicianRequired = '@TechnicianRequired';
+        var ChecInOutURL = '@Url.Content("~/Assets/CheckOutCheckIn")';
+        var CheckOutAll = '@Url.Content("~/Assets/CheckOutAll")';
+        var CheckInAllNew = '@Url.Content("~/Assets/CheckInAllNew")';
+        var urlWrittenOffToolQuantity = '@Url.Action("WrittenOffToolQuantity", "Tool")';
+        var WrittenOffSerialSelectionUrl = '@Url.Action("WrittenOffLotSrSelection", "Tool")';
+        var WrittenOffToolURL = '@Url.Action("WrittenOffTool", "Tool")';
+        var BoolTrueString = '@Boolean.TrueString';
+        var ArrToolColumns = new Array();
+        var anOpen = [];
+        var allowCheckinCheckOut = false;
+        var MsgInsertProperQuantityValue = '@ResAssetMaster.MsgInsertProperQuantityValue';
+        var MsgKindlyFillTechnician = '@ResTechnician.MsgKindlyFillTechnician';
+        var MsgInvalidTechnician = '@ResTechnician.MsgInvalidTechnician';
+        var MsgCheckinCheckoutValidation = '@ResAssetMaster.MsgCheckinCheckoutValidation';
+        var MsgInvalidOperationNoCheckout = '@ResAssetMaster.MsgInvalidOperationNoCheckout';
+        var MsgNoQuantityForCheckout = '@ResToolMaster.MsgNoQuantityForCheckout';
+        var MsgCheckoutOnlyAvailableQuantity = '@ResToolMaster.MsgCheckoutOnlyAvailableQuantity';
+        var MsgRecordSucessfullyUpdated = '@ResCommon.MsgRecordSucessfullyUpdated';
+        var MsgAllPulldone = '@ResPullMaster.AllPulldon';
+        var MsgAllCheckoutDoneSucess = '@ResToolMaster.MsgAllCheckoutDoneSucess';
+        var MsgNoPullReasons = '@ResToolMaster.MsgNoPullReasons';
+        var MsgCheckoutMoreQuantityValidation = '@ResToolMaster.MsgCheckoutMoreQuantityValidation';
+        var MsgPullMoreQuantityValidation = '@ResToolMaster.MsgPullMoreQuantityValidation';
+        var MsgPullCreditQuantity = '@ResToolMaster.MsgPullCreditQuantity';
+        var MsgInsertQuantityCheckOut = '@ResToolMaster.MsgInsertQuantityCheckOut';
+        var MsgSelectLocationCheckout = '@ResToolMaster.MsgSelectLocationCheckout';
+        var MsgQtyCheckOutMandatory = '@ResToolMaster.MsgQtyCheckOutMandatory';
+        var InventoryLocationMandatory = '@ResPullMaster.InventoryLocationMandatory';
+        var MsgSelectRowToDelete = '@ResPullMaster.MsgSelectRowToDelete';
+        var MsgDuplicateSerialNumberValidation = '@ResReceiveOrderDetails.MsgDuplicateSerialNumberValidation';
+
+        if ('@AllowCheckinCheckOut' == 'True') {
+            allowCheckinCheckOut = true;
+        }
+        ArrToolColumns.push({ mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' });
+        ArrToolColumns.push({ mDataProp: "ID", sClass: "read_only" });
+        ArrToolColumns.push({
+            mDataProp: null,
+            bSortable: false,
+            sClass: "read_only control alignCenter",
+            sDefaultContent: '',
+            fnRender: function (obj, val) {
+                var Qty = isNaN(parseInt(obj.aData.Quantity)) ? 0 : obj.aData.Quantity;
+                var CheckedoutQty = isNaN(parseInt(obj.aData.CheckedOutQTY)) ? 0 : obj.aData.CheckedOutQTY;
+                var CheckedOutMQTY = isNaN(parseInt(obj.aData.CheckedOutMQTY)) ? 0 : obj.aData.CheckedOutMQTY;
+                var availQty = Qty - (parseInt(CheckedoutQty) + parseInt(CheckedOutMQTY));
+                if (((Qty > availQty)) && !obj.aData.IsDeleted) {
+                    return '<img class="Expand" src="' + sImageUrl + 'drildown_open.jpg' + '">';
+                }
+                else {
+                    return '';
+                }
+            }
+        });
+        ArrToolColumns.push({
+            mDataProp: null, sClass: "read_only alignCenter", bSortable: false, sDefaultContent: '', fnRender: function (obj, val) {
+                if (allowCheckinCheckOut) {
+
+                    var MCheckOutQTY = obj.aData.CheckedOutMQTY == null ? 0 : obj.aData.CheckedOutMQTY;
+                    var CheckOutQTY = obj.aData.CheckedOutQTY == null ? 0 : obj.aData.CheckedOutQTY;
+                    if ((parseInt(obj.aData.Quantity) - (parseInt(CheckOutQTY) + parseInt(MCheckOutQTY))) > 0 && !obj.aData.IsDeleted) {
+                        return "<span id='spnCheckOutStatus' style='display:none'>" + obj.aData.CheckOutStatus + "</span>" + "<span id='spnCheckedOutQTY' style='display:none'>" + obj.aData.CheckedOutQTY + "</span><span id='spnCheckedOutMQTY' style='display:none'>" + obj.aData.CheckedOutMQTY + "</span>" + "<span id='spnCheckInCheckOutID'  style='display:none'>" + obj.aData.CheckInCheckOutID + "</span>" + "<span id='spnQuantity'  style='display:none'>" + obj.aData.Quantity + "</span>" + "<span id='spnToolID'  style='display:none'>" + obj.aData.GUID + "</span>" + "<span id='spnToolPKID'  style='display:none'>" + obj.aData.ID + "</span>" + "<input type='button' value='Check Out' id='btnCheckOut' onclick='return PerformTCICO(this,2);' class='CreateBtn pull' /><span id='spnToolIsBuildBreak' style='display:none'>" + obj.aData.IsBuildBreak + "</span>";
+                    }
+                    else {
+                        return "<span id='spnCheckOutStatus' style='display:none'>" + obj.aData.CheckOutStatus + "</span>" + "<span id='spnCheckedOutQTY' style='display:none'>" + obj.aData.CheckedOutQTY + "</span><span id='spnCheckedOutMQTY' style='display:none'>" + obj.aData.CheckedOutMQTY + "</span>" + "<span id='spnCheckInCheckOutID'  style='display:none'>" + obj.aData.CheckInCheckOutID + "</span>" + "<span id='spnQuantity'  style='display:none'>" + obj.aData.Quantity + "</span>" + "<span id='spnToolID'  style='display:none'>" + obj.aData.GUID + "</span>" + "<span id='spnToolPKID'  style='display:none'>" + obj.aData.ID + "</span><span id='spnToolIsBuildBreak' style='display:none'>" + obj.aData.IsBuildBreak + "</span>";
+                    }
+                }
+                else {
+                    return "<span id='spnCheckOutStatus' style='display:none'>" + obj.aData.CheckOutStatus + "</span>" + "<span id='spnCheckedOutQTY' style='display:none'>" + obj.aData.CheckedOutQTY + "</span><span id='spnCheckedOutMQTY' style='display:none'>" + obj.aData.CheckedOutMQTY + "</span>" + "<span id='spnCheckInCheckOutID'  style='display:none'>" + obj.aData.CheckInCheckOutID + "</span>" + "<span id='spnQuantity'  style='display:none'>" + obj.aData.Quantity + "</span>" + "<span id='spnToolID'  style='display:none'>" + obj.aData.GUID + "</span>" + "<span id='spnToolPKID'  style='display:none'>" + obj.aData.ID + "</span><span id='spnToolIsBuildBreak' style='display:none'>" + obj.aData.IsBuildBreak + "</span>";
+                }
+            }
+        });
+        ArrToolColumns.push({
+            mDataProp: null,
+            bSortable: false,
+            sClass: "read_only alignCenter",
+            sDefaultContent: '',
+            fnRender: function (obj, val) {
+                if (allowCheckinCheckOut) {
+                    var Qty = isNaN(parseInt(obj.aData.Quantity)) ? 0 : obj.aData.Quantity;
+                    var CheckedoutQty = isNaN(parseInt(obj.aData.CheckedOutQTY)) ? 0 : obj.aData.CheckedOutQTY;
+                    var CheckedOutMQTY = isNaN(parseInt(obj.aData.CheckedOutMQTY)) ? 0 : obj.aData.CheckedOutMQTY;
+
+                    if ((Qty - (parseInt(CheckedoutQty) + parseInt(CheckedOutMQTY))) > 0 && !obj.aData.IsDeleted) {
+                        return "<input type='checkbox' id='chkMaintance' name='manintancechk' value='maintanence' />";
+                    }
+                    else
+                        return "";
+                }
+            }
+        });
+        ArrToolColumns.push({
+            mDataProp: null,
+            bSortable: false,
+            sClass: "read_only center",
+            sDefaultContent: '',
+            fnRender: function (obj, val) {
+
+                var Qty = isNaN(parseInt(obj.aData.Quantity)) ? 0 : obj.aData.Quantity;
+                var CheckedoutQty = isNaN(parseInt(obj.aData.CheckedOutQTY)) ? 0 : obj.aData.CheckedOutQTY;
+                var CheckedOutMQTY = isNaN(parseInt(obj.aData.CheckedOutMQTY)) ? 0 : obj.aData.CheckedOutMQTY;
+                if ((Qty - (CheckedoutQty + CheckedOutMQTY)) > 0) {
+                    if (obj.aData.IsGroupOfItems == 0) {
+                        return "<input type='text' value='" + 1 + "' class='numericinput numericalign' onkeypress='return false;'  id='txtQty' style='width:93%;disabled:true;' />";
+                    }
+                    else {
+                        return "<input type='text' value='1' class='numericinput numericalign' onkeypress='return onlyNumeric(event)'  id='txtQty' style='width:93%;' />";
+                    }
+                }
+                else
+                    return "";
+            }
+        });
+        ArrToolColumns.push({
+            mDataProp: "Quantity", sClass: "read_only numericalign",
+            sDefaultContent: '',
+            fnRender: function (obj, val) {
+                return FormatedCostQtyValues((obj.aData.Quantity), 2);
+            }
+        });
+        ArrToolColumns.push({
+            mDataProp: null,
+            bSortable: false,
+            sClass: "read_only center numericalign",
+            sDefaultContent: '',
+            fnRender: function (obj, val) {
+
+                //return FormatedCostQtyValues((obj.aData.Quantity - (obj.aData.CheckedOutQTY + obj.aData.CheckedOutMQTY)), 2);
+                var Qty = parseFloat(obj.aData.Quantity);
+                var CheckedOutQTY = parseFloat(obj.aData.CheckedOutQTY);
+                var CheckedOutMQTY = parseFloat(obj.aData.CheckedOutMQTY);
+                if (!isNaN(Qty) && !isNaN(CheckedOutQTY) && !isNaN(CheckedOutMQTY)) {
+                    return FormatedCostQtyValues((Qty - (CheckedOutQTY + CheckedOutMQTY)), 2);
+                }
+                else if (!isNaN(Qty) && !isNaN(CheckedOutQTY)) {
+                    return FormatedCostQtyValues((Qty - (CheckedOutQTY)), 2);
+                }
+                else if (!isNaN(Qty) && !isNaN(CheckedOutMQTY)) {
+                    return FormatedCostQtyValues((Qty - (CheckedOutMQTY)), 2);
+                }
+                else if (!isNaN(Qty)) {
+                    return FormatedCostQtyValues((Qty), 2);
+                }
+                else {
+                    return FormatedCostQtyValues(0, 2);
+                }
+
+            }
+        });
+        ArrToolColumns.push({
+            mDataProp: "ToolName",
+            sClass: "read_only",
+            sDefaultContent: '',
+            bSortable: true,
+            "bSearchable": false,
+            fnRender: function (obj, val) {
+                return "<a onclick='return ShowEditTab(&quot;ToolEdit/" + obj.aData.ID + "&quot;,&quot;frmTool&quot;)' id='ToolName' href='JavaScript:void(0);'>" + obj.aData.ToolName + "</a>" + " <input type='hidden' id='hdnGUID' value='" + obj.aData.GUID.toString() + "' />" + "<span id='spnToolMasterID' style='display:none'>" + obj.aData.ID + "</span>";
+            }
+        });
+        ArrToolColumns.push({
+            mDataProp: "CheckedOutQTY", sClass: "read_only numericalign",
+            sDefaultContent: '',
+            fnRender: function (obj, val) {
+                if (obj.aData.CheckedOutQTY != null) {
+                    return FormatedCostQtyValues((obj.aData.CheckedOutQTY), 2);
+                }
+                else {
+                    return FormatedCostQtyValues((0), 2);
+                }
+            }
+        });
+        ArrToolColumns.push({
+            mDataProp: "CheckedOutMQTY", sClass: "read_only numericalign",
+            sDefaultContent: '',
+            fnRender: function (obj, val) {
+                if (obj.aData.CheckedOutMQTY != null) {
+                    return FormatedCostQtyValues((obj.aData.CheckedOutMQTY), 2);
+                }
+                else {
+                    return FormatedCostQtyValues((0), 2);
+                }
+
+            }
+        });
+
+        ArrToolColumns.push({ mDataProp: "Serial", sClass: "read_only" });
+        //ArrToolColumns.push({ mDataProp: "Description", sClass: "read_only" });
+        ArrToolColumns.push({
+            mDataProp: "IsBuildBreak", sClass: "read_only"
+            , fnRender: function (obj, val) {
+                if (val == 0)
+                    return "No";
+                else if (val == 1)
+                    return "Yes";
+                else
+                    return "";
+            }
+        });
+
+        //ArrToolColumns.push({
+        //    mDataProp: "Cost", sClass: "read_only numericalign isCost",
+        //    fnRender: function (obj, val) {
+        //        //return GetDateInFullFormat(val);
+
+        //        if (obj.aData.Cost != null && obj.aData.Cost != '') {
+        //            return FormatedCostQtyValues(obj.aData.Cost, 1);
+        //        }
+        //        else {
+        //            return '';
+        //        }
+        //    }
+        //});
+        // ArrToolColumns.push({ mDataProp: "ToolCategory", sClass: "read_only" });
+        // ArrToolColumns.push({ mDataProp: "Location", sClass: "read_only" });
+        //ArrToolColumns.push({ mDataProp: "RoomName", sClass: "read_only" });
+        ArrToolColumns.push({
+            mDataProp: "Created", sClass: "read_only",
+            fnRender: function (obj, val) {
+                //return GetDateInFullFormat(val);
+                return obj.aData.CreatedDate;
+            }
+        });
+        ArrToolColumns.push({
+            mDataProp: "Updated", sClass: "read_only",
+            fnRender: function (obj, val) {
+                //return GetDateInFullFormat(val);
+                return obj.aData.UpdatedDate;
+            }
+        });
+        ArrToolColumns.push({ mDataProp: "UpdatedByName", sClass: "read_only" });
+        ArrToolColumns.push({ mDataProp: "CreatedByName", sClass: "read_only" });
+        ArrToolColumns.push({ mDataProp: "AddedFrom", sClass: "read_only" });
+        ArrToolColumns.push({ mDataProp: "EditedFrom", sClass: "read_only" });
+        ArrToolColumns.push({
+            mDataProp: "ReceivedOn", sClass: "read_only",
+            fnRender: function (obj, val) {
+                return obj.aData.ReceivedOnDate;
+            }
+        });
+        ArrToolColumns.push({
+            mDataProp: "ReceivedOnWeb", sClass: "read_only",
+            fnRender: function (obj, val) {
+                return obj.aData.ReceivedOnDateWeb;
+            }
+        });
+        ArrToolColumns.push({
+            mDataProp: "TechnicianList", sClass: "read_only", bSortable: false,
+            fnRender: function (obj, val) {
+                var strReturn = '<span style="position:relative"><input type="text" id="txtTechnician" class="text-boxinner AutoTechnician" style = "width:93%;" value="' + '@eTurns.DTO.Resources.ResCommon.SelectTechnicianText' + '" />';
+                strReturn = strReturn + ' <input type="hidden" id="TechnicianGUID" value="" />';
+                strReturn = strReturn + ' <a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptions" ><img src="/Content/images/arrow_down_black.png" alt="select" /></a></span>';
+                return strReturn
+
+            }
+        });
+        @*ArrToolColumns.push({
+            "mDataProp": "ImagePath", sClass: "read_only", "bVisible": false, "fnRender": function (obj, val) {
+
+                if ((obj.aData.ImagePath != '' && obj.aData.ImagePath != null) || (obj.aData.ToolImageExternalURL != '' && obj.aData.ToolImageExternalURL != null)) {
+
+                    if (obj.aData.ImagePath != '' && obj.aData.ImagePath != null) {
+                        // var path = '@eTurnsWeb.Helper.SessionHelper.CompanyID.ToString()';
+                        var path = '@LogoPathImage';
+                        @*var entid = '@eTurnsWeb.Helper.SessionHelper.EnterPriceID.ToString()';
+                        var companyid = '@eTurnsWeb.Helper.SessionHelper.CompanyID.ToString()';
+                        var roomid = '@eTurnsWeb.Helper.SessionHelper.RoomID.ToString()';
+
+
+                        return '<img style="cursor:pointer;"  alt="' + (obj.aData.ItemNumber) + '" id="ItemImageBox" width="120px" height="120px" src="' + path + "/" + obj.aData.ID + "/" + obj.aData.ImagePath + '">';
+                    }
+                    else if (obj.aData.ToolImageExternalURL != '' && obj.aData.ToolImageExternalURL != null) {
+                        return '<img style="cursor:pointer;"  alt="' + (obj.aData.ItemNumber) + '" id="ItemImageBox" width="120px" height="120px" src="' + obj.aData.ToolImageExternalURL + '">';
+                    }
+                    else {
+                        return "<img src='../Content/images/no-image.jpg' />";
+                    }
+                }
+                else {
+                    return "<img src='../Content/images/no-image.jpg' />";
+                }
+            }
+        });*@
+        ArrToolColumns.push({
+            mDataProp: null,
+            bSortable: false,
+            sClass: "read_only center",
+            sDefaultContent: '',
+            fnRender: function (obj, val) {
+
+                var Qty = isNaN(parseInt(obj.aData.Quantity)) ? 0 : obj.aData.Quantity;
+                var CheckedoutQty = isNaN(parseInt(obj.aData.CheckedOutQTY)) ? 0 : obj.aData.CheckedOutQTY;
+                var CheckedOutMQTY = isNaN(parseInt(obj.aData.CheckedOutMQTY)) ? 0 : obj.aData.CheckedOutMQTY;
+
+                //if ((Qty - (CheckedoutQty + CheckedOutMQTY)) < Qty) {
+                if (CheckedoutQty > 0 || CheckedOutMQTY > 0) {
+                    if (obj.aData.IsGroupOfItems == 0) {
+                        return "<input type='text' value='" + 1 + "' class='numericinput numericalign' onkeypress='return false;'  id='txtCheckInQty' style='width:93%;disabled:true;display:none;' />";
+                    }
+                    else {
+
+                        if ((CheckedoutQty + CheckedOutMQTY) == 1 || obj.aData.CheckedOutQTYTotal == 1) {
+                            return " <input type='text' value='1' class='numericinput numericalign' onkeypress='return onlyNumeric(event)'  id='txtCheckInQty' style='width:93%;display:none;' />";
+                        }
+                        else {
+                            return " <input type='text' value='' class='numericinput numericalign' onkeypress='return onlyNumeric(event)'  id='txtCheckInQty' style='width:93%;display:none;' />";
+                        }
+                    }
+                }
+                else
+                    return "";
+            }
+        });
+
+        ArrToolColumns.push(@Html.RenderColumnsArray("ToolMaster", false, "Tool"));
+        ArrToolColumns.push(@Html.RenderColumnsArrayEditableObject("ToolCheckInOutHistory", false, isUDFOrderRequire: true));
+        var oTable;
+        var IsRefreshGrid = false;
+        var deleteURL = "/Assets/DeleteToolRecords";
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+        var HistorySelected;
+        var HistorySelectedID = 0;
+        var HistorySelectedGUID = '';
+        var objColumns = {};
+        var masterGridColumns = {};
+
+        $(document).ready(function () {
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            masterGridColumns = objColumns;
+            LoadTabs();
+
+            var gaiSelected = [];
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "150%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[2, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+
+
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'KitToolMasterList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'KitToolMasterList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+
+                        }
+                    });
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Kit/KitToolMasterListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+
+                    if (oSettings.aaSorting.length != 0)
+                        aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+                    aoData.push({ "name": "ToolType", "value": "2" });
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        cache: false,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.ShowAllOptions').click(function () {
+                                $(this).siblings('.AutoTechnician').trigger("focus");
+                                $(this).siblings(".AutoTechnician").autocomplete("search", " ");
+                            });
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable').highlight($("#global_filter").val());
+                            }
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+
+                },
+                "aoColumns": ArrToolColumns
+
+            });
+
+
+            $('.DTTT_container').css('z-index', '-1');
+            $("#myDataTable").on("click", "td.control", function (event) {
+
+
+                if (!$(this).find("img").hasClass("Expand"))
+                    return;
+
+                var nTr = this.parentNode;
+                var i = $.inArray(nTr, anOpen);
+
+                if (i === -1) {
+
+                    $('img', this).attr('src', sImageUrl + "drildown_close.jpg");
+                    oTable.fnOpen(nTr, fnFormatDetails(oTable, nTr), '');
+                    anOpen.push(nTr);
+                }
+                else {
+                    $('img', this).attr('src', sImageUrl + "drildown_open.jpg");
+                    oTable.fnClose(nTr);
+                    anOpen.splice(i, 1);
+                    oTable.fnDraw();
+                }
+            });
+
+            function fnFormatDetails(oTable, nTr) {
+                var oData = oTable.fnGetData(nTr);
+                var sOut = '';
+                $('#DivLoading').show();
+
+                $.ajax({
+                    "url": '@Url.Content("~/Assets/CheckInCheckOutData")',
+                    data: { ToolGUID: oData.GUID },
+                    "async": false,
+                    cache: false,
+                    "dataType": "text",
+                    "success": function (json) {
+                        sOut = json;
+                        $('#DivLoading').hide();
+                    },
+                    error: function (response) {
+                    }
+                });
+
+                return sOut;
+            }
+            $('#myDataTable').on('tap click', 'a[id^="ToolName"]', function () {
+                var tr = $(this).parent().parent();
+                $("#myDataTable").find("tbody tr").removeClass("row_selected");
+                $(tr).addClass('row_selected');
+                $("#tabBuildBreak").show();
+            });
+        });
+
+    </script>
+}
+<script type="text/javascript">
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+                    new TabClass('tab5', '@eTurns.DTO.Resources.ResLayout.KitTools', 'callbackhistory();', true, true),
+                    new TabClass('tab6', '@eTurns.DTO.Resources.ResLayout.KitToolBuildBreak', 'callKitToolBuildBreak();', false, true)];
+    function callbacknew() { ShowNewTab('CreateToolKit', 'frmKitMaster'); }
+    function callbackhistory() { AllowDeletePopup = true; } //HistoryTabClick(); }
+    function callKitToolBuildBreak() { GetBuildBreak(); }
+     
+    function GetBuildBreak() {
+
+        HistorySelected = fnGetSelected(oTable);
+        if (HistorySelected != undefined && HistorySelected.length == 1) {
+            var rawData = oTable.fnGetData(HistorySelected[0]);
+            var ToolIsBuildBreak = "";
+            if (rawData != null && typeof (rawData) != "undefined" && rawData.IsBuildBreak != null && typeof (rawData.IsBuildBreak) != "undefined") {
+                ToolIsBuildBreak = rawData.IsBuildBreak;
+            }
+            var ToolGUID = rawData.GUID;
+            if (ToolIsBuildBreak == "Yes") {
+                SelectedHistoryRecordID = ToolGUID;
+                $('#DivLoading').show();
+                $("#CTab").hide();
+                $("#CtabCL").show();
+                //$('#CtabCL').load('/Master/ItemHistory', function () { $('#DivLoading').hide(); });
+                $('#CtabCL').load('/Kit/ToolKitBuildBreak?KitToolGUID=' + ToolGUID + '', function () { $('#DivLoading').hide(); });
+            }
+            else {
+                $('#CtabCL').html('');
+                $("#spanGlobalMessage").html("@ResKitToolMaster.ReqKitisBuildBreak");
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                $("div#tab5").click();
+                return false;
+            }
+        }
+        else {
+            $('#CtabCL').html('');
+            $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+            $('div#target').fadeToggle();
+            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+            $("div#tab5").click();
+            return false;
+        }
+    }
+</script>
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResKitToolMaster.PageHeader
+    </h2>
+    <div class="Infoclass">
+        @*<a href="@KitsPDFURL" target="_blank">
+            <img src="~/Content/images/Info.png" alt="Help" /></a>*@
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener">
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster)
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            <div class="userContent ">
+                <table style="margin-bottom: 1px; margin-top: 1px;" id="tblPullCommonUDF">
+                    <thead>
+                        <tr>
+
+                            <th>
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.TechnicianList
+                            </th>
+                            @if (isToolUDF)
+                            {
+                                @Html.RenderColumnsHeaderByName("ToolCheckInOutHistory", typeof(eTurns.DTO.ResToolCheckInOutHistory))
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <b style="font-size: 13px;">&nbsp;&nbsp;&nbsp;Use this</b>
+                                <input type="checkbox" id="chkUseToolCommonUDF" />
+                            </td>
+                            <td>
+                                <span style="position:relative">
+                                    <input type="text" id="txtUseThisTechnician" class="text-boxinner UseThisAutoTechnician" style="width:120px;" value="@eTurns.DTO.Resources.ResCommon.SelectTechnicianText" autocomplete="off" role="textbox" aria-autocomplete="list" aria-haspopup="true">
+                                    <input type="hidden" id="UseThisTechnicianGUID" value="">
+                                    <a id="UseThislnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="UseThisShowAllOptions">
+                                        <img src="/Content/images/arrow_down_black.png" alt="select">
+                                    </a>
+                                </span>
+
+                            </td>
+                            @if (isToolUDF)
+                            {
+                                @Html.RenderColumnsArrayEditableObjectForDOMByName("ToolCheckInOutHistory", controlIDPostfix: "ToolCommon")
+                            }
+
+                        </tr>
+                    </tbody>
+                </table>
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @ResCommon.ID
+                            </th>
+                            <th>
+                                @ResItemMaster.Expand
+                            </th>
+                            <th>
+                                @ResToolMaster.CheckOut
+                            </th>
+                            <th>
+                                @ResKitToolMaster.ForMaintanence
+                            </th>
+                            <th>
+                                @ResKitToolMaster.QuantityTexBox
+                            </th>
+                            <th>
+                                @ResKitToolMaster.Quantity
+                            </th>
+                            <th>
+                                @ResToolCheckInOutHistory.AvailableQty
+                            </th>
+                            <th>
+                                @ResKitToolMaster.ToolName
+                            </th>
+                            <th>
+                                @ResToolCheckInOutHistory.CheckedOutQTY
+                            </th>
+                            <th>
+                                @ResToolCheckInOutHistory.CheckedOutMQTY
+                            </th>
+                            <th>
+                                @ResKitToolMaster.Serial
+                            </th>
+                            @*<th>
+                                    @ResToolMaster.Description
+                                </th>*@
+                            <th>
+                                @ResKitToolMaster.IsBuildBreak
+                            </th>
+                            @*<th>
+                                    @ResToolMaster.Cost
+                                </th>
+                                <th>
+                                    @ResToolMaster.ToolCategory
+                                </th>
+                                <th>
+                                    @ResToolMaster.Location
+                                </th>*@
+                            @*<th>
+                                    @ResCommon.RoomName
+                                </th>*@
+                            <th>
+                                @ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.TechnicianList
+                            </th>
+                            @*<th>
+                                    @ResToolMaster.ToolImage
+                                </th>*@
+                            <th>
+                                @ResToolCheckInOutHistory.CheckinQuantity
+                            </th>
+
+
+                            @Html.RenderColumnsHeader("ToolMaster", typeof(eTurns.DTO.ResToolMaster), "Tool")
+                            @Html.RenderColumnsHeader("ToolCheckInOutHistory", typeof(eTurns.DTO.ResToolCheckInOutHistory), "")
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                @Html.Partial("_QTYLegends")
+            </div>
+        </div>
+        <div id='CtabCL' class="tabContener">
+        </div>
+    </div>
+</div>
+<script type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>
+<script>
+    $(document).ready(function () {
+        $('#myDataTable').on('focus', "input.AutoTechnician", function (e) {
+            var ajaxURL = '/Assets/GetTechnician';
+            var tr = $(this).parent().parent().parent();
+            var itmGuid = $(tr).find('#spnItemGUID').text();
+            var stagName = '';
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $('#DivLoading').show()
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'NameStartWith': request.term }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            $('#DivLoading').hide()
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key,
+                                    id: Items.GUID
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                            $('#DivLoading').hide();
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    $(this).val(ui.item.value);
+                    if ($.trim(ui.item.value).length > 0) {
+
+                        if ($(this).parent().find('#TechnicianGUID') != undefined)
+                            $(this).parent().find('#TechnicianGUID').val(ui.item.id);
+                    }
+                    else {
+                        $(this).parent().find('#TechnicianGUID').val('');
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                    if (ui.item != null && ui.item != undefined && $.trim(ui.item.id).length > 0) {
+                        if ($(this).parent().find('#TechnicianGUID') != undefined)
+                            $(this).parent().find('#TechnicianGUID').val(ui.item.id);
+                    }
+                    else {
+                        $(this).parent().find('#TechnicianGUID').val('');
+                    }
+                }
+            });
+        });
+        $('body').on('focus', "input.UseThisAutoTechnician", function (e) {
+            var ajaxURL = '/Assets/GetTechnician';
+            var tr = $(this).parent().parent().parent();
+            var itmGuid = $(tr).find('#spnItemGUID').text();
+            var stagName = '';
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $('#DivLoading').show()
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'NameStartWith': request.term }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            $('#DivLoading').hide()
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key,
+                                    id: Items.GUID
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                            $('#DivLoading').hide();
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    $(this).val(ui.item.value);
+                    if ($.trim(ui.item.value).length > 0) {
+
+                        if ($(this).parent().find('#UseThisTechnicianGUID') != undefined)
+                            $(this).parent().find('#UseThisTechnicianGUID').val(ui.item.id);
+                    }
+                    else {
+                        $(this).parent().find('#UseThisTechnicianGUID').val('');
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                    if (ui.item != null && ui.item != undefined && $.trim(ui.item.id).length > 0) {
+                        if ($(this).parent().find('#UseThisTechnicianGUID') != undefined)
+                            $(this).parent().find('#UseThisTechnicianGUID').val(ui.item.id);
+                    }
+                    else {
+                        $(this).parent().find('#UseThisTechnicianGUID').val('');
+                    }
+                }
+            });
+
+        });
+        $('.UseThisShowAllOptions').click(function () {
+            $(this).siblings('.UseThisAutoTechnician').trigger("focus");
+            $(this).siblings(".UseThisAutoTechnician").autocomplete("search", " ");
+        });
+    });
+    function ResetNarrowSearchTechnicianList() {          
+        $("#ToolsTechnicianCollapse").html('');
+        $("#ToolsTechnician").empty();
+        if ($("#ToolsTechnician option").length == 0) {
+            $.ajax({
+                'url': '/Master/GetNarrowDDData',
+                data: {
+                    TableName: 'KitToolMaster', TextFieldName: 'ToolsTechnician', IsArchived: false, IsDeleted: false, RequisitionCurrentTab: "KitList"
+                },
+                success: function (response) {
+
+                    var s = '';
+                    $.each(response.DDData, function (ValData, ValCount) {
+                        var ArrData = ValData.toString().split('[###]');
+                        s += '<option value="' + ArrData[1] + '">' + ArrData[0] + ' (' + ValCount + ')' + '</option>';
+                    });
+                    $("#ToolsTechnician").empty();
+                    $("#ToolsTechnician").append(s);
+                    $("#ToolsTechnician").multiselect("refresh");
+                    $("#ToolsTechnician").multiselectfilter("refresh");
+                },
+                error: function (response) {
+                    // through errror message
+                }
+            });
+        }
+        if ($("select#ToolsTechnician").parent("li").find("div#ToolsTechnicianCollapse:visible").length != 0) {
+
+            $("select#ToolsTechnician").parent("li").find(".downarrow").click();
+            $("select#ToolsTechnician").parent("li").find("ToolsTechnicianCollapse").attr("style", "display: none; height: 100px; overflow: hidden;");
+        }
+                ////DoNarrowSearch();
+        $("input#NarroSearchClear").click();
+
+        $.ajax({
+            'url': '/Master/GetNarrowDDData',
+            data: { TableName: 'KitToolMaster', TextFieldName: 'ToolMaintenance', IsArchived: false, IsDeleted: false },
+            success: function (response) {
+                var s = '';
+                $.each(response.DDData, function (ValData, ValCount) {
+                    var ArrData = ValData.toString().split('###');
+                    s += '<option value="' + ArrData[1] + '">' + ArrData[0] + ' (' + ValCount + ')' + '</option>';
+                });
+
+                //Destroy widgets before reapplying the filter
+                $("#ToolCheckout").empty();
+                $("#ToolCheckout").multiselect('destroy');
+                $("#ToolCheckout").multiselectfilter('destroy');
+
+                $("#ToolCheckout").append(s);
+                $("#ToolCheckout").multiselect(
+                            {
+                                noneSelectedText: ToolsMaintenance, selectedList: 5,
+                                selectedText: function (numChecked, numTotal, checkedItems) {
+                                    return ToolsMaintenance + ': ' + numChecked + ' ' + selected;
+                                }
+                            },
+                            {
+                                checkAll: function (ui) {
+                                    $("#ToolCheckoutCollapse").html('');
+                                    for (var i = 0; i <= ui.target.length - 1; i++) {
+                                        if ($("#ToolCheckoutCollapse").text().indexOf(ui.target[i].text) == -1) {
+                                            $("#ToolCheckoutCollapse").append("<span>" + ui.target[i].text + "</span>");
+                                        }
+                                    }
+                                    $("#ToolCheckoutCollapse").show();
+                                }
+                            }
+                )
+                .unbind("multiselectclick multiselectcheckall multiselectuncheckall")
+                .bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+                    if (ui.checked) {
+                        if ($("#ToolCheckoutCollapse").text().indexOf(ui.text) == -1) {
+                            $("#ToolCheckoutCollapse").append("<span>" + ui.text + "</span>");
+                        }
+                    }
+                    else {
+                        if (ui.checked == undefined) {
+                            $("#ToolCheckoutCollapse").html('');
+                        }
+                        else if (!ui.checked) {
+                            var text = $("#ToolCheckoutCollapse").html();
+                            text = text.replace("<span>" + ui.text + "</span>", '');
+                            $("#ToolCheckoutCollapse").html(text);
+                        }
+                        else
+                            $("#ToolCheckoutCollapse").html('');
+                    }
+                    MaintenanceValue = $.map($(this).multiselect("getChecked"), function (input) {
+                        return input.value;
+                    })
+
+                    if ($("#ToolCheckoutCollapse").text().trim() != '')
+                        $("#ToolCheckoutCollapse").show();
+                    else
+                        $("#ToolCheckoutCollapse").hide();
+
+
+                    if ($("#ToolCheckoutCollapse").find('span').length <= 2) {
+                        $("#ToolCheckoutCollapse").scrollTop(0).height(50);
+                    }
+                    else {
+                        $("#ToolCheckoutCollapse").scrollTop(0).height(100);
+                    }
+                    clearGlobalIfNotInFocus();
+
+                    DoNarrowSearch();
+                }).multiselectfilter();
+            },
+            error: function (response) {
+                // through errror message
+            }
+        });
+        CommonUDFNarrowSearch();
+    }
+</script>

@@ -1,0 +1,1183 @@
+﻿@model IEnumerable<eTurns.DTO.RoomDTO>
+@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    ViewBag.Title = ResRoomMaster.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DisplayUDFButton = true, UDFSetupFor = "Rooms&UDFHeader=" + @ResRoomMaster.PageHeader, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "RoomList" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "Room" };
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.RoomMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.RoomMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    string RoomsPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Rooms.pdf", DateTime.Now.Ticks);
+    bool IsShowChangeLog = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.RoomMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.ShowChangeLog);
+    string sSearchData = (Convert.ToString(Session["RoomsSearch"])) ?? string.Empty;
+    string roomsave = (Convert.ToString(Request.QueryString["roomsave"])) ?? string.Empty;
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Rooms", (int)HelpDocType.Module);
+}
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script language="javascript" type="text/javascript">
+        var oTable;
+        var IsRefreshGrid = false;
+
+        var deleteURL = "/Master/SoftDeleteRoomRecords";
+        //var PostCount = 0;
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+        var objColumns = {};
+        $(document).ready(function () {
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            setTimeout(function () {
+                $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": '@Url.Action("ClearRoomListSession", "Master")',
+                    "success": function (retdata) {
+
+                    }
+                })
+
+            }, 4000);
+            LoadTabs();
+            var gaiSelected = [];
+            var RoomListColumnsArr = new Array();
+            RoomListColumnsArr.push({ mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' });
+
+            RoomListColumnsArr.push({ "mDataProp": "ID", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "RoomName",
+                "sClass": "read_only",
+                "sDefaultContent": '',
+                "bSortable": true,
+                "bSearchable": false,
+                "fnRender": function (obj, val) {
+                    return "<a id='aEditLink'  onclick='return ShowEditTab(&quot;RoomEdit/" + obj.aData.ID + "_" + obj.aData.EnterpriseId + "&quot;,&quot;frmRoom&quot;)' href='JavaScript:void(0);'>" + obj.aData.RoomName + "</a><input type='hidden' id='hdnguid' value='" + obj.aData.GUID + "' /><input type='hidden' id='hdnCompanyId' value='" + obj.aData.CompanyID + "' /><input type='hidden' id='hdnRoomId' value='" + obj.aData.ID + "' />";
+                }
+            });
+            RoomListColumnsArr.push({ "mDataProp": "EnterpriseName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "CompanyName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "ContactName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "streetaddress", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "City", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "State", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "PostalCode", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "Country", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "Email", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "PhoneNo", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsRoomActive", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                });
+            //{ "mDataProp": "InvoiceBranch", "sClass": "read_only" },
+            RoomListColumnsArr.push({ "mDataProp": "CustomerNumber", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "BlanketPO", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "LastOrderDate", "sClass": "read_only",
+                    "fnRender": function (obj, val) {
+
+                        return obj.aData.LastOrderDateStr;
+                    }
+            });
+            RoomListColumnsArr.push({
+                "mDataProp": "LastPullDate", "sClass": "read_only",
+                    "fnRender": function (obj, val) {
+                        return obj.aData.LastPullDateStr;
+                    }
+            });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsConsignment", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsTrending", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                    });
+            RoomListColumnsArr.push({ "mDataProp": "TrendingFormulaDays", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "TrendingFormulaOverDays", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "TrendingFormulaAvgDays", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "SuggestedOrder", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                });
+            RoomListColumnsArr.push({
+                "mDataProp": "SuggestedTransfer", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                    });
+            RoomListColumnsArr.push({ "mDataProp": "ReplineshmentRoomName", "sClass": "read_only" });
+            //                            { "mDataProp": "IsItemReplenishment", "sClass": "read_only" ,"fnRender": function (obj, val) {  return GetBoolInFormat(obj, val); } },
+            //                            { "mDataProp": "IsBinReplenishment", "sClass": "read_only" ,"fnRender": function (obj, val) {  return GetBoolInFormat(obj, val); }},
+            RoomListColumnsArr.push({
+                "mDataProp": "IseVMI", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                            });
+            RoomListColumnsArr.push({ "mDataProp": "MaxOrderSize", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "HighPO", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "HighJob", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "HighTransfer", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "HighCount", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "GlobMarkupParts", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "GlobMarkupLabor", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsTax1Parts", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsTax1Labor", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                    });
+            RoomListColumnsArr.push({ "mDataProp": "Tax1name", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "Tax1Rate", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsTax2Parts", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsTax2Labor", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                    });
+            RoomListColumnsArr.push({ "mDataProp": "tax2name", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "Tax2Rate", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsTax2onTax1", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                });
+            RoomListColumnsArr.push({ "mDataProp": "GXPRConsJob", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "CostCenter", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "UniqueID", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "eVMIWaitCommand", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "eVMIWaitPort", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "Created", "sClass": "read_only",
+                    "fnRender": function (obj, val) {
+                        return obj.aData.CreatedDate;
+                    }
+                });
+            RoomListColumnsArr.push({
+                "mDataProp": "Updated", "sClass": "read_only",
+                    "fnRender": function (obj, val) {
+                        return obj.aData.UpdatedDate;
+                    }
+                    });
+            RoomListColumnsArr.push({ "mDataProp": "UpdatedByName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "CreatedByName", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "ActiveOn", "sClass": "read_only",
+                    "fnRender": function (obj, val) {
+                        return obj.aData.ActiveOnDate;
+                    }
+                });
+            RoomListColumnsArr.push({
+                "mDataProp": "LastSyncDateTime", "sClass": "read_only",
+                    "fnRender": function (obj, val) {
+                        return obj.aData.LastSyncDateTimeStr;
+                    }
+                    });
+            RoomListColumnsArr.push({ "mDataProp": "PDABuildVersion", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "LastSyncUserName", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "LastTrasnferedDate", "sClass": "read_only",
+                    "fnRender": function (obj, val) {
+                        return obj.aData.LastTrasnferedDateStr;
+                    }
+                });
+            RoomListColumnsArr.push({
+                "mDataProp": "LastReceivedDate", "sClass": "read_only",
+                    "fnRender": function (obj, val) {
+                        return obj.aData.LastReceivedDateStr;
+                    }
+                    });
+            RoomListColumnsArr.push({ "mDataProp": "BillingRoomTypeName", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "WarnUserOnAssigningNonDefaultBin", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                            });
+            RoomListColumnsArr.push({ "mDataProp": "AttachingWOWithRequisitionName", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "PreventMaxOrderQtyName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "DefaultCountTypeName", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsWOSignatureRequired", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                                            });
+                                                RoomListColumnsArr.push({
+                "mDataProp": "IsIgnoreCreditRule", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                                                });
+                                                    RoomListColumnsArr.push({
+                "mDataProp": "ForceSupplierFilter", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+                                                    });
+                                                        RoomListColumnsArr.push({
+                "mDataProp": "SuggestedReturn", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+              });
+            RoomListColumnsArr.push({ "mDataProp": "NoOfItems", "sClass": "read_only" });
+            if ('@eTurnsWeb.Helper.SessionHelper.RoleID' == -1) {
+                RoomListColumnsArr.push({ "mDataProp": "ReportAppIntent", "sClass": "read_only" });
+            }
+            RoomListColumnsArr.push({ "mDataProp": "CountAutoSequenceName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "NextCountNo", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "POAutoSequenceName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "POAutoNrFixedValue", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "NextOrderNo", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "PullPurchaseNumberTypeName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "PullPurchaseNrFixedValue", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "LastPullPurchaseNumberUsed", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "ReqAutoSequenceName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "NextRequisitionNo", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsAllowRequisitionDuplicate", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+            });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsAllowOrderDuplicate", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+            });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsAllowWorkOrdersDuplicate", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+            });
+            RoomListColumnsArr.push({ "mDataProp": "StagingAutoSequenceName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "StagingAutoNrFixedValue", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "NextStagingNo", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "TransferAutoSequenceName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "TransferAutoNrFixedValue", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "NextTransferNo", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "WorkOrderAutoSequenceName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "WorkOrderAutoNrFixedValue", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "NextWorkOrderNo", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "TAOAutoSequenceName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "TAOAutoNrFixedValue", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "NextToolAssetOrderNo", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "ToolCountAutoSequenceName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "NextToolCountNo", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "AllowInsertingItemOnScan", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+            });
+            RoomListColumnsArr.push({
+                "mDataProp": "AllowPullBeyondAvailableQty", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+            });
+            RoomListColumnsArr.push({ "mDataProp": "PullRejectionTypeName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "ReplenishmentTypeName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "DefaultLocationName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "SlowMovingValue", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "FastMovingValue", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "InventoryConsuptionMethod", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "MethodOfValuingInventoryName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "BaseOfInventoryName", "sClass": "read_only" });
+            RoomListColumnsArr.push({
+                "mDataProp": "LicenseBilled", "sClass": "read_only",
+                "fnRender": function (obj, val) {
+                    return obj.aData.LicenseBilledStr;
+                }
+            });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsProjectSpendMandatory", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+            });
+            RoomListColumnsArr.push({
+                "mDataProp": "IsAllowOrderCostuom", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+            });
+            RoomListColumnsArr.push({ "mDataProp": "RequestedXDays", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "ShelfLifeleadtimeOrdRpt", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "LeadTimeOrdRpt", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "MaintenanceDueNoticeDays", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "DefaultRequisitionRequiredDays", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "QuoteAutoSequenceName", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "QuoteAutoNrFixedValue", "sClass": "read_only" });
+            RoomListColumnsArr.push({ "mDataProp": "NextQuoteNo", "sClass": "read_only" });
+
+            RoomListColumnsArr.push({
+                "mDataProp": "IsAllowQuoteDuplicate", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+            });
+            RoomListColumnsArr.push({
+                "mDataProp": "DoGroupSupplierQuoteToOrder", "sClass": "read_only", "fnRender": function (obj, val) {
+                    return GetBoolInFormat(obj, val);
+                }
+            });
+            RoomListColumnsArr.push(@(Html.RenderColumnsArray("Room",false)));
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "150%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[1, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries',
+                    "sLoadingRecords": '@eTurns.DTO.Resources.ResMessage.MsgLoading'
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    // if (PostCount > 1)
+                    //{
+                        $.ajax({
+                            "url": '@Url.Content("~/Master/SaveGridState")',
+                            "type": "POST",
+                            data: { Data: JSON.stringify(oData), ListName: 'RoomList' },
+                            "async": false,
+                            "dataType": "json",
+                            "success": function (json) {
+                                o = json;
+                            }
+                        });
+                    //}
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    if (aData.IsDeleted == true && aData.IsArchived == true)
+                        $(nRow).css('background-color', '#B9BCBF');
+                        //nRow.className = "GridDeleatedArchivedRow";
+                    else if (aData.IsDeleted == true)
+                        $(nRow).css('background-color', '#FFCCCC');
+                        //  nRow.className = "GridDeletedRow";
+                    else if (aData.IsArchived == true)
+                        $(nRow).css('background-color', '#CCFFCC');
+                    //  nRow.className = "GridArchivedRow";
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'RoomList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Master/RoomListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    //PostCount = PostCount + 1;
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    if (oSettings.aaSorting.length != 0) {
+                        //aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                        var sortValue = "";
+                        for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                            if (sortValue.length > 0)
+                                sortValue += ", "
+                            sortValue += arrCols[oSettings.aaSorting[i][0]] + ' ' + oSettings.aaSorting[i][1];
+
+                        }
+
+                        $("input#Sortfield").val(sortValue);
+                        aoData.push({ "name": "SortingField", "value": sortValue });
+                    }
+                    else {
+                        $("input#Sortfield").val("");
+                        aoData.push({ "name": "SortingField", "value": "0" });
+                    }
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+                    if ($('#IsDeletedRecords').is(':checked')) {
+                        $(".print").hide();
+                        $("#divDeletedRoomPrint").show();
+                    }
+                    else {
+                        $(".print").show();
+                        $("#divDeletedRoomPrint").hide();
+                    }
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable').highlight($("#global_filter").val());
+                            }
+                        }
+                    })
+                },
+                "fnDrawCallback": function (settings) {
+
+                    //var TableDataRow = $('#myDataTable tbody tr');
+                    //var TableHeaderRow = $('#myDataTable_wrapper thead tr');
+                    //if (TableDataRow != null && TableDataRow != undefined && TableDataRow.length > 0
+                    //    && TableHeaderRow != null && TableHeaderRow != undefined && TableHeaderRow.length > 0) {
+                    //    var ArrDataCols = $(TableDataRow[0]).find('td');
+                    //    var ArrHeaderCols = $(TableHeaderRow[0]).find('th');
+                    //    var ArrHeaderCols2 = $(TableHeaderRow[1]).find('th');
+                    //    if (ArrDataCols != null && ArrDataCols != undefined && ArrDataCols.length > 0
+                    //        && ArrHeaderCols != null && ArrHeaderCols != undefined && ArrHeaderCols.length > 0
+                    //        && ArrDataCols.length == ArrHeaderCols.length) {
+                    //        var Ind = 0;
+                    //        var DataRowCol = null;
+                    //        var HeaderRowCol = null;
+                    //        var HeaderRowCol2 = null;
+                    //        var DataRowWidth = 0;
+                    //        var HeaderRowWidth = 0;
+
+                    //        for (Ind = 0; Ind < ArrDataCols.length; Ind++) {
+                    //            DataRowCol = ArrDataCols[Ind];
+                    //            HeaderRowCol = ArrHeaderCols[Ind];
+                    //            HeaderRowCol2 = ArrHeaderCols2[Ind];
+                    //            DataRowWidth = parseInt($(DataRowCol)[0].style.width.toString().replace('px', ''));
+                    //            if (DataRowWidth == null || DataRowWidth == undefined || isNaN(DataRowWidth))
+                    //                DataRowWidth = parseInt($(DataRowCol).width().toString().replace('px', ''));
+
+                    //            HeaderRowWidth = parseInt($(HeaderRowCol)[0].style.width.toString().replace('px', ''));
+                    //            if (HeaderRowWidth == null || HeaderRowWidth == undefined || isNaN(HeaderRowWidth))
+                    //                HeaderRowWidth = parseInt($(HeaderRowCol).width().toString().replace('px', ''));
+
+                    //            if (DataRowWidth > HeaderRowWidth) {
+                    //                $("#myDataTable_wrapper .dataTables_scroll table td").css("width", DataRowWidth.toString() + 'px')
+                    //                $(HeaderRowCol)[0].style.width = DataRowWidth.toString() + 'px';
+                    //                $(HeaderRowCol2)[0].style.width = DataRowWidth.toString() + 'px';
+                    //            }
+                    //            else {
+                    //                $("#myDataTable_wrapper .dataTables_scroll table td").css("width", HeaderRowWidth.toString() + 'px')
+                    //                $(HeaderRowCol)[0].style.width = HeaderRowWidth.toString() + 'px';
+                    //                $(HeaderRowCol2)[0].style.width = HeaderRowWidth.toString() + 'px';
+                    //            }
+                    //        }
+                    //    }
+                    //}
+
+                    //$("#myDataTable_wrapper .dataTables_scroll table").css("table-layout", "fixed")
+                    //$("#myDataTable_wrapper .dataTables_scroll table").css("width", "100%")
+                    //$("#myDataTable_wrapper .dataTables_scroll table td").css("word-wrap", "break-word")
+                    //$("#myDataTable_wrapper .dataTables_scroll table td").css("overflow-wrap", "break-word")
+
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": RoomListColumnsArr
+            }).makeEditable({
+                sUpdateURL: '@Url.Content("~/Master/UpdateRoomData")'
+            });
+
+
+            if ('@roomsave' == '1') {
+                $('#myDataTable').dataTable().fnFilter('@sSearchData', null, null, null);
+                ChangeUrl('@ViewBag.Title', '@Url.Action("RoomList", "Master")');
+            }
+
+            $('.DTTT_container').css('z-index', '-1');
+
+            $('#myDataTable').on('tap click', 'a[id^="aEditLink"]', function () {
+                var tr = $(this).parent().parent();
+                $("#myDataTable").find("tbody tr").removeClass("row_selected");
+                $(tr).addClass('row_selected');
+
+            });
+
+        });
+
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+        function ChangeUrl(page, url) {
+            if (typeof (history.pushState) != "undefined") {
+                var obj = { Page: page, Url: url };
+                history.pushState(obj, obj.Page, obj.Url);
+            }
+        }
+    </script>
+}
+<script type="text/javascript">
+    var isTabClick = false;
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+
+    ];
+    if ('@IsShowChangeLog.ToString().ToUpper()' == 'TRUE') {
+        TabsArry.push(new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true));
+    }
+
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+        }
+    }
+
+    $(document).ready(function () {
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+    });
+
+    function callbacknew() { window.location.hash = '#new'; ShowNewTab('RoomCreate', 'frmRoom'); }
+    function callbackhistory() { window.location.hash = '#list'; } //HistoryTabClick(); }
+    function callbackCL() { window.location.hash = ''; HistoryTabClick(); }
+    function HistoryTabClick() {
+        $("#divDeletedRoomPrint").attr("style", "display:none");
+        GetHistoryData();
+    }
+
+    var SelectedHistoryRecordEnterpriseID = 0;
+    var SelectedCompanyId = 0;
+    function GetHistoryData() {
+
+        HistorySelected = fnGetSelected(oTable);
+        if (HistorySelected != undefined && HistorySelected.length == 1) {
+            //                if(SelectedHistoryRecordID != HistorySelected[0].id)
+            //                {
+            var aData = oTable.fnGetData(HistorySelected[0]);
+            SelectedHistoryRecordID = aData.ID;
+            SelectedHistoryRecordEnterpriseID = aData.EnterpriseId;
+            SelectedCompanyId = aData.CompanyID;
+            $('#DivLoading').show();
+            $("#CTab").hide();
+            $("#CtabCL").show();
+            $('#CtabCL').load('RoomHistory', function () { $('#DivLoading').hide(); });
+            //}
+        }
+        else {
+            //$('#tab5').html('');
+            $('#CtabCL').html('');
+            $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+            //$('div#target').fadeToggle();
+            //$("div#target").delay(2000).fadeOut(200);
+            showNotificationDialog();
+            return false;
+        }
+    }
+    function RoomStatusNarroSearch(SSDDLObject) {
+        //oTable.fnFilter($(CostDDLObject).val(),null,null,null);
+        if ($(SSDDLObject).val() != "") {
+            RoomStatusValue = $(SSDDLObject).val();
+            DoNarrowSearch();
+        }
+        else {
+            RoomStatusValue = '';
+            DoNarrowSearch();
+        }
+    }
+
+    //GetAttachingWOWithRequisitionName
+    function GetAttachingWOWithRequisitionName(obj, val) {
+        var vAttName = '';
+        if (val != null) {
+            switch (val) {
+                case 1:
+                    vAttName = '@ResRoomMaster.AttachedWOReq_NewWO'
+                    break;
+                case 2:
+                    vAttName = '@ResRoomMaster.AttachedWOReq_ExistingWO'
+                    break;
+                case 3:
+                    vAttName = '@ResRoomMaster.Mixed'
+                    break;
+            }
+        }
+        return vAttName;
+    }
+
+    function GetPreventMax(obj, val) {
+        var vAttName = '';
+        if (val != null) {
+            switch (val) {
+                case 1:
+                    vAttName = '@ResRoomMaster.PreventMaxOrderQty_None'
+                    break;
+                case 2:
+                    vAttName = '@ResRoomMaster.PreventMaxOrderQty_Onorder'
+                    break;
+            }
+        }
+        return vAttName;
+    }
+
+    function GetBillingRoomTypeName(obj, val) {
+        var typeName = '';
+        if (val != null) {
+            switch (val) {
+                case 1:
+                    typeName = '@ResRoomMaster.BillingRoomType_AssetOnly'
+                    break;
+                case 2:
+                    typeName = '@ResRoomMaster.BillingRoomType_eVMI'
+                    break;
+                case 3:
+                    typeName = '@ResRoomMaster.BillingRoomType_Manage'
+                    break;
+                case 4:
+                    typeName = '@ResRoomMaster.BillingRoomType_Replenish'
+                    break;
+                case 5:
+                    typeName = '@ResRoomMaster.BillingRoomType_RFID'
+                    break;
+                case 6:
+                    typeName = '@ResRoomMaster.BillingRoomType_ToolandAssetOnly'
+                    break;
+                case 7:
+                    typeName = '@ResRoomMaster.BillingRoomType_ToolOnly'
+                    break;
+                case 8:
+                    typeName = '@ResRoomMaster.BillingRoomType_Truck'
+                    break;
+                case 9:
+                    typeName = '@ResRoomMaster.BillingRoomType_Optimize'
+                    break;
+
+
+            }
+        }
+        return typeName;
+    }
+</script>
+@*<script type="text/javascript">
+        var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+             new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+             new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true)
+             ];
+        function callbacknew() { ShowNewTab('RoomCreate', 'frmRoom'); }
+        function callbackhistory() { }  }
+        function callbackCL() { HistoryTabClick(); }
+
+        function HistoryTabClick() {
+
+            GetHistoryData();
+        }
+        function GetHistoryData() {
+
+            HistorySelected = fnGetSelected(oTable);
+            if (HistorySelected != undefined && HistorySelected.length == 1) {
+                //                if(SelectedHistoryRecordID != HistorySelected[0].id)
+                //                {
+                SelectedHistoryRecordID = HistorySelected[0].id;
+                $('#DivLoading').show();
+                $("#CTab").hide();
+                $("#CtabCL").show();
+                $('#CtabCL').load('RoomHistory', function () { $('#DivLoading').hide(); });
+                //}
+            }
+            else {
+                //$('#tab5').html('');
+                $('#CtabCL').html('');
+                $("#spanGlobalMessage").text('@ResCommon.msgSelectForViewHistory');
+                $('div#target').fadeToggle();
+                $("div#target").delay(2000).fadeOut(200);
+                return false;
+            }
+        }
+    </script>*@
+<div class="userListingWrapper">
+    <input type="hidden" id="Sortfield" />
+    <h2>
+        @ResRoomMaster.PageHeader
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener">
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                    @*<input type="button" value="Search" class="searchBtn" />*@
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.RoomMaster)
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            <div class="userContent">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @ResCommon.ID
+                            </th>
+                            <th>
+                                @ResRoomMaster.RoomName
+                            </th>
+                            <th>
+                                @ResRoomMaster.Enterprise
+                            </th>
+                            <th>
+                                @ResRoomMaster.CompanyName
+                            </th>
+                            <th>
+                                @ResRoomMaster.ContactName
+                            </th>
+                            <th>
+                                @ResCommon.Address
+                            </th>
+                            <th>
+                                @ResCommon.City
+                            </th>
+                            <th>
+                                @ResCommon.State
+                            </th>
+                            <th>
+                                @ResCommon.PostalCode
+                            </th>
+                            <th>
+                                @ResCommon.Country
+                            </th>
+                            <th>
+                                @ResCommon.Email
+                            </th>
+                            <th>
+                                @ResCommon.Phone
+                            </th>
+                            <th>
+                                @ResRoomMaster.IsRoomActive
+                            </th>
+                            <th>
+                                @ResRoomMaster.CustomerNumber
+                            </th>
+                            <th>
+                                @ResRoomMaster.BlanketPO
+                            </th>
+                            <th>
+                                @ResRoomMaster.LastOrderDate
+                            </th>
+                            <th>
+                                @ResRoomMaster.LastPullDate
+                            </th>
+                            <th>
+                                @ResRoomMaster.IsConsignment
+                            </th>
+                            <th>
+                                @ResRoomMaster.Trending
+                            </th>
+                            <th>
+                                @ResRoomMaster.Value1
+                            </th>
+                            <th>
+                                @ResRoomMaster.Value2
+                            </th>
+                            <th>
+                                @ResRoomMaster.Value3
+                            </th>
+                            <th>
+                                @ResRoomMaster.SuggestedOrder
+                            </th>
+                            <th>
+                                @ResRoomMaster.SuggestedTransfer
+                            </th>
+                            <th>
+                                @ResRoomMaster.ReplineshmentRoom
+                            </th>
+                            <th>
+                                @ResRoomMaster.IseVMI
+                            </th>
+                            <th>
+                                @ResRoomMaster.MaxOrderSize
+                            </th>
+                            <th>
+                                @ResRoomMaster.HighPO
+                            </th>
+                            <th>
+                                @ResRoomMaster.HighJob
+                            </th>
+                            <th>
+                                @ResRoomMaster.HighTransfer
+                            </th>
+                            <th>
+                                @ResRoomMaster.HighCount
+                            </th>
+                            <th>
+                                @ResRoomMaster.GlobalMarkupParts
+                            </th>
+                            <th>
+                                @ResRoomMaster.GlobalMarkupLabor
+                            </th>
+                            <th>
+                                @ResRoomMaster.Tax1Parts
+                            </th>
+                            <th>
+                                @ResRoomMaster.Tax1Labor
+                            </th>
+                            <th>
+                                @ResRoomMaster.Tax1name
+                            </th>
+                            <th>
+                                @ResRoomMaster.Tax1percent
+                            </th>
+                            <th>
+                                @ResRoomMaster.Tax2Parts
+                            </th>
+                            <th>
+                                @ResRoomMaster.Tax2Labor
+                            </th>
+                            <th>
+                                @ResRoomMaster.Tax2name
+                            </th>
+                            <th>
+                                @ResRoomMaster.Tax2percent
+                            </th>
+                            <th>
+                                @ResRoomMaster.Tax2onTax1
+                            </th>
+                            <th>
+                                @ResRoomMaster.GXPRConsJob
+                            </th>
+                            <th>
+                                @ResRoomMaster.CostCenter
+                            </th>
+                            <th>
+                                @ResRoomMaster.UniqueID
+                            </th>
+                            <th>
+                                @ResRoomMaster.eVMIWaitCommand
+                            </th>
+                            <th>
+                                @ResRoomMaster.eVMIWaitPort
+                            </th>
+                            <th>
+                                @ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @ResCommon.ActiveOn
+                            </th>
+                            <th>
+                                @ResRoomMaster.LastSyncDateTime
+                            </th>
+                            <th>
+                                @ResRoomMaster.PDABuildVersion
+                            </th>
+                            <th>
+                                @ResRoomMaster.LastSyncUserName
+                            </th>
+                            <th>
+                                @ResRoomMaster.TrasnferedDate
+                            </th>
+                            <th>
+                                @ResRoomMaster.ReceivedDate
+                            </th>
+                            <th>
+                                @ResRoomMaster.BillingRoomType
+                            </th>
+                            <th>
+                                @ResRoomMaster.WarnUserOnAssigningNonDefaultBin
+                            </th>
+                            <th>
+                                @ResRoomMaster.AttachingWOWithRequisition
+                            </th>
+                            <th>
+                                @ResRoomMaster.PreventMaxOrderQty
+                            </th>
+                            <th>
+                                @ResRoomMaster.DefaultCountType
+                            </th>
+                            <th>
+                                @ResRoomMaster.IsWOSignatureRequired
+                            </th>
+                            <th>
+                                @ResRoomMaster.IsIgnoreCreditRule
+                            </th>
+                            <th>
+                                @ResRoomMaster.ForceSupplierFilter
+                            </th>
+                            <th>
+                                @ResRoomMaster.SuggestedReturn
+                            </th>
+                            <th>
+                                @ResRoomMaster.NoOfItems
+                            </th>
+
+                            @if (eTurnsWeb.Helper.SessionHelper.RoleID == -1)
+                            {
+                                <th>@ResRoomMaster.ReportAppIntent </th>
+                            }
+                            <th>
+                                @ResRoomMaster.CountAutoSequence
+                            </th>
+                            <th>
+                                @ResRoomMaster.NextCountNo
+                            </th>
+                            <th>
+                                @ResSupplierMaster.POAutoSequence
+                            </th>
+                            <th>
+                                @ResRoomMaster.POAutoNrFixedValue
+                            </th>
+                            <th> @ResRoomMaster.NextOrderNo</th>
+                            <th> @ResRoomMaster.PullPurchaseNumberType</th>
+                            <th> @ResRoomMaster.PullPurchaseNrFixedValue</th>
+                            <th> @ResRoomMaster.LastPullPurchaseNumberUsed</th>
+                            <th> @ResSupplierMaster.RequisitionAutoSequence</th>
+                            <th> @ResRoomMaster.NextRequisitionNo</th>
+                            <th> @ResRoomMaster.IsAllowRequisitionDuplicate</th>
+                            <th> @ResRoomMaster.IsAllowOrderDuplicate</th>
+                            <th> @ResRoomMaster.IsAllowWorkOrdersDuplicate</th>
+                            <th> @ResRoomMaster.StagingAutoSequence</th>
+                            <th> @ResRoomMaster.StagingAutoNrFixedValue</th>
+                            <th> @ResRoomMaster.NextStagingNo</th>
+                            <th> @ResRoomMaster.TransferAutoSequence</th>
+                            <th> @ResRoomMaster.TransferAutoNrFixedValue</th>
+                            <th> @ResRoomMaster.NextTransferNo</th>
+                            <th> @ResRoomMaster.WorkOrderAutoSequence</th>
+                            <th> @ResRoomMaster.WorkOrderAutoNrFixedValue</th>
+                            <th> @ResRoomMaster.NextWorkOrderNo</th>
+                            <th> @ResSupplierMaster.TAOAutoSequence</th>
+                            <th> @ResRoomMaster.TAOAutoNrFixedValue</th>
+                            <th> @ResRoomMaster.NextToolAssetOrderNo</th>
+                            <th> @ResRoomMaster.ToolCountAutoSequence</th>
+                            <th> @ResRoomMaster.NextToolCountNo</th>
+                            <th> @ResRoomMaster.AllowInsertingItemOnScan</th>
+                            <th> @ResRoomMaster.AllowPullBeyondAvailableQty</th>
+                            <th> @ResRoomMaster.PullRejectionType</th>
+                            <th> @ResRoomMaster.ReplenishmentType</th>
+                            <th> @ResRoomMaster.DefaultBinID</th>
+                            <th> @ResRoomMaster.SlowMovingValue</th>
+                            <th> @ResRoomMaster.FastMovingValue</th>
+                            <th> @ResRoomMaster.InventoryConsuptionMethod</th>
+                            <th> @ResRoomMaster.ValuingInventoryMethod</th>
+                            <th> @ResRoomMaster.BaseOfInventory</th>
+                            <th> @ResRoomMaster.LicenseBilled</th>
+                            <th> @ResRoomMaster.IsProjectSpendMandatory</th>
+                            <th> @ResRoomMaster.IsAllowOrderCostuom</th>
+                            <th> @ResRoomMaster.RequestedXDays</th>
+                            <th> @ResRoomMaster.ShelfLifeleadtimeOrdRpt</th>
+                            <th> @ResRoomMaster.LeadTimeOrdRpt</th>
+                            <th> @ResRoomMaster.MaintenanceDueNoticeDays</th>
+                            <th> @ResRoomMaster.DefaultRequisitionRequiredDays</th>
+                            <th> @ResRoomMaster.QuoteAutoSequence</th>
+                            <th> @ResRoomMaster.QuoteAutoNrFixedValue</th>
+                            <th> @ResRoomMaster.NextQuoteNo</th>
+                            <th> @ResRoomMaster.IsAllowQuoteDuplicate</th>
+                            <th> @ResRoomMaster.DoGroupSupplierQuoteToOrder</th>
+                            @Html.RenderColumnsHeader("Room", typeof(eTurns.DTO.ResRoomMaster))
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <button id="btnAddNewCompany" value="Ok" style="display: none">
+                    @ResCommon.AddNew
+                </button>
+                <button id="btnDeleteCompany" value="cancel" style="display: none">
+                    Delete Selected
+                </button>
+                <div id="processing_message" style="display: none" title="Processing">
+                    @ResMessage.RequestProcessMessage
+                </div>
+            </div>
+        </div>
+        <div id="CtabCL" class="tabContener">
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    @*var objColumns = {
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.ID)': 0,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.RoomName)': 1,
+        '@MvcHtmlString.Create("Enterprise")': 2,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.CompanyName)': 3,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.ContactName)': 4,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.Address)': 5,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.City)': 6,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.State)': 7,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.PostalCode)': 8,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.Country)': 9,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.Email)': 10,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.Phone)': 11,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.IsRoomActive)': 12,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.InvoiceBranch)': 13,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.CustomerNumber)': 14,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.BlanketPO)': 15,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.LastOrderDate)': 16,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.LastPullDate)': 17,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.IsConsignment)': 18,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.Trending)': 19,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.Value1)': 20,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.Value2)': 21,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.Value3)': 22,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.SuggestedOrder)': 23,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.SuggestedTransfer)': 24,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.ReplineshmentRoom)': 25,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.IseVMI)': 26,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.MaxOrderSize)': 27,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.HighPO)': 28,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.HighJob)': 29,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.HighTransfer)': 30,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.HighCount)': 31,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.GlobalMarkupParts)': 32,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.GlobalMarkupLabor)': 33,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.Tax1Parts)': 34,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.Tax1Labor)': 35,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.Tax1name)': 36,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.Tax1percent)': 37,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.Tax2Parts)': 38,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.Tax2Labor)': 39,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.Tax2name)': 40,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.Tax2percent)': 41,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.Tax2onTax1)': 42,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.GXPRConsJob)': 43,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.CostCenter)': 44,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.UniqueID)': 45,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.eVMIWaitCommand)': 46,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.eVMIWaitPort)': 47,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.CreatedOn)': 48,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.UpdatedOn)': 49,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.UpdatedBy)': 50,
+        '@MvcHtmlString.Create(eTurns.DTO.Resources.ResCommon.CreatedBy)': 51,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.UDF1)': 52,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.UDF2)': 53,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.UDF3)': 54,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.UDF4)': 55,
+        '@MvcHtmlString.Create(eTurns.DTO.ResRoomMaster.UDF5)': 56
+    };*@
+</script>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>

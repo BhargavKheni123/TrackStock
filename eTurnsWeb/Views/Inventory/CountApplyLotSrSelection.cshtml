@@ -1,0 +1,1806 @@
+﻿@model IList<eTurns.DTO.InventoryCountDetailDTO>
+
+@{
+    string viewRight = "ViewOnly";
+
+    bool IsAllowOverwriteLotOrSerial = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowOverwriteLotOrSerial, eTurnsWeb.Helper.SessionHelper.PermissionType.AllowPull);
+    bool IsAllowToEnterLotOrSerialInBlankBox = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowToEnterLotOrSerialInBlankBox, eTurnsWeb.Helper.SessionHelper.PermissionType.AllowPull);
+    bool IsViewOnlyLotOrSerial = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ViewOnlyLotOrSerial, eTurnsWeb.Helper.SessionHelper.PermissionType.AllowPull);
+
+    if (IsAllowOverwriteLotOrSerial)
+    {
+        viewRight = "ViewOverwrite";
+    }
+    else if (IsAllowToEnterLotOrSerialInBlankBox)
+    {
+        viewRight = "NoRight";
+    }
+    else if (IsViewOnlyLotOrSerial)
+    {
+        viewRight = "ViewOnly";
+    }
+}
+
+@if (Model != null && Model.Count > 0)
+{
+    <script type="text/javascript">
+        var isDeleteSrLotRow = false;
+        var isDeleteSrLotRowCr = false;
+        var BoolTrueString = '@Boolean.TrueString';
+
+        function PreparePullDataTable(objPullItemDTO) {
+            var columnarrIL = new Array();
+            columnarrIL.push({
+                mDataProp: null, sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) {
+                    if (objPullItemDTO.ViewRight == "ViewOverwrite") {
+                        var strReturn = "<span style='position:relative'>";
+                        strReturn = strReturn + "<input type='text' value='" + obj.aData.LotOrSerailNumber + "' id='txtLotOrSerailNumber' name='txtLotOrSerailNumber' class='text-boxinner AutoSerialLot' />";
+                        strReturn = strReturn + '<a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptionsSL" ><img src="/Content/images/arrow_down_black.png" alt="select" /></a></span>';
+                        return strReturn;
+                    }
+                    else if (objPullItemDTO.ViewRight == "NoRight") // && IsCheckViewRight == false)
+                    {
+                        var strReturn = "<span style='position:relative'>";
+                        strReturn = strReturn + "<input type='text' value='" + obj.aData.LotOrSerailNumber + "' id='txtLotOrSerailNumberNoRight' name='txtLotOrSerailNumberNoRight' class='text-boxinner AutoSerialLot' />";
+                        strReturn = strReturn + '<a id="lnkShowAllOptions" href="javascript:void(0);" style="position:absolute; right:5px; top:0px;" class="ShowAllOptionsSL" ><img src="/Content/images/arrow_down_black.png" alt="select" /></a></span>';
+                        return strReturn;
+                    }
+                    else if (objPullItemDTO.ViewRight == "ViewOnly") {
+                        var strReturn = "<input type='text' value='" + obj.aData.LotOrSerailNumber + "' id='txtLotOrSerailNumberViewOnly' name='txtLotOrSerailNumberViewOnly' class='text-boxinner' />";
+                        return strReturn;
+                    }
+                    else {
+                        var strReturn = "<input type='text' value='" + obj.aData.LotOrSerailNumber + "' id='txtLotOrSerailNumberViewOnly' name='txtLotOrSerailNumberViewOnly' class='text-boxinner' />";
+                        return strReturn;
+                    }
+                }
+            });
+            columnarrIL.push({ mDataProp: "BinNumber", sClass: "read_only" });
+            columnarrIL.push({
+                mDataProp: null, sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) {
+                    var strReturn = "<span name='spnCustomerOwnedQuantity' id='spnCustomerOwnedQuantity'>" + obj.aData.CustomerOwnedQuantity + "</span>";
+                    return strReturn;
+                }
+            });
+            columnarrIL.push({
+                mDataProp: null, sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) {
+                    var strReturn = "<span name='spnConsignedQuantity' id='spnConsignedQuantity'>" + obj.aData.ConsignedQuantity + "</span>";
+                    return strReturn;
+                }
+            });
+            columnarrIL.push({
+                mDataProp: null, sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) {
+                    var strReturn = "<input type='hidden' name='hdnRowUniqueId' value='" + obj.aData.ID + "_" + obj.aData.ItemGUID + "_" + obj.aData.BinID + "' />";
+                    strReturn = strReturn + "<input type='hidden' name='hdnLotNumberTracking' value='" + obj.aData.LotNumberTracking + "' />";
+                    strReturn = strReturn + "<input type='hidden' name='hdnSerialNumberTracking' value='" + obj.aData.SerialNumberTracking + "' />";
+                    strReturn = strReturn + "<input type='hidden' name='hdnDateCodeTracking' value='" + obj.aData.DateCodeTracking + "' />";
+                    strReturn = strReturn + "<input type='hidden' name='hdnExpiration' value='" + obj.aData.Expiration + "' />";
+                    strReturn = strReturn + "<input type='hidden' name='hdnBinNumber' value='" + obj.aData.BinNumber + "' />";
+
+                    if (objPullItemDTO.SerialNumberTracking == BoolTrueString) {
+                        strReturn = strReturn + "<input type='text' value='" + FormatedCostQtyValues(obj.aData.CustomerOwnedTobePulled, 2) + "' id='txtPullCustomerOwnedQty' name='txtPullCustomerOwnedQty' class='text-boxinner pull-quantity' readonly='readonly' />";
+                    }
+                    else {
+                        strReturn = strReturn + "<input type='text' value='" + FormatedCostQtyValues(obj.aData.CustomerOwnedTobePulled, 2) + "' id='txtPullCustomerOwnedQty' name='txtPullCustomerOwnedQty' class='text-boxinner pull-quantity' />";
+                    }
+                    return strReturn;
+                }
+            });
+            columnarrIL.push({
+                mDataProp: null, sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) {
+                    var strReturn = "";
+
+                    if (objPullItemDTO.SerialNumberTracking == BoolTrueString) {
+                        strReturn = strReturn + "<input type='text' value='" + FormatedCostQtyValues(obj.aData.ConsignedTobePulled, 2) + "' id='txtPullConsignedQty' name='txtPullConsignedQty' class='text-boxinner pull-quantity' readonly='readonly' />";
+                    }
+                    else {
+                        strReturn = strReturn + "<input type='text' value='" + FormatedCostQtyValues(obj.aData.ConsignedTobePulled, 2) + "' id='txtPullConsignedQty' name='txtPullConsignedQty' class='text-boxinner pull-quantity' />";
+                    }
+                    return strReturn;
+                }
+            });
+            columnarrIL.push({ mDataProp: "Received", sClass: "read_only" });
+            columnarrIL.push({ mDataProp: "Expiration", sClass: "read_only" });
+
+            var Curtable = $('#' + objPullItemDTO.tableID).dataTable({
+                "bPaginate": false,
+                "bLengthChange": false,
+                "bFilter": false,
+                "bSort": false,
+                "bInfo": false,
+                "bAutoWidth": false,
+                "sScrollX": "100%",
+                "bRetrieve": true,
+                "bDestroy": true,
+                "bProcessing": true,
+                "bServerSide": true,
+                "aoColumns": columnarrIL,
+                "sAjaxSource": '@Url.Content("~/Inventory/LotSrSelectionForCountPull")',
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    if (aData.IsConsignedLotSerial == true) {
+                        nRow.className = "even trconsigned";
+                    }
+                },
+                "fnInitComplete": function (oSettings) {
+                    var strAllSelected = "";
+                    if (objPullItemDTO.LotNumberTracking != BoolTrueString && objPullItemDTO.SerialNumberTracking != BoolTrueString) {
+                        $('#' + objPullItemDTO.tableID).dataTable().fnSetColumnVis(0, false);
+                    }
+                    if (objPullItemDTO.DateCodeTracking != BoolTrueString) {
+                        $('#' + objPullItemDTO.tableID).dataTable().fnSetColumnVis(7, false);
+                    }
+                },
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    aoData.push({ "name": "ItemGUID", "value": objPullItemDTO.ItemGUID });
+                    aoData.push({ "name": "BinID", "value": objPullItemDTO.BinID });
+                    aoData.push({ "name": "CustomerOwnedPullQTY", "value": FormatedCostQtyValues($("#spnCustomerOwnedPullQTY_" + objPullItemDTO.ItemGUID + "_" + objPullItemDTO.BinID).text(), 2) });
+                    aoData.push({ "name": "ConsignedPullQTY", "value": FormatedCostQtyValues($("#spnConsignedPullQTY_" + objPullItemDTO.ItemGUID + "_" + objPullItemDTO.BinID).text(), 2) });
+                    aoData.push({ "name": "CurrentLoaded", "value": $("#hdnCurrentLoadedIds_" + objPullItemDTO.ItemGUID + "_" + objPullItemDTO.BinID).val() });
+                    aoData.push({ "name": "ViewRight", "value": objPullItemDTO.ViewRight });
+                    aoData.push({ "name": "IsDeleteRowMode", "value": isDeleteSrLotRow });
+                    oSettings.jqXHR = $.ajax({
+                        dataType: 'json',
+                        type: "POST",
+                        url: sSource,
+                        cache: false,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        success: fnCallback,
+                        beforeSend: function () {
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            isDeleteSrLotRow = false;
+                            $('.ShowAllOptionsSL').click(function () {
+                                $(this).siblings('.AutoSerialLot').trigger("focus");
+                                $(this).siblings(".AutoSerialLot").autocomplete("search", "");
+                            });
+
+                            if (objPullItemDTO.ViewRight == "ViewOnly") {
+                                $("input[type='text'][name='txtLotOrSerailNumberViewOnly']").keypress(function () {
+                                    return false;
+                                });
+
+                                $("#DivCountApplyPopup input[type='text'][name='txtPullCustomerOwnedQty']").keypress(function () {
+                                    return false;
+                                });
+
+                                $("#DivCountApplyPopup input[type='text'][name='txtPullConsignedQty']").keypress(function () {
+                                    return false;
+                                });
+                            }
+
+                        }
+                    });
+                }
+            });
+        }
+
+
+        function PrepareCreditDataTable(objCreditItemDTO) {
+            var columnarrIL = new Array();
+            columnarrIL.push({
+                mDataProp: null, sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) {
+                    var strReturn = "<input type='text' value='" + obj.aData.LotOrSerailNumber + "' id='txtCreditLotOrSerailNumber' name='txtCreditLotOrSerailNumber' class='text-boxinner' />";
+                    return strReturn;
+                }
+            });
+            columnarrIL.push({ mDataProp: "BinNumber", sClass: "read_only" });
+            columnarrIL.push({
+                mDataProp: null, sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) {
+                    var strReturn = "<input type='hidden' name='hdnRowUniqueId' value='" + obj.aData.ItemGUID + "_" + obj.aData.BinID + "' />";
+                    strReturn = strReturn + "<input type='hidden' name='hdnLotNumberTracking' value='" + obj.aData.LotNumberTracking + "' />";
+                    strReturn = strReturn + "<input type='hidden' name='hdnSerialNumberTracking' value='" + obj.aData.SerialNumberTracking + "' />";
+                    strReturn = strReturn + "<input type='hidden' name='hdnDateCodeTracking' value='" + obj.aData.DateCodeTracking + "' />";
+                    strReturn = strReturn + "<input type='hidden' name='hdnExpiration' value='" + obj.aData.Expiration + "' />";
+                    strReturn = strReturn + "<input type='hidden' name='hdnBinNumber' value='" + obj.aData.BinNumber + "' />";
+
+                    if (objCreditItemDTO.SerialNumberTracking == BoolTrueString) {
+                        strReturn = strReturn + "<input type='text' value='" + FormatedCostQtyValues(obj.aData.CustomerOwnedQuantity, 2) + "' id='txtCreditCustomerOwnedQty' name='txtCreditCustomerOwnedQty' class='text-boxinner credit-quantity' readonly='readonly' />";
+                    }
+                    else {
+                        strReturn = strReturn + "<input type='text' value='" + FormatedCostQtyValues(obj.aData.CustomerOwnedQuantity, 2) + "' id='txtCreditCustomerOwnedQty' name='txtCreditCustomerOwnedQty' class='text-boxinner credit-quantity' />";
+                    }
+                    return strReturn;
+                }
+            });
+            columnarrIL.push({
+                mDataProp: null, sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) {
+                    var strReturn = "";
+
+                    if (objCreditItemDTO.SerialNumberTracking == BoolTrueString) {
+                        strReturn = strReturn + "<input type='text' value='" + FormatedCostQtyValues(obj.aData.ConsignedQuantity, 2) + "' id='txtCreditConsignedQty' name='txtCreditConsignedQty' class='text-boxinner credit-quantity' readonly='readonly' />";
+                    }
+                    else {
+                        strReturn = strReturn + "<input type='text' value='" + FormatedCostQtyValues(obj.aData.ConsignedQuantity, 2) + "' id='txtCreditConsignedQty' name='txtCreditConsignedQty' class='text-boxinner credit-quantity' />";
+                    }
+                    return strReturn;
+                }
+            });
+            columnarrIL.push({ mDataProp: "Expiration", sClass: "read_only" });
+
+            var Curtable = $('#' + objCreditItemDTO.tableID).dataTable({
+                "bPaginate": false,
+                "bLengthChange": false,
+                "bFilter": false,
+                "bSort": false,
+                "bInfo": false,
+                "bAutoWidth": false,
+                "sScrollX": "100%",
+                "bRetrieve": true,
+                "bDestroy": true,
+                "bProcessing": true,
+                "bServerSide": true,
+                "aoColumns": columnarrIL,
+                "sAjaxSource": '@Url.Content("~/Inventory/LotSrSelectionForCountCredit")',
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    if (aData.IsConsignedLotSerial == true) {
+                        nRow.className = "even trconsigned";
+                    }
+                },
+                "fnInitComplete": function (oSettings) {
+                    var strAllSelected = "";
+                    if (objCreditItemDTO.LotNumberTracking != BoolTrueString && objCreditItemDTO.SerialNumberTracking != BoolTrueString) {
+                        $('#' + objCreditItemDTO.tableID).dataTable().fnSetColumnVis(0, false);
+                    }
+                    if (objCreditItemDTO.DateCodeTracking != BoolTrueString) {
+                        $('#' + objCreditItemDTO.tableID).dataTable().fnSetColumnVis(4, false);
+                    }
+                },
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    aoData.push({ "name": "ItemGUID", "value": objCreditItemDTO.ItemGUID });
+                    aoData.push({ "name": "BinID", "value": objCreditItemDTO.BinID });
+                    aoData.push({ "name": "CustomerOwnedCreditQTY", "value": FormatedCostQtyValues($("#spnCustomerOwnedCreditQTY_" + objCreditItemDTO.ItemGUID + "_" + objCreditItemDTO.BinID).text(), 2) });
+                    aoData.push({ "name": "ConsignedCreditQTY", "value": FormatedCostQtyValues($("#spnConsignedCreditQTY_" + objCreditItemDTO.ItemGUID + "_" + objCreditItemDTO.BinID).text(), 2) });
+                    aoData.push({ "name": "CurrentLoaded", "value": $("#hdnCurrentCreditLoadedIds_" + objCreditItemDTO.ItemGUID + "_" + objCreditItemDTO.BinID).val() });
+                    aoData.push({ "name": "IsDeleteRowMode", "value": isDeleteSrLotRowCr });
+                    aoData.push({ "name": "BinNumber", "value": objCreditItemDTO.BinNumber });
+                    oSettings.jqXHR = $.ajax({
+                        dataType: 'json',
+                        type: "POST",
+                        url: sSource,
+                        cache: false,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        success: fnCallback,
+                        beforeSend: function () {
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            isDeleteSrLotRowCr = false;
+
+                        }
+                    });
+                }
+            });
+        }
+
+    </script>
+
+    <input type="hidden" id="hdnCountType" value="@Model[0].CountType" name="hdnCountType" />
+
+    <div style="width: 100%; padding-bottom: 10px;">
+        <input type="button" class="btnGeneral" value="@eTurns.DTO.ResInventoryCountDetail.ApplyAll" id="btnApplyAllPopUp" name="btnApplyAllPopUp" />
+    </div>
+
+    foreach (InventoryCountDetailDTO oInventoryCountDetailDTO in Model)
+    {
+        string jsonCountDetailDTO = Newtonsoft.Json.JsonConvert.SerializeObject(oInventoryCountDetailDTO);
+
+        <div style="padding: 10px; margin-bottom: 10px; border: 1px solid red;" id="divItem_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)">
+            <table style="border-left:1px solid #ddd; border-bottom:1px solid #ddd; margin-bottom: 10px; width: 100%" class="display" id="tblItemCountheader_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)">
+                <thead>
+                    <tr>
+                        <th>
+                            <input type="hidden" id="hdnCountDetailDTO_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)" value="@jsonCountDetailDTO" name="hdnCountDetailDTO" />
+
+                            @ResItemMaster.ItemNumber
+                        </th>
+                        <th>
+                            @ResItemMaster.TrackingDetails
+                        </th>
+                        <th>
+                            @ResPullMaster.BinID
+                        </th>
+                        <th>
+                            @ResPullMaster.UDF1
+                        </th>
+                        <th>
+                            @ResPullMaster.UDF2
+                        </th>
+                        <th>
+                            @ResPullMaster.UDF3
+                        </th>
+                        <th>
+                            @ResPullMaster.UDF4
+                        </th>
+                        <th>
+                            @ResPullMaster.UDF5
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            @oInventoryCountDetailDTO.ItemNumber
+                            <input type='hidden' id='hdnItemNumber_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)' value='@oInventoryCountDetailDTO.ItemNumber' />
+                        </td>
+                        <td>
+                            @if (oInventoryCountDetailDTO.LotNumberTracking)
+                            {
+                                <text>Lot Number Tracking</text>
+                                <input type='hidden' id='hdnTrackingType_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)' value='LotNumberTracking' />
+                            }
+                            else if (oInventoryCountDetailDTO.SerialNumberTracking)
+                            {
+                                <text>Serial Number Tracking</text>
+                                <input type='hidden' id='hdnTrackingType_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)' value='SerialNumberTracking' />
+                            }
+                            else
+                            {
+                                <text>No tracking</text>
+                                <input type='hidden' id='hdnTrackingType_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)' value='NoTracking' />
+                            }
+                        </td>
+                        <td>
+                            @oInventoryCountDetailDTO.BinNumber
+                        </td>
+                        <td>
+                            @oInventoryCountDetailDTO.UDF1
+                        </td>
+                        <td>
+                            @oInventoryCountDetailDTO.UDF2
+                        </td>
+                        <td>
+                            @oInventoryCountDetailDTO.UDF3
+                        </td>
+                        <td>
+                            @oInventoryCountDetailDTO.UDF4
+                        </td>
+                        <td>
+                            @oInventoryCountDetailDTO.UDF5
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <table style="margin-bottom: 10px;">
+                <tr>
+                    <td>
+                        @eTurns.DTO.ResInventoryCountDetail.CountConsignedQuantityEntry :
+                    </td>
+                    <td>
+                        @(oInventoryCountDetailDTO.CountConsignedQuantity)
+                    </td>
+                    <td style="width: 10px;"></td>
+                    <td>
+                        @eTurns.DTO.ResItemLocationDetails.ConsignedQuantity :
+                    </td>
+                    <td>
+                        @(oInventoryCountDetailDTO.ConsignedQuantity)
+                    </td>
+                    <td style="width: 10px;"></td>
+                    <td>
+                        @eTurns.DTO.ResInventoryCountDetail.ConsignedDifference :
+                    </td>
+                    <td>
+                        @(oInventoryCountDetailDTO.ConsignedDifference)
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        @eTurns.DTO.ResInventoryCountDetail.CountCustomerOwnedQuantity :
+                    </td>
+                    <td>
+                        @(oInventoryCountDetailDTO.CountCustomerOwnedQuantity)
+                    </td>
+                    <td style="width: 10px;"></td>
+                    <td>
+                        @eTurns.DTO.ResItemLocationDetails.CustomerOwnedQuantity :
+                    </td>
+                    <td>
+                        @(oInventoryCountDetailDTO.CustomerOwnedQuantity)
+                    </td>
+                    <td style="width: 10px;"></td>
+                    <td>
+                        @eTurns.DTO.ResInventoryCountDetail.CusOwnedDifference
+                    </td>
+                    <td>
+                        @(oInventoryCountDetailDTO.CusOwnedDifference)
+                    </td>
+                </tr>
+            </table>
+
+            @if (oInventoryCountDetailDTO.ConsignedDifference < 0 || oInventoryCountDetailDTO.CusOwnedDifference < 0)
+            {
+                if (oInventoryCountDetailDTO.CusOwnedDifference < 0)
+                {
+                    <text>Pull Customer Owned Qty :</text>
+                    <span id="spnCustomerOwnedPullQTY_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)">@(oInventoryCountDetailDTO.CusOwnedDifference * -1)</span>
+                }
+                else
+                {
+                    <text>Pull Customer Owned Qty :</text>
+                    <span id="spnCustomerOwnedPullQTY_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)">0</span>
+                }
+
+                if (oInventoryCountDetailDTO.ConsignedDifference < 0)
+                {
+
+                    <text>Pull Consigned Qty :</text>
+                    <span id="spnConsignedPullQTY_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)">@(oInventoryCountDetailDTO.ConsignedDifference * -1)</span>
+                }
+                else
+                {
+                    <text>Pull Consigned Qty :</text>
+                    <span id="spnConsignedPullQTY_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)">0</span>
+                }
+            }
+
+            <br /><br />
+            @if (oInventoryCountDetailDTO.ConsignedDifference > 0 || oInventoryCountDetailDTO.CusOwnedDifference > 0)
+            {
+                if (oInventoryCountDetailDTO.CusOwnedDifference > 0)
+                {
+                    <text>Credit Customer Owned Qty :</text>
+                    <span id="spnCustomerOwnedCreditQTY_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)">@(oInventoryCountDetailDTO.CusOwnedDifference)</span>
+                }
+                else
+                {
+                    <text>Credit Customer Owned Qty :</text>
+                    <span id="spnCustomerOwnedCreditQTY_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)">0</span>
+                }
+
+                if (oInventoryCountDetailDTO.ConsignedDifference > 0)
+                {
+
+                    <text>Credit Consigned Qty :</text>
+                    <span id="spnConsignedCreditQTY_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)">@(oInventoryCountDetailDTO.ConsignedDifference)</span>
+                }
+                else
+                {
+                    <text>Credit Consigned Qty :</text>
+                    <span id="spnConsignedCreditQTY_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)">0</span>
+                }
+            }
+            <table>
+                <tr>
+                    <td>
+                        &nbsp;
+                    </td>
+                </tr>
+            </table>
+            <div>
+                <input type="button" class="btnGeneral" value="@eTurns.DTO.ResInventoryCountDetail.Apply" id="btnApplyPopup_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)" name="btnApplyPopup" />
+            </div>
+            <table>
+                <tr>
+                    <td>
+                        &nbsp;
+                    </td>
+                </tr>
+            </table>
+            @if (oInventoryCountDetailDTO.ConsignedDifference < 0 || oInventoryCountDetailDTO.CusOwnedDifference < 0)
+            {
+                string htmltableName = "tblItemPull_" + oInventoryCountDetailDTO.ItemGUID + "_" + oInventoryCountDetailDTO.BinID;
+                <div id="divPullItem_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)">
+                    <table style="width: 100%" class="display tbl-item-pull" id="@htmltableName">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">
+                                    @if (oInventoryCountDetailDTO.LotNumberTracking)
+                                    {
+                                        @eTurns.DTO.ResItemLocationDetails.LotNumber
+                                    }
+                                    else if (oInventoryCountDetailDTO.SerialNumberTracking)
+                                    {
+                                        @eTurns.DTO.ResItemLocationDetails.SerialNumber
+                                    }
+                                    else
+                                    {
+                                        @eTurns.DTO.ResPullMaster.LotSrnumber
+                                    }
+                                </th>
+                                <th style="text-align: left;">
+                                    @eTurns.DTO.ResPullMaster.BinID
+                                </th>
+                                <th style="text-align: left;">
+                                    @eTurns.DTO.ResPullMaster.CustomerOwnedQuantityAvail
+                                </th>
+                                <th style="text-align: left;">
+                                    @eTurns.DTO.ResPullMaster.ConsignedQuantityAvail
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResPullMaster.CustomerOwnedQuantityPull
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResPullMaster.ConsignedQuantityPull
+                                </th>                             
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.ReceivedDate
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.ExpirationDate
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <script type="text/javascript">
+                        var IsCheckViewRight = true;
+                        var objPullItemDTO = {
+                            tableID: '@htmltableName',
+                            ItemGUID: '@oInventoryCountDetailDTO.ItemGUID',
+                            BinID: '@oInventoryCountDetailDTO.BinID',
+                            LotNumberTracking: '@oInventoryCountDetailDTO.LotNumberTracking',
+                            SerialNumberTracking: '@oInventoryCountDetailDTO.SerialNumberTracking',
+                            ViewRight: '@viewRight'
+                        };
+
+                        PreparePullDataTable(objPullItemDTO);
+
+                    </script>
+
+                    <div style="width: 100%; padding-top: 10px;">
+                        @if (viewRight != "ViewOnly")
+                        {
+                            <input type="button" class="btnGeneral" value="Add" id="btnLoadMoreLots_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)" name="btnLoadMoreLots" />
+                            <input type="button" class="btnGeneral" value="Delete" id="btnDeleteLots_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)" name="btnDeleteLots" />
+                        }
+
+                        <input type="hidden" name="hdnCurrentLoadedIds" id="hdnCurrentLoadedIds_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)" />
+                    </div>
+                </div>
+            }
+
+            <table>
+                <tr>
+                    <td>
+                        &nbsp;
+                    </td>
+                </tr>
+            </table>
+            @if (oInventoryCountDetailDTO.ConsignedDifference > 0 || oInventoryCountDetailDTO.CusOwnedDifference > 0)
+            {
+                string htmltableNameCredit = "tblItemCredit_" + oInventoryCountDetailDTO.ItemGUID + "_" + oInventoryCountDetailDTO.BinID;
+                <div id="divCreditItem_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)">
+                    <table style="width: 100%" class="display tbl-item-credit" id="@htmltableNameCredit">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">
+                                    @if (oInventoryCountDetailDTO.LotNumberTracking)
+                                    {
+                                        @eTurns.DTO.ResItemLocationDetails.LotNumber
+                                    }
+                                    else if (oInventoryCountDetailDTO.SerialNumberTracking)
+                                    {
+                                        @eTurns.DTO.ResItemLocationDetails.SerialNumber
+                                    }
+                                    else
+                                    {
+                                        @eTurns.DTO.ResPullMaster.LotSrnumber
+                                    }
+                                </th>
+                                <th style="text-align: left;">
+                                    @eTurns.DTO.ResPullMaster.BinID
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResPullMaster.CustomerOwnedQuantityCredit
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResPullMaster.ConsignedQuantityCredit
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.ExpirationDate
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <script type="text/javascript">
+                        var objCreditItemDTO = {
+                            tableID: '@htmltableNameCredit',
+                            ItemGUID: '@oInventoryCountDetailDTO.ItemGUID',
+                            BinID: '@oInventoryCountDetailDTO.BinID',
+                            LotNumberTracking: '@oInventoryCountDetailDTO.LotNumberTracking',
+                            SerialNumberTracking: '@oInventoryCountDetailDTO.SerialNumberTracking',
+                            BinNumber: '@oInventoryCountDetailDTO.BinNumber'
+                        };
+
+                        PrepareCreditDataTable(objCreditItemDTO);
+
+                    </script>
+
+                    <div style="width: 100%; padding-top: 10px;">
+                        <input type="button" class="btnGeneral" value="@eTurns.DTO.ResInventoryCountDetail.Add" id="btnLoadMoreLotsCredit_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)" name="btnLoadMoreLotsCredit" />
+                        <input type="button" class="btnGeneral" value="@eTurns.DTO.ResInventoryCountDetail.Delete" id="btnDeleteLotsCredit_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)" name="btnDeleteLotsCredit" />
+
+                        <input type="hidden" name="hdnCurrentCreditLoadedIds" id="hdnCurrentCreditLoadedIds_@(oInventoryCountDetailDTO.ItemGUID)_@(oInventoryCountDetailDTO.BinID)" />
+                    </div>
+                </div>
+            }
+
+        </div>
+    }
+
+    <table style="width: 100%">
+        <tr>
+            <td>
+                &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align: right;">
+                <input type="button" class="btnGeneral" value="@eTurns.DTO.ResInventoryCountDetail.ApplyAll" id="btnApplyAllPopUp1" name="btnApplyAllPopUp" />
+                <input type="button" class="btnGeneral" value="@eTurns.DTO.ResInventoryCountDetail.Cancel" id="btnCancel1" name="btnCancelApplyPopup" />
+            </td>
+        </tr>
+    </table>
+
+    <div class="dialog" id="dlgCommonErrorMsgPopup" style="display: none; width: 600px;">
+        <div class="inner" style="width: 600px; max-height: 300px; overflow: scroll;">
+            <p class="text" id="pErrMessage" style="text-align: left; padding-left: 10px;">
+            </p>
+            <p id="pOkbtn" class="text" style="text-align: center; padding-left: 10px; display: none;">
+                <a href="#" class="no" onclick="closeMessageModalInPopup()">
+                    <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.InformOk" />@eTurns.DTO.Resources.ResMessage.InformOk
+                </a>
+            </p>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+
+        $(document).ready(function () {
+
+            $("#DivCountApplyPopup").off('focus', "input[type='text'][name^='txtLotOrSerailNumber']");
+            $("#DivCountApplyPopup").on('focus', "input[type='text'][name^='txtLotOrSerailNumber']", function (e) {
+                var objCurtxt = $(this);
+                var ids = $(this).parent().parent().parent().find("input[type='hidden'][name='hdnRowUniqueId']").val().split('_');
+                var aPos = $("#tblItemPull_" + ids[1].toString() + "_" + ids[2].toString()).dataTable().fnGetPosition($(this).parent().parent().parent()[0]);
+                var aData = $("#tblItemPull_" + ids[1].toString() + "_" + ids[2].toString()).dataTable().fnGetData(aPos);
+                $(this).autocomplete({
+                    source: function (request, response) {
+                        $.ajax({
+                            url: '/Inventory/GetLotOrSerailNumberList',
+                            contentType: 'application/json',
+                            dataType: 'json',
+                            data: {
+                                maxRows: 1000,
+                                name_startsWith: request.term,
+                                ItemGuid: ids[1].toString(),
+                                BinID: ids[2].toString()
+                            },
+                            success: function (data) {
+                                response($.map(data, function (item) {
+                                    return {
+                                        label: item.LotOrSerailNumber,
+                                        value: item.LotOrSerailNumber,
+                                        selval: item.LotOrSerailNumber
+                                    }
+                                }));
+                            },
+                            error: function (err) {
+
+                            }
+                        });
+                    },
+                    autoFocus: false,
+                    minLength: 0,
+                    select: function (event, ui) {
+                        //                    $(objCurtxt).parent().parent().find("input[type='hidden'][name='hdnStagingBin']").val(ui.item.selval);
+                        //                    $(objCurtxt).parent().parent().find("input[type='hidden'][name='hdnStagingBinName']").val(ui.item.label);
+                    },
+                    open: function () {
+                        $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                        $(this).autocomplete('widget').css('z-index', 9000);
+                        $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                        $('ul.ui-autocomplete').css('max-height', '300px');
+                    },
+                    close: function () {
+                        $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                        $(objCurtxt).trigger("change");
+                    }
+                });
+            });
+
+            $("#DivCountApplyPopup").off('change', "input[type='text'][name^='txtLotOrSerailNumber']");
+            $("#DivCountApplyPopup").on('change', "input[type='text'][name^='txtLotOrSerailNumber']", function (e) {
+                var objCurtxt = $(this);
+                var oldValue = $(objCurtxt).val();
+                var ids = $(this).parent().parent().parent().find("input[type='hidden'][name='hdnRowUniqueId']").val().split('_');
+                var vBinID = ids[2].toString();
+                var dtThisItem = $("#tblItemPull_" + ids[1].toString() + "_" + vBinID).dataTable();
+                var currentTR = $(objCurtxt).parent().parent().parent()[0];
+                var row_id = dtThisItem.fnGetPosition(currentTR);
+
+                if ($.trim(oldValue) == '')
+                    return;
+
+                var isDuplicateEntry = false;
+                var OtherCustPullQuantity = 0;
+                var OtherConsignPullQuantity = 0;
+                $("#tblItemPull_" + ids[1].toString() + "_" + vBinID + " tbody tr").each(function (i) {
+                    if (i != row_id) {
+                        var tr = $(this);
+                        var SerialOrLotNumber = $(tr).find('#' + objCurtxt.prop("id")).val();
+                        if (SerialOrLotNumber == $(objCurtxt).val()) {
+                            isDuplicateEntry = true;
+                        }
+                        else {
+                            var txtPullCustomerOwnedQty = $(tr).find("input[type='text'][name='txtPullCustomerOwnedQty']").val();
+                            var txtPullConsignedQty = $(tr).find("input[type='text'][name='txtPullConsignedQty']").val();
+                            OtherCustPullQuantity = OtherCustPullQuantity + parseFloat(txtPullCustomerOwnedQty);
+                            OtherConsignPullQuantity = OtherConsignPullQuantity + parseFloat(txtPullConsignedQty);
+                        }
+                    }
+                });
+
+                if (isDuplicateEntry == true) {
+
+                    if ($("#hdnTrackingType_" + ids[1].toString() + "_" + vBinID).val() == "LotNumberTracking")
+                        alert("Duplicate lot number.");
+                    else if ($("#hdnTrackingType_" + ids[1].toString() + "_" + vBinID).val() == "SerialNumberTracking")
+                        alert("Duplicate serial number.");
+                    else
+                        alert("Duplicate number.");
+
+                    $(objCurtxt).val("");
+                    $(objCurtxt).focus();
+                }
+                else {
+                    $.ajax({
+                        type: "POST",
+                        url: '@Url.Action("ValidateSerialLotNumberForPullCount", "Inventory")',
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        data: "{ ItemGuid: '" + ids[1].toString() + "', SerialOrLotNumber: '" + $(objCurtxt).val() + "',BinID: '" + ids[2].toString() + "' }",
+                        success: function (RetData) {
+                            if (RetData.ID > 0) {
+                                IsCheckViewRight = false;
+
+                                var spnCustomerOwnedPullQTY = parseFloat($("#spnCustomerOwnedPullQTY_" + ids[1].toString() + "_" + vBinID).text());
+                                if ((spnCustomerOwnedPullQTY - OtherCustPullQuantity) > 0) {
+                                    if ((spnCustomerOwnedPullQTY - OtherCustPullQuantity) < RetData.CustomerOwnedQuantity)
+                                        RetData.CustomerOwnedTobePulled = spnCustomerOwnedPullQTY - OtherCustPullQuantity;
+                                }
+                                else {
+                                    RetData.CustomerOwnedTobePulled = RetData.CustomerOwnedQuantity;
+                                }
+
+                                var spnConsignedPullQTY = parseFloat($("#spnConsignedPullQTY_" + ids[1].toString() + "_" + vBinID).text());
+                                if ((spnConsignedPullQTY - OtherConsignPullQuantity) > 0) {
+                                    if ((spnConsignedPullQTY - OtherConsignPullQuantity) < RetData.ConsignedQuantity)
+                                        RetData.ConsignedTobePulled = spnConsignedPullQTY - OtherConsignPullQuantity;
+                                }
+                                else {
+                                    RetData.ConsignedTobePulled = RetData.ConsignedQuantity;
+                                }
+
+                                dtThisItem.fnUpdate(RetData, row_id, undefined, false, false);
+                                IsCheckViewRight = true;
+
+                                $('.ShowAllOptionsSL').click(function () {
+                                    $(this).siblings('.AutoSerialLot').trigger("focus");
+                                    $(this).siblings(".AutoSerialLot").autocomplete("search", "");
+                                });
+
+                                if (RetData.IsConsignedLotSerial) {
+                                    $(currentTR).addClass("trconsigned");
+                                }
+                                else {
+                                    $(currentTR).removeClass("trconsigned");
+                                }
+                            }
+                            else {
+                                $(objCurtxt).val("");
+                                $(objCurtxt).focus();
+                            }
+                        },
+                        error: function (err) {
+                            alert(err);
+                        }
+                    });
+                }
+            });
+
+            $("#DivCountApplyPopup").off("click", "input[type='button'][name='btnLoadMoreLots']");
+            $("#DivCountApplyPopup").on("click", "input[type='button'][name='btnLoadMoreLots']", function () {
+
+                var vItemGUID = $(this).prop("id").split('_')[1];
+                var vBinID = $(this).prop("id").split('_')[2];
+                var dtID = "#tblItemPull_" + vItemGUID + "_" + vBinID;
+                var strIds = "";
+
+                $(dtID).find("tbody").find("tr").each(function (index, tr) {
+
+                    var hdnLotNumberTracking = $(tr).find("input[name='hdnLotNumberTracking']").val();
+                    var hdnSerialNumberTracking = $(tr).find("input[name='hdnSerialNumberTracking']").val();
+                    var hdnDateCodeTracking = $(tr).find("input[name='hdnDateCodeTracking']").val();
+                    var txtPullCustomerOwnedQty = $(tr).find("input[type='text'][name='txtPullCustomerOwnedQty']").val();
+                    var txtPullConsignedQty = $(tr).find("input[type='text'][name='txtPullConsignedQty']").val();
+
+                    if (txtPullCustomerOwnedQty == "") {
+                        txtPullCustomerOwnedQty = "0";
+                    }
+                    if (txtPullConsignedQty == "") {
+                        txtPullConsignedQty = "0";
+                    }
+
+                    if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true") {
+                        var txtLotOrSerailNumber = $(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val();
+                        strIds = strIds + txtLotOrSerailNumber + "_" + txtPullCustomerOwnedQty + "#" + txtPullConsignedQty + ",";
+                    }
+                    else if (hdnDateCodeTracking == "true") {
+                        var hdnExpiration = $(tr).find("input[name='hdnExpiration']").val();
+                        strIds = strIds + hdnExpiration + "_" + txtPullCustomerOwnedQty + "#" + txtPullConsignedQty + ",";
+                    }
+                    else {
+                        var hdnBinNumber = $(tr).find("input[name='hdnBinNumber']").val();
+                        strIds = strIds + hdnBinNumber + "_" + txtPullCustomerOwnedQty + "#" + txtPullConsignedQty + ",";
+                    }
+
+                });
+
+                $("#hdnCurrentLoadedIds_" + vItemGUID + "_" + vBinID).val(strIds);
+
+                var dt = $(dtID).dataTable();
+                dt.fnStandingRedraw();
+            });
+
+            $("#DivCountApplyPopup").off("tap click", ".tbl-item-pull tbody tr");
+            $("#DivCountApplyPopup").on("tap click", ".tbl-item-pull tbody tr", function (e) {
+                if (e.target.type == "checkbox" || e.target.type == "radio" || e.target.type == "text") {
+                    e.stopPropagation();
+                }
+                else if (e.currentTarget.getElementsByTagName("input").btnLoad != undefined) {
+                    e.stopPropagation();
+                }
+                else {
+                    if ((e.metaKey || e.ctrlKey)) {
+                        $(this).toggleClass('row_selected');
+                    } else {
+                        $(this).toggleClass('row_selected');
+                    }
+                }
+                return false;
+            });
+
+            $("#DivCountApplyPopup").off('click', "input[type='button'][name='btnDeleteLots']");
+            $("#DivCountApplyPopup").on('click', "input[type='button'][name='btnDeleteLots']", function (e) {
+
+                var vItemGUID = $(this).prop("id").split('_')[1];
+                var vBinID = $(this).prop("id").split('_')[2];
+                var dtID = "#tblItemPull_" + vItemGUID + "_" + vBinID;
+                if ($(dtID + ' tbody tr.row_selected').length <= 0) {
+                    alert("Select at least one row to delete.");
+                }
+                else {
+                    $(dtID).find("tbody").find("tr.row_selected").each(function (index, tr) {
+                        $(tr).remove();
+                    });
+
+                    var strIds = "";
+                    $(dtID).find("tbody").find("tr").each(function (index, tr) {
+
+                        var hdnLotNumberTracking = $(tr).find("input[name='hdnLotNumberTracking']").val();
+                        var hdnSerialNumberTracking = $(tr).find("input[name='hdnSerialNumberTracking']").val();
+                        var hdnDateCodeTracking = $(tr).find("input[name='hdnDateCodeTracking']").val();
+                        var txtPullCustomerOwnedQty = $(tr).find("input[type='text'][name='txtPullCustomerOwnedQty']").val();
+                        var txtPullConsignedQty = $(tr).find("input[type='text'][name='txtPullConsignedQty']").val();
+
+                        if (txtPullCustomerOwnedQty == "") {
+                            txtPullCustomerOwnedQty = "0";
+                        }
+                        if (txtPullConsignedQty == "") {
+                            txtPullConsignedQty = "0";
+                        }
+
+                        if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true") {
+                            var txtLotOrSerailNumber = $(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val();
+                            strIds = strIds + txtLotOrSerailNumber + "_" + txtPullCustomerOwnedQty + "#" + txtPullConsignedQty + ",";
+                        }
+                        else if (hdnDateCodeTracking == "true") {
+                            var hdnExpiration = $(tr).find("input[name='hdnExpiration']").val();
+                            strIds = strIds + hdnExpiration + "_" + txtPullCustomerOwnedQty + "#" + txtPullConsignedQty + ",";
+                        }
+                        else {
+                            var hdnBinNumber = $(tr).find("input[name='hdnBinNumber']").val();
+                            strIds = strIds + hdnBinNumber + "_" + txtPullCustomerOwnedQty + "#" + txtPullConsignedQty + ",";
+                        }
+                    });
+
+                    $("#hdnCurrentLoadedIds_" + vItemGUID + "_" + vBinID).val(strIds);
+                    isDeleteSrLotRow = true;
+                    var dtThisItem = $(dtID).dataTable();
+                    dtThisItem.fnStandingRedraw();
+                }
+            });
+
+
+
+
+            $("#DivCountApplyPopup").off('blur', "input[type='text'][name^='txtCreditLotOrSerailNumber']");
+            $("#DivCountApplyPopup").on('blur', "input[type='text'][name^='txtCreditLotOrSerailNumber']", function (e) {
+
+                var ids = $(this).parent().parent().find("input[type='hidden'][name='hdnRowUniqueId']").val().split('_');
+                var vItemGUID = ids[0];
+                var vBinID = ids[1];
+                var txtLotOrSerailNumber = $(this);
+                if (txtLotOrSerailNumber.val() != '') {
+
+                    var dtThisItem = $("#tblItemCredit_" + vItemGUID + "_" + vBinID).dataTable();
+                    var currentTR = $(this).parent().parent()[0];
+                    var row_id = dtThisItem.fnGetPosition(currentTR);
+                    var isDuplicateEntry = false;
+
+                    $("#tblItemCredit_" + vItemGUID + "_" + vBinID + " tbody tr").each(function (i) {
+                        if (i != row_id) {
+                            var tr = $(this);
+                            var SerialOrLotNumber = $(tr).find('#' + txtLotOrSerailNumber.prop("id")).val();
+                            if (SerialOrLotNumber == txtLotOrSerailNumber.val()) {
+                                isDuplicateEntry = true;
+                            }
+                        }
+                    });
+
+                    if (isDuplicateEntry == true) {
+                        txtLotOrSerailNumber.select();
+                        txtLotOrSerailNumber.focus();
+
+                        if ($("#hdnTrackingType_" + vItemGUID + "_" + vBinID).val() == "LotNumberTracking")
+                            alert("@ResMessage.DuplicateLotFound");
+                        else if ($("#hdnTrackingType_" + vItemGUID + "_" + vBinID).val() == "SerialNumberTracking")
+                            alert("@ResMessage.DuplicateSerialFound");
+                        else
+                            alert("Duplicate number.");
+                    }
+                    else {
+                        if ($("#hdnTrackingType_" + vItemGUID + "_" + vBinID).val() == "SerialNumberTracking") {
+                            $.ajax({
+                                "url": '@Url.Content("~/Inventory/DuplicateCheckSrNumber")',
+                                data: { SrNumber: $(this).val(), ID: 0, ItemGUID: vItemGUID },
+                                "async": false,
+                                cache: false,
+                                "dataType": "text",
+                                "success": function (response) {
+                                    if (response == "duplicate") {
+
+                                        //                                    $(this).css("background-color", "#F7BBC4");
+                                        //                                    $(this).css("background-color", "#F7BBC4");
+                                        txtLotOrSerailNumber.select();
+                                        txtLotOrSerailNumber.focus();
+
+                                        alert('@ResMessage.DuplicateSerialFound');
+                                    }
+                                },
+                                error: function (response) {
+                                    alert(response);
+                                }
+                            });
+                        }
+                    }
+                }
+            });
+
+            $("#DivCountApplyPopup").off("click", "input[type='button'][name='btnLoadMoreLotsCredit']");
+            $("#DivCountApplyPopup").on("click", "input[type='button'][name='btnLoadMoreLotsCredit']", function () {
+
+                var vItemGUID = $(this).prop("id").split('_')[1];
+                var vBinID = $(this).prop("id").split('_')[2];
+                var dtID = "#tblItemCredit_" + vItemGUID + "_" + vBinID;
+                var strIds = "";
+
+                $(dtID).find("tbody").find("tr").each(function (index, tr) {
+
+                    var hdnLotNumberTracking = $(tr).find("input[name='hdnLotNumberTracking']").val();
+                    var hdnSerialNumberTracking = $(tr).find("input[name='hdnSerialNumberTracking']").val();
+                    var hdnDateCodeTracking = $(tr).find("input[name='hdnDateCodeTracking']").val();
+                    var txtCreditCustomerOwnedQty = $(tr).find("input[type='text'][name='txtCreditCustomerOwnedQty']").val();
+                    var txtCreditConsignedQty = $(tr).find("input[type='text'][name='txtCreditConsignedQty']").val();
+
+                    if (txtCreditCustomerOwnedQty == "") {
+                        txtCreditCustomerOwnedQty = "0";
+                    }
+                    if (txtCreditConsignedQty == "") {
+                        txtCreditConsignedQty = "0";
+                    }
+
+                    if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true") {
+                        var txtCreditLotOrSerailNumber = $(tr).find("input[type='text'][name^='txtCreditLotOrSerailNumber']").val();
+                        strIds = strIds + txtCreditLotOrSerailNumber + "_" + txtCreditCustomerOwnedQty + "#" + txtCreditConsignedQty + ",";
+                    }
+                    else if (hdnDateCodeTracking == "true") {
+                        var hdnExpiration = $(tr).find("input[name='hdnExpiration']").val();
+                        strIds = strIds + hdnExpiration + "_" + txtCreditCustomerOwnedQty + "#" + txtCreditConsignedQty + ",";
+                    }
+                    else {
+                        var hdnBinNumber = $(tr).find("input[name='hdnBinNumber']").val();
+                        strIds = strIds + hdnBinNumber + "_" + txtCreditCustomerOwnedQty + "#" + txtCreditConsignedQty + ",";
+                    }
+
+                });
+
+                $("#hdnCurrentCreditLoadedIds_" + vItemGUID + "_" + vBinID).val(strIds);
+
+                var dt = $(dtID).dataTable();
+                dt.fnStandingRedraw();
+            });
+
+            $("#DivCountApplyPopup").off("tap click", ".tbl-item-credit tbody tr");
+            $("#DivCountApplyPopup").on("tap click", ".tbl-item-credit tbody tr", function (e) {
+                if (e.target.type == "checkbox" || e.target.type == "radio" || e.target.type == "text") {
+                    e.stopPropagation();
+                }
+                else if (e.currentTarget.getElementsByTagName("input").btnLoad != undefined) {
+                    e.stopPropagation();
+                }
+                else {
+                    if ((e.metaKey || e.ctrlKey)) {
+                        $(this).toggleClass('row_selected');
+                    } else {
+                        $(this).toggleClass('row_selected');
+                    }
+                }
+                return false;
+            });
+
+            $("#DivCountApplyPopup").off('click', "input[type='button'][name='btnDeleteLotsCredit']");
+            $("#DivCountApplyPopup").on('click', "input[type='button'][name='btnDeleteLotsCredit']", function (e) {
+
+                var vItemGUID = $(this).prop("id").split('_')[1];
+                var vBinID = $(this).prop("id").split('_')[2];
+                var dtID = "#tblItemCredit_" + vItemGUID + "_" + vBinID;
+                if ($(dtID + ' tbody tr.row_selected').length <= 0) {
+                    alert("Select at least one row to delete.");
+                }
+                else {
+                    $(dtID).find("tbody").find("tr.row_selected").each(function (index, tr) {
+                        $(tr).remove();
+                    });
+
+                    var strIds = "";
+                    $(dtID).find("tbody").find("tr").each(function (index, tr) {
+
+                        var hdnLotNumberTracking = $(tr).find("input[name='hdnLotNumberTracking']").val();
+                        var hdnSerialNumberTracking = $(tr).find("input[name='hdnSerialNumberTracking']").val();
+                        var hdnDateCodeTracking = $(tr).find("input[name='hdnDateCodeTracking']").val();
+                        var txtCreditCustomerOwnedQty = $(tr).find("input[type='text'][name='txtCreditCustomerOwnedQty']").val();
+                        var txtCreditConsignedQty = $(tr).find("input[type='text'][name='txtCreditConsignedQty']").val();
+
+                        if (txtCreditCustomerOwnedQty == "") {
+                            txtCreditCustomerOwnedQty = "0";
+                        }
+                        if (txtCreditConsignedQty == "") {
+                            txtCreditConsignedQty = "0";
+                        }
+
+                        if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true") {
+                            var txtCreditLotOrSerailNumber = $(tr).find("input[type='text'][name^='txtCreditLotOrSerailNumber']").val();
+                            strIds = strIds + txtCreditLotOrSerailNumber + "_" + txtCreditCustomerOwnedQty + "#" + txtCreditConsignedQty + ",";
+                        }
+                        else if (hdnDateCodeTracking == "true") {
+                            var hdnExpiration = $(tr).find("input[name='hdnExpiration']").val();
+                            strIds = strIds + hdnExpiration + "_" + txtCreditCustomerOwnedQty + "#" + txtCreditConsignedQty + ",";
+                        }
+                        else {
+                            var hdnBinNumber = $(tr).find("input[name='hdnBinNumber']").val();
+                            strIds = strIds + hdnBinNumber + "_" + txtCreditCustomerOwnedQty + "#" + txtCreditConsignedQty + ",";
+                        }
+                    });
+
+                    $("#hdnCurrentCreditLoadedIds_" + vItemGUID + "_" + vBinID).val(strIds);
+                    isDeleteSrLotRowCr = true;
+                    var dtThisItem = $(dtID).dataTable();
+                    dtThisItem.fnStandingRedraw();
+                }
+            });
+
+            $("#DivCountApplyPopup").off('click', "input[type='button'][name='btnApplyPopup']");
+            $("#DivCountApplyPopup").on('click', "input[type='button'][name='btnApplyPopup']", function (e) {
+
+                $('#DivLoading').show();
+                var vItemGUID = $(this).prop("id").split('_')[1];
+                var vBinID = $(this).prop("id").split('_')[2];
+                var dtID = "#tblItemCredit_" + vItemGUID + "_" + vBinID;
+
+                var ArrItem = new Array();
+                var arrItemDetails;
+                var ErrorMessage = ValidateSinglePullCredit(vItemGUID, vBinID);
+
+                if (ErrorMessage == "") {
+
+                    var errorMessagePull = "";
+                    var errorMessageCredit = "";
+                    var strpullobj = JSON.parse($("#hdnCountDetailDTO_" + vItemGUID + "_" + vBinID).val());
+
+                    var vhdnTrackingType = $("#hdnTrackingType_" + vItemGUID + "_" + vBinID).val();
+
+                    if (vhdnTrackingType == "LotNumberTracking" || vhdnTrackingType == "SerialNumberTracking") {
+                        // Count Apply for pull process START.
+
+                        ArrItem = FillPullArrayObjectByItem(vItemGUID, vBinID);
+
+                        if (ArrItem.length > 0) {
+                            errorMessagePull = PullMultipleItemNew(ArrItem, vBinID);
+
+                            if (errorMessagePull != "") {
+                                errorMessagePull = "<b>@ResInventoryCountDetail.SomeItemNotPulled</b><br /><br />" + errorMessagePull;
+                            }
+                        }
+
+                        // Count Apply for pull process END.
+
+                        // Count Apply for credit process START.
+
+                        var ArrLocationList = FillCreditArrayObjectByItem(vItemGUID, vBinID);
+
+                        if (ArrLocationList.length > 0) {
+                            errorMessageCredit = CreditItemNew(ArrLocationList, vItemGUID, vBinID);
+
+                            if (errorMessageCredit != "") {
+                                errorMessageCredit = strpullobj.ItemNumber + " - " + strpullobj.BinNumber + " : " + errorMessageCredit;
+                                errorMessageCredit = "<b>@ResInventoryCountDetail.SomeItemNotCredit</b><br /><br />" + errorMessageCredit;
+                            }
+                        }
+                        // Count Apply for credit process END.
+                    }
+                    else {
+
+                        // Count Apply for pull credit process START.
+
+                        ArrItem = FillArrayObjectByItemForNormalItem(vItemGUID, vBinID);
+
+                        if (ArrItem.length > 0) {
+
+                            $.ajax({
+                                type: "POST",
+                                url: '@Url.Action("ApplyCountOnLineItemsNew", "Inventory")',
+                                contentType: 'application/json',
+                                dataType: 'json',
+                                data: JSON.stringify(ArrItem),
+                                "async": false,
+                                success: function (responce) {
+                                    objInventoryCountDetailDTO = responce.CurrentObj;
+                                    $.ajax({
+                                        type: "POST",
+                                        url: '@Url.Action("ApplyOnCountLineItem", "Inventory")',
+                                        contentType: 'application/json',
+                                        dataType: 'json',
+                                        data: JSON.stringify(objInventoryCountDetailDTO),
+                                        "async": false,
+                                        success: function (responce) {
+
+                                            $("#divPullItem_" + vItemGUID + "_" + vBinID).attr('style', '');
+                                            $("#divPullItem_" + vItemGUID + "_" + vBinID).html("");
+
+                                        },
+                                        error: function (err) {
+                                            errorMessagePull = responce.Message;
+                                        }
+                                    });
+
+                                },
+                                error: function (err) {
+                                    errorMessagePull = responce.Message;
+                                }
+                            });
+
+                            if (errorMessagePull != "") {
+                                errorMessagePull = "<b>@ResInventoryCountDetail.SomeItemNotPulled</b><br /><br />" + errorMessagePull;
+                            }
+                        }
+
+                        // Count Apply for pull credit process END.
+
+                    }
+
+                    var finalErrorMessage = "";
+                    if (errorMessagePull != "") {
+
+                        finalErrorMessage = errorMessagePull + "<br /><br />";
+                    }
+
+                    if (errorMessageCredit != "") {
+
+                        finalErrorMessage += errorMessageCredit;
+                    }
+
+                    if (finalErrorMessage != "") {
+                        $.modal.impl.close();
+                        $('#dlgCommonErrorMsgPopup').find("#pOkbtn").css('display', '');
+                        //$('#dlgCommonErrorMsg').find("#pYesNobtn").css('display', 'none');
+                        $('#dlgCommonErrorMsgPopup').find("#pErrMessage").html(finalErrorMessage);
+                        $('#dlgCommonErrorMsgPopup').modal();
+                        $('#dlgCommonErrorMsgPopup').css("z-index", "1104");
+                        $('#simplemodal-overlay').css("z-index", "1103");
+                        $('#simplemodal-container').css("z-index", "1104");
+                    }
+                    else {
+
+                        PostApplyAction(strpullobj);
+
+                        if ($("#hdnCurrentLoadedIds_" + vItemGUID + "_" + vBinID).val() == undefined && $("#hdnCurrentCreditLoadedIds_" + vItemGUID + "_" + vBinID).val() == undefined) {
+                            $("#divItem_" + vItemGUID + "_" + vBinID).attr('style', '');
+                            $("#divItem_" + vItemGUID + "_" + vBinID).html("");
+                        }
+
+                        if ($("input[type='hidden'][name^='hdnCurrentLoadedIds']").length > 0
+                        || $("input[type='hidden'][name^='hdnCurrentCreditLoadedIds']").length > 0) {
+                            $.modal.impl.close();
+                            $('#dlgCommonErrorMsgPopup').find("#pOkbtn").css('display', '');
+                            $('#dlgCommonErrorMsgPopup').find("#pErrMessage").html("<b>@ResInventoryCountDetail.ApplyCountSuccessfullyOn".replace("{0}", strpullobj.ItemNumber) + ".</b><br /><br />");
+                            $('#dlgCommonErrorMsgPopup').modal();
+                            $('#dlgCommonErrorMsgPopup').css("z-index", "1104");
+                            $('#simplemodal-overlay').css("z-index", "1103");
+                            $('#simplemodal-container').css("z-index", "1104");
+                        }
+                        else {
+                            $("#spanGlobalMessage").html("@ResInventoryCountDetail.AllCountApplied");
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                            $('#DivCountApplyPopup').dialog('close');
+                            $('#' + CountLineItemDataTable).dataTable().fnStandingRedraw();
+                        }
+                    }
+                }
+                else {
+                    alert(ErrorMessage);
+                }
+
+                $('#DivLoading').hide();
+            });
+
+            $("#DivCountApplyPopup").off("click", "input[type='button'][name='btnApplyAllPopUp']");
+            $("#DivCountApplyPopup").on("click", "input[type='button'][name='btnApplyAllPopUp']", function () {
+                ApplyAllInPopupNewFlow();
+            });
+
+            $("#DivCountApplyPopup").off("click", "input[type='button'][name='btnCancelPullPopup']");
+            $("#DivCountApplyPopup").on("click", "input[type='button'][name='btnCancelPullPopup']", function () {
+                $("#DivCountApplyPopup").empty();
+                $('#DivCountApplyPopup').dialog('close');
+                $('#' + CountLineItemDataTable).dataTable().fnStandingRedraw();
+            });
+
+        });
+
+        function closeMessageModalInPopup() {
+            $.modal.impl.close();
+        }
+
+        function PullMultipleItemNew(ArrItem, vBinID) {
+            $('#DivLoading').show();
+
+            var vPullCredit = "Pull";
+            if ($("#hdnCountType").val() == "A")
+                vPullCredit = "adjustpull";
+
+            var errorMessage = "";
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("PullSerialsAndLotsForCount", "Pull")',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify({ "objItemPullInfo": ArrItem, "PullCredit": vPullCredit }),
+                "async": false,
+                cache: false,
+                success: function (RetData) {
+                    $.each(RetData, function (indx, RetDataItem) {
+                        if (RetDataItem.ErrorList.length > 0) {
+                            $.each(RetDataItem.ErrorList, function (indx, ErrorListItem) {
+                                errorMessage += ErrorListItem.ErrorMessage + "<br />";
+                            });
+                        }
+                        else {
+                            $("#divPullItem_" + RetDataItem.ItemGUID + "_" + vBinID).attr('style', '');
+                            $("#divPullItem_" + RetDataItem.ItemGUID + "_" + vBinID).html("");
+                        }
+                    });
+                    $('#DivLoading').hide();
+                },
+                error: function (err) {
+                    $('#DivLoading').hide();
+                    $.modal.impl.close();
+                    errorMessage = "@ResCommon.ErrorInProcess";
+                },
+                complete: function () {
+                }
+            });
+
+            return errorMessage;
+        }
+
+        function CreditItemNew(ArrLocationList, vItemGUID, vBinID) {
+            $('#DivLoading').show();
+
+            var vPullCredit = "credit";
+            if ($("#hdnCountType").val() == "A")
+                vPullCredit = "adjcredit";
+
+            var errorMessage = "";
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("ItemLocationDetailsSaveForCreditPull", "Inventory")',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify({ "objData": ArrLocationList, "PullCreditType": vPullCredit }),
+                "async": false,
+                cache: false,
+                success: function (RetData) {
+
+                    if (RetData.Status == "Fail") {
+                        errorMessage += RetData.Message + "<br />";
+                    }
+                    else {
+                        $("#divCreditItem_" + vItemGUID + "_" + vBinID).attr('style', '');
+                        $("#divCreditItem_" + vItemGUID + "_" + vBinID).html("");
+                    }
+
+                    $('#DivLoading').hide();
+
+                },
+                error: function (err) {
+                    $('#DivLoading').hide();
+                    $.modal.impl.close();
+                    errorMessage = "@ResCommon.ErrorInProcess";
+                },
+                complete: function () {
+                }
+            });
+
+            return errorMessage;
+        }
+
+        function ApplyAllInPopupNewFlow() {
+
+            var applyAllErrorMessage = "";
+            $("#DivCountApplyPopup").find("table[id^='tblItemCountheader_']").each(function (indx, tblHeader) {
+                var vItemGUID = $(tblHeader).prop("id").split('_')[1];
+                var vBinID = $(tblHeader).prop("id").split('_')[2];
+                var vItemNumberText = $("#DivCountApplyPopup").find("#hdnItemNumber_" + vItemGUID + "_" + vBinID).val();
+
+                var ArrItem = new Array();
+                var arrItemDetails;
+                var ErrorMessage = ValidateSinglePullCredit(vItemGUID, vBinID);
+
+                if (ErrorMessage == "") {
+
+                    var errorMessagePull = "";
+                    var errorMessageCredit = "";
+                    var strpullobj = JSON.parse($("#hdnCountDetailDTO_" + vItemGUID + "_" + vBinID).val());
+
+                    var vhdnTrackingType = $("#hdnTrackingType_" + vItemGUID + "_" + vBinID).val();
+
+                    if (vhdnTrackingType == "LotNumberTracking" || vhdnTrackingType == "SerialNumberTracking") {
+                        // Count Apply for pull process START.
+
+                        ArrItem = FillPullArrayObjectByItem(vItemGUID, vBinID);
+
+                        if (ArrItem.length > 0) {
+                            errorMessagePull = PullMultipleItemNew(ArrItem, vBinID);
+
+                            if (errorMessagePull != "") {
+                                errorMessagePull = "<b>Some of the Item(s) is(are) not able to Pull(s) Due to following reasons.</b><br /><br />" + errorMessagePull;
+                                applyAllErrorMessage += errorMessagePull + "<br /><br />";
+                            }
+                        }
+
+                        // Count Apply for pull process END.
+
+                        // Count Apply for credit process START.
+
+                        var ArrLocationList = FillCreditArrayObjectByItem(vItemGUID, vBinID);
+
+                        if (ArrLocationList.length > 0) {
+                            errorMessageCredit = CreditItemNew(ArrLocationList, vItemGUID, vBinID);
+
+                            if (errorMessageCredit != "") {
+                                errorMessageCredit = strpullobj.ItemNumber + " - " + strpullobj.BinNumber + " : " + errorMessageCredit;
+                                errorMessageCredit = "<b>@ResInventoryCountDetail.SomeItemNotCredit</b><br /><br />" + errorMessageCredit;
+                                applyAllErrorMessage += errorMessageCredit + "<br /><br />";
+                            }
+                        }
+                        // Count Apply for credit process END.
+                    }
+                    else {
+
+                        // Count Apply for pull credit process START.
+
+                        ArrItem = FillArrayObjectByItemForNormalItem(vItemGUID, vBinID);
+
+                        if (ArrItem.length > 0) {
+
+                            $.ajax({
+                                type: "POST",
+                                url: '@Url.Action("ApplyCountOnLineItemsNew", "Inventory")',
+                                contentType: 'application/json',
+                                dataType: 'json',
+                                data: JSON.stringify(ArrItem),
+                                "async": false,
+                                success: function (responce) {
+                                    objInventoryCountDetailDTO = responce.CurrentObj;
+                                    $.ajax({
+                                        type: "POST",
+                                        url: '@Url.Action("ApplyOnCountLineItem", "Inventory")',
+                                        contentType: 'application/json',
+                                        dataType: 'json',
+                                        data: JSON.stringify(objInventoryCountDetailDTO),
+                                        "async": false,
+                                        success: function (responce) {
+
+                                            $("#divPullItem_" + vItemGUID + "_" + vBinID).attr('style', '');
+                                            $("#divPullItem_" + vItemGUID + "_" + vBinID).html("");
+
+                                            $("#divCreditItem_" + vItemGUID + "_" + vBinID).attr('style', '');
+                                            $("#divCreditItem_" + vItemGUID + "_" + vBinID).html("");
+
+                                        },
+                                        error: function (err) {
+                                            errorMessagePull = responce.Message;
+                                        }
+                                    });
+
+                                },
+                                error: function (err) {
+                                    errorMessagePull = responce.Message;
+                                }
+                            });
+
+                            if (errorMessagePull != "") {
+                                errorMessagePull = "<b>@ResInventoryCountDetail.SomeItemNotPulled</b><br /><br />" + errorMessagePull;
+                            }
+                        }
+
+                        // Count Apply for pull credit process END.
+
+                    }
+
+                    var finalErrorMessage = "";
+                    if (errorMessagePull != "") {
+
+                        finalErrorMessage = errorMessagePull + "<br /><br />";
+                    }
+
+                    if (errorMessageCredit != "") {
+
+                        finalErrorMessage += errorMessageCredit;
+                    }
+
+                    if (finalErrorMessage == "") {
+                        var strpullobj = JSON.parse($("#hdnCountDetailDTO_" + vItemGUID + "_" + vBinID).val());
+                        PostApplyAction(strpullobj);
+                    }
+
+                    if ($("#hdnCurrentLoadedIds_" + vItemGUID + "_" + vBinID).val() == undefined && $("#hdnCurrentCreditLoadedIds_" + vItemGUID + "_" + vBinID).val() == undefined) {
+                        $("#divItem_" + vItemGUID + "_" + vBinID).attr('style', '');
+                        $("#divItem_" + vItemGUID + "_" + vBinID).html("");
+                    }
+                }
+                else {
+                    applyAllErrorMessage += "<b>@ResInventoryCountDetail.ApplyCountError</b><br /><br />" + ErrorMessage + "<br /><br />";
+                }
+
+            });
+
+            if (applyAllErrorMessage != "") {
+                $.modal.impl.close();
+                $('#dlgCommonErrorMsgPopup').find("#pOkbtn").css('display', '');
+                $('#dlgCommonErrorMsgPopup').find("#pErrMessage").html(applyAllErrorMessage);
+                $('#dlgCommonErrorMsgPopup').modal();
+                $('#dlgCommonErrorMsgPopup').css("z-index", "1104");
+                $('#simplemodal-overlay').css("z-index", "1103");
+                $('#simplemodal-container').css("z-index", "1104");
+            }
+            else {
+
+                if ($("input[type='hidden'][name^='hdnCurrentLoadedIds']").length > 0
+                                        || $("input[type='hidden'][name^='hdnCurrentCreditLoadedIds']").length > 0) {
+                    //                    $.modal.impl.close();
+                    //                    $('#dlgCommonErrorMsgPopup').find("#pOkbtn").css('display', '');
+                    //                    $('#dlgCommonErrorMsgPopup').find("#pErrMessage").html("<b>Count apply successfully on " + strpullobj.ItemNumber + ".</b><br /><br />");
+                    //                    $('#dlgCommonErrorMsgPopup').modal();
+                    //                    $('#dlgCommonErrorMsgPopup').css("z-index", "1104");
+                    //                    $('#simplemodal-overlay').css("z-index", "1103");
+                    //                    $('#simplemodal-container').css("z-index", "1104");
+                }
+                else {
+                    $("#spanGlobalMessage").html("@ResInventoryCountDetail.AllCountApplied");
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                    $('#DivCountApplyPopup').dialog('close');
+                    $('#' + CountLineItemDataTable).dataTable().fnStandingRedraw();
+                }
+            }
+
+        }
+
+        function FillPullArrayObjectByItem(vItemGUID, vBinID) {
+
+            var strpullobj = JSON.parse($("#hdnCountDetailDTO_" + vItemGUID + "_" + vBinID).val());
+            var ArrPullItemsList = new Array();
+
+            var CustomerOwnedPullQTY = parseFloat($("#DivCountApplyPopup").find("#spnCustomerOwnedPullQTY_" + vItemGUID + "_" + vBinID).text());
+            var ConsignedPullQTY = parseFloat($("#DivCountApplyPopup").find("#spnConsignedPullQTY_" + vItemGUID + "_" + vBinID).text());
+
+            var PullQuantity = CustomerOwnedPullQTY + ConsignedPullQTY;
+
+            if (PullQuantity > 0) {
+                var arrItemDetails = new Array();
+                var ID = vItemGUID;
+
+                var dt = $("#tblItemPull_" + vItemGUID + "_" + vBinID).dataTable();
+                var currentData = dt.fnGetData();
+
+                $("#tblItemPull_" + vItemGUID + "_" + vBinID).find("tbody").find("tr").each(function (index, tr) {
+                    var txtPullCustomerOwnedQty = $(tr).find("input[type='text'][name='txtPullCustomerOwnedQty']").val();
+                    var txtPullConsignedQty = $(tr).find("input[type='text'][name='txtPullConsignedQty']").val();
+                    var hdnLotNumberTracking = $(tr).find("input[name='hdnLotNumberTracking']").val();
+                    var hdnSerialNumberTracking = $(tr).find("input[name='hdnSerialNumberTracking']").val();
+                    var hdnDateCodeTracking = $(tr).find("input[name='hdnDateCodeTracking']").val();
+                    var hdnBinNumber = $(tr).find("input[name='hdnBinNumber']").val();
+                    var hdnExpiration = $(tr).find("input[name='hdnExpiration']").val();
+
+                    var txtLotOrSerailNumber = "";
+                    if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true")
+                        txtLotOrSerailNumber = $(tr).find("input[type='text'][name^='txtLotOrSerailNumber']").val();
+
+                    var vSerialNumber = "";
+                    var vLotNumber = "";
+                    var vExpiration = "";
+
+                    if (hdnSerialNumberTracking == "true")
+                        vSerialNumber = txtLotOrSerailNumber;
+                    if (hdnLotNumberTracking == "true")
+                        vLotNumber = txtLotOrSerailNumber;
+                    if (hdnDateCodeTracking == "true")
+                        vExpiration = hdnExpiration;
+
+                    var obj = {
+                        "LotOrSerailNumber": txtLotOrSerailNumber, "BinNumber": hdnBinNumber, "PullQuantity": parseFloat(txtPullCustomerOwnedQty) + parseFloat(txtPullConsignedQty)
+                                    , "LotNumberTracking": hdnLotNumberTracking, "SerialNumberTracking": hdnSerialNumberTracking, "DateCodeTracking": hdnDateCodeTracking
+                                    , "Expiration": hdnExpiration, "SerialNumber": vSerialNumber, "LotNumber": vLotNumber
+                                    , "ItemGUID": strpullobj.ItemGUID, "BinID": strpullobj.BinID, "ID": strpullobj.BinID, "CustomerOwnedQuantity": parseFloat(txtPullCustomerOwnedQty)
+                                    , "ConsignedQuantity": parseFloat(txtPullConsignedQty)
+                    };
+
+                    arrItemDetails.push(obj);
+                });
+
+                var PullItem = {
+                    ID: 1,
+                    ItemGUID: strpullobj.ItemGUID,
+                    ProjectSpendGUID: "",
+                    ItemID: strpullobj.ItemID,
+                    ItemNumber: strpullobj.ItemNumber,
+                    BinID: strpullobj.BinID,
+                    BinNumber: strpullobj.BinNumber,
+                    PullQuantity: PullQuantity,
+                    TotalConsignedTobePulled: ConsignedPullQTY,
+                    TotalCustomerOwnedTobePulled: CustomerOwnedPullQTY,
+                    UDF1: strpullobj.UDF1,
+                    UDF2: strpullobj.UDF2,
+                    UDF3: strpullobj.UDF3,
+                    UDF4: strpullobj.UDF4,
+                    UDF5: strpullobj.UDF5,
+                    lstItemPullDetails: arrItemDetails,
+                    WorkOrderDetailGUID: strpullobj.WorkOrderDetailGUID,
+                    CountLineItemGuid: strpullobj.GUID
+                };
+                ArrPullItemsList.push(PullItem);
+            }
+
+            return ArrPullItemsList;
+        }
+
+        function FillArrayObjectByItemForNormalItem(vItemGUID, vBinID) {
+
+            var strpullobj = JSON.parse($("#hdnCountDetailDTO_" + vItemGUID + "_" + vBinID).val());
+
+            var aaritems = new Array();
+
+            var CustomerOwnedPullQTY = parseFloat($("#DivCountApplyPopup").find("#spnCustomerOwnedPullQTY_" + vItemGUID + "_" + vBinID).text());
+            var ConsignedPullQTY = parseFloat($("#DivCountApplyPopup").find("#spnConsignedPullQTY_" + vItemGUID + "_" + vBinID).text());
+            var CustomerOwnedCreditQTY = parseFloat($("#DivCountApplyPopup").find("#spnCustomerOwnedCreditQTY_" + vItemGUID + "_" + vBinID).text());
+            var ConsignedCreditQTY = parseFloat($("#DivCountApplyPopup").find("#spnConsignedCreditQTY_" + vItemGUID + "_" + vBinID).text());
+
+            var PullQuantity = CustomerOwnedPullQTY + ConsignedPullQTY;
+            var CreditQuantity = CustomerOwnedCreditQTY + ConsignedCreditQTY;
+
+            if (PullQuantity > 0 || CreditQuantity > 0) {
+
+                var vUDF1 = '', vUDF2 = '', vUDF3 = '', vUDF4 = '', vUDF5 = '', trimtxtValQ = '', CountLineItemDescription = '';
+
+                vUDF1 = strpullobj.UDF1;
+                vUDF2 = strpullobj.UDF2;
+                vUDF3 = strpullobj.UDF3;
+                vUDF4 = strpullobj.UDF4;
+                vUDF5 = strpullobj.UDF5;
+
+                aaritems.push({ ID: strpullobj.ID, ItemGUID: strpullobj.ItemGUID, BinID: strpullobj.BinID, CountCustomerOwnedQuantity: strpullobj.CountCustomerOwnedQuantity
+                    , CountConsignedQuantity: strpullobj.CountConsignedQuantity, CountLineItemDescription: escape(strpullobj.CountLineItemDescription)
+                    , UDF1: escape(vUDF1), UDF2: escape(vUDF2), UDF3: escape(vUDF3), UDF4: escape(vUDF4), UDF5: escape(vUDF5), SaveAndApply: strpullobj.SaveAndApply
+                    , IsStagingLocationCount: strpullobj.IsStagingLocationCount, IsOnlyFromItemUI: true, InventoryCountGUID: strpullobj.InventoryCountGUID
+                });
+            }
+
+            return aaritems;
+        }
+
+        function FillCreditArrayObjectByItem(vItemGUID, vBinID) {
+
+            var strpullobj = JSON.parse($("#hdnCountDetailDTO_" + vItemGUID + "_" + vBinID).val());
+            var CustomerOwnedCreditQTY = parseFloat($("#DivCountApplyPopup").find("#spnCustomerOwnedCreditQTY_" + vItemGUID + "_" + vBinID).text());
+            var ConsignedCreditQTY = parseFloat($("#DivCountApplyPopup").find("#spnConsignedCreditQTY_" + vItemGUID + "_" + vBinID).text());
+
+            var CreditQuantity = CustomerOwnedCreditQTY + ConsignedCreditQTY;
+
+            var ArrLocationList = new Array();
+
+            if (CreditQuantity > 0) {
+                $("#tblItemCredit_" + vItemGUID + "_" + vBinID).find("tbody").find("tr").each(function (index, tr) {
+                    var txtCreditCustomerOwnedQty = $(tr).find("input[type='text'][name='txtCreditCustomerOwnedQty']").val();
+                    var txtCreditConsignedQty = $(tr).find("input[type='text'][name='txtCreditConsignedQty']").val();
+                    var hdnLotNumberTracking = $(tr).find("input[name='hdnLotNumberTracking']").val();
+                    var hdnSerialNumberTracking = $(tr).find("input[name='hdnSerialNumberTracking']").val();
+                    var hdnDateCodeTracking = $(tr).find("input[name='hdnDateCodeTracking']").val();
+                    var hdnBinNumber = $(tr).find("input[name='hdnBinNumber']").val();
+                    var hdnExpiration = $(tr).find("input[name='hdnExpiration']").val();
+
+                    var txtCreditLotOrSerailNumber = "";
+                    if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true")
+                        txtCreditLotOrSerailNumber = $(tr).find("input[type='text'][name^='txtCreditLotOrSerailNumber']").val();
+
+                    var vSerialNumber = "";
+                    var vLotNumber = "";
+                    var vExpiration = "";
+
+                    if (hdnSerialNumberTracking == "true")
+                        vSerialNumber = txtCreditLotOrSerailNumber;
+                    if (hdnLotNumberTracking == "true")
+                        vLotNumber = txtCreditLotOrSerailNumber;
+                    if (hdnDateCodeTracking == "true")
+                        vExpiration = hdnExpiration;
+
+                    var obj = {
+                        "BinNumber": hdnBinNumber
+                                    , "LotNumberTracking": hdnLotNumberTracking, "SerialNumberTracking": hdnSerialNumberTracking, "DateCodeTracking": hdnDateCodeTracking
+                                    , "Expiration": vExpiration, "SerialNumber": vSerialNumber, "LotNumber": vLotNumber
+                                    , "ItemGUID": strpullobj.ItemGUID, "BinID": strpullobj.BinID, "ID": 0, "CustomerOwnedQuantity": parseFloat(txtCreditCustomerOwnedQty)
+                                    , "ConsignedQuantity": parseFloat(txtCreditConsignedQty), "ItemNumber": strpullobj.ItemNumber, "CountLineItemDtlGUID": strpullobj.GUID
+                                    , "IsCreditPull": true
+                    };
+
+                    ArrLocationList.push(obj);
+                });
+            }
+
+            return ArrLocationList;
+        }
+
+        function ValidateSinglePullCredit(vItemGUID, vBinID) {
+            var returnVal = true;
+            var errormsg = "";
+            var isMoreQty = false;
+
+            //Validate pull for count Apply Start.
+            var dtID = "#tblItemPull_" + vItemGUID + "_" + vBinID;
+            var CustomerOwnedPullQTY = parseFloat($("#DivCountApplyPopup").find("#spnCustomerOwnedPullQTY_" + vItemGUID + "_" + vBinID).text());
+            var ConsignedPullQTY = parseFloat($("#DivCountApplyPopup").find("#spnConsignedPullQTY_" + vItemGUID + "_" + vBinID).text());
+
+            if (CustomerOwnedPullQTY > 0 || ConsignedPullQTY > 0) {
+
+                var TotalEnteredCustomer = 0;
+                var TotalEnteredConsigned = 0;
+                $("#tblItemPull_" + vItemGUID + "_" + vBinID).find("tbody").find("tr").each(function (index, tr) {
+                    var txtPullCustomerOwnedQty = $(tr).find("input[type='text'][name='txtPullCustomerOwnedQty']").val();
+                    var txtPullConsignedQty = $(tr).find("input[type='text'][name='txtPullConsignedQty']").val();
+
+                    var spnCustomerOwnedQuantity = $(tr).find("span[name='spnCustomerOwnedQuantity']").text();
+                    var spnConsignedQuantity = $(tr).find("span[name='spnConsignedQuantity']").text();
+
+                    if (parseFloat(txtPullCustomerOwnedQty) > parseFloat(spnCustomerOwnedQuantity)) {
+                        errormsg = "\nYou can not pull more QTY than available QTY.";
+                        isMoreQty = true;
+                        return errormsg;
+                    }
+
+                    if (parseFloat(txtPullConsignedQty) > parseFloat(spnConsignedQuantity)) {
+                        errormsg = "\nYou can not pull more QTY than available QTY.";
+                        isMoreQty = true;
+                        return errormsg;
+                    }
+
+                    TotalEnteredCustomer = TotalEnteredCustomer + parseFloat(txtPullCustomerOwnedQty);
+                    TotalEnteredConsigned = TotalEnteredConsigned + parseFloat(txtPullConsignedQty);
+                });
+
+                if (isMoreQty == false) {
+
+                    if (TotalEnteredCustomer != CustomerOwnedPullQTY) {
+                        errormsg = errormsg + "\nEntered :" + TotalEnteredCustomer + "\tCustomer Owned Pull Qty :" + CustomerOwnedPullQTY;
+                    }
+
+                    if (TotalEnteredConsigned != ConsignedPullQTY) {
+                        errormsg = errormsg + "\nEntered :" + TotalEnteredConsigned + "\tConsigned Pull Qty :" + ConsignedPullQTY;
+                    }
+                }
+                else {
+                    errormsg = "You can not pull more QTY than available QTY.";
+                }
+            }
+
+            //Validate pull for count Apply End.
+
+            //Validate credit for count Apply Start.
+            var CustomerOwnedCreditQTY = parseFloat($("#DivCountApplyPopup").find("#spnCustomerOwnedCreditQTY_" + vItemGUID + "_" + vBinID).text());
+            var ConsignedCreditQTY = parseFloat($("#DivCountApplyPopup").find("#spnConsignedCreditQTY_" + vItemGUID + "_" + vBinID).text());
+
+            if (CustomerOwnedCreditQTY > 0 || ConsignedCreditQTY > 0) {
+
+                var iSrLotBlank = false;
+                var TotalEnteredCustomerCredit = 0;
+                var TotalEnteredConsignedCredit = 0;
+                $("#tblItemCredit_" + vItemGUID + "_" + vBinID).find("tbody").find("tr").each(function (index, tr) {
+                    var txtCreditCustomerOwnedQty = $(tr).find("input[type='text'][name='txtCreditCustomerOwnedQty']").val();
+                    var txtCreditConsignedQty = $(tr).find("input[type='text'][name='txtCreditConsignedQty']").val();
+                    var hdnLotNumberTracking = $(tr).find("input[name='hdnLotNumberTracking']").val();
+                    var hdnSerialNumberTracking = $(tr).find("input[name='hdnSerialNumberTracking']").val();
+
+                    if (hdnLotNumberTracking == "true" || hdnSerialNumberTracking == "true") {
+                        var txtCreditLotOrSerailNumber = $(tr).find("input[type='text'][name^='txtCreditLotOrSerailNumber']").val();
+
+                        if (txtCreditLotOrSerailNumber == "") {
+                            iSrLotBlank = true;
+                        }
+                    }
+
+                    TotalEnteredCustomerCredit = TotalEnteredCustomerCredit + parseFloat(txtCreditCustomerOwnedQty);
+                    TotalEnteredConsignedCredit = TotalEnteredConsignedCredit + parseFloat(txtCreditConsignedQty);
+
+                });
+
+                if (iSrLotBlank == true) {
+                    errormsg = "\nSerial or Lot number not blank.";
+                }
+
+                if (TotalEnteredCustomerCredit != CustomerOwnedCreditQTY) {
+                    errormsg = errormsg + "\nEntered :" + TotalEnteredCustomerCredit + "\tCustomer Owned Credit Qty :" + CustomerOwnedCreditQTY;
+                }
+
+                if (TotalEnteredConsignedCredit != ConsignedCreditQTY) {
+                    errormsg = errormsg + "\nEntered :" + TotalEnteredConsignedCredit + "\tConsigned Credit Qty :" + ConsignedCreditQTY;
+                }
+
+            }
+            //Validate credit for count Apply End.
+
+            return errormsg;
+        }
+
+        function PostApplyAction(objdtl) {
+
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("PostApplyAction", "Inventory")',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify(objdtl),
+                "async": false,
+                cache: false,
+                success: function (responce) {
+                    //oTableMSItem.fnDraw();
+                },
+                error: function (responce) {
+
+                }
+            });
+        }
+
+
+    </script>
+
+}

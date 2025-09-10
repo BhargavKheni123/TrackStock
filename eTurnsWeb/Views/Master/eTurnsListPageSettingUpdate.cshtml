@@ -1,0 +1,96 @@
+﻿@model SiteListMasterDTO
+@{
+    ViewBag.Title = "eTurnsListPageSettingUpdate";
+}
+
+
+<div class="userHead">
+    <h2 style="color: #1971bd;font-size: 20px;padding: 4px 0 0 4%;float: left;"> eTurns List Page Setting </h2>
+    <div class="editorForm" style="float: none; padding-left: 30%;">
+        <span>Module List:</span>
+        @Html.DropDownListFor(model => model.ID, new SelectList((IEnumerable<eTurns.DTO.SiteListMasterDTO>)ViewBag.ListPageName, "ID", "ListName", ViewBag.Li), string.Empty, new { @class = "selectBox", @ID = "PageNameList" })
+    </div>
+    <br />
+    <div id="columns" class="listing">
+        <div style="width:100%;padding-left:30%;">
+            <span style="float:left;margin-right:7px;" class="DataTables_sort_wrapper">Select newly added columns :</span>
+            <select style="float:left;" class="selectBox" id="ColumNameList" multiple="multiple" ></select>            
+        </div>
+        <br />
+        <div style="clear: both; ">            
+            <input type="button" id="btnSave" class="CreateBtn" value="@ResCommon.SaveSetting" style="clear: both; margin-left: 35%;float:left;" />
+        </div>
+    </div>
+</div>
+<script>
+
+    $("select#PageNameList").change(function () {
+        var currentPageListId = $(this).val();
+        if (currentPageListId > 0) {
+            $("div.listing").show();
+        }
+        else {
+            $("div.listing").hide();
+        }
+
+        $.ajax({
+            url: '@Url.Content("~/Master/GetSiteListColumns")',
+            data: { ListId: currentPageListId },
+            dataType: 'json',
+            type: 'POST',
+            //async: false,
+            cache: false,
+            success: function (response) {
+                bindColums(response.objSiteListColumnDetailDTO);
+            }
+        });
+    });
+
+    $("input#btnSave").click(function () {
+
+        var ListId = $("select#PageNameList").val();
+        var updatedColumnOrderNumbers = $("select#ColumNameList").val();
+
+        if (ListId != null && ListId != "" && parseInt(ListId) > 0 && updatedColumnOrderNumbers != null && updatedColumnOrderNumbers !== undefined
+                    && updatedColumnOrderNumbers != "" && updatedColumnOrderNumbers.length > 0)
+        {
+            $.ajax({
+                url: '@Url.Content("~/Master/UpdateJsonOnNewColumnAddition")',
+                data: { ListId: ListId, UpdatedColumnOrder: updatedColumnOrderNumbers.join(", ") },
+                dataType: 'json',
+                type: 'POST',
+                //async: false,
+                cache: false,
+                success: function (response) {
+                    if (response) {
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        $("#spanGlobalMessage").html('@ResCommon.MsgSavesuccessfully');
+                        showNotificationDialog();
+                    }
+                    else {
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#spanGlobalMessage").html('@ResCommon.NotUpdated');
+                        showNotificationDialog();
+                    }
+                },
+                complete: function () {
+                    //alert("Record Saved Successfully...!!!!");
+                }
+            });
+        }
+        else
+        {
+            alert("Please select List and newly added columns");
+        }
+    });
+    function bindColums(response) {
+        $('#ColumNameList').html("");
+
+        for (var i = 0; i < response.length; i++) {
+
+            if (!isNaN(parseInt(response[i].OrderNumber))) {
+                $("#ColumNameList").append("<option  value='" + response[i].OrderNumber + "' data-number=" + response[i].OrderNumber + " >" + response[i].ColumnName.trim() + "</option>");
+            }
+        }
+    }
+</script>

@@ -1,0 +1,2208 @@
+@model eTurns.DTO.OrderMasterDTO
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = false, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, ColumnSetupFor = "OrderLineItemList", DataTableName = "OrderLineItem" + Model.ID };
+    string priceformate = "N" + eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits;
+    bool isApprove = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OrderApproval, eTurnsWeb.Helper.SessionHelper.PermissionType.Approval);
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+    bool isOrderDetailsUDF = new eTurns.DAL.UDFDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName).GetNonDeletedUDFCountByUDFTableName("OrderDetails", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID) > 0;
+    List<BinMasterDTO> lstBinMaster;
+    bool isDelete = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Orders, eTurnsWeb.Helper.SessionHelper.PermissionType.Delete);
+
+    //---------------------------------Calculate Total---------------------------------
+    //
+    int? PriseSelectionOption = 0;
+    string TotalCost = "0.00";
+    string TotalPrice = "0.00";
+
+    string CurrencySymbol = "";
+    if (eTurnsWeb.Helper.SessionHelper.CurrencySymbol != null
+        && !string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.CurrencySymbol))
+    {
+        CurrencySymbol = eTurnsWeb.Helper.SessionHelper.CurrencySymbol;
+    }
+
+    bool isShowDeleted = ViewBag.IsShowDeleted ?? false;
+
+    eTurns.DAL.RoomDAL onjRoomDAL = new eTurns.DAL.RoomDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    RoomModuleSettingsDTO objRoomModuleSettingsDTO = onjRoomDAL.GetRoomModuleSettings(eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.RoomID, (long)eTurnsWeb.Helper.SessionHelper.ModuleList.Orders);
+    if (objRoomModuleSettingsDTO != null)
+    {
+        PriseSelectionOption = objRoomModuleSettingsDTO.PriseSelectionOption;
+    }
+
+    if (PriseSelectionOption != 1 && PriseSelectionOption != 2)
+    {
+        PriseSelectionOption = 1;
+    }
+
+    if (isShowDeleted == false)
+    {
+        if (Model.OrderListItem.Count > 0)
+        {
+            //double? T = null;
+            //if (PriseSelectionOption == 1)
+            //{
+            //    T = Model.OrderListItem.Sum(x => (x.ApprovedQuantity.GetValueOrDefault(0) > 0 ? x.ApprovedQuantity : (x.RequestedQuantity.GetValueOrDefault(0) > 0 ? x.RequestedQuantity : 0)) * ((x.SellPrice == null ? 0 : x.SellPrice) / (x.CostUOMValue == null || x.CostUOMValue == 0 ? 1 : x.CostUOMValue)));
+            //}
+            //else
+            //{
+            //    T = Model.OrderListItem.Sum(x => (x.ApprovedQuantity.GetValueOrDefault(0) > 0 ? x.ApprovedQuantity : (x.RequestedQuantity.GetValueOrDefault(0) > 0 ? x.RequestedQuantity : 0)) * ((x.Cost == null ? 0 : x.Cost) / (x.CostUOMValue == null || x.CostUOMValue == 0 ? 1 : x.CostUOMValue)));
+            //}
+
+            //if (T != null)
+            //{
+            //    TotalCost = ((double)T).ToString(priceformate);
+            //}
+            if (Model.OrderCost != null && (double)Model.OrderCost > 0)
+            {
+                TotalCost = ((double)Model.OrderCost).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+            }
+            if (Model.OrderPrice != null && (double)Model.OrderPrice > 0)
+            {
+                TotalPrice = ((double)Model.OrderPrice).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+            }
+
+        }
+    }
+    else
+    {
+        if (Model.OrderListItem.Count > 0)
+        {
+            double? _OrderCost = Model.OrderListItem.Sum(x => x.IsCloseItem.GetValueOrDefault(false) ? x.OrderLineItemExtendedCost : double.Parse((x.ApprovedQuantity.GetValueOrDefault(0) == 0 ? x.RequestedQuantity.GetValueOrDefault(0) : x.ApprovedQuantity.GetValueOrDefault(0)).ToString()) * ((x.Cost.GetValueOrDefault(0)) / ((x.CostUOMValue ?? 0) == 0 ? 1 : (x.CostUOMValue ?? 1))));
+            double? _OrderPrice = Model.OrderListItem.Sum(x => x.IsCloseItem.GetValueOrDefault(false) ? x.OrderLineItemExtendedPrice : double.Parse((x.ApprovedQuantity.GetValueOrDefault(0) == 0 ? x.RequestedQuantity.GetValueOrDefault(0) : x.ApprovedQuantity.GetValueOrDefault(0)).ToString()) * ((x.SellPrice.GetValueOrDefault(0)) / ((x.CostUOMValue ?? 0) == 0 ? 1 : (x.CostUOMValue ?? 1)))) ?? 0;
+
+            TotalCost = (_OrderCost ?? 0).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+            TotalPrice = (_OrderPrice ?? 0).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture);
+        }
+
+    }
+
+    string UNCPathRootReceiveFileLink = string.IsNullOrEmpty(eTurns.DTO.SiteSettingHelper.ReceiveFilePaths) ? string.Empty : eTurns.DTO.SiteSettingHelper.ReceiveFilePaths;
+    Int64 EnterpriseId = eTurnsWeb.Helper.SessionHelper.EnterPriceID;
+    Int64 CompanyID = eTurnsWeb.Helper.SessionHelper.CompanyID;
+    Int64 RoomID = eTurnsWeb.Helper.SessionHelper.RoomID;
+    UNCPathRootReceiveFileLink = UNCPathRootReceiveFileLink.Replace("~", string.Empty);
+    string ReceiveFilePath = (UNCPathRootReceiveFileLink + EnterpriseId + "/" + CompanyID + "/" + RoomID);
+
+
+}
+<style type="text/css">
+    .editComment,.editRequiredDate {
+        display: block;
+        height: 15px;
+        width: 15px;
+        top: 0;
+        right: 0;
+        float: left;
+    }
+    
+        .editComment, .editRequiredDate img {
+            cursor: pointer;
+        }
+    #preview {
+        position: absolute;
+        border: 1px solid #ccc;
+        background: #333;
+        padding: 5px;
+        display: none;
+        color: #fff;
+    }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        //debugger;
+        $('#frmOrder').areYouSure({ 'silent': false });
+        $('#spnTotalOrderCost').html('@CurrencySymbol' + ' ' + '@TotalCost');
+        $('#spnTotalOrderPrice').html('@CurrencySymbol' + ' ' + '@TotalPrice');
+        if ('@PriseSelectionOption.ToString()' == '1') {
+            $('#lblOrderTotalSellPrice').show();
+            $('#spnTotalOrderPrice').show();
+
+            $('#lblOrderTotalCost').hide();
+            $('#spnTotalOrderCost').hide();
+        }
+        else if ('@PriseSelectionOption.ToString()' == '2') {
+            $('#lblOrderTotalSellPrice').hide();
+            $('#spnTotalOrderPrice').hide();
+
+            $('#lblOrderTotalCost').show();
+            $('#spnTotalOrderCost').show();
+        }
+
+        if ('@isCost' == "True") {
+            $('#liOrderCostInfo').show();
+        }
+        else {
+            //alert('test else');
+            $('#liOrderCostInfo').hide();
+        }
+    });
+</script>
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="InnerItem_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_QLItem_filter" />
+                        </a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Orders)
+            <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <input type="hidden" id="hdSelectedItemGuids" />
+                <table id="OrderLineItem@(Model.ID)" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            @*@if (Model.OrderStatus == (int)OrderStatus.Closed)
+        {
+            if (Model.OrderType == (int)OrderType.Order)
+            {
+                <th>@eTurns.DTO.ResItemMaster.Action</th>
+            }
+        }*@
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.Bin
+                            </th>
+                            @if (Model.OrderType == (int)OrderType.Order)
+                            {
+                                <th class="NotHide">
+                                    @eTurns.DTO.ResOrder.RequestedQuantity
+                                </th>
+                            }
+                            else
+                            {
+                                <th class="NotHide">
+                                    @eTurns.DTO.ResOrder.RequestedReturnQuantity
+                                </th>
+                            }
+                            <th class="NotHide">
+                                @eTurns.DTO.ResOrder.ApprovedQuantity
+                            </th>
+                            @if (Model.OrderType == (int)OrderType.Order)
+                            {
+                                <th>
+                                    @eTurns.DTO.ResOrder.RequiredDate
+                                </th>
+                            }
+                            else
+                            {
+                                <th>
+                                    @eTurns.DTO.ResOrder.RequiredReturnDate
+                                </th>
+                            }
+                            @if (Model.OrderType == (int)OrderType.Order)
+                            {
+                                <th>
+                                    @eTurns.DTO.ResOrder.ReceivedQuantity
+                                </th>
+                            }
+                            else
+                            {
+                                <th>
+                                    @eTurns.DTO.ResOrder.ReturnedQuantity
+                                </th>
+                            }
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnHandQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.StagedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResUnitMaster.Unit
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResGLAccount.GLAccount
+                            </th>
+                            @if (isCost)
+                            {
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.Cost
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.Markup
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemMaster.SellPrice
+                                </th>
+
+
+                            }
+                            <th>
+                                @eTurns.DTO.ResSupplierMaster.Supplier
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnOrderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnReturnQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnOrderInTransitQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MinimumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MaximumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResCategoryMaster.Category
+                            </th>
+                            @*<th>
+            @eTurns.DTO.ResItemMaster.PackingQuantity
+        </th>*@
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DefaultReorderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ManufacturerName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ManufacturerNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SupplierPartNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SuggestedOrderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.ItemBlanketPO
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.SendToEDI
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.PackSlipNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.ASNNumber
+                            </th>
+                            <th>
+                                @ResCostUOMMaster.CostUOM
+                            </th>
+                            <th>
+                                @ResCostUOMMaster.CostUOMValue
+                            </th>
+                            @if (isCost)
+                            {
+                                <th>
+                                    @ResOrder.ExtendedCost
+                                </th>
+                            }
+                            <th class="NotSortable">
+                                @ResOrder.Comment
+                            </th>
+                            <th>
+                                @ResItemMaster.InTransferTransitQuantity
+                            </th>
+
+                            <th>
+                                @ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @ResCommon.LastUpdatedBy
+                            </th>
+                            <th>
+                                @ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @ResCommon.ReceivedOnWeb
+                            </th>
+                            <th>
+                                @ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @ResCommon.ReceivedOn
+                            </th>
+
+                            <th>
+                                @ResOrder.OrdDtlInTransitQty
+                            </th>
+                            @if (isCost)
+                            {
+                                <th>
+                                    @ResOrder.OrderLineItemExtendedCost
+                                </th>
+                            }
+                            @if (Model.OrderType == (int)OrderType.Order)
+                            {
+                                <th class="NotSortable">
+                                    @ResOrder.OrderItemCost
+                                </th>
+                                if (isCost)
+                                {
+                                    <th>
+                                        @ResOrder.OrderItemSellPrice
+                                    </th>
+                                    <th>
+                                        @ResOrder.OrderItemMarkup
+                                    </th>
+                                    <th>
+                                        @ResOrder.OrderItemCostUOMValue
+                                    </th>
+                                }
+                            }
+                            @if (isOrderDetailsUDF)
+                            {
+                                @Html.RenderColumnsHeader("OrderDetails", typeof(eTurns.DTO.ResOrderDetails), "OrderDetails")
+                            }
+                            @Html.RenderColumnsHeader("ItemMaster", typeof(eTurns.DTO.ResItemMaster), "Item")
+                            @if (Model.OrderStatus == (int)OrderStatus.Closed)
+                            {
+                                if (Model.OrderType == (int)OrderType.Order)
+                                {
+                                    <th>
+                                        @ResCommon.AttachedFiles
+                                    </th>
+                                }
+                            }
+                            <th>
+                                @ResOrder.ISBackOrdered
+                            </th>
+                            <th class="NotSortable NotHide">
+                                @ResOrder.BackOrderedExpandCollapse
+                            </th>
+                            <th>
+                                @ResOrder.POItemLineNumber
+                            </th>
+                            <th>
+                                @ResOrder.OrderLineException
+                            </th>
+                            <th>
+                                @ResOrder.OrderLineExceptionDesc
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.OrderListItem != null && Model.OrderListItem.Count > 0)
+                        {
+
+                            int trid = 0;
+                            int POLineItemManual = 0;
+                            foreach (var item in Model.OrderListItem)
+                            {
+                                lstBinMaster = new List<BinMasterDTO>();
+                                lstBinMaster.Add(new BinMasterDTO() { BinNumber = item.BinName ?? string.Empty });
+                                string strBack = "";
+                                if (item.IsCloseItem.GetValueOrDefault(false))
+                                {
+                                    strBack = "background-color:LightGray;height: 35px;";
+                                }
+                                else
+                                {
+                                    strBack = "";
+                                }
+                        <tr style='@strBack'>
+                            <td></td>
+                            @*@if (Model.OrderStatus == (int)OrderStatus.Closed)
+        {
+            if (Model.OrderType == (int)OrderType.Order)
+            {
+                <td class="read_only control center NotHide">
+                    <a id='lnkAllowCommentAndDate_@trid' href='javascript:void(0);' style='right:5px; top:0px;' onclick="return EnableCommentRequiredDate(this,@trid);">
+                        <img src='/Content/images/UnChecked.png' alt='select' />
+                    </a>
+                    <a id='lnkDisableCommentAndDate_@trid' href='javascript:void(0);' class="lnkDisableCommentAndDate" style='right:5px; top:0px;' onclick="return DisableCommentRequiredDate(this,@trid);">
+                        <img src='/Content/images/Checked.png' alt='select' />
+                    </a>
+                </td>
+            }
+        }*@
+                            <td>
+                                @if (item.ID > 0)
+                                {
+                                    @item.ID.ToString()
+                                }
+                            </td>
+                            <td class="read_only control center NotHide">
+                                @item.ItemNumber
+                                <input id="hdnID" type="hidden" value="@item.ID" />
+                                <input id="hdnDetailGUID" type="hidden" value="@item.GUID" />
+                                <input id="hdnTempDetailsGUID" type="hidden" value="@item.tempDetailsGUID" />
+                                <input id="hdnItemGUID" type="hidden" value="@item.ItemGUID" />
+                                <input id="hdnOrderGUID" type="hidden" value="@item.OrderGUID" />
+                                <input id="hdnItemNumber" type="hidden" value="@item.ItemNumber" />
+                                <input id="hdnRequiredDate" type="hidden" value="@item.RequiredDateStr" />
+                                <input id="hdnUDF1" type="hidden" value="@item.UDF1" />
+                                <input id="hdnUDF2" type="hidden" value="@item.UDF2" />
+                                <input id="hdnUDF3" type="hidden" value="@item.UDF3" />
+                                <input id="hdnUDF4" type="hidden" value="@item.UDF4" />
+                                <input id="hdnUDF5" type="hidden" value="@item.UDF5" />
+                                <input id="hdnDefultOrderQty" type="hidden" value="@item.DefaultReorderQuantity" />
+                                <input id="hdnIsEnforceDefultOrdQty" type="hidden" value="@(item.IsEnforceDefaultReorderQuantity.GetValueOrDefault(false).ToString())" />
+                                <input id="hdnBinName" type="hidden" value="@item.BinName" />
+                                <input id="hdnComment" type="hidden" value="@item.Comment" />
+                                <input id="hdnIsAllowOrderCostuom" type="hidden" value="@(item.IsAllowOrderCostuom_LineItem.ToString())" />
+                                <input id="hdnOrderUOMValue" type="hidden" value="@item.OrderUOMValue_LineItem.GetValueOrDefault(0)" />
+                                <input id="hdnOrderLineItemIsDeleted" type="hidden" value="@item.IsDeleted.GetValueOrDefault(false).ToString()" />
+                                <input id="hdnOrderLineItemExtendedCost_@trid" type="hidden" value="@(item.OrderLineItemExtendedCost.GetValueOrDefault(0).ToString())" />
+                                <input id="hdnOrderLineItemExtendedPrice_@trid" type="hidden" value="@(item.OrderLineItemExtendedPrice.GetValueOrDefault(0).ToString())" />
+                                <input id="hdnSupplierId" type="hidden" value="@item.SupplierID" />
+                                <input id="hdnSupplierPartNo" type="hidden" value="@item.SupplierPartNo" />
+                                <input id="hdnSupplierName" type="hidden" value="@item.SupplierName" />
+                                <input id="hdnItemSellPrice" type="hidden" value="@item.ItemSellPrice" />
+                                <input id="hdnItemCostUOMValue" type="hidden" value="@item.ItemCostUOMValue" />
+                                <input id="hdnItemMarkup" type="hidden" value="@item.ItemMarkup" />
+                                <input id="hdnItemCost_@trid" type="hidden" value="@item.ItemCost.GetValueOrDefault(0).ToString()" />
+                                <input id="hdnIntransistQty" type="hidden" value="@item.InTransitQuantity.GetValueOrDefault(0)" />
+                            </td>
+                            <td>
+                                <span style="display:none">@item.BinName</span>
+                                @if (Model.StagingDefaultLocation.GetValueOrDefault(0) > 0)
+                                {
+                                    @Html.TextBox("txtBinNumber", item.BinName, new { id = "txtBinNumber", @class = "text-boxinner", @style = "width:90px;", @readonly = "readonly" })
+                                }
+                                else
+                                {
+                                    if (HasOnTheFlyEntryRight)
+                                    {
+                                        <span style='position:relative'>
+                                            @Html.TextBox("txtBinNumber", item.BinName, new { id = "txtBinNumber", @class = "OrdDetailAuto text-boxinner", @style = "width:90px;" })
+                                            <a id='lnkShowAllOptions' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptions">
+                                                <img src='/Content/images/arrow_down_black.png' alt='select' />
+                                            </a>
+                                            <input type="hidden" value="false" id="hdnIsLoadMoreLocations" />
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span style='position:relative'>
+                                            @Html.DropDownList("slctBinNumber", new SelectList(lstBinMaster, "BinNumber", "BinNumber", item.BinName), new { @class = "selectBox" })
+                                            <input type="hidden" name="txtBinNumber" id="txtBinNumber" value="@item.BinName" />
+                                        </span>
+                                    }
+                                }
+                            </td>
+                            <td>
+                                <span style="display:none">@item.RequestedQuantity.GetValueOrDefault(0)</span>
+                                @if (item.SerialNumberTracking)
+                                {
+                                    @Html.TextBox("txtQty", item.RequestedQuantity.GetValueOrDefault(0).ToString("N0"), new { @style = "width:93%;", @maxlength = "10", @class = "numericinput text-boxinner txtSRQtyFormat" })
+                                }
+                                else
+                                {
+                                    @Html.TextBox("txtQty", item.RequestedQuantity.GetValueOrDefault(0), new { @style = "width:93%;", @maxlength = "10", @class = "numericinput text-boxinner" })
+                                }
+                            </td>
+                            <td>
+                                <span style="display:none">@item.ApprovedQuantity.GetValueOrDefault(0)</span>
+                                @if (item.SerialNumberTracking)
+                                {
+                                    @Html.TextBox("txtApprQty", item.ApprovedQuantity.GetValueOrDefault(0).ToString("N0"), new { @style = "width:93%;", @maxlength = "10", @class = "numericinput text-boxinner clsApprQty txtSRQtyFormat", @readonly = "readnly" })
+                                }
+                                else
+                                {
+                                    @Html.TextBox("txtApprQty", item.ApprovedQuantity.GetValueOrDefault(0), new { @style = "width:93%;", @maxlength = "10", @class = "numericinput text-boxinner clsApprQty", @readonly = "readonly" })
+                                }
+                            </td>
+                            <td>
+                                <span style="display:none">@(item.RequiredDate == null ? "" : ((DateTime)item.RequiredDate).ToString("yyyyMMdd"))</span>
+                                @if (Model.OrderStatus != (int)OrderStatus.Closed)
+                                {
+                                    <input type='text' style="width:93%;background:white;" readonly="readonly" class='hasDatePicker text-box' value='@item.RequiredDateStr' id='hiddenDatePicker@(item.ID)_@(trid)' />
+                                }
+                                else
+                                {
+                                    <div id="dveditRequiredDate" class='editRequiredDate'><img src='/Content/images/editico.png' title='Edit RequiredDate' /></div>
+                                    <input type='text' style="width:75%;background:#ccc;" readonly="readonly" class='hasDatePicker text-box' value='@item.RequiredDateStr' id='hiddenDatePicker@(item.ID)_@(trid)' />
+                                }
+                            </td>
+                            <td class="numericalign">
+                                <label id="qtyTempReceivedQuantity_@trid">@item.ReceivedQuantity</label>
+                            </td>
+                            <td class="numericalign">
+                                <label id="qtyTempOnHandQuantity_@trid">@item.OnHandQuantity</label>
+                            </td>
+                            <td class="numericalign">
+                                <label id="qtyTempStagedQuantity_@trid">@item.StagedQuantity</label>
+                            </td>
+                            <td>
+                                @item.ItemDescription
+                            </td>
+                            <td>
+                                @item.Unit
+                            </td>
+                            <td>
+                                @item.GLAccount
+                            </td>
+                            @if (isCost)
+                            {
+                                <td class="numericalign">
+                                    <label id="CostTempCost_@trid">@item.Cost.GetValueOrDefault(0)</label>
+                                </td>
+                                <td class="numericalign">
+                                    @item.Markup
+                                </td>
+                                <td class="numericalign">
+                                    <label id="costTempSellPrice_@trid">@item.SellPrice.GetValueOrDefault(0)</label>
+                                </td>
+                            }
+                            <td>
+                                @item.SupplierName
+                            </td>
+                            <td class="numericalign">
+                                <label id="qtyTempOnOrderQuantity_@trid">@item.OnOrderQuantity.GetValueOrDefault(0)</label>
+                            </td>
+                            <td class="numericalign">
+                                <label id="qtyTempOnReturnQuantity_@trid">@item.OnReturnQuantity.GetValueOrDefault(0)</label>
+                            </td>
+                            <td class="numericalign">
+                                <label id="qtyTempInTransitQuantity_@trid">@item.OnOrderInTransitQuantity</label>
+                            </td>
+                            <td class="numericalign">
+                                <label id="qtyTempMinimumQuantity_@trid">@item.MinimumQuantity</label>
+                            </td>
+                            <td class="numericalign">
+                                <label id="qtyTempMaximumQuantity_@trid">@item.MaximumQuantity</label>
+                            </td>
+                            <td>
+                                @item.Category
+                            </td>
+                            <td class="numericalign">
+                                <label id="qtyTempDefaultReorderQuantity_@trid">@item.DefaultReorderQuantity</label>
+                            </td>
+                            <td>
+                                @item.Manufacturer
+                            </td>
+                            <td>
+                                @item.ManufacturerNumber
+                            </td>
+                            <td>
+                                @item.SupplierPartNo
+                            </td>
+                            <td class="numericalign">
+                                @item.SuggestedOrderQuantity
+                            </td>
+                            <td>
+                                @item.ItemBlanketPO
+                            </td>
+                            <td>
+                                @if (item.IsEDISent.GetValueOrDefault(false) == true)
+                                {
+                                    @Html.Label("True");
+                                    <input id="hdnIsEDISent" type="hidden" value="True" />
+                                }
+                                else
+                                {
+                                    @Html.Label("False");
+                                    <input id="hdnIsEDISent" type="hidden" value="False" />
+                                }
+                            </td>
+                            <td>
+                                @item.ODPackSlipNumbers
+                            </td>
+                            <td>
+                                @item.ASNNumber
+                            </td>
+                            <td>
+                                @item.CostUOM
+                            </td>
+                            <td>
+                                @(item.CostUOMValue ?? 0)
+                            </td>
+                            @if (isCost)
+                            {
+                                <td class="numericalign">
+                                    @(item.ExtendedCost.GetValueOrDefault(0).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture))
+                                    @*<label id="ExtCostTempCost_@trid">@item.Cost.GetValueOrDefault(0).ToString(priceformate)</label>*@
+                                </td>
+                            }
+                            <td id="orderlinecommenttd">
+                                @if (Model.OrderStatus != (int)OrderStatus.Closed)
+                                {
+                                    <textarea id="Comment" name="Comment" style="background:white !important;width:80% !important;" rows="3" cols="20" class="text-box control" maxlength="2000" onkeypress="return NotAllowCharacter(event);" ondrop="return false;" onblur="return NotAllowedSpecialCharacters(this);">@item.Comment</textarea>
+                                }
+                                else
+                                {
+                                    <div id="dveditComment" class='editComment'><img src='/Content/images/editico.png' title='Edit Comment' /></div>
+                                    <textarea id="Comment" disabled="disabled" readonly="readonly" name="Comment" style="width:65% !important;" rows="3" cols="20" class="text-box control" maxlength="2000">@item.Comment</textarea>
+                                }
+                            </td>
+                            <td>
+                                @(item.ItemInTransitQuantity ?? 0)
+                            </td>
+
+                            <td>
+                                @(item.CreatedByName)
+                            </td>
+                            <td>
+                                @(item.CreatedDate)
+                            </td>
+                            <td>
+                                @(item.UpdatedByName)
+                            </td>
+                            <td>
+                                @(item.UpdatedDate)
+                            </td>
+                            <td>
+                                @(item.AddedFrom)
+                            </td>
+                            <td>
+                                @(item.ReceivedOnDateWeb)
+                            </td>
+                            <td>
+                                @(item.EditedFrom)
+                            </td>
+                            <td>
+                                @(item.ReceivedOnDate)
+                            </td>
+                            <td>
+                                @(item.InTransitQuantity ?? 0)
+                            </td>
+                            @if (isCost)
+                            {
+                                <td class="numericalign">
+                                    @item.OrderLineItemExtendedCost.GetValueOrDefault(0).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture)
+                                </td>
+                            }
+                            @if (Model.OrderType == (int)OrderType.Order)
+                            {
+                                <td>
+                                    <span style="display:none">@item.ItemCost.GetValueOrDefault(0)</span>
+                                    @Html.TextBox("txtOrderItemCost", item.ItemCost, new { @style = "width:93%;", @maxlength = "20", @class = "numericinput text-boxinner" })
+                                </td>
+                                if (isCost)
+                                {
+                                    <td class="numericalign">
+                                        @item.ItemSellPrice.GetValueOrDefault(0).ToString(priceformate, eTurnsWeb.Helper.SessionHelper.RoomCulture)
+                                    </td>
+                                    <td class="numericalign">
+                                        @item.ItemMarkup.GetValueOrDefault(0).ToString(priceformate)
+                                    </td>
+                                    <td class="numericalign">
+                                        @item.ItemCostUOMValue.GetValueOrDefault(0).ToString(priceformate)
+                                    </td>
+                                }
+                            }
+                            @if (isOrderDetailsUDF)
+                            {
+                                @Html.RenderColumnsArrayEditableObjectForDOM("OrderDetails", controlIDPostfix: "OrderDetails")
+
+                            }
+                            @(Html.RenderColumnsArrayForDOM("ItemMaster", item, "Item"))
+                            @if (Model.OrderStatus == (int)OrderStatus.Closed)
+                            {
+                                if ((Model.OrderType == (int)OrderType.Order))
+                                {
+                                    if (item.attachmentfileNames != null)
+                                    {
+                                        <td>
+                                            @for (int i = 0; i < item.attachmentfileNames.Count; i++)
+                                            {
+                                                string attachmentPath = ReceiveFilePath + "/" + item.ID + "/" + item.attachmentfileNames[i].FileName.ToString();
+                                                if (i != 0)
+                                                {
+                                                    <label> | </label><a class='preview' href='@attachmentPath' target='_blank'>@item.attachmentfileNames[i].FileName.ToString()</a>;
+                                                }
+                                                else
+                                                {
+                                                    <a class='preview' href='@attachmentPath' target='_blank'>@item.attachmentfileNames[i].FileName.ToString()</a>;
+                                                }
+                                            }
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        <td></td>
+                                    }
+
+                                }
+                            }
+                            <td>
+                                @Html.CheckBox("IsBackOrdered_" + trid, (item.IsBackOrdered.HasValue ? Convert.ToBoolean(item.IsBackOrdered) : false), new { @class = "check-box", @data_id = "IsBackOrdered_" + trid, @onclick = "setBackOrderedStatus(this)", @data_value = Convert.ToBoolean(item.IsBackOrdered) })
+                            </td>
+                            <td>
+                                <img class="BackOrderedExpand" src="/Content/images/drildown_open.jpg" />
+                            </td>
+                            <td>
+                                @*@{
+                                      POLineItemManual++;
+                                      <span id="POLineItemNumbers" data-value="@POLineItemManual"> @(POLineItemManual) </span>
+                                    }*@
+                                @if (item.POItemLineNumber == null || item.POItemLineNumber < 1)
+                                {
+                                    POLineItemManual++;
+                                    <span id="POLineItemNumbers" data-value="@POLineItemManual"> @(POLineItemManual) </span>
+                                }
+                                else
+                                {
+                                    <span id="POLineItemNumbers" data-value="@item.POItemLineNumber"> @(item.POItemLineNumber) </span>
+                                    POLineItemManual = item.POItemLineNumber.GetValueOrDefault(0);
+                                }
+
+                            </td>
+                            <td>
+                                @Html.CheckBox("IsOrderLineException", (item.OrderLineException.HasValue ? Convert.ToBoolean(item.OrderLineException) : false), new { @class = "check-box", @disabled = "disabled", @data_id = "IsOrderLineException", @onclick = "setOrderLineExceptionStatus(this)", @data_value = Convert.ToBoolean(item.OrderLineException) })
+                            </td>
+                            <td>
+                                @(item.OrderLineExceptionDesc)
+                            </td>
+                        </tr>
+                                trid += 1;
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @*@if (Model.OrderStatus == (int)OrderStatus.Closed)
+            {
+                if (Model.OrderType == (int)OrderType.Order && isShowDeleted == false)
+                {
+                    <input id="btnEditReqDateAndComment" type="button" value="@eTurns.DTO.Resources.ResCommon.UpdateCloseOrder" style="float: right; margin-left: 5%" class="CreateBtn" />
+                }
+            }*@
+    </div>
+</div>
+
+<script type="text/javascript">
+    var OrdID = '@Model.ID';
+    var OrdStatus = '@Model.OrderStatus';
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var oTableOrderLineItems;
+    var bIsFilter = false;
+    var objOrdDtlGridColumns = {};
+    var ISDeletable = '@isDelete';
+
+    $(document).ready(function () {
+        AllowDeletePopup = false;
+        $('form').areYouSure();
+        //objColumns = GetGridHeaderColumnsObject('OrderLineItem' + OrdID);
+        objOrdDtlGridColumns = GetGridChildGridColumnsObject('OrderLineItem' + OrdID);
+        $('.ShowAllOptions').click(function () {
+            $(this).siblings('.OrdDetailAuto').trigger("focus");
+            $(this).siblings(".OrdDetailAuto").autocomplete("search", " ");
+        });
+
+        UDFfillEditableOptionsForGrid();
+        var tableName = $('table[id^=OrderLineItem]').attr("id");
+        var rowno = 0;
+        $('#' + tableName + ' tr').each(function () {
+
+            var raw = $(this);
+            var qtyTempReceivedQuantity = $('#qtyTempReceivedQuantity_' + rowno).text();
+            if (qtyTempReceivedQuantity != "" && qtyTempReceivedQuantity != NaN)
+                $('#qtyTempReceivedQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempReceivedQuantity), 2));
+            else
+                $('#qtyTempReceivedQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var txtQty = raw.find("#txtQty").val();
+            if (txtQty != "" && txtQty != NaN) {
+                raw.find("#txtQty").val(FormatedCostQtyValues(txtQty, 2));
+            }
+            else
+                raw.find("#txtQty").val(FormatedCostQtyValues(0, 2));
+            var txtApprQty = raw.find("#txtApprQty").val();
+
+            if (txtApprQty != "" && txtApprQty != NaN) {
+                raw.find("#txtApprQty").val(FormatedCostQtyValues(txtApprQty, 2));
+            }
+            else
+                raw.find("#txtApprQty").val(FormatedCostQtyValues(0, 2));
+
+            var qtyTempOnHandQuantity = $('#qtyTempOnHandQuantity_' + rowno).text();
+            if (qtyTempOnHandQuantity != "" && qtyTempOnHandQuantity != NaN)
+                $('#qtyTempOnHandQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempOnHandQuantity), 2));
+            else
+                $('#qtyTempOnHandQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempStagedQuantity = $('#qtyTempStagedQuantity_' + rowno).text();
+            if (qtyTempStagedQuantity != "" && qtyTempStagedQuantity != NaN)
+                $('#qtyTempStagedQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempStagedQuantity), 2));
+            else
+                $('#qtyTempStagedQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var CostTempCost = $('#CostTempCost_' + rowno).text();
+            if (CostTempCost != "" && CostTempCost != NaN)
+                $('#CostTempCost_' + rowno).text(FormatedCostQtyValuesByCurrentCulture(parseFloat(CostTempCost), 1,'@eTurnsWeb.Helper.SessionHelper.RoomCulture'));
+            else
+                $('#CostTempCost_' + rowno).text(FormatedCostQtyValuesByCurrentCulture(0, 1,'@eTurnsWeb.Helper.SessionHelper.RoomCulture'));
+
+            var qtyTempOnOrderQuantity = $('#qtyTempOnOrderQuantity_' + rowno).text();
+
+            if (qtyTempOnOrderQuantity != "" && qtyTempOnOrderQuantity != NaN)
+                $('#qtyTempOnOrderQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempOnOrderQuantity), 2));
+            else
+                $('#qtyTempOnOrderQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempInTransitQuantity = $('#qtyTempInTransitQuantity_' + rowno).text();
+            if (qtyTempInTransitQuantity != "" && qtyTempInTransitQuantity != NaN)
+                $('#qtyTempInTransitQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempInTransitQuantity), 2));
+            else
+                $('#qtyTempInTransitQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempMinimumQuantity = $('#qtyTempMinimumQuantity_' + rowno).text();
+            if (qtyTempMinimumQuantity != "" && qtyTempMinimumQuantity != NaN)
+                $('#qtyTempMinimumQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempMinimumQuantity), 2));
+            else
+                $('#qtyTempMinimumQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempMaximumQuantity = $('#qtyTempMaximumQuantity_' + rowno).text();
+            if (qtyTempMaximumQuantity != "" && qtyTempMaximumQuantity != NaN)
+                $('#qtyTempMaximumQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempMaximumQuantity), 2));
+            else
+                $('#qtyTempMaximumQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var costTempSellPrice = $('#costTempSellPrice_' + rowno).text();
+            if (costTempSellPrice != "" && costTempSellPrice != NaN)
+                $('#costTempSellPrice_' + rowno).text(FormatedCostQtyValuesByCurrentCulture(parseFloat(costTempSellPrice), 1, '@eTurnsWeb.Helper.SessionHelper.RoomCulture'));
+            else
+                $('#costTempSellPrice_' + rowno).text(FormatedCostQtyValuesByCurrentCulture(0, 1,'@eTurnsWeb.Helper.SessionHelper.RoomCulture'));
+
+            //            var qtyTempPackingQuantity = $('#qtyTempPackingQuantity_' + rowno).text();
+            //            if (qtyTempPackingQuantity != "" && qtyTempPackingQuantity != NaN)
+            //                $('#qtyTempPackingQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempPackingQuantity), 2));
+            //            else
+            //                $('#qtyTempPackingQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyTempDefaultReorderQuantity = $('#qtyTempDefaultReorderQuantity_' + rowno).text();
+            if (qtyTempDefaultReorderQuantity != "" && qtyTempDefaultReorderQuantity != NaN)
+                $('#qtyTempDefaultReorderQuantity_' + rowno).text(FormatedCostQtyValues(parseFloat(qtyTempDefaultReorderQuantity), 2));
+            else
+                $('#qtyTempDefaultReorderQuantity_' + rowno).text(FormatedCostQtyValues(0, 2));
+
+            var qtyOrderLineItemExtendedCost = $('#hdnOrderLineItemExtendedCost_' + rowno).val();
+            if (qtyOrderLineItemExtendedCost != "" && qtyOrderLineItemExtendedCost != NaN)
+                $('#hdnOrderLineItemExtendedCost_' + rowno).val(FormatedCostQtyValues(parseFloat(qtyOrderLineItemExtendedCost), 2));
+            else
+                $('#hdnOrderLineItemExtendedCost_' + rowno).val(FormatedCostQtyValues(0, 2));
+
+            var qtyOrderLineItemExtendedPrice = $('#hdnOrderLineItemExtendedPrice_' + rowno).val();
+            if (qtyOrderLineItemExtendedPrice != "" && qtyOrderLineItemExtendedPrice != NaN)
+                $('#hdnOrderLineItemExtendedPrice_' + rowno).val(FormatedCostQtyValues(parseFloat(qtyOrderLineItemExtendedPrice), 2));
+            else
+                $('#hdnOrderLineItemExtendedPrice_' + rowno).val(FormatedCostQtyValues(0, 2));
+
+            rowno += 1;
+        });
+
+        var gaiSelected = [];
+
+        //----------------------------------------------------
+        //
+        $('#OrderLineItem' + OrdID + ' tr').each(function () {
+            var UDF1 = '';
+            var UDF2 = '';
+            var UDF3 = '';
+            var UDF4 = '';
+            var UDF5 = '';
+            if ($(this).find("input#hdnUDF1").val() != '') {
+                UDF1 = $(this).find("input#hdnUDF1").val();
+            }
+            if ($(this).find("input#hdnUDF2").val() != '') {
+                UDF2 = $(this).find("input#hdnUDF2").val();
+            }
+            if ($(this).find("input#hdnUDF3").val() != '') {
+                UDF3 = $(this).find("input#hdnUDF3").val();
+            }
+            if ($(this).find("input#hdnUDF4").val() != '') {
+                UDF4 = $(this).find("input#hdnUDF4").val();
+            }
+            if ($(this).find("input#hdnUDF5").val() != '') {
+                UDF5 = $(this).find("input#hdnUDF5").val();
+            }
+
+            //if (UDF1 != '') {
+            //    $(this).find('#hdnSpnUDF1').text(UDF1);
+            //}
+            //if (UDF2 != '') {
+            //    $(this).find('#hdnSpnUDF2').text(UDF2);
+            //}
+            //if (UDF3 != '') {
+            //    $(this).find('#hdnSpnUDF3').text(UDF3);
+            //}
+            //if (UDF4 != '') {
+            //    $(this).find('#hdnSpnUDF4').text(UDF4);
+            //}
+            //if (UDF5 != '') {
+            //    $(this).find('#hdnSpnUDF5').text(UDF5);
+            //}
+
+            if (UDF1 != '') {
+                $(this).find('#hdnSpnUDF1OrderDetails').text(UDF1);
+            }
+            if (UDF2 != '') {
+                $(this).find('#hdnSpnUDF2OrderDetails').text(UDF2);
+            }
+            if (UDF3 != '') {
+                $(this).find('#hdnSpnUDF3OrderDetails').text(UDF3);
+            }
+            if (UDF4 != '') {
+                $(this).find('#hdnSpnUDF4OrderDetails').text(UDF4);
+            }
+            if (UDF5 != '') {
+                $(this).find('#hdnSpnUDF5OrderDetails').text(UDF5);
+            }
+        });
+
+        //----------------------------------------------------
+        //
+        oTableOrderLineItems = $('#OrderLineItem' + OrdID).DataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "150%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            "oColVis": {
+            },
+            //"aaSorting": [],
+            "aaSorting": [[1, "desc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                if ('@isApprove' === "True") {
+                    $(nRow).find("input.clsApprQty").removeAttr("readonly");
+                }
+                if ('@Model.IsRecordNotEditable' != 'True') {
+                    $(nRow).find('input.hasDatePicker').blur(function () { }).datepicker({
+                        dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+                        changeMonth: true,
+                        changeYear: true,
+                        clearText: 'Clear', onClose: function () { this.focus(); }
+                    });
+                }
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+
+                if ('@isShowDeleted' === "True" || '@Model.IsDeleted' === "True") {
+                    $(nRow).css('background-color', '#FFCCCC');
+                }
+
+                return nRow;
+            },
+            "aoColumnDefs": [
+		        { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '', aTargets: [0] }
+            ],
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                //   if (!bIsFilter) {
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'OrderLineItemList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = json;
+                    }
+                });
+                //  }
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'OrderLineItemList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "fnInitComplete": function () {
+                //$(this).parent().find(".lnkDisableCommentAndDate").hide();
+                //if (parseInt($("#ddlOrderStatus").val()) < parseInt("@((int)OrderStatus.Approved)")) {
+                //    $(".clsApprQty").attr("readonly", "readonly");
+                //    $(".clsApprQty").val("0");
+                //}
+                $('.ColVis').detach().appendTo(".setting-arrow");
+                if ('@Model.IsDeleted' === "True") {
+                    if ($("#IsDeletedRecordsOrdLn").length > 0) {
+                        $("#IsDeletedRecordsOrdLn").parent("li").hide();
+                    }
+                }
+
+                var cols = $('#OrderLineItem' + OrdID).dataTable().fnSettings().aoColumns;
+                var colIdx = -1;
+                var bvisbl = true;
+                for (var i = 0; i < cols.length; i++) {
+                    if ($.trim(cols[i].sTitle) === "@eTurns.DTO.ResItemMaster.ItemNumber") {
+                        colIdx = i;
+                        bvisbl = cols[i].bVisible;
+                        break;
+                    }
+                }
+
+                if (colIdx != null && typeof (colIdx) != "undefined" && (parseInt(colIdx) || -1) > -1)
+                {
+                    $('#OrderLineItem' + OrdID).dataTable().fnSetColumnVis(colIdx, true, true);
+                }
+                imagePreview();
+                if (OrdStatus == @((int)OrderStatus.Closed)) {
+                    $("#aPrintAttachedDocs").show();
+                    $("#OrderlineitemDownloadDocsli").show();
+                } else {
+                    $("#aPrintAttachedDocs").hide();
+                    $("#OrderlineitemDownloadDocsli").hide();
+                }
+            }
+            //, "aoColumns": ColumnObject
+
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+        $('#btnblock').css({ 'margin-right': '45px' });
+        if ('@isShowDeleted' === 'True') {
+            if ('@Model.OrderListItem.Count' === '0') {
+                $('#spnNoOfItems').text('0');
+            }
+            else {
+                $('#spnNoOfItems').text('@Model.OrderListItem.Count');
+            }
+        }
+        else {
+            $('#spnNoOfItems').text('@Model.NoOfLineItems.GetValueOrDefault(0)');
+            $('#spnTotalCost').text('$ ' + '@Model.OrderCost.GetValueOrDefault(0).ToString(priceformate)');
+        }
+
+        $(".clsApprQty").attr("readonly", "readonly");
+
+        if ('@isApprove' === "True") {
+            $(".clsApprQty").removeAttr("readonly");
+        }
+
+        $('#OrderLineItem' + OrdID).on('focus', "input.OrdDetailAuto", function (e) {
+
+            var ajaxURL = '/Master/GetBinForItemOrStaging';
+            var itmGuid = $(this).parent().parent().parent().find('#hdnItemGUID').val();
+            var stagingName = $('#txtStagingName').val();
+            var includeQty = false;
+            var tr = $(this).parent().parent().parent();
+
+            if ('@Model.OrderType' === '2') {
+                includeQty = true;
+            }
+            var hdnIsLoadMoreLocations = $(tr).find("#hdnIsLoadMoreLocations").val();
+            $(this).autocomplete("destroy");
+
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'ItemGuid': itmGuid, 'StagingHeaderName': stagingName, 'IncludeQty': includeQty, 'NameStartWith': request.term, 'IsLoadMoreLocations': hdnIsLoadMoreLocations }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key
+                                }
+                            }));
+                        },
+                        error: function (err) {
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+
+                select: function (event, ui) {
+                    if (ui.item.value == MoreLocation) {
+                        $(tr).find("#hdnIsLoadMoreLocations").val("true");
+                        $(this).trigger("focus");
+                        $(this).autocomplete("search", " ");
+                        return false;
+                    }
+                    else {
+                        $(this).val(ui.item.value);
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                    $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                    $('ul.ui-autocomplete').css('max-height', '300px');
+                    $('ul.ui-autocomplete').css('z-index', '99999');
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                }
+            }).bind("focus", function () {
+                $(this).autocomplete("search", " ");
+                //$(objTxtselector).autocomplete("search", $(objTxtselector).val());
+            });
+        });
+        $('#OrderLineItem' + OrdID + ' tr').each(function () {
+            var UDF1 = '';
+            var UDF2 = '';
+            var UDF3 = '';
+            var UDF4 = '';
+            var UDF5 = '';
+            if ($(this).find("input#hdnUDF1").val() != '') {
+                UDF1 = $(this).find("input#hdnUDF1").val();
+            }
+
+            if ($(this).find("input#hdnUDF2").val() != '') {
+                UDF2 = $(this).find("input#hdnUDF2").val();
+            }
+            if ($(this).find("input#hdnUDF3").val() != '') {
+                UDF3 = $(this).find("input#hdnUDF3").val();
+            }
+            if ($(this).find("input#hdnUDF4").val() != '') {
+                UDF4 = $(this).find("input#hdnUDF4").val();
+            }
+            if ($(this).find("input#hdnUDF5").val() != '') {
+                UDF5 = $(this).find("input#hdnUDF5").val();
+            }
+            if (UDF1 != '') {
+                $(this).find("input#UDF1OrderDetails").val($.trim(UDF1));
+                $(this).find("select#UDF1OrderDetails option").filter(function () {
+                    return this.text == $.trim(UDF1);
+                }).attr('selected', true);
+            }
+            if (UDF2 != '') {
+                $(this).find("input#UDF2OrderDetails").val($.trim(UDF2));
+                $(this).find("select#UDF2OrderDetails option").filter(function () {
+                    return this.text == $.trim(UDF2);
+                }).attr('selected', true);
+            }
+            if (UDF3 != '') {
+                $(this).find("input#UDF3OrderDetails").val($.trim(UDF3));
+                $(this).find("select#UDF3OrderDetails option").filter(function () {
+                    return this.text == $.trim(UDF3);
+                }).attr('selected', true);
+            } if (UDF4 != '') {
+                $(this).find("input#UDF4OrderDetails").val($.trim(UDF4));
+                $(this).find("select#UDF4OrderDetails option").filter(function () {
+                    return this.text == $.trim(UDF4);
+                }).attr('selected', true);
+            } if (UDF5 != '') {
+                $(this).find("input#UDF5OrderDetails").val($.trim(UDF5));
+                $(this).find("select#UDF5OrderDetails option").filter(function () {
+                    return this.text == $.trim(UDF5);
+                }).attr('selected', true);
+            }
+        });
+
+        //oTableOrderLineItems.rows().invalidate().draw();
+
+        $('#IsDeletedRecordsOrdLn').click(function () {
+            var _vIsDeleted = false;
+            if (typeof ($('#IsDeletedRecordsOrdLn')) != undefined) {
+                _vIsDeleted = $('#IsDeletedRecordsOrdLn').is(':checked');
+                CallThisFunctionFromModel('success', true, _vIsDeleted)
+            }
+        });
+
+        $('#OrderLineItem' + OrdID).on("blur", "#Comment", function (event) {
+            if ('@Model.OrderStatus' == @Convert.ToInt32(OrderStatus.Closed)) {
+                var arrReqDateCommentItems = new Array();
+                var ID = $(this).parents().find('#hdnID').val();
+                var ItemGUID = $(this).parents().find('#hdnItemGUID').val();
+                var OrderGUID = $(this).parents().find('#hdnOrderGUID').val();
+                var hdnComment = $(this).parents().find("input[type='hidden'][id*='hdnComment']").val();
+                var Comment = $(this).parents().find('#Comment').val();
+                if (hdnComment != Comment) {
+                    $('#DivLoading').show();
+                    var data = {
+                        "ID": ID
+                        , "ItemGUID": ItemGUID
+                        , "OrderGUID": OrderGUID
+                        //, "RequiredDateStr": RequiredDate
+                        , "Comment": Comment
+                    };
+                    arrReqDateCommentItems.push(data);
+                    var msg = SaveLineItemsForReqDateCommentGrid(arrReqDateCommentItems, true, false);
+                    //var dveditCommnet = $(this).parents().find("#dveditCommnet");
+                    //if (typeof (dveditCommnet) != "undefined") {
+                    //    $(dveditCommnet).show();
+                    //}
+                    if (msg.Status == "ok") {
+                        var txtComment = $(this).parents().find("#Comment");
+                        if (txtComment != undefined && (typeof (txtComment) != undefined)) {
+                            var hdnComment = $(this).parents().find("#hdnComment");
+                            if (hdnComment != undefined && (typeof (hdnComment) != undefined)) {
+                                $(hdnComment).val($(txtComment).val());
+                            }
+                            $(txtComment).attr("readonly", "readonly");
+                            $(txtComment).attr("disabled", "disabled");
+                            $(txtComment).css({ "background-color": "#ccc" });
+                        }
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").html(msg.Message);
+                        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+                    }
+                    else if (msg.Status == 'No') {
+                        $('#DivLoading').hide();
+                        $("#spanGlobalMessage").html('@ResCommon.NoChanges');
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                    }
+                    else {
+                        $('#DivLoading').hide();
+                        $("#spanGlobalMessage").html(msg.Message);
+                        showNotificationDialog();
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    }
+                }
+                else {
+                    var txtComment = $(this).parents().find("#Comment");
+                    if (txtComment != undefined && (typeof (txtComment) != undefined)) {
+                        $(txtComment).attr("readonly", "readonly");
+                        $(txtComment).attr("disabled", "disabled");
+                        $(txtComment).css({ "background-color": "#ccc" });
+                    }
+                }
+            }
+        });
+
+        $('#OrderLineItem' + OrdID).on("click", ".editComment img", function (event) {
+            if ('@Model.OrderStatus' == @Convert.ToInt32(OrderStatus.Closed)) {
+                $('#DivLoading').show();
+                var parenttd = $(this).parents('td').parent();
+                var ID = parenttd.find("input[type='hidden'][id*='hdnID']").val();
+                var ordTempDtlsGUID = parenttd.find("#hdnDetailGUID").val();
+                var txtComment = parenttd.find("#Comment");
+                if (txtComment != undefined && (typeof (txtComment) != undefined)) {
+                    $(txtComment).removeAttr("readonly");
+                    $(txtComment).removeAttr("disabled");
+                    $(txtComment).css({ "background-color": "#fff" });
+                    //$(txtComment).removeAttr("background");
+                }
+                //var dveditComment = $(this).parents('td').find("#dveditComment");
+                //if (typeof (dveditComment) != "undefined") {
+                //    $(dveditComment).hide();
+                //}
+                $('#DivLoading').hide();
+                return true;
+            }
+        });
+
+        $('#OrderLineItem' + OrdID).on("click", ".editRequiredDate img", function (event) {
+            if ('@Model.OrderStatus' == @Convert.ToInt32(OrderStatus.Closed)) {
+                $('#DivLoading').show();
+                var parenttd = $(this).parents('td').parent();
+                var ID = parenttd.find("input[type='hidden'][id*='hdnID']").val();
+                var ordTempDtlsGUID = parenttd.find("#hdnDetailGUID").val();
+                parenttd.find('input.hasDatePicker').removeAttr("disabled", "disabled");
+                parenttd.find('input.hasDatePicker').css({ "background-color": "#fff" });
+                parenttd.find('input.hasDatePicker').blur(function () { }).datepicker({
+                    dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+                    changeMonth: true,
+                    changeYear: true,
+                    clearText: 'Clear', onClose: function () { this.focus(); }
+                }).on("change", function () {
+                    if ('@Model.OrderStatus' == @Convert.ToInt32(OrderStatus.Closed)) {
+                        var arrReqDateCommentItems = new Array();
+                        var ID = $(this).parents().find('#hdnID').val();
+                        var ItemGUID = $(this).parents().find('#hdnItemGUID').val();
+                        var OrderGUID = $(this).parents().find('#hdnOrderGUID').val();
+                        var hdnRequiredDate = $(this).parents().find("input[type='hidden'][id*='hdnRequiredDate']").val();
+                        var RequiredDate = $(this).parents().find('input.hasDatePicker').val();
+                        if ((typeof (RequiredDate) == "undefined" || (typeof (RequiredDate) == undefined))) {
+                            RequiredDate = $(this).parents().find('#hdnRequiredDate').val();
+                        }
+
+                        var hdnComment = $(this).parents().find("#hdnComment");
+
+                        if (hdnRequiredDate != RequiredDate) {
+                            $('#DivLoading').show();
+                            var data = {
+                                "ID": ID
+                                , "ItemGUID": ItemGUID
+                                , "OrderGUID": OrderGUID
+                                , "RequiredDateStr": RequiredDate
+                                , "Comment": hdnComment.val()
+                            };
+                            arrReqDateCommentItems.push(data);
+                            var msg = SaveLineItemsForReqDateCommentGrid(arrReqDateCommentItems, false, true);
+                            //var dveditRequiredDate = $(this).parents().find("#dveditRequiredDate");
+                            //if (typeof (dveditRequiredDate) != "undefined") {
+                            //    $(dveditRequiredDate).show();
+                            //}
+                            if (msg.Status == "ok") {
+                                var RequiredDate = $(this).parents().find('input.hasDatePicker');
+                                if (RequiredDate != undefined && (typeof (RequiredDate) != undefined)) {
+
+                                    var hdnRequiredDate = $(this).parents().find("input[type='hidden'][id*='hdnRequiredDate']");
+                                    if (hdnRequiredDate != undefined && (typeof (hdnRequiredDate) != undefined)) {
+                                        $(hdnRequiredDate).val($(RequiredDate).val());
+                                    }
+
+                                    $(RequiredDate).attr("readonly", "readonly");
+                                    $(RequiredDate).attr("disabled", "disabled");
+                                    $(RequiredDate).css({ "background-color": "#ccc" });
+                                }
+
+                                showNotificationDialog();
+                                $("#spanGlobalMessage").html(msg.Message);
+                                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+                            }
+                            else if (msg.Status == 'No') {
+                                $('#DivLoading').hide();
+                                $("#spanGlobalMessage").html('@ResCommon.NoChanges');
+                                showNotificationDialog();
+                                $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                            }
+                            else {
+                                $('#DivLoading').hide();
+                                $("#spanGlobalMessage").html(msg.Message);
+                                showNotificationDialog();
+                                $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                            }
+                        }
+                        else {
+                            var RequiredDate = $(this).parents().find('input.hasDatePicker');
+                            if (RequiredDate != undefined && (typeof (RequiredDate) != undefined)) {
+                                $(RequiredDate).attr("readonly", "readonly");
+                                $(RequiredDate).attr("disabled", "disabled");
+                                $(RequiredDate).css({ "background-color": "#ccc" });
+                            }
+                        }
+                    }
+                });
+                //var dveditRequiredDate = $(this).parents('td').find("#dveditRequiredDate");
+                //if (typeof (dveditRequiredDate) != "undefined") {
+                //    $(dveditRequiredDate).hide();
+                //}
+                $('#DivLoading').hide();
+                return true;
+            }
+        });
+
+
+    });
+
+    function setBackOrderedStatus(elements) {
+        if ($(elements).is(':checked')) {
+            $(elements).attr('data-value', 'true');
+        } else {
+            $(elements).attr('data-value', 'false');
+        }
+    }
+
+    function setOrderLineExceptionStatus(elements) {
+        if ($(elements).is(':checked')) {
+            $(elements).attr('data-value', 'true');
+        } else {
+            $(elements).attr('data-value', 'false');
+        }
+    }
+
+    function CheckUnSavedItemBeforCancel() {
+
+        var IsReturn = true;
+        $('#OrderLineItem' + '@Model.ID' + ' tbody tr').each(function (i) {
+            var tr = $(this);
+            var id = $(tr).find('#hdnID').val();
+            if (id == '' || id == '0') {
+                $('#divOrdCancelUnsaveItemInfoDialog').modal();
+                IsReturn = false;
+                return;
+            }
+        });
+
+        return IsReturn;
+    }
+
+    $(".text-boxPriceFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+    });
+    $(".text-boxQuantityFormat").priceFormat({
+        prefix: '',
+        thousandsSeparator: '',
+        centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+    });
+    //$(".text-boxQuantityFormatSR").priceFormat({
+    //    prefix: '',
+    //    thousandsSeparator: '',
+    //    centsLimit: 0
+    //});
+
+    $('input.txtSRQtyFormat').on('keypress', function (evt) {
+        var keyCode = [evt.keyCode || evt.which];
+
+        if (keyCode == 8 || keyCode == 13 || keyCode == 9)
+            return true;
+        if (keyCode > 57 || keyCode < 48)
+            return false;
+        else
+            return true;
+    });
+
+
+
+    if ('@Model.OrderStatus' >= '@((int)OrderStatus.Transmitted)') {
+        $('#deleteRows1').attr('style', 'display:none');
+        ISDeletable = false;
+    }
+
+    if ('@Model.IsRecordNotEditable' == 'True') {
+        $('select', '#OrderLineItem' + OrdID)
+        .attr('disabled', 'disabled');
+
+        $(':input[type=text], textarea', '#OrderLineItem' + OrdID)
+        .attr('readonly', 'readonly');
+
+        $('#saveRows').attr('style', 'display:none');
+        $('#deleteRows1').attr('style', 'display:none');
+        ISDeletable = false;
+
+        if ('@Model.OrderStatus' == '@((int)OrderStatus.Approved)') {
+            $('[id*="Comment"]', '#OrderLineItem' + OrdID)
+            .removeAttr("readonly");
+        }
+    }
+    else {
+        //        $('#OrderLineItem' + OrdID).delegate(".myDatePicker", "focusin", function () {
+        //            $(this).datepicker({ dateFormat: 'm/d/yy' });
+        //        });
+        @*$('#OrderLineItem' + OrdID).find('input.hasDatePicker').blur(function () { }).datepicker({
+                                dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+                                changeMonth: true,
+                                changeYear: true,
+                                clearText: 'Clear', onClose: function () { this.focus(); }
+                            });*@
+
+    }
+
+
+    $('#OrderLineItem' + OrdID + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+    var lastChecked1;
+    var starttrvalue1 = "";
+    $('#OrderLineItem' + OrdID + ' tbody tr').live('tap click', function (e) {
+        //$(this).toggleClass('row_selected');
+        //return false;
+
+        if ($(e.target).hasClass("control") == true || e.target.nodeName.toLowerCase() == "img" || e.target.type == "checkbox" || e.target.type == "radio" || e.target.type == "text" || e.target.type == "button" || $(e.target).is('a') == true || $(e.target).is('span') == true
+            || $(e.target).hasClass("selectBox")
+        ) {
+            e.stopPropagation();
+        }
+        else {
+            if (lastChecked1 !== undefined && lastChecked1 != null && !lastChecked1) {
+                lastChecked1 = this;
+            }
+
+            if (e.shiftKey) {
+                var start = $('#OrderLineItem' + OrdID + ' tbody tr').index(this);
+                var end = $('#OrderLineItem' + OrdID + ' tbody tr').index(lastChecked1);
+
+                var stringval1 = readCookieforshift("selectstartindex");
+                if (stringval1 != null) {
+                    var endindex = $(this).closest('tr').attr('id');
+                    createCookieforshift("selectendindex", endindex, 1);
+                    if ($("#hdnPageName").val() !== undefined) {
+                        var pagename = '';
+                        pagename = $("#hdnPageName").val();
+                        GetOnlyIdsForPassPagesForshift(pagename, true);
+                    }
+                }
+
+                for (i = Math.min(start, end); i <= Math.max(start, end); i++) {
+                    if (!$('#OrderLineItem' + OrdID + ' tbody tr').eq(i).hasClass('row_selected')) {
+                        $('#OrderLineItem' + OrdID + ' tbody tr').eq(i).addClass("row_selected");
+                    }
+                }
+                if (window.getSelection) {
+                    if (window.getSelection().empty) {  // Chrome
+                        window.getSelection().empty();
+                    } else if (window.getSelection().removeAllRanges) {  // Firefox
+                        window.getSelection().removeAllRanges();
+                    }
+                } else if (document.selection) {  // IE?
+                    document.selection.empty();
+                }
+            } else if ((e.metaKey || e.ctrlKey)) {
+                $(this).toggleClass('row_selected');
+            } else {
+                $(this).toggleClass('row_selected');
+
+
+                if ($(this).hasClass('row_selected')) {
+                    (starttrvalue1 == "") ? starttrvalue1 = $(this).closest('tr').attr('id') : starttrvalue1 = starttrvalue1 + "," + $(this).closest('tr').attr('id');
+                    createCookieforshift("selectstartindex", starttrvalue1, 1);
+                } else {
+
+                    var stringval = readCookieforshift("selectstartindex");
+                    if (stringval != "undefined") {
+                        if (stringval != null) {
+                            var tmp = stringval.split(',');
+                            var index = tmp.indexOf($(this).closest('tr').attr('id'));
+                            if (index !== -1) {
+                                tmp.splice(index, 1);
+                                stringval = tmp.join(',');
+                                createCookieforshift("selectstartindex", stringval, 1);
+                            }
+                        }
+                    }
+
+                }
+            }
+
+            lastChecked1 = this;
+        }
+
+    });
+
+    $('#deleteRows1').click(function () {
+        var anSelected = fnGetSelected(oTableOrderLineItems);
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+        }
+
+    });
+
+    $(document).keyup(function (e) {
+        /*START - HANDLING OF GLOBAL DELETE KEYPRESS BUG*/
+        if (e.target.type == 'text' && e.target.localName == 'input')
+            return false;
+        /*END - HANDLING OF GLOBAL DELETE KEYPRESS BUG*/
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 46 && ISDeletable) {
+            $('#deleteRows1').click();
+        }
+
+    });
+
+    $("#btnModelYesInnerGrid").live("click", function () {
+        var anSelected = fnGetSelected(oTableOrderLineItems);
+        var stringIDs = "";
+        var arrItems = new Array();
+
+        for (var i = 0; i < anSelected.length; i++) {
+            //stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+            var ordDtlID = $(anSelected[i]).find("#hdnID").val();
+            var ordTempDtlsGUID = $(anSelected[i]).find("#hdnTempDetailsGUID").val();
+            var ordDtlGUID = $(anSelected[i]).find("#hdnDetailGUID").val();
+            var itemGuid = $(anSelected[i]).find("#hdnItemGUID").val();
+            var ordGuid = $(anSelected[i]).find("#hdnOrderGUID").val();
+            var binName = $(anSelected[i]).find("#hdnBinName").val();
+
+            arrItems.push({ 'ID': ordDtlID, 'GUID': ordDtlGUID, 'ItemGUID': itemGuid, 'OrderGUID': ordGuid, 'tempDetailsGUID': ordTempDtlsGUID, 'BinName': binName });
+        }
+        if (anSelected.length > 0) {
+            $.ajax({
+                'url': '/Order/OrderLineItemsDelete',
+                // data: { ids: stringIDs },
+                data: JSON.stringify({ 'objDeletedItems': arrItems, 'OrderID': OrdID }),
+                dataType: 'json',
+                type: 'POST',
+                contentType: "application/json",
+                async: false,
+                cache: false,
+                success: function (response) {
+                    $("#spanGlobalMessage").html(response.Message);
+                    showNotificationDialog();
+
+                    if (response.Status == "ok") {
+                        for (var i = 0; i < anSelected.length; i++) {
+                            $('#OrderLineItem' + OrdID).dataTable().fnDeleteRow(anSelected[i]);
+
+                            if (response.OrderItems.length > 0) {
+                                $('#spnNoOfItems').text(response.OrderItems);
+                            }
+                            if (response.Ordercost.length > 0) {
+                                //$('#spnTotalCost').text(response.Ordercost);
+                                $('#spnTotalOrderCost').html('@CurrencySymbol' + ' ' + response.Ordercost);
+                            }
+                            if (response.OrdPrice.length > 0) {
+                                //$('#spnTotalCost').text(response.Ordercost);
+                                $('#spnTotalOrderPrice').html('@CurrencySymbol' + ' ' + response.OrdPrice);
+                            }
+                        }
+                        setTimeout(function () {
+                            var _vIsDeleted = false;
+                            if (typeof ($('#IsDeletedRecordsOrdLn')) != undefined) {
+                                _vIsDeleted = $('#IsDeletedRecordsOrdLn').is(':checked');
+                                CallThisFunctionFromModel('success', true, _vIsDeleted, true);
+                            }
+                        }, 1500);
+                    }
+                },
+                error: function (response) {
+                }
+            });
+            $.modal.impl.close();
+            //setTimeout(function () {
+            //    CallThisFunctionFromModel('success');
+            //}, 1500);
+
+        }
+    });
+
+
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+
+        $('#OrderLineItem' + OrdID).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+    /* global search function */
+    function fnFilterOrderLineItem() {
+        bIsFilter = true;
+        var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+        $('#OrderLineItem' + OrdID).dataTable().fnFilter(searchtext, null, null, null);
+        $('#OrderLineItem' + OrdID + ' td').removeHighlight();
+        if (searchtext.length > 0) {
+            $('#OrderLineItem' + OrdID + ' tbody tr > td:not(td#orderlinecommenttd)').highlight($("#InnerItem_filter").val());
+        }
+    }
+
+    $("#InnerItem_filter").on("keyup", function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        var index = $.inArray(code, NotAllowedCharCodes);
+        if (index >= 0) return false;
+        fnFilterOrderLineItem();
+    });
+
+    $("#InnerItem_filter").on("keydown", function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            fnFilterOrderLineItem();
+        }
+    });
+
+    $("#clear_QLItem_filter").click(function () {
+        $("#InnerItem_filter").val('');
+        fnFilterOrderLineItem();
+        $("#InnerItem_filter").focus();
+        return false;
+    });
+
+    $('#saveRows').live("click", function () {
+        var msg = UpdateLineItemGrid(-1, '',false,0);
+        if (msg.Status == "ok") {
+            showNotificationDialog();
+            $("#spanGlobalMessage").html(msg.Message);
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+        }
+        else if (msg.Status == 'No') {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html('@ResCommon.NoChanges');
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+        }
+        else {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html(msg.Message);
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        }
+
+    });
+
+    function UpdateLineItemGrid(StagingID, CustomerAddressLength, IsUpdateOrderStatus, OrderStatusToUpdate, IsFromOrderSuccess) {
+
+        var arrItems = new Array();
+        $('#DivLoading').show();
+        var ItemNodes = $('#OrderLineItem' + OrdID).dataTable().fnGetNodes();
+        if (ItemNodes.length <= 0) {
+            SaveLineItemsGrid(arrItems, IsUpdateOrderStatus, OrderStatusToUpdate);
+            return { 'Status': 'ok', 'Message': '@ResMessage.SaveMessage' };
+        }
+
+        if (StagingID == "0") {
+
+            for (var i = 0; i < ItemNodes.length; i++) {
+                var ID = $(ItemNodes[i]).find('#hdnID').val();
+                //var RequiredDate_New = $(ItemNodes[i]).find('#hiddenDatePicker' + ID).val();
+                var RequiredDate_New = $(ItemNodes[i]).find('input.hasDatePicker' + ID).val();
+                var Qty = $(ItemNodes[i]).find('#txtQty').val();
+                if ((typeof (RequiredDate_New) == "undefined" || (typeof (RequiredDate_New) == undefined))) {
+                    RequiredDate_New = $(ItemNodes[i]).find('#hdnRequiredDate').val();
+                    if ((typeof (RequiredDate_New) == "" || (typeof (RequiredDate_New) == "undefined" || (typeof (RequiredDate_New) == undefined)))) {
+                        // alert("Please select Required Date");
+                        var obj = { 'Status': "fail", 'Message': "Please select Required Date" };
+                        return obj;
+                    }
+                }
+
+                if (isNaN(Qty) === true || parseFloat(Qty) <= 0) {
+                    var obj = { 'Status': "fail", 'Message': "Required quantity must be greater than zero" };
+                    return obj;
+                }
+            }
+        }
+        for (var i = 0; i < ItemNodes.length; i++) {
+            var Qty = $(ItemNodes[i]).find('#txtQty').val();
+            var ApprQty = $(ItemNodes[i]).find('#txtApprQty').val();
+            var ID = $(ItemNodes[i]).find('#hdnID').val();
+            var ItemGUID = $(ItemNodes[i]).find('#hdnItemGUID').val();
+            var OrderGUID = $(ItemNodes[i]).find('#hdnOrderGUID').val();
+            var vtempDetailsGUID = $(ItemNodes[i]).find('#hdnTempDetailsGUID').val();
+            //var RequiredDate = $(ItemNodes[i]).find('#hiddenDatePicker' + ID).val();
+            var RequiredDate = $(ItemNodes[i]).find('input.hasDatePicker').val();
+            if ((typeof (RequiredDate) == "undefined" || (typeof (RequiredDate) == undefined))) {
+                RequiredDate = $(ItemNodes[i]).find('#hdnRequiredDate').val();
+            }
+            var IsEDISent = $(ItemNodes[i]).find('#hdnIsEDISent').val();
+            var Comment = $(ItemNodes[i]).find('#Comment').val();
+
+            if ($("#hdnIsEDISentOnEditOrderLineItems").val() == "true") {
+                IsEDISent = false;
+            }
+            else if (IsEDISent == "True") {
+                IsEDISent = true;
+            }
+            else {
+                IsEDISent = false;
+            }
+            var vUDF1 = '';
+            var vUDF2 = '';
+            var vUDF3 = '';
+            var vUDF4 = '';
+            var vUDF5 = '';
+            var vOrderItemCost = '';
+            if ('@Model.OrderType' == '@((int)OrderType.Order)') {
+                vOrderItemCost = $(ItemNodes[i]).find('#txtOrderItemCost').val();
+            }
+            else
+            {
+                vOrderItemCost = $(ItemNodes[i]).find('#hdnItemCost_' + i).val();
+            }
+            if ($(ItemNodes[i]).find('#UDF1OrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF1OrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF1OrderDetails option:selected').text() != undefined) {
+                    vUDF1 = $(ItemNodes[i]).find('#UDF1OrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF1OrderDetails').val() != undefined) {
+                        vUDF1 = $(ItemNodes[i]).find('#UDF1OrderDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF2OrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF2OrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF2OrderDetails option:selected').text() != undefined) {
+                    vUDF2 = $(ItemNodes[i]).find('#UDF2OrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF2OrderDetails').val() != undefined) {
+                        vUDF2 = $(ItemNodes[i]).find('#UDF2OrderDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF3OrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF3OrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF3OrderDetails option:selected').text() != undefined) {
+                    vUDF3 = $(ItemNodes[i]).find('#UDF3OrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF3OrderDetails').val() != undefined) {
+                        vUDF3 = $(ItemNodes[i]).find('#UDF3OrderDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF4OrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF4OrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF4OrderDetails option:selected').text() != undefined) {
+                    vUDF4 = $(ItemNodes[i]).find('#UDF4OrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF4OrderDetails').val() != undefined) {
+                        vUDF4 = $(ItemNodes[i]).find('#UDF4OrderDetails').val();
+                    }
+                }
+            }
+
+            if ($(ItemNodes[i]).find('#UDF5OrderDetails') != null) {
+                if ($(ItemNodes[i]).find('#UDF5OrderDetails').attr("class") == 'selectBox' && $(ItemNodes[i]).find('#UDF5OrderDetails option:selected').text() != undefined) {
+                    vUDF5 = $(ItemNodes[i]).find('#UDF5OrderDetails option:selected').text();
+                }
+                else {
+                    if ($(ItemNodes[i]).find('#UDF5OrderDetails').val() != undefined) {
+                        vUDF5 = $(ItemNodes[i]).find('#UDF5OrderDetails').val();
+                    }
+                }
+            }
+            var binName = $(ItemNodes[i]).find('#txtBinNumber').val();
+            var vOrderLineItemExtendedCost = $(ItemNodes[i]).find('#hdnOrderLineItemExtendedCost_' + i).val();
+            var vOrderLineItemExtendedPrice = $(ItemNodes[i]).find('#hdnOrderLineItemExtendedPrice_' + i).val();
+            var tmpSupplierId = $(ItemNodes[i]).find('#hdnSupplierId').val();
+            var supplierID = (tmpSupplierId !== undefined && tmpSupplierId != null && tmpSupplierId != '' && !isNaN(tmpSupplierId)) ? tmpSupplierId : 0;
+            var supplierPartNo = $(ItemNodes[i]).find('#hdnSupplierPartNo').val();
+            var supplierName = $(ItemNodes[i]).find('#hdnSupplierName').val();
+            var vItemSellPrice = $(ItemNodes[i]).find('#hdnItemSellPrice').val();
+            var vItemMarkup = $(ItemNodes[i]).find('#hdnItemMarkup').val();
+            var vItemCostUOMValue = $(ItemNodes[i]).find('#hdnItemCostUOMValue').val();
+            var vISBackOrdered = $(ItemNodes[i]).find('#IsBackOrdered_' + i).attr("data-value");
+            var POLineItemNumber = $(ItemNodes[i]).find('#POLineItemNumbers').attr("data-value");
+            var InTransitQuantity = $(ItemNodes[i]).find('#hdnIntransistQty').val();
+            if (isNaN(Qty) === false && parseFloat(Qty) > 0) {
+                var data = {
+                   "ID": ID
+                , "ItemGUID": ItemGUID
+                , "OrderGUID": OrderGUID
+                , "tempDetailsGUID": vtempDetailsGUID
+                , "RequestedQuantity": Qty
+                , "ApprovedQuantity": ApprQty
+                , "BinName": binName
+                , "RequiredDateStr": RequiredDate
+                , "IsEDISent": IsEDISent
+                , "Comment": Comment
+                    , "UDF1": vUDF1
+                    , "UDF2": vUDF2
+                    , "UDF3": vUDF3
+                    , "UDF4": vUDF4
+                    , "UDF5": vUDF5
+                    , "OrderLineItemExtendedCost": vOrderLineItemExtendedCost
+                    , "OrderLineItemExtendedPrice": vOrderLineItemExtendedPrice
+                    , "ItemCost": vOrderItemCost
+                    , "SupplierID": supplierID
+                    , "SupplierPartNo": supplierPartNo
+                    , "SupplierName": supplierName
+                    , "ItemSellPrice": vItemSellPrice
+                    , "ItemMarkup": vItemMarkup
+                    , "ItemCostUOMValue": vItemCostUOMValue
+                    , "IsBackOrdered": vISBackOrdered
+                    , "POItemLineNumber": POLineItemNumber
+                    , "InTransitQuantity": InTransitQuantity
+
+                };
+                arrItems.push(data);
+
+            }
+        }
+
+        return SaveLineItemsGrid(arrItems, IsUpdateOrderStatus, OrderStatusToUpdate, IsFromOrderSuccess);
+    }
+
+    function SaveLineItemsGrid(arrItems, IsUpdateOrderStatus, OrderStatusToUpdate, IsFromOrderSuccess) {
+
+        var status = "No";
+        var message = "@ResCommon.NoChanges"
+        //if (arrItems.length > 0) {
+
+        var newArray = new Array();
+        var mainArray = new Array();
+        for (var i = 0; i < arrItems.length; i++) {
+            if (newArray.length < 250) {
+                newArray.push(arrItems[i]);
+            }
+            else {
+                mainArray.push(newArray);
+                newArray = null;
+                newArray = new Array();
+                newArray.push(arrItems[i]);
+            }
+        }
+        if (newArray.length > 0) {
+            mainArray.push(newArray);
+        }
+
+        $('#DivLoading').show();
+        if (mainArray.length > 0) {
+
+            for (var k = 0; k < mainArray.length; k++) {
+                $('#DivLoading').show();
+                $.ajax({
+                    url: '@Url.Content("~/Order/AddUpdateDeleteOrderItemsToOrder")',
+                    data: JSON.stringify({ 'arrDetails': mainArray[k], 'OrderID': OrdID, 'IsUpdateOrderStatus': IsUpdateOrderStatus, 'OrderStatusToUpdate': OrderStatusToUpdate}),
+                    dataType: 'json',
+                    type: 'POST',
+                    contentType: "application/json",
+                    async: false,
+                    cache: false,
+                    success: function (response) {
+                        if (response.Status == "ok") {
+                            if (k == (mainArray.length - 1)) {
+                                $.ajax({
+                                    url: '@Url.Content("~/Order/SetOrderMail")',
+                                    data: JSON.stringify({ 'OrderID': OrdID, 'IsUpdateOrderStatus': IsUpdateOrderStatus, 'OrderStatusToUpdate': OrderStatusToUpdate}),
+                                    dataType: 'json',
+                                    type: 'POST',
+                                    contentType: "application/json",
+                                    async: false,
+                                    cache: false,
+                                    success: function (resp) {
+
+                                        if (IsFromOrderSuccess) {
+                                            // no required to reload page as already navigate to list page
+                                        } else {
+                                            CallThisFunctionFromModel('success');
+                                        }
+
+                                        status = response.Status;
+                                        message = response.Message;
+                                        $('#DivLoading').hide();
+                                    },
+                                    error: function (exh) {
+                                        $('#DivLoading').hide();
+                                    }
+                                });
+                            }
+                        }
+                        else {
+                            status = response.Status;
+                            message = response.Message;
+                            $('#DivLoading').hide();
+                        }
+                    },
+                    error: function (exh) {
+                        alert(exh.status + ' ' + exh.statusText);
+                        $('#DivLoading').hide();
+                    }
+                });
+            }
+        }
+        else {
+
+            $('#DivLoading').show();
+            $.ajax({
+                url: '@Url.Content("~/Order/AddUpdateDeleteOrderItemsToOrder")',
+                data: JSON.stringify({ 'arrDetails': null, 'OrderID': OrdID, 'IsUpdateOrderStatus': IsUpdateOrderStatus, 'OrderStatusToUpdate': OrderStatusToUpdate }),
+                dataType: 'json',
+                type: 'POST',
+                contentType: "application/json",
+                async: false,
+                cache: false,
+                success: function (response) {
+                    if (response.Status == "ok") {
+                        CallThisFunctionFromModel('success');
+                        status = response.Status;
+                        message = response.Message;
+                        $('#DivLoading').hide();
+                    }
+                    else {
+                        status = response.Status;
+                        message = response.Message;
+                        $('#DivLoading').hide();
+                    }
+                },
+                error: function (exh) {
+                    alert(exh.status + ' ' + exh.statusText);
+                    $('#DivLoading').hide();
+                }
+            });
+
+        }
+
+        var obj = { 'Status': status, 'Message': message };
+        $('#DivLoading').hide();
+        return obj;
+    }
+
+    /* For Edit Required Date and comment for Close Order -- 4661 Add a back ordered checkbox to order details records in the order page-------------- */
+
+    function SaveLineItemsForReqDateCommentGrid(arrReqDateCommentItems, isCommentUpdate, isReqDateUpdate) {
+        var status = "No";
+        var message = "@ResCommon.NoChanges"
+
+        var newArray = new Array();
+        var mainArray = new Array();
+        for (var i = 0; i < arrReqDateCommentItems.length; i++) {
+            if (newArray.length < 250) {
+                newArray.push(arrReqDateCommentItems[i]);
+            }
+            else {
+                mainArray.push(newArray);
+                newArray = null;
+                newArray = new Array();
+                newArray.push(arrReqDateCommentItems[i]);
+            }
+        }
+        if (newArray.length > 0) {
+            mainArray.push(newArray);
+        }
+
+        $('#DivLoading').show();
+        if (mainArray.length > 0) {
+            for (var k = 0; k < mainArray.length; k++) {
+                $('#DivLoading').show();
+                $.ajax({
+                    url: '@Url.Content("~/Order/UpdateReqDateandCommenttoOrderLineItems")',
+                    data: JSON.stringify({
+                        'arrDetails': mainArray[k], 'OrderID': OrdID, 'isCommentUpdate': isCommentUpdate, 'isReqDateUpdate': isReqDateUpdate}),
+                    dataType: 'json',
+                    type: 'POST',
+                    contentType: "application/json",
+                    async: false,
+                    cache: false,
+                    success: function (response) {
+                        status = response.Status;
+                        message = response.Message;
+                        $('#DivLoading').hide();
+                    },
+                    error: function (exh) {
+                        alert(exh.status + ' ' + exh.statusText);
+                        $('#DivLoading').hide();
+                    }
+                });
+            }
+        }
+        var obj = { 'Status': status, 'Message': message };
+        $('#DivLoading').hide();
+        return obj;
+    }
+
+    function DownloadReceivedAttachedDocs(lnk) {
+        var rowSelected = fnGetSelected(oTableOrderLineItems);
+        var arrIds = new Array();
+        if (rowSelected.length > 0) {
+            debugger
+            for (var i = 0; i < rowSelected.length; i++) {
+                var ReqGUID = $(rowSelected[i]).find("#hdnDetailGUID").val();
+                arrIds.push(ReqGUID);
+            }
+        }
+
+        if (arrIds.length) {
+            $.ajax({
+                url: '/Receive/DownloadReceiveDocument',
+                type: 'Post',
+                data: JSON.stringify(arrIds),
+                dataType: 'json',
+                async: false,
+                contentType: 'application/json',
+                success: function (result) {
+                    if (result.Status) {
+                        var isURLHttps = false;
+                        var CurrentURL = window.location.href;
+                        if (CurrentURL.indexOf("localhost:") < 0
+                            && CurrentURL.toLowerCase().indexOf("demo") < 0) {
+                            if (CurrentURL.indexOf("https:") >= 0) {
+                                isURLHttps = true;
+                            }
+                        }
+
+                        if (result.ReturnFiles.length > 0) {
+                            for (var i = 0; i < result.ReturnFiles.length; i++) {
+                                if (isURLHttps == false) {
+                                    if (result.ReturnFiles[i].indexOf("https:") >= 0) {
+                                        result.ReturnFiles[i] = result.ReturnFiles[i].replace("https:", "http:");
+                                    }
+                                }
+                                if (isURLHttps == true) {
+                                    if (result.ReturnFiles[i].indexOf("http:") >= 0) {
+                                        result.ReturnFiles[i] = result.ReturnFiles[i].replace("http:", "https:");
+                                    }
+                                }
+                                window.open(result.ReturnFiles[i]);
+                            }
+                        } else {
+                        $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                        $("#spanGlobalMessage").html('@ResCommon.NoDocsToDownload');
+                        showNotificationDialog();
+                    }
+                    }
+                },
+                error: function (xhr) {
+                    alert(MsgResErrorInProcess);
+                }
+            });
+        }
+        else {
+            alert(MsgSelectRow);
+
+        }
+    }
+
+    /* For Edit Required Date and comment for Close Order -- 4661 Add a back ordered checkbox to order details records in the order page-------------- */
+
+    $("#OrderLineItem" +@(Model.ID)).on("click", "td img.BackOrderedExpand", function (event) {
+        var nTr = this.parentNode.parentNode;
+        var i = $.inArray(nTr, anOpen);
+        var parenttd = $(this).parents('td').parent();
+        var ordTempDtlsGUID = parenttd.find("#hdnDetailGUID").val();
+        if (i === -1) {
+            $('img', this.parentNode).attr('src', sImageUrl + "drildown_close.jpg");
+            oTableOrderLineItems.fnOpen(nTr, fnFormatDetails(ordTempDtlsGUID), '');
+            anOpen.push(nTr);
+
+        }
+        else {
+            $('img', this.parentNode).attr('src', sImageUrl + "drildown_open.jpg");
+              oTableOrderLineItems.fnClose(nTr);
+              anOpen.splice(i, 1);
+
+        }
+
+    });
+
+    function fnFormatDetails(orderDetailsGUID) {
+      var sOut = '';
+      $('#DivLoading').show();
+         $.ajax({
+                    "url": '@Url.Content("~/Order/BackOrderedDetails")',
+                    data: { OrderDetailsGUID: orderDetailsGUID },
+                    "async": false,
+                    cache: false,
+                    "dataType": "text",
+                    "success": function (json) {
+                        sOut = json;
+                        $('#DivLoading').hide();
+                    },
+                    error: function (response) {
+                    }
+                });
+          return sOut;
+     }
+
+
+
+</script>
+<script src="@Url.Content("~/Scripts/ImagePreview.js")" type="text/javascript"></script>

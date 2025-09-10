@@ -1,0 +1,771 @@
+@{
+    ViewBag.Title = eTurns.DTO.ResWorkOrder.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DisplayUDFButton = true, DisplayDeleteButton = true, UDFSetupFor = "WorkOrder&UDFHeader=" + @eTurns.DTO.ResWorkOrder.PageHeader, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "WorkOrder", DisplayArchiveButton = true };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "WorkOrder" };
+
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.WorkOrders, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.WorkOrders, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    Session["IsInsert"] = "";
+    string WorkOrdersPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/WorkOrder.pdf", DateTime.Now.Ticks);
+    bool IsShowChangeLog = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.ShowChangeLog);
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("WorkOrder", (int)HelpDocType.Module);
+}
+<style>
+    .paginationBlock {
+        float: left;
+        position: absolute;
+        right: 253px;
+        top: -4px;
+    }
+</style>
+
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+<style type="text/css">
+    .dataTables_scrollBody {
+        max-height: 400px;
+        overflow-y: scroll;
+    }
+     .IteamBlock li
+    {
+        width:93% !important;
+    }
+</style>
+@section head{
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script language="javascript" type="text/javascript">
+        var oTable;
+        var IsRefreshGrid = false;
+        var deleteURL = "/WorkOrder/DeleteWOMasterRecords";
+        var sImageUrl = "/Content/images/";
+        var anOpen = [];
+        var IsDeletePopupOpen = false;
+        var AllowDeletePopup = true;
+        var SelectedHistoryRecordID = 0;
+        var HistorySelected;
+        var WorkUniqueID = '';
+        var objColumns = {};
+        var objDummyColums = {};
+        $(document).ready(function () {
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            objDummyColums = objColumns;
+            LoadTabs();
+            var gaiSelected = [];
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "150%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[2, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    if (aData.IsDeleted == true && aData.sArchived == true)
+                        $(nRow).css('background-color', '#B9BCBF');
+                        //nRow.className = "GridDeleatedArchivedRow";
+                    else if (aData.IsDeleted == true)
+                        $(nRow).css('background-color', '#FFCCCC');
+                        //   nRow.className = "GridDeletedRow";
+                    else if (aData.IsArchived == true)
+                        $(nRow).css('background-color', '#CCFFCC');
+                    //   nRow.className = "GridArchivedRow";
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    if (oData.oSearch != null)
+                        oData.oSearch.sSearch = "";
+                    //if (PostCount > 1) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'WorkOrder' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                    //}
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'WorkOrder' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/WorkOrder/WOMasterListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    //PostCount = PostCount + 1;
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    if (oSettings.aaSorting.length != 0) {
+                        //aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                        var sortValue = ""
+                        for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                            if (sortValue.length > 0)
+                                sortValue += ", "
+                            sortValue += arrCols[oSettings.aaSorting[i][0]] + ' ' + oSettings.aaSorting[i][1];
+
+                        }
+                        aoData.push({ "name": "SortingField", "value": sortValue });
+                    }
+                    else
+                        aoData.push({ "name": "SortingField", "value": "0" });
+
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        "cache": false,
+                        "data": aoData,
+                        "headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable').highlight($("#global_filter").val());
+                            }
+                            CallShowHideData();
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": [
+                            { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' },
+                            {
+                                "mDataProp": null,
+                                "bSortable": false,
+                                "sClass": "read_only control center",
+                                "sDefaultContent": '<img src="' + sImageUrl + 'drildown_open.jpg' + '">'
+                            },
+			                { "mDataProp": "ID", "sClass": "read_only" },
+                            {
+                                "mDataProp": "WOName",
+                                "sClass": "read_only",
+                                "sDefaultContent": '',
+                                "bSortable": true,
+                                "bSearchable": false,
+                                "fnRender": function (obj, val) {
+                                    return "<a id='aEditLink' onclick='BlankSession();  return ShowEditTabGUID(&quot;WOEdit?WorkOrderGUID=" + obj.aData.GUID.toString() + "&quot;,&quot;frmWOMaster&quot;)' href='JavaScript:void(0);'>" + obj.aData.WOName + "</a> " + " <span id='spnWOStatus' style='display:none'>" + obj.aData.WOStatus + "</span>" + " <input type='hidden' id='WorkOrderGUID' value='" + obj.aData.GUID.toString() + "' />";
+                                }
+                            },
+                            { "mDataProp": "ReleaseNumber", "sClass": "read_only" },
+                            {
+                                "mDataProp": "RequisitionNumber", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.RequisitionNumber != null && obj.aData.RequisitionNumber != NaN)
+                                        return obj.aData.RequisitionNumber.toString().substring(1, obj.aData.RequisitionNumber.length);
+                                    else
+                                        return "";
+                                }
+                            },
+			                { "mDataProp": "WOStatus", "sClass": "read_only" },
+                            { "mDataProp": "Technician", "sClass": "read_only" },
+                            { "mDataProp": "Customer", "sClass": "read_only" },
+                            { "mDataProp": "AssetName", "sClass": "read_only" },
+                            { "mDataProp": "ToolName", "sClass": "read_only" },
+                            { "mDataProp": "Odometer_OperationHours", "sClass": "read_only" },
+                            { "mDataProp": "Description", "sClass": "read_only" },
+                            { "mDataProp": "UsedItems", "sClass": "read_only numericalign" },
+                            {
+                                "mDataProp": "UsedItemsCost", "sClass": "read_only numericalign isCost",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.PriseSelectionOption != null && obj.aData.PriseSelectionOption == 1) {
+                                        if (obj.aData.UsedItemsCost != null && obj.aData.UsedItemsCost != NaN)
+                                            return FormatedCostQtyValues(obj.aData.UsedItemsCost, 1);
+                                        else
+                                            return FormatedCostQtyValues(0, 1);
+                                    }
+                                    else if (obj.aData.PriseSelectionOption != null && obj.aData.PriseSelectionOption == 2) {
+                                        {
+                                            if (obj.aData.UsedItemsSellPrice != null && obj.aData.UsedItemsSellPrice != NaN)
+                                                return FormatedCostQtyValues(obj.aData.UsedItemsSellPrice, 1);
+                                            else
+                                                return FormatedCostQtyValues(0, 1);
+                                        }
+                                    }
+                                    else {
+                                        return FormatedCostQtyValues(0, 1);
+                                    }
+                                }
+                            },
+                            { "mDataProp": "RoomName", "sClass": "read_only" },
+                            { "mDataProp": "Created", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.CreatedDate; } },
+                            { "mDataProp": "Updated", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.UpdatedDate; } },
+//                            { "mDataProp": "CreatedDate", "sClass": "read_only" },
+//                            { "mDataProp": "UpdatedDate", "sClass": "read_only" },
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                            { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                            {
+                                "mDataProp": "SignatureName", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.IsSignatureCapture && val.length > 0) {
+                                        return '<img src="/Uploads/WorkOrderSignature/' + obj.aData.CompanyID + '/' + val + '" alt="WOSignature" height="50px"  />'
+                                    }
+                                    else {
+                                        return "";
+                                    }
+                                }
+                            },
+
+                           { "mDataProp": "AddedFrom", "sClass": "read_only" },
+                           { "mDataProp": "EditedFrom", "sClass": "read_only" },
+                            {
+                                "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    //return GetDateInFullFormat(val);
+                                    return obj.aData.ReceivedOnWebDate;
+
+                                }
+                            },
+			                {
+			                    "mDataProp": "ReceivedOn", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        // return GetDateInFullFormat(val);
+			                        return obj.aData.ReceivedOnDate;
+			                    }
+			                },
+			                {
+			                    "mDataProp": "SupplierName", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        // return GetDateInFullFormat(val);
+			                        return obj.aData.SupplierName;
+			                    }
+			                },
+			                {
+			                    "mDataProp": "SupplierAccountNumberName", "sClass": "read_only", "bSortable": false,
+			                    "fnRender": function (obj, val) {
+			                        // return GetDateInFullFormat(val);
+			                        return obj.aData.SupplierAccountNumberName;
+			                    }
+			                },
+                             {
+                                 "mDataProp": "ProjectSpendName", "sClass": "read_only",
+                                 "fnRender": function (obj, val) {
+                                     if (obj.aData.ProjectSpendName != null && obj.aData.ProjectSpendName != NaN)
+                                         return obj.aData.ProjectSpendName.toString().substring(1, obj.aData.ProjectSpendName.length);
+                                     else
+                                         return "";
+                                 }
+                             }
+                            @Html.RenderColumnsArray("WorkOrder")
+                ]
+            }).makeEditable({
+                sUpdateURL: '@Url.Content("~/Master/UpdateData")'
+            });
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+            if ('@isCost' == '@Boolean.FalseString') {
+
+                HideColumnUsingClassName("myDataTable");
+            }
+
+            //fromPull
+            var QueryStringParam = getParameterByName('fromPull');
+            if (QueryStringParam != '' && QueryStringParam == 'yes') {
+                $("#tab1").click();
+            }
+
+            var QueryStringParam3 = getParameterByName('fromdashboard');
+            var QueryStringParam4 = getParameterByName('WorkOrderGUID');
+            if (QueryStringParam4 != '' && QueryStringParam3 == 'yes') {
+                //ShowEditTab("RequisitionEdit/" + QueryStringParam2 ,"frmRequisitionMaster");
+                ShowEditTabGUID("WOEdit?WorkOrderGUID=" + QueryStringParam4, "frmWOMaster");
+            }
+
+            /*Functions used for nasted data binding START*/
+            $("#myDataTable").on("click", "td.control", function (event) {
+
+                if ($(this).find('img').length <= 0)
+                    return;
+
+                var nTr = this.parentNode;
+              
+
+                var i = $.inArray(nTr, anOpen);
+
+                if (i === -1) {
+                    $('img', this).attr('src', sImageUrl + "drildown_close.jpg");
+                    oTable.fnOpen(nTr, fnFormatDetails(oTable, nTr), '');
+                    anOpen.push(nTr);
+                }
+                else {
+                    $('img', this).attr('src', sImageUrl + "drildown_open.jpg");
+                    oTable.fnClose(nTr);
+                    anOpen.splice(i, 1);
+                }
+            });
+
+            $('#deleteRows').click(function () {
+
+                /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+                if ($("body").hasClass('DTTT_Print')) {
+                    return false;
+                }
+                /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+
+                //                var anSelectedReq = fnGetSelected(oTable);
+                //                var stringIDs = "";
+                //                for (var i = 0; i <= anSelectedReq.length - 1; i++) {
+                //                    var SpanReqStatus = $(anSelectedReq[i]).find('#spnWOStatus').text();
+                //                    if(SpanReqStatus == "Open")
+                //                        stringIDs = stringIDs + anSelectedReq[i].id + ",";
+                //                }
+                //                if (stringIDs.length > 0) {
+                //                    $('#basic-modal-content').modal();
+                //                    IsDeletePopupOpen = true;
+                //                }
+                //                else
+                //                {
+                //                    $("#spanGlobalMessage").text("Closed record(s) can not deleted.");
+                //                    $('div#target').fadeToggle();
+                //                    $("div#target").delay(2000).fadeOut(200);
+                //                }
+            });
+
+
+            function fnFormatDetails(oTable, nTr) {
+                var oData = oTable.fnGetData(nTr);
+                var sOut = '';
+                $('#DivLoading').show();
+                $.ajax({
+                    "url": '@Url.Content("~/WorkOrder/WODetails")',
+                    data: { WorkOrderGUID: oData.GUID },
+                    "async": false,
+                    cache: false,
+                    "dataType": "text",
+                    "success": function (json) {
+                        sOut = json;
+                        $('#DivLoading').hide();
+                    },
+                    error: function (response) {
+                        //
+                    }
+                });
+
+                return sOut;
+            }
+            /*Functions used for nasted data binding END*/
+
+
+            /* HISTORY related data deleated and archived START */
+            $('#ViewHistory').live('click', function () {
+                HistorySelected = fnGetSelected(oTable);
+                if (HistorySelected != undefined && HistorySelected.length == 1) {
+                    $("#atab5").click();
+                }
+                else {
+                    $('#tab5').html('');
+                    $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    return false;
+                }
+            });
+            /* HISTORY related data deleated and archived END */
+
+            $('#myDataTable').on('tap click', 'a[id^="aEditLink"]', function () {
+                var tr = $(this).parent().parent();
+                $("#myDataTable").find("tbody tr").removeClass("row_selected");
+                $(tr).addClass('row_selected');
+
+            });
+
+        });
+        /* HISTORY related data deleated and archived START */
+
+        function getParameterByName(name) {
+            name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+            var regexS = "[\\?&]" + name + "=([^&#]*)";
+            var regex = new RegExp(regexS);
+            var results = regex.exec(window.location.search);
+            if (results == null)
+                return "";
+            else
+                return decodeURIComponent(results[1].replace(/\+/g, " "));
+        }
+
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+        function HistoryTabClick() {
+            if ($('#IsDeletedRecords').is(':checked')) {
+                $('#undeleteRows').css('display', '');
+                $('#deleteRows').css('display', 'none');
+            }
+            else {
+                $('#undeleteRows').css('display', 'none');
+                $('#deleteRows').css('display', '');
+            }
+            GetHistoryData();
+        }
+        function GetHistoryData() {
+            HistorySelected = fnGetSelected(oTable);
+            if (HistorySelected != undefined && HistorySelected.length == 1) {
+                var WOGUID = $(HistorySelected).find('#WorkOrderGUID')[0].value;
+                SelectedHistoryRecordID = WOGUID;
+                $('#CtabCL').html('');
+                $('#DivLoading').show();
+                $("#CTab").hide();
+                $("#CtabCL").show();
+                $('#CtabCL').load('/Master/WOMHistory', function () { $('#DivLoading').hide(); });
+            }
+            else {
+                $('#CtabCL').html('');
+                $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                $('div#target').fadeToggle();
+                $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                return false;
+            }
+        }
+        /* HISTORY related data deleated and archived END */
+    </script>
+}
+<script type="text/javascript">
+    var isTabClick = false;
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+
+    ];
+    if ('@IsShowChangeLog.ToString().ToUpper()' == 'TRUE') {
+        TabsArry.push(new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true));
+    }
+
+    function callbacknew() { window.location.hash = '#new'; ShowNewTab('WOCreate', 'frmWOMaster'); }
+    function callbackhistory() { window.location.hash = '#list'; }
+    function callbackCL() { window.location.hash = ''; HistoryTabClick(); }
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+        }
+
+    }
+    $(document).ready(function () {
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+    });
+</script>
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResWorkOrder.PageHeader
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <input type="hidden" id="hdnModuleName" name="hdnModuleName" value="WorkOrder" />
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener" style="min-height: 750px;">
+        </div>
+        <div id="Ctab" class="tabContener" style="min-height: 750px;">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:;" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.WorkOrders)
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            <div class="userContent ">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Expand
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.WOName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.ReleaseNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResRequisitionMaster.RequisitionNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.WOStatus
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTechnician.Technician
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResCustomer.Customer
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResAssetMaster.AssetName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResToolMaster.ToolName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.Odometer_OperationHours
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.UsedItems
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.UsedItemsCost
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RoomName
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.Signature
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.Supplier
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.SupplierAccountDetail
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResProjectMaster.ProjectSpendName
+                            </th>
+
+                            @Html.RenderColumnsHeader("WorkOrder", typeof(eTurns.DTO.ResWorkOrder))
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <button id="btnAddNewCompany" value="Ok" style="display: none">
+                    @ResCommon.AddNew
+                </button>
+                <button id="btnDeleteCompany" value="cancel" style="display: none">
+                    Delete Selected
+                </button>
+                <div id="processing_message" style="display: none" title="Processing">
+                    @eTurns.DTO.Resources.ResMessage.RequestProcessMessage
+                </div>
+            </div>
+        </div>
+        <div id="CtabCL" class="tabContener" style="min-height: 750px;">
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+
+    function BlankSession(ID) {
+        $.get('@Url.Content("~/WorkOrder/BlankSession")', function (data) {  });
+        @*$.ajax({
+            url: '@Url.Content("~/Consume/BlankSession")'
+            , type: 'GET'
+            //, contentType: "application/text"
+            //, success: function (result) {
+            //},
+            ,error: function (msg) {
+            }
+        });*@
+    }
+
+    function PrintAttachedDocs(lnk) {
+        var rowSelected = fnGetSelected(oTable);
+        var arrIds = new Array();
+        if (rowSelected.length > 0) {
+            for (var i = 0; i < rowSelected.length; i++) {
+                var WOGUID = $(rowSelected[i]).find('#WorkOrderGUID')[0].value;
+                arrIds.push(WOGUID);
+            }
+        }
+
+        if (arrIds.length) {
+            $.ajax({
+                url: 'DownloadWorkOrderDocument',
+                type: 'Post',
+                data: JSON.stringify(arrIds),
+                dataType: 'json',
+                async: false,
+                contentType: 'application/json',
+                success: function (result) {
+                    if (result.Status) {
+                        if (result.ReturnFiles.length > 0) {
+                            for (var i = 0; i < result.ReturnFiles.length; i++) {
+                                window.open(result.ReturnFiles[i]);
+                            }
+                        } else {
+                        $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                        $("#spanGlobalMessage").html('@ResCommon.NoDocsToDownload');
+                        showNotificationDialog();
+                    }
+                    }
+                },
+                error: function (xhr) {
+                    alert('@ResCommon.ErrorInProcess');
+                }
+            });
+        }
+        else {
+            alert('@ResCommon.SelectRow');
+
+        }
+    }
+
+
+</script>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>

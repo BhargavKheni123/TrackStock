@@ -1,0 +1,616 @@
+@{
+    ViewBag.Title = eTurns.DTO.ResReceiveOrderDetails.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplayDeleteButton = false, ShowSelectAll = true, DisplaySettings = true, DisplayContextMenu = true, DisplayColumnSetupButton = true, ColumnSetupFor = "ReceiveMasterList", DisplayUDFButton = true, UDFSetupFor = "ReceivedOrderTransferDetail" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ReceiveMaster" };
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    bool IsPackSlipReq = false;
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+    bool isUpdate = false;
+    bool isInsert = false;
+    isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Receive, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Receive, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUnclose = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowAnOrderToBeUnclose);
+    string ReceivePDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Receive.pdf", DateTime.Now.Ticks);
+    eTurns.DAL.RegionSettingDAL objRegionSettingDAL = new eTurns.DAL.RegionSettingDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    //HelpDocumentMasterDTO objHelpDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentMaster("Receive");
+    //string ReceiveBasicVideo = "";
+    //if (objHelpDTO != null)
+    //{
+    //    ReceiveBasicVideo = objHelpDTO.ModuleVideoPath.Replace("../Uploads/HelpVideo/", "");
+    //}
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Receive", (int)HelpDocType.Module);
+    string ReceiveAllowedFileExtension = eTurns.DTO.SiteSettingHelper.ReceiveAllowedFileExtension;
+
+    string UNCPathRootReceiveFileLink = string.IsNullOrEmpty(eTurns.DTO.SiteSettingHelper.ReceiveFilePaths) ? string.Empty : eTurns.DTO.SiteSettingHelper.ReceiveFilePaths;
+    Int64 EnterpriseId = eTurnsWeb.Helper.SessionHelper.EnterPriceID;
+    Int64 CompanyID = eTurnsWeb.Helper.SessionHelper.CompanyID;
+    Int64 RoomID = eTurnsWeb.Helper.SessionHelper.RoomID;
+    UNCPathRootReceiveFileLink = UNCPathRootReceiveFileLink.Replace("~", string.Empty);
+    string ReceiveFilePath = (UNCPathRootReceiveFileLink + EnterpriseId + "/" + CompanyID + "/" + RoomID);
+}
+@section head{
+    @if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL))
+    {<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}
+    else
+    { <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+}
+
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResReceiveOrderDetails.PageHeader
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener">
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Receive)
+            @Html.Partial("NarrowSearchReceiveLayout", modelCommon)
+            <div class="userContent ">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Expand
+                            </th>
+                            <th class="NotSortable NotHide">
+                                @eTurns.DTO.ResReceiveOrderDetails.Receive
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResReceiveOrderDetails.ItemNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.OrderNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.ReleaseNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.RequestedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.ApprovedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.ReceivedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResReceiveOrderDetails.ReceiveBin
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.QuantityToReceive
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResReceiveOrderDetails.ReceiveDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.RequiredDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.OrderStatus
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResReceiveOrderDetails.Description
+                            </th>
+                            <th>
+                                @*@eTurns.DTO.ResItemMaster.Cost*@
+                                @eTurns.DTO.ResOrder.OrderItemCost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Supplier
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SupplierPartNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ManufacturerName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ManufacturerNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SerialNumberTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LotNumberTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DateCodeTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsTransfer
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsPurchase
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResUnitMaster.Unit
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.InTransitquantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResReceiveOrderDetails.PackSlipNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.ASNNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResReceiveOrderDetails.ShippingTrackNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.StagingName
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.LastUpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResCostUOMMaster.CostUOM
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnHandQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MinimumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MaximumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResReceiveOrderDetails.BinOnHandQTY
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnOrderQuantity
+                            </th>
+                            @Html.RenderColumnsHeader("ItemMaster", typeof(eTurns.DTO.ResItemMaster), "Item")
+                            @Html.RenderColumnsHeader("ReceivedOrderTransferDetail", typeof(eTurns.DTO.ResReceiveOrderDetails), "Receive")
+                            <th>
+                                @ResCommon.FileAttachment
+                            </th>
+                            <th>
+                                @ResCommon.AttachedFiles
+                            </th>
+                            <th>
+                                @ResOrder.ISBackOrdered
+                            </th>
+                            <th class="NotSortable NotHide">
+                                @ResOrder.BackOrderedExpandCollapse
+                            </th>
+                            <th>
+                                @ResOrder.OrderLineException
+                            </th>
+                            <th>
+                                @ResOrder.OrderLineExceptionDesc
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div id="divQTYLegends" style="clear: both; width: 90%; margin-top: 10px; display: none">
+                    <div>
+                        U = @ResOrder.GetOrderStatusText(OrderStatus.UnSubmitted.ToString()), S = @ResOrder.GetOrderStatusText(OrderStatus.Submitted.ToString()),
+                        A = @ResOrder.GetOrderStatusText(OrderStatus.Approved.ToString()), T = @ResOrder.GetOrderStatusText(OrderStatus.Transmitted.ToString()),
+                        I = @ResOrder.GetOrderStatusText(OrderStatus.TransmittedIncomplete.ToString()),
+                        P = @ResOrder.GetOrderStatusText(OrderStatus.TransmittedInCompletePastDue.ToString()),
+                        C = @ResOrder.GetOrderStatusText(OrderStatus.Closed.ToString())
+                    </div>
+                </div>
+                @if (isInsert)
+                {
+                    <div style="float: left; width: 70%">
+                        <input type="button" value="@ResOrder.ReceiveAll" id="btnReceiveAllNew" class="GridSmallBtnStyle inLineBtn" />
+                        &nbsp;&nbsp;&nbsp; @*<input type="button" value="Receive All" id="btnReceiveALL" class="GridSmallBtnStyle inLineBtn" />
+                            &nbsp;&nbsp;&nbsp;*@
+                        <input type="button" value="@ResOrder.ClearAll" id="btnClearAll" class="GridSmallBtnStyle inLineBtn" />
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        <input type="button" value="@eTurns.DTO.ResOrder.EditReceipts" id="btnEditReciept" class="GridSmallBtnStyle inLineBtn" style="display:none" />
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        <input type="button" value="@ResOrder.CloseLineItem" id="btnCloseOrderLineItem" class="GridSmallBtnStyle inLineBtn" />
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        <input type="button" value="@ResOrder.UncloseItem" id="btnUnCloseLineItem" class="GridSmallBtnStyle inLineBtn"
+                               style="display: none" />
+                    </div>
+                }
+            </div>
+        </div>
+        <div id='CtabCL' class="tabContener" style="min-height: 500px;">
+        </div>
+    </div>
+</div>
+<div id="divPreRecieveInfo">
+</div>
+<div class="dialog" id="OrdReceivedErrorDialog" style="display: none; width: 370px;">
+    <div class="inner" style="width: 370px;">
+        <p class="text" id="OrdReceivErrorMSG" style="text-align: left; padding-left: 10px;">
+        </p>
+        <p class="text btnA" style="text-align: center; padding-left: 10px;">
+            <a href="javascript:void(0)" class="no" onclick="javascript:return closeErrorDialog()">
+                <img src="~/Content/images/yes.png" alt="@ResCommon.Ok" />@ResCommon.Ok
+            </a>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="OrdReceivedInfoDialog" style="display: none; width: 470px;">
+    <div class="inner" style="width: 470px;">
+        <p class="text" id="OrdReceivedMSG" style="text-align: left; padding-left: 10px;">
+        </p>
+        <p class="text btnA" style="text-align: center; padding-left: 10px;">
+            <a href="javascript:void(0)" class="no" onclick="closeFromOk()">
+                <img src="~/Content/images/yes.png" alt="@ResCommon.Ok" />@ResCommon.Ok
+            </a>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="OrdReceiveProcessing" style="display: none;">
+    <div class="inner">
+        <p class="text" id="OrdReceiveGWait" style="text-align: left; padding-left: 10px;">
+            <b style="color: Red;">
+                @*Kindly wait, order receive transaction is going on.....*@
+                @eTurns.DTO.Resources.ResMessage.PleaseWaitTransGoingOn
+            </b>
+        </p>
+        <p class="text" id="OrdReceiveGWaitImg" style="text-align: center; padding-left: 10px;">
+            <img src="@Url.Content("~/Content/images/ajax.gif")" alt="loding" />
+        </p>
+    </div>
+</div>
+<div id="ExceedRecieveInfoDialog" title="Received Exceed" class="dialog" style="float: left;
+    display: none; width: 500px;">
+    <div class="inner" style="width: 500px;">
+        <p class="text" style="float: left; width: 98%; text-align: left; padding: 0px 0px 5px 10px;">
+            <b>This receive will exceed the approved quantity of the following item(s): </b>
+        </p>
+        <p id="pItemList" class="text" style="float: left; width: 98%; font-weight: bold;
+            text-align: left; padding: 0px 0px 20px 10px;">
+        </p>
+        <p class="text" style="float: left; width: 98%; text-align: center; padding-left: 10px;">
+            <a href="javascript:void(0)" class="yes" onclick="ExceedRecieveModelYesClick()">
+                <img src="~/Content/images/yes.png" alt="Yes" />@eTurns.DTO.Resources.ResMessage.InformOk
+            </a>&nbsp;&nbsp;&nbsp;<a href="javascript:void(0)"
+                                     class="no" onclick="closeOrdReceiveInfoModel()">
+                <img src="~/Content/images/no.png" alt="@eTurns.DTO.Resources.ResCommon.Cancel" />@eTurns.DTO.Resources.ResCommon.Cancel
+            </a>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="divUnCloseOrderReceiptEdit" style="float: left; display: none;
+    width: 450px;">
+    <div class="inner" style="width: 450px;">
+        <p class="text" id="UCORE" style="float: left; text-align: left; padding-left: 10px;">
+            <b>a.</b>&nbsp;Only the receipts of the selected order may be edited.
+            <br />
+            <b>b.</b>&nbsp;All unreceived items will placed back on order.
+            <br />
+            <b>c.</b>&nbsp;All previously received quantities will remain received.
+            <br />
+            <b>d.</b>&nbsp;Orders Created from EDI are not to be unclosed
+            <br />
+        </p>
+        <p class="text" style="float: left; text-align: center; padding-left: 10px;">
+            <a href="javascript:void(0)" class="yes" onclick="UnCloseOrderReceiptEdit()">
+                <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.InformOk" />@eTurns.DTO.Resources.ResMessage.InformOk
+            </a>&nbsp;&nbsp;&nbsp;<a href="javascript:void(0)"
+                                     class="no" onclick="UnCloseOrderCancel()">
+                <img src="~/Content/images/no.png" alt="@eTurns.DTO.Resources.ResCommon.Cancel" />@eTurns.DTO.Resources.ResCommon.Cancel
+            </a>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="divUnCloseOrderLineItemEdit" style="float: left; display: none;
+    width: 450px;">
+    <div class="inner" style="width: 450px;">
+        <p class="text" id="UCOLIE" style="float: left; text-align: left; padding-left: 10px;">
+            <b>a.</b>&nbsp;All received quantities will be unreceived
+            <br />
+            <b>b.</b>&nbsp;All order items may be edited or deleted
+            <br />
+            <b>c.</b>&nbsp;New order Items may be added to the order
+            <br />
+            <b>d.</b>&nbsp;The order will need to be approved once submitted
+            <br />
+            <b>e.</b>&nbsp;The order will be re-transmitted to the supplier once approved
+            <br />
+            <b>f.</b>&nbsp;Orders Created from EDI are not to be unclosed
+            <br />
+        </p>
+        <p class="text" style="float: left; text-align: center; padding-left: 10px;">
+            <a href="javascript:void(0)" class="yes" onclick="UnCloseOrderLineItemEdit()">
+                <img src="~/Content/images/yes.png" alt="@ResCommon.Ok" />@ResCommon.Ok
+            </a>&nbsp;&nbsp;&nbsp;<a href="javascript:void(0)"
+                                     class="no" onclick="UnCloseOrderCancel()">
+                <img src="~/Content/images/no.png" alt="@ResCommon.Cancel" />@ResCommon.Cancel
+            </a>
+        </p>
+    </div>
+</div>
+<div class="dialog" id="CloseOderLineItemDialog" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @ResOrder.ConfirmCloseOrderItem
+        </p>
+        <a href="JavaScript:void(0)" id="bntCloseLineItemConfirmYes" class="yes yesornooryes">
+            <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.ConfirmYes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no" onclick="closeOrdReceiveInfoModel();">
+            <img src="~/Content/images/no.png" alt="@eTurns.DTO.Resources.ResMessage.ConfirmNo" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<div class="dialog" id="UnCloseOderLineItemDialog" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @ResOrder.ConfirmUnCloseOrderItem
+        </p>
+        <a href="JavaScript:void(0)" id="bntUnCloseItemConfirmYes" class="yes yesornooryes">
+            <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.ConfirmYes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no" onclick="closeModalCloseOderDialog();">
+            <img src="~/Content/images/no.png" alt="@eTurns.DTO.Resources.ResMessage.ConfirmNo" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<div id="divEditReceipt">
+</div>
+
+
+<script type="text/javascript">
+     var sLengthMenu = '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+        sEmptyTable = '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+        sInfo = '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+        sInfoEmpty = '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries';
+
+    var saveGridStateURL = '@Url.Content("~/Master/SaveGridState")',
+        receiveItemURL = '@Url.Content("~/Receive/ReceiveItem")',
+        loadGridStateURL = '@Url.Content("~/Master/LoadGridState")',
+        receiveListAjaxURL = '@Url.Content("~/Receive/ReceiveListAjax")',
+        deleteRecieveAndUpdateReceivedQtyURL = '@Url.Content("~/Order/DeleteRecieveAndUpdateReceivedQty")',
+        openDialogForEditReceiptURL = '@Url.Content("~/Receive/OpenDialogForEditReceipt")',
+        getItemLocationsURL = '/Receive/GetItemLocations',
+        getReceivedQuantityURL = '@Url.Content("~/Order/GetReceivedQuantity")',
+        saveReceiveWithOrderURL = '@Url.Content("~/Receive/SaveReceiveWithOrder")',
+        closeOrderDetailLineItemsURL = '@Url.Content("~/Order/CloseOrderDetailLineItems")',
+        unCloseOrderLineItemsURL = '@Url.Content("~/Order/UnCloseOrderLineItems")',
+        receivedItemDetailURL = '@Url.Content("~/Receive/ReceivedItemDetail")',
+        duplicateCheckSrNumberURL = '@Url.Content("~/Inventory/DuplicateCheckSrNumber")';
+    var backOrderedDetails = '@Url.Content("~/Order/BackOrderedDetails")';
+    var lblExpirationDate = '@ResReceiveOrderDetails.ExpirationDate';
+    var lblAndExpiration = '@ResItemLocationDetails.AndExpiration';
+    var lblTrackingItem = '@ResItemLocationDetails.TrackingItem';
+    var MsgSelectClosedOrdersOnly = '@eTurns.DTO.ResOrder.MsgValidationSelectOnlyclosedOrder';
+    var MsgSelectRowToReceive = '@eTurns.DTO.ResReceiveOrderDetails.MsgSelectRowToReceive';
+    var MsgSaveReceiveInfoAjaxError = '@eTurns.DTO.ResReceiveOrderDetails.MsgSaveReceiveInfoAjaxError';
+    var MsgErrorInAjaxrequest = '@ResCommon.ErrorInProcess';
+    var MsgSelectLineItem = '@eTurns.DTO.ResReceiveOrderDetails.MsgSelectLineItem';
+    var MsgSelectClosedLineItem = '@eTurns.DTO.ResReceiveOrderDetails.MsgSelectClosedLineItem';
+    var MsgNoPreviousReceiptToEdit = '@eTurns.DTO.ResReceiveOrderDetails.MsgNoPreviousReceiptToEdit';
+    var MsgSelectUnclosedItemValidation = '@eTurns.DTO.ResReceiveOrderDetails.MsgSelectUnclosedItemValidation';
+    var MsgSelectOnlyOneRecord = '@eTurns.DTO.ResReceiveOrderDetails.MsgSelectOnlyOneRecord';
+    var MsgSelectRow = '@ResCommon.SelectRow';
+    var MsgDuplicateSerialFound = '@ResMessage.DuplicateSerialFound';
+    var MsgRecordDeletedSuccessfully = '@ResCommon.RecordDeletedSuccessfully';
+    var MsgRecordsNotDeleted = '@eTurns.DTO.ResReceiveOrderDetails.MsgRecordsNotDeleted';
+    var MsgSelectRecordToOrders = '@eTurns.DTO.ResReceiveOrderDetails.MsgSelectRecordToOrders';
+    var MsgReceivedSuccessfully = '@ResReceiveOrderDetails.MsgReceivedSuccessfully';
+    var ResReceiveOrderDetails = '@ResReceiveOrderDetails.MsgErrorWhileReceving';
+    var MsgEnterQuantityReceive = '@ResReceiveOrderDetails.MsgEnterQuantityReceive';
+    var MsgSelectLocationToReceive = '@ResReceiveOrderDetails.MsgSelectLocationToReceive';
+    var MsgClosedOrderNotReceive = '@ResReceiveOrderDetails.MsgClosedOrderNotReceive';
+    var SomeItemsNotReceivedDueToReason = '@ResOrder.SomeItemsNotReceivedDueToReason';
+    var TitlePreReceiveInfo = '@ResReceiveOrderDetails.TitlePreReceiveInfo';
+    var btnReceive = '@ResOrder.Receive';
+    var EditReceipts = '@ResOrder.EditReceipts';
+    var CreatedBy = '@ResCommon.CreatedBy';
+    var UpdatedBy = '@ResCommon.UpdatedBy';
+    var ReceivedFileExtension = '@ReceiveAllowedFileExtension';
+    var MsgInvalidFileSelected = '@ResWorkOrder.MsgInvalidFileSelected';
+    var MsgvalidFileList = '@ResWorkOrder.MsgvalidFileList';
+    var removedReceiveListName = [];
+
+
+</script>
+
+@*<script type='text/javascript' src="@Url.Content("~/Scripts/Receive.js?v=" + version)"></script>
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+    <script type='text/javascript' src="@Url.Content("~/Scripts/PageScripts/ReceiveList.js?v=" + version)"></script>
+    <script type='text/javascript' src="@Url.Content("~/Scripts/PageScripts/ReceiveItemDetail.js?v=" + version)"></script>*@
+
+<script type='text/javascript' src="@Url.Content("~/bundles/receiveList?v=" + version)"></script>
+<script src="@Url.Content("~/Scripts/PageScripts/NarrowSearchForItemModel.js?v=" + version)" type="text/javascript"></script>
+<script src="@Url.Content("~/Scripts/ImagePreview.js")" type="text/javascript"></script>
+<script type="text/javascript">
+    // tabs init
+    var isTabClick = false;
+    var isnew = true;
+    if ('@isInsert' == 'False')
+        isnew = false;
+
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', isnew, isnew),
+         new TabClass('tab4', 'Incomplete', 'callbackIncomplete();', true, true, '0', 'divIncompleteItems'),
+         new TabClass('tab5', 'History', 'callbackhistory();', true, true),
+         new TabClass('tab6', 'Orders', 'callbackOrder();', false, true)
+    ];
+
+    //function SetTabView() {
+    //    var tabname = window.location.hash.toLowerCase();
+
+    //    switch (tabname) {
+    //        case "#list":
+    //            $("#tab5").click();
+    //            break
+    //        case "#new":
+    //            //$("#tab1").click();
+    //            break
+    //        case "#incomplete":
+    //            $("#tab4").click();
+    //            break
+    //    }
+    //}
+    var formData = new FormData();
+    $(document).ready(function () {
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+               // SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+        
+        if (typeof ($("#global_filter")) != undefined) {
+            $("#global_filter").val('');
+        }
+        
+    });
+
+</script>
+
+<script type="text/javascript">
+
+    var _HasOnTheFlyEntryRight = '@HasOnTheFlyEntryRight';
+    var _isCost = '@isCost';
+    var txtReceiveDateVal = '@objRegionSettingDAL.GetCurrentDatetimebyTimeZone(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.UserID, eTurns.DTO.Resources.ResourceHelper.CurrentCult, eTurnsWeb.Helper.SessionHelper.RoomDateFormat,eTurnsWeb.Helper.SessionHelper.RoomCulture).ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture)';
+    var arrCol_ItemMaster = [@(Html.RenderColumnsArray("ItemMaster", false, "Item"))];
+    var arrCol_ReceivedOrderTransferDetail = [@(Html.RenderColumnsArrayEditableObject("ReceivedOrderTransferDetail",false, isUDFOrderRequire: true))];
+    var RoomDateJSFormat = '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat';
+    var isUnclose = '@(isUnclose.ToString())';
+    var ReceiveFile_Path = '@ReceiveFilePath';
+    
+
+    _ReceiveList.initUrls(saveGridStateURL, receiveItemURL, receiveListAjaxURL, loadGridStateURL
+        , deleteRecieveAndUpdateReceivedQtyURL, openDialogForEditReceiptURL,
+        getItemLocationsURL, getReceivedQuantityURL,
+        saveReceiveWithOrderURL, closeOrderDetailLineItemsURL,
+        receivedItemDetailURL, unCloseOrderLineItemsURL, duplicateCheckSrNumberURL, backOrderedDetails);
+
+    _ReceiveList.init(
+        '@eTurnsWeb.Helper.SessionHelper.CompanyID', '@eTurnsWeb.Helper.SessionHelper.RoomID',
+        RoomDateJSFormat, isUnclose,'@eTurns.DAL.DateTimeUtility.DateTimeNow.ToString("MM/dd/yyyy")');
+
+
+    _ReceiveList.initDataTable(_HasOnTheFlyEntryRight , txtReceiveDateVal , arrCol_ItemMaster , arrCol_ReceivedOrderTransferDetail , oLanguage , _isCost );
+
+        //HasOrderTab = true;
+        //var objColumns = {}
+</script>
+<style>
+    #preview {
+        position: absolute;
+        border: 1px solid #ccc;
+        background: #333;
+        padding: 5px;
+        display: none;
+        color: #fff;
+    }
+</style>

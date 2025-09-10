@@ -1,0 +1,378 @@
+﻿@model eTurns.DAL.PullPOMasterDAL
+
+@using System.Linq;
+@{
+    var settings = new GridHeaderSettings() { DisplayContextMenu = true, DataTableName = "myDataTable", DisplayPrintBlock = false, DisplayDeleteButton = true, dataViewType = DataViewType.None, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = true, ShowSelectAll = false, ColumnSetupFor = "PullPOMasterList", ModuleName = "NewPull" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "PullPoMasterList" };
+    var ControlType = ViewBag.ControlType;
+    string PullsPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Pulls.pdf", DateTime.Now.Ticks);
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+}
+<script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+<script type="text/javascript" src="@Url.Content("~/Scripts/DynemicDataTable.js?v=" + version)"></script>
+<script language="javascript" type="text/javascript">
+
+    var oTable = null;
+    var objColumns = {};
+    var oTable;
+    var deleteURL = "/pull/DeletePORecords";
+    var IsRefreshGrid = false;
+    //callbacknew();
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+        new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+    ];
+    function callbacknew() { ShowNewTab('PullPOCreate', 'frmPullPO'); }
+    function callbackhistory() {
+            $('#myDataTable').dataTable().fnDraw();
+    }
+    $(document).ready(function () {
+        LoadTabs();
+        $("body").find("select#ControlType").val('@ControlType');
+        //$('#tab1').addClass('selected');
+        var gaiSelected = [];
+        objColumns = GetGridHeaderColumnsObject('myDataTable');
+        oTable = $('#myDataTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            //"bAutoWidth": false,
+            "sScrollX": "350%",
+            //"sScrollX": "8000px",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[0, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+
+                return nRow;
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+
+                oData.oSearch.sSearch = "";
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'PullPOMasterList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        o = json;
+
+                    }
+                });
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'PullPOMasterList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+
+                    }
+                });
+
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Content("~/Pull/PullPOMasterListAjax")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                //PostCount = PostCount + 1;
+
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting != null && oSettings.aaSorting.length != 0) {
+                    var sortValue = "";
+                    for (var i = 0; i <= oSettings.aaSorting.length - 1; i++) {
+                        if (sortValue.length > 0)
+                            sortValue += ", "
+                        sortValue += arrCols[oSettings.aaSorting[i][0]] + ' ' + oSettings.aaSorting[i][1];
+                    }
+                    aoData.push({ "name": "SortingField", "value": sortValue });
+                }
+                    //                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                aoData.push({ "name": "ActionFilter", "value": $('#NewPullAction').val() });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('#myDataTable td').removeHighlight();
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+
+                        if ($("#global_filter").val() != '') {
+                            $('#myDataTable td').highlight($("#global_filter").val());
+                        }
+                        CallShowHideData();
+                    }
+                })
+            },
+            "fnInitComplete": function () {
+
+                $('.ColVis').detach().appendTo(".setting-arrow");
+                $('#divQTYLegends').show(1000);
+
+            },
+            "aoColumns": [
+                            {
+                                "mDataProp": "PullOrderNumber", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    var strVal = val.toString();//.replace(/ /g, "&nbsp;");
+                                    strVal = strVal.replace(/&/g, "&amp;").replace(/>/g, "&gt;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+                                    // return "";
+                                    return "<a id='aEditLink' onclick='return ShowEditTabGUID(&quot;PullPOEdit?ID=" + obj.aData.ID.toString() + "&quot;,&quot;frmPullPO&quot;)' href='JavaScript:void(0);'>" + strVal + "</a>";
+                                }
+                            },
+                            { "mDataProp": "ID", "sClass": "read_only" },
+                            {
+                                "mDataProp": "IsActive", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.IsActive) {
+                                        return '<input type="checkbox" class="checkbox" checked="checked" id="hdnIsActive"/><input type="hidden" Id="hdnID" value="' + obj.aData.ID + '"/>';
+                                    }
+                                    else {
+                                        return '<input type="checkbox" class="checkbox"  id="hdnIsActive"/><input type="hidden" Id="hdnID" value="' + obj.aData.ID + '"/>';
+                                    }
+                                }
+                            },
+                            { "mDataProp": "RoomName", "sClass": "read_only" },
+			                {
+			                    "mDataProp": "Created", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.CreatedDate;
+			                    }
+			                },
+			                {
+			                    "mDataProp": "Updated", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.UpdatedDate;
+			                    }
+			                },
+                            { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+			                {
+			                    "mDataProp": "ReceivedOn", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.ReceivedOnDate;
+			                    }
+			                },
+			                {
+			                    "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+			                    "fnRender": function (obj, val) {
+			                        return obj.aData.ReceivedOnDateWeb;
+			                    }
+			                }
+
+            ]
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+
+
+
+    });
+
+
+
+</script>
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResPullPOMaster.PullPOMasterHeader
+    </h2>
+    <div class="Infoclass">
+        <a href="@PullsPDFURL" target="_blank">
+            <img src="~/Content/images/Info.png" alt="Help" />
+        </a>
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnPageName", "PullPoMasterList")
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener">
+            Pull PO Master
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock" style="margin: -1px auto; width: 500px;">
+                    <span class="label" style="color: #FFFFFF; float: left; font-size: 14px; font-weight: bold;
+                        line-height: 22px; padding: 2px 5px 0 0;">
+                        @eTurns.DTO.Resources.ResCommon.Search
+                    </span>
+                    <div class="searchinputB" style="float: left; position: relative; width: 415px;">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_QLglobal_filter" />
+                        </a>
+                    </div>
+                </div>
+                <div class="userHead editor-field" style="clear:both;z-index:1 !important;width:16% !important;">
+                    @eTurns.DTO.ResUDFSetup.ControlType :
+                    <select id="ControlType" class="selectBox">
+                        <option value="Textbox">Textbox</option>
+                        <option value="Dropdown">Dropdown</option>
+                        <option value="Dropdown Editable">Dropdown Editable</option>
+                    </select>
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.PullMaster)
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            <div class="userContent " style=" margin-top: 33px;">
+               
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.ResPullPOMaster.PullOrderNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResPullPOMaster.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResPullPOMaster.IsActive
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RoomName
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWeb
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+
+                <div id="processing_message" style="display: none" title="Processing">@eTurns.DTO.Resources.ResMessage.RequestProcessMessage</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>
+<script language="javascript" type="text/javascript">
+    $(document).ready(function () {
+    });
+
+    function closeModalNoSelectModel() {
+        $.modal.impl.close();
+    }
+
+    $('body').on('click', 'input.checkbox', function (event) {
+        $('#DivLoading').show();
+        var IsActive = $(this).is(":checked");
+        var Id = $(this).next("input#hdnID").val();
+        $.ajax({
+            url: "UpdatePOActive",
+            data: { 'IsActive': IsActive, 'ID': Id },
+            method: "Post",
+            datatype: "json",
+            success: function (res) {
+                if (IsActive)
+                    $("#spanGlobalMessage").html("@ResCommon.msgActiveSuccessfully");
+                else
+                    $("#spanGlobalMessage").html("@ResCommon.msgInActiveSuccessfully");
+                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                showNotificationDialog();
+                $('#DivLoading').hide();
+            },
+            error: function (xhr) {
+                $("#spanGlobalMessage").html("@ResCommon.msgInActiveError");
+                $("#spanGlobalMessage").removeClass('succesIcon').addClass('errorIcon WarningIcon');
+                $('#DivLoading').hide();
+            },
+            complete: function () {
+                $('#DivLoading').hide();
+
+            }
+        });
+    });
+
+    $("body").on('change','select#ControlType',function(){
+        var currentControlType = $(this).val();
+        $.ajax({
+            url: "UpdatePOControl",
+            data: { 'currentControlType': currentControlType },
+            method: "Post",
+            datatype: "json",
+            success: function (res) {
+                $("#spanGlobalMessage").html("@ResCommon.msgActiveSuccessfully");
+                $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                showNotificationDialog();
+                $('#DivLoading').hide();
+            },
+            error: function (xhr) {
+                $("#spanGlobalMessage").html("@ResCommon.msgInActiveError");
+                $("#spanGlobalMessage").removeClass('succesIcon').addClass('errorIcon WarningIcon');
+                $('#DivLoading').hide();
+            },
+            complete: function () {
+                $('#DivLoading').hide();
+
+            }
+        });
+    });
+    function PullPOStatusNarroSearch(SSDDLObject) {
+        //oTable.fnFilter($(CostDDLObject).val(),null,null,null);
+        if ($(SSDDLObject).val() != "") {
+            PullPOStatusValue = $(SSDDLObject).val();
+            DoNarrowSearch();
+        }
+        else {
+            PullPOStatusValue = '';
+            DoNarrowSearch();
+        }
+    }
+</script>

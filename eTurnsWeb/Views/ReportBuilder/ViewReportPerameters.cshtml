@@ -1,0 +1,860 @@
+@using MvcCheckBoxList.Model;
+
+@model ReportPerameters
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    var htmlRoomListInfo = new HtmlListInfo(HtmlTag.vertical_columns, 3, new { @name = "chkRooms", }, TextLayout.Default, TemplateIsUsed.No);
+    var htmlCompListInfo = new HtmlListInfo(HtmlTag.vertical_columns, 3, new { @name = "chkCompanies", }, TextLayout.Default, TemplateIsUsed.No);
+
+    List<KeyValDTO> lstRooms = new List<KeyValDTO>();
+    KeyValDTO objRoom = new KeyValDTO();
+    RoomDTO objRoomDTO = eTurnsWeb.Helper.SessionHelper.RoomList.Where(x => x.ID == eTurnsWeb.Helper.SessionHelper.RoomID).FirstOrDefault();
+    objRoom.value = objRoomDTO.RoomName + "(" + objRoomDTO.CompanyName + ")";
+    objRoom.key = objRoomDTO.ID.ToString();
+    lstRooms.Add(objRoom);
+
+    
+    List<KeyValDTO> lstCompany = new List<KeyValDTO>();
+    KeyValDTO objCompany = new KeyValDTO();
+    CompanyMasterDTO objCompanyDTO = eTurnsWeb.Helper.SessionHelper.CompanyList.Where(x => x.ID == eTurnsWeb.Helper.SessionHelper.CompanyID).FirstOrDefault();
+    objCompany.value = objCompanyDTO.Name;
+    objCompany.key = objCompanyDTO.ID.ToString();
+    lstCompany.Add(objCompany);
+
+    eTurns.DAL.ReportMasterDAL objReportMasterDAL = new eTurns.DAL.ReportMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    ReportBuilderDTO objReportBuilderDTO = objReportMasterDAL.GetReportDetail(Model.Id);
+    if (objReportBuilderDTO.ISEnterpriseReport.GetValueOrDefault(false) && Model.IsUserCanDelete)
+    {
+        Model.IsUserCanDelete = false;
+    }
+
+    string PDFURL = "";
+    string VideoURL = "";
+    bool IsHelpDocShow = false;
+    bool IsHelpVideoShow = false;
+    string ModuleName = "";
+    long? ReportID = 0;
+    if(objReportBuilderDTO != null)
+    {
+        if (objReportBuilderDTO.ParentID != null && objReportBuilderDTO.ParentID > 0)
+        {
+            ReportID = objReportBuilderDTO.ParentID;
+        }
+        else
+        {
+            ReportID = objReportBuilderDTO.ID;
+        }
+    }
+    //HelpDocumentMasterDTO objHelpDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentByReportID(Convert.ToInt64(ReportID));
+    //if (objHelpDTO != null)
+    //{
+    //    if (objHelpDTO.ModuleDocPath != null && !string.IsNullOrWhiteSpace(objHelpDTO.ModuleDocPath))
+    //    {
+    //        PDFURL = string.Format("{0}?t={1}", objHelpDTO.ModuleDocPath.Replace("..", ""), DateTime.Now.Ticks);
+    //    }
+    //    if (objHelpDTO.ModuleVideoPath != null && !string.IsNullOrWhiteSpace(objHelpDTO.ModuleVideoPath))
+    //    {
+    //        VideoURL = objHelpDTO.ModuleVideoPath.Replace("../Uploads/HelpVideo/", "");
+    //    }
+    //    IsHelpDocShow = objHelpDTO.IsDoc ?? false;
+    //    IsHelpVideoShow = objHelpDTO.IsVideo ?? false;
+    //    ModuleName = objHelpDTO.ModuleName;
+    //}
+
+}
+<style>
+    .editorformchange {width:80% !important;}
+</style>
+<div class="userHead">
+    <div class="editorForm editorformchange">
+        <ul>
+            @if (Model.ModuleName.ToLower() != "enterpriselist")
+            {
+                Html.RenderPartial("~/Views/ReportBuilder/ModuleCompanyAndRooms.cshtml", Model);
+            }
+            <li>
+                <div class="editor-label">
+                    &nbsp;
+                    <input type="hidden" id="hdnRPTFileName" value="@Model.Id" />
+                    <input type="hidden" id="hdnModuleName" value="@Model.ModuleName" />
+                    <input type="hidden" id="hdnParentReportName" value="@Model.ParentReportName" />
+                </div>
+            </li>
+            @if (!(Model.ModuleName.ToLower() == "instockbybin" || Model.ModuleName.ToLower() == "itemlist" || Model.ModuleName.ToLower() == "instockwithqoh"
+                || Model.ModuleName.ToLower() == "instockbybinmargin" || Model.ModuleName.ToLower() == "suggorderofexpdate" || Model.ModuleName.ToLower() == "company"
+                || Model.ModuleName.ToLower() == "enterpriselist"
+                || Model.ModuleName.ToLower() == "kit"
+                || Model.ModuleName.ToLower() == "precisedemandplanning"
+                || Model.ModuleName.ToLower() == "precisedemandplanningbyitem"
+                || Model.ParentReportName.ToLower() == "return item candidates"
+                || Model.ModuleName.ToLower() == "itemswithsuppliers"))
+            {
+                Html.RenderPartial("~/Views/ReportBuilder/ModuleItemFilterDates.cshtml", Model);
+            }
+            @if (!(Model.ModuleName.ToLower() == "order" || Model.ModuleName.ToLower() == "closedorder" || Model.ModuleName.ToLower() == "returnorder" || Model.ModuleName.ToLower() == "unfulfilledorders" || Model.ModuleName.ToLower() == "kit"
+                || Model.ModuleName.ToLower() == "company" || Model.ModuleName.ToLower() == "enterpriselist"
+                || Model.ModuleName.ToLower() == "serialitems" || Model.ModuleName.ToLower() == "quote"))
+            {
+                <div style="display: none;" id="divItemTypes">
+                    @{Html.RenderPartial("~/Views/ReportBuilder/ModuleItemTypes.cshtml", Model);}
+                </div>
+            }
+            @if (Model.ModuleName.ToLower() == "consume_pull" || Model.ModuleName.ToLower() == "cumulativepull" || Model.ModuleName.ToLower() == "wopullsummary"
+                        || Model.ModuleName.ToLower() == "consume_pullsummary" || Model.ModuleName.ToLower() == "replenish_order" || Model.ModuleName.ToLower() == "instockbybin"
+                        || Model.ModuleName.ToLower() == "instockbyactivity"
+                        || Model.ModuleName.ToLower() == "instockwithqoh" || Model.ModuleName.ToLower() == "range-receive" || Model.ModuleName.ToLower() == "range-consume_requisition"
+                        || Model.ModuleName.ToLower() == "item-audittrail" || Model.ModuleName.ToLower() == "audittrail" || Model.ModuleName.ToLower() == "cart"
+                        || Model.ModuleName.ToLower() == "evmi" || Model.ModuleName.ToLower() == "evmipollh"
+                        || Model.ModuleName.ToLower() == "assetmaster" || Model.ModuleName.ToLower() == "countmaster" || Model.ModuleName.ToLower() == "staging"
+                        || Model.ModuleName.ToLower() == "instockbybinmargin" || Model.ModuleName.ToLower() == "suggorderofexpdate" || Model.ModuleName.ToLower() == "checkouttool"
+                        || Model.ModuleName.ToLower() == "toolinouthistory" || Model.ModuleName.ToLower() == "tool" || Model.ModuleName.ToLower() == "writtenofftools" || Model.ModuleName.ToLower() == "workorderlist"
+                        || Model.ModuleName.ToLower() == "evmi_manualcount" || Model.ModuleName.ToLower() == "itemlist" || Model.ModuleName.ToLower() == "transferditems"
+                        || Model.ModuleName.ToLower() == "expiringitems" || Model.ModuleName.ToLower() == "reqitemsummary" || Model.ModuleName.ToLower() == "inventorydailyhistory"
+                        || Model.ModuleName.ToLower() == "inventoryreconciliation" || Model.ModuleName.ToLower() == "attsummary" || Model.ModuleName.ToLower() == "toolmaintanancecost"
+                        || Model.ModuleName.ToLower() == "maintenancedue"
+                        || Model.ModuleName.ToLower() == "receive"
+                        || Model.ModuleName.ToLower() == "not consume_pull"
+                        || Model.ModuleName.ToLower() == "stock out item"
+                        || Model.ModuleName.ToLower() == "inventory stock out"
+                        || Model.ModuleName.ToLower() == "toolaudittrail" || Model.ModuleName.ToLower() == "toolaudittrailtransaction"
+                        || Model.ModuleName.ToLower() == "precisedemandplanning"
+                        || Model.ModuleName.ToLower() == "precisedemandplanningbyitem"
+                        || Model.ModuleName.ToLower() == "inventorydailyhistorywithdaterange"
+                        || Model.ModuleName.ToLower() == "ToolInStock".ToLower()
+                        || Model.ModuleName.ToLower() == "itemswithsuppliers"
+                        || Model.ParentReportName.ToLower() == "kit serial"
+                        || Model.ParentReportName.ToLower() == "work order"
+                        || Model.ParentReportName.ToLower() == "work order with grouped pulls"
+                        || Model.ModuleName.ToLower() == "movematerial"
+                        || Model.ParentReportName.ToLower() == "order summary")
+            {
+                <li>
+                    <div style="height: 20px; width: 100%; float: left;">
+                    </div>
+                </li>
+                if (Model.ModuleName.ToLower() != "stock out item"
+                    && Model.ModuleName.ToLower() != "inventory stock out"
+                    && Model.ParentReportName.ToLower() != "item received receivable")
+                {
+                    @Html.Action("GetRangeByReportID", "ReportBuilder", Model.Id)
+                }
+
+                if (Model.ModuleName.ToLower() == "instockbybin"
+                    || Model.ModuleName.ToLower() == "instockbybinmargin"
+                    || Model.ModuleName.ToLower() == "instockwithqoh"
+                    || Model.ModuleName.ToLower() == "instockbyactivity"
+                    || Model.ModuleName.ToLower() == "stock out item"
+                    || Model.ModuleName.ToLower() == "inventory stock out"
+                    || Model.ModuleName.ToLower() == "precisedemandplanning"
+                    || Model.ModuleName.ToLower() == "precisedemandplanningbyitem"
+                    || Model.ParentReportName.ToLower() == "pull summary"
+                    || Model.ParentReportName.ToLower() == "pull summary by quarter"
+                    || Model.ModuleName.ToLower() == "movematerial"
+                    )
+                {
+                    <li>&nbsp;</li>
+                    <li id="liItemStatus">
+                        <div class="editor-label">
+                            @Html.Label(@eTurns.DTO.ResReportMaster.ItemStatus):
+                        </div>
+                        <div class="editor-field" style="width: 250px; float: left">
+                            @if (Model.ParentReportName.ToLower() == "pull summary" || Model.ParentReportName.ToLower() == "pull summary by quarter")
+                            {
+                                <select id="ddlItemStatus" multiple="multiple" width="150px" name="example-basic" size="5" class="text-box">
+                                    <option selected="selected" value="1">Active</option>
+                                    <option value="0">InActive</option>
+                                </select>
+                            }
+                            else
+                            {
+                                <select id="ddlItemStatus" multiple="multiple" width="150px" name="example-basic" size="5" class="text-box">
+                                    <option value="1">Active</option>
+                                    <option value="0">InActive</option>
+                                </select>
+                            }
+                            <label id="lblSelectedItemStatus"></label>
+                        </div>
+                    </li>
+                    if (Model.ParentReportName.ToLower() == "item serial lot datcode")
+                    {
+                        <li>&nbsp;</li>
+                        <li id="liItemTypeFilter">
+                            <div class="editor-label">
+                                @Html.Label(@eTurns.DTO.ResReportMaster.ItemTypes)
+                            </div>
+                            <div class="editor-field" style="width: 200px; float: left">
+                                <select id="ddlItemTypeFilter" multiple="multiple" width="150px" name="example-basic" size="5" class="text-box">
+                                    <option value="1">Serial Type</option>
+                                    <option value="2">Lot Type</option>
+                                    <option value="3">DateCode Type</option>
+                                </select>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="editor-label">
+                                <label>
+                                    &nbsp;&nbsp;&nbsp;
+                                </label>
+                            </div>
+                            <div class="editor-field">
+                                <label id="lblselectedItemTypeFilter"></label>
+                            </div>
+                        </li>
+                    }
+                }
+                if (Model.ModuleName.ToLower() == "replenish_order"
+                    && Model.ParentReportName.ToLower() == "order item summary")
+                {
+                    <li>&nbsp;</li>
+                    <li id="liExcludeZeroOrdQty">
+                        <div class="editor-label">
+                            @Html.Label(" ")&nbsp;
+                        </div>
+                        <div class="editor-field" style="width: 250px; float: left">
+                            <input type="checkbox" id="chkExcludeZeroOrdQty" checked="checked" />
+                            @Html.Label(ResReportMaster.ExcludeZeroQuantityOrder)
+                        </div>
+                    </li>
+                }
+                if (Model.ModuleName.ToLower() == "cart")
+                {
+                    <li>&nbsp;</li>
+                    <li id="liCartType">
+                        <div class="editor-label">
+                            @Html.Label(@eTurns.DTO.ResReportMaster.CartType): 
+                        </div>
+                        <div class="editor-field" style="width: 250px; float: left">
+                            <select id="ddlCartType" multiple="multiple" width="150px" name="example-basic" size="5" class="text-box">
+                                <option value="Purchase">Suggested Orders</option>
+                                <option value="Transfer">Suggested Transfers</option>
+                                <option value="SuggestedReturn">Suggested Returns</option>
+                            </select>
+                            <label id="lblSelectedCartType"></label>
+                        </div>
+                    </li>
+                }
+            }
+            @if (Model.ParentReportName.ToLower() == "return item candidates")
+            {
+                <li>&nbsp;</li>
+                <li id="liReturnItemCandidatesDays">
+                    <div class="editor-label">
+                        @Html.Label(@eTurns.DTO.ResReportMaster.Days):
+                    </div>
+                    <div class="editor-field" style="width: 200px; float: left">
+                        <input type="text" id="txtReturnItemCandidatesDays" class='numericinput numericalign' value="90" onkeypress='return onlyNumeric(event)' />
+                    </div>
+                </li>
+            }
+            @if (Model.ModuleName.ToLower() == "consume_pull"
+                 || Model.ModuleName.ToLower() == "cumulativepull"
+                 || Model.ModuleName.ToLower() == "wopullsummary"
+                 || Model.ModuleName.ToLower() == "not consume_pull"
+                 || Model.ModuleName.ToLower() == "workorder"
+                 || Model.ParentReportName.ToLower() == "instock")
+            {
+                <li>&nbsp;</li>
+                <li id="liQuantityType">
+                    <div class="editor-label">
+                        @Html.Label(@eTurns.DTO.ResReportMaster.QuantityType)
+                    </div>
+                    <div class="editor-field" style="width: 250px; float: left">
+                        <select id="ddlQuantityType" multiple="multiple" width="150px" name="example-basic" size="5" class="text-box">
+                            <option value="1">Customer Owned Quantity</option>
+                            <option value="2">Consigned Quantity</option>
+                        </select>
+                        <label id="lblSelectedQuantityType"></label>
+                    </div>
+                </li>
+
+                if ((Model.ParentReportName ?? string.Empty).ToLower() == "pull summary" || (Model.ParentReportName ?? string.Empty).ToLower() == "pull summary by quarter")
+                {
+                    <li>&nbsp;</li>
+                    <li id="liUsageType">
+                        <div class="editor-label">
+                            @Html.Label(@eTurns.DTO.ResReportMaster.UsageType)
+                        </div>
+                        <div class="editor-field" style="width: 250px; float: left">
+                            <select id="ddlUsageType" width="150px" class="text-box" style="width:140px;">
+                                <option value="Consolidate">Combine all location</option>
+                                <option value="Separate">Separate by location</option>
+                            </select>
+
+                        </div>
+                    </li>
+                }
+                if ((Model.ParentReportName ?? string.Empty).ToLower() == "pull summary by quarter")
+                {
+                    <li>&nbsp;</li>
+                    <li id="liItemWithZeroPullUsage">
+                        <div class="editor-label">
+                            @Html.Label(" ")&nbsp;
+                        </div>
+                        <div class="editor-field" style="width: 250px; float: left">
+                            <input type="checkbox" id="chkAllowItemWithZeroPullUsage" />
+                            @Html.Label(@eTurns.DTO.ResReportMaster.AllowItemZeroPullUsageLabel)
+                        </div>
+                    </li>
+                }
+            }
+            @if (Model.ModuleName.ToLower() == "countmaster")
+            {
+                <li>&nbsp;</li>
+                <li id="liAppliedFilter">
+                    <div class="editor-label">
+                        @Html.Label(@eTurns.DTO.ResReportMaster.AppliedFilter):
+                    </div>
+                    <div class="editor-field" style="width: 250px; float: left">
+                        <select id="ddlAppliedFilter" width="150px" class="text-box" style="width:140px;">
+                            <option value="All">All</option>
+                            <option value="Applied">Applied Only</option>
+                            <option value="NotApplied">Not Applied Only</option>
+                        </select>
+
+                    </div>
+                </li>
+            }
+            @if (Model.ModuleName.ToLower() == "tool" || Model.ModuleName.ToLower() == "writtenofftools")
+            {
+                <li>&nbsp;</li>
+                <li id="liQtyAvialable">
+                    <div class="editor-label">
+                        @Html.Label(" ")&nbsp;
+                    </div>
+                    <div class="editor-field" style="width: 250px; float: left">
+                        <input type="checkbox" id="chkOnlyAvailQty" />
+                        @Html.Label(@eTurns.DTO.ResReportMaster.OnlyAvailableTools)
+                    </div>
+                </li>
+            }
+            <div style="display: none" id="divItemStatus">
+                @if (Model.ModuleName.ToLower() != "enterpriselist"
+                    && Model.ModuleName.ToLower() != "serialitems" && Model.ModuleName.ToLower() != "unfulfilledorders")
+                {
+                    Html.RenderPartial("~/Views/ReportBuilder/ModuleItemStatus.cshtml", Model);
+                }
+            </div>
+            @{Html.RenderPartial("~/Views/ReportBuilder/ModuleItems.cshtml", Model);}
+            <li>
+                <div class="editor-label" style="width: 100%; float: left; height: 20px;">
+                    &nbsp;
+                </div>
+            </li>
+            @if (Model != null)
+            {
+
+                //if (Model.ModuleName.ToLower() != "item-audittrail" && Model.ModuleName.ToLower() != "audittrail"){
+
+                Html.RenderPartial("~/Views/ReportBuilder/ModuleSortParameters.cshtml", Model);
+
+                if (Model.ModuleName.ToLower() == "wopullsummary")
+                {
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;@Html.Label(" ")
+                        </div>
+                        <div class="editor-field">
+                            <input type="checkbox" id="chkIncludeNormalPull" />
+                            @Html.Label(@eTurns.DTO.ResReportMaster.Includenormalpull)
+                        </div>
+                    </li>
+                }
+
+                if ((objReportBuilderDTO.ReportType == 3 || objReportBuilderDTO.ReportType == 1 || objReportBuilderDTO.ReportType == 2) && !objReportBuilderDTO.IsNotEditable.GetValueOrDefault(false))
+                {
+                    string checkedString = "";
+                    if ((objReportBuilderDTO.HideHeader ?? false) == true)
+                    {
+                        checkedString = "checked = checked";
+                    }
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;@Html.Label(" ")
+                        </div>
+                        <div class="editor-field">
+                            <input type="checkbox" @checkedString id="chkNoHeader" value="" />
+                            @Html.Label(@eTurns.DTO.ResReportMaster.HideReportHeader)
+                        </div>
+                    </li>
+                }
+
+                if (Model.ModuleName.ToLower() != "enterpriselist")
+                {
+                    string checkedString = "";
+                    if ((objReportBuilderDTO.ShowSignature ?? false) == true)
+                    {
+                        checkedString = "checked = checked";
+                    }
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;@Html.Label(" ")
+                        </div>
+                        <div class="editor-field">
+                            <input type="checkbox" id="chkShowSignature" @checkedString value="@objReportBuilderDTO.ShowSignature" />
+                            @Html.Label(@eTurns.DTO.ResReportMaster.ShowSignatureOnLastPage)
+                        </div>
+                    </li>
+                }
+                <li>
+                    <div class="editor-label">
+                        &nbsp;@Html.Label(" ")
+                    </div>
+                    <div class="editor-field">
+                        &nbsp;@Html.Label(" ")
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        &nbsp;@Html.Label(" ")
+                    </div>
+                    <div class="editor-field">
+                        &nbsp;
+                        <div class="BtnBlockform" style="width: 50%;">
+                            <input type="button" id="btnViewReport" value="@eTurns.DTO.ResReportMaster.ViewReport" />
+                            <input type="button" id="btnsend" value="@eTurns.DTO.ResReportMaster.SendReport" />
+                        </div>
+                    </div>
+                </li>
+                @Html.HiddenFor(model => Model.ModuleName)
+            }
+        </ul>
+    </div>
+</div>
+<script type="text/javascript">
+    var PDFURL = '@PDFURL';
+    var IsHelpDocShow = '@IsHelpDocShow';
+    var VideoURL = '@VideoURL';
+    var IsHelpVideoShow = '@IsHelpVideoShow';
+    var ModuleName = '@ModuleName';
+    var ReportID = '@ReportID';
+
+    //if ((IsHelpDocShow == true || IsHelpDocShow == 'True') && (PDFURL != null || PDFURL != '')) {
+    //    $('#divReportPDFURL').attr("style", "display:visible");
+    //    $("#aReportPDFURL").attr("href", PDFURL);
+    //}
+    //else {
+    //    $('#divReportPDFURL').attr("style", "display:none");
+    //}
+    //if (IsHelpVideoShow == true || IsHelpVideoShow == 'True' && (VideoURL != null || VideoURL != '')) {
+    //    $('#divReportVideoURL').attr("style", "display:visible");
+    //    $("#aReportVideoURL").attr("href", VideoURL);
+    //}
+    //else {
+    //    $('#divReportVideoURL').attr("style", "display:none");
+    //}
+
+    function OpenReportVideo(VideoURL, ModuleName) {
+        if (VideoURL != null && VideoURL != '') {
+            OpenHelpDocVideo(VideoURL, ModuleName);
+            return false;
+        }
+    }
+
+    function SetHelpDocVideo(ReportID)
+    {
+        $.ajax({
+            url: '@Url.Action("GetHelpDocumentDetailByReportID", "HelpDocument")',
+            data: { "ReportID": ReportID },
+            type: "Get",
+            dataType: 'json',
+            async: false,
+            cache: false,
+            success: function (data) {
+                if (data.vIsDocHelp != null && data.vIsDocHelp != undefined && data.vIsDocHelp != ""
+                    && data.vlstHelpDtlDTO != null && data.vlstHelpDtlDTO.length > 0)
+                {
+                    var DocCount = 0;
+                    for (var i = 0; i < data.vlstHelpDtlDTO.length; i++) {
+                        if (data.vlstHelpDtlDTO[i].IsDoc == true || data.vlstHelpDtlDTO[i].IsDoc == 'True') {
+                            DocCount = DocCount + 1;
+                        }
+                    }
+                    if (DocCount > 1) {
+                        $("#imgInfoDoc").removeAttr("onclick");
+                        $('#divSubReportPDFURL').attr("style", "display:visible");
+                        var Dochtml = '<ul class="sub_subMenu">';
+                        var hasData = false;
+                        for (var i = 0; i < data.vlstHelpDtlDTO.length; i++) {
+                            if (data.vlstHelpDtlDTO[i].IsDoc == true || data.vlstHelpDtlDTO[i].IsDoc == 'True') {
+                                hasData = true;
+                                var DocName = data.vlstHelpDtlDTO[i].ModuleDocNoExt;
+                                var Docpath = data.vlstHelpDtlDTO[i].ModuleDocPath;
+                                Dochtml += '<li><a id="aReportPDFURL" href="' + Docpath + '" target="_blank">' + DocName + '</a></li>';
+                            }
+                        }
+                        if (hasData == true) {
+                            Dochtml += '</ul>';
+                            $('#divReportPDFURL').attr("style", "display:visible");
+                            $('#divSubReportPDFURL').html('');
+                            $('#divSubReportPDFURL').html(Dochtml);
+                        }
+                        else {
+                            $('#divReportPDFURL').attr("style", "display:none");
+                        }
+                    }
+                    else {
+                        $('#divSubReportPDFURL').attr("style", "display:none");
+                        $('#divReportPDFURL').attr("style", "display:visible");
+                        for (var i = 0; i < data.vlstHelpDtlDTO.length; i++) {
+                            if (data.vlstHelpDtlDTO[i].IsDoc == true || data.vlstHelpDtlDTO[i].IsDoc == 'True') {
+                                var DocName = data.vlstHelpDtlDTO[i].ModuleDocNoExt;
+                                var Docpath = data.vlstHelpDtlDTO[i].ModuleDocPath;
+                                $("#imgInfoDoc").attr("onclick", "return window.open('" + Docpath + "', '_blank');");
+                            }
+                        }
+                    }
+                }
+                else {
+                    $('#divReportPDFURL').attr("style", "display:none");
+                }
+                if (data.vIsVideoHelp != null && data.vIsVideoHelp != undefined && data.vIsVideoHelp != ""
+                    && data.vlstHelpDtlDTO != null && data.vlstHelpDtlDTO.length > 0) {
+                    var VideoCount = 0;
+                    for (var i = 0; i < data.vlstHelpDtlDTO.length; i++) {
+                        if (data.vlstHelpDtlDTO[i].IsVideo == true || data.vlstHelpDtlDTO[i].IsVideo == 'True') {
+                            VideoCount = VideoCount + 1;
+                        }
+                    }
+                    if (VideoCount > 1) {
+                        $("#imgInfoVideo").removeAttr("onclick");
+                        $('#divSubReportVideoURL').attr("style", "display:visible");
+                        var Dochtml = '<ul class="sub_subMenu">';
+                        var hasData = false;
+                        for (var i = 0; i < data.vlstHelpDtlDTO.length; i++) {
+                            if (data.vlstHelpDtlDTO[i].IsVideo == true || data.vlstHelpDtlDTO[i].IsVideo == 'True') {
+                                hasData = true;
+                                var VideoName = data.vlstHelpDtlDTO[i].ModuleVideoNoExt;
+                                var Videopath = data.vlstHelpDtlDTO[i].ModuleVideoPath;
+                                if (Videopath != '' && Videopath != undefined) {
+                                    Videopath = Videopath.replace("../Uploads/HelpDoc/", "");
+                                }
+                                Dochtml += '<li><a id="aReportVideoURL" href="#" target="_blank" onclick="return OpenReportVideo(\'' + Videopath + '\',\'' + VideoName + '\')">' + VideoName + '</a></li>';
+                            }
+                        }
+                        if (hasData == true) {
+                            Dochtml += '</ul>';
+                            $('#divReportVideoURL').attr("style", "display:visible");
+                            $('#divSubReportVideoURL').html('');
+                            $('#divSubReportVideoURL').html(Dochtml);
+                        }
+                        else {
+                            $('#divReportVideoURL').attr("style", "display:none");
+                        }
+                    }
+                    else {
+                        $('#divSubReportVideoURL').attr("style", "display:none");
+                        $('#divReportVideoURL').attr("style", "display:visible");
+                        for (var i = 0; i < data.vlstHelpDtlDTO.length; i++) {
+                            if (data.vlstHelpDtlDTO[i].IsVideo == true || data.vlstHelpDtlDTO[i].IsVideo == 'True') {
+
+                                var VideoName = data.vlstHelpDtlDTO[i].ModuleVideoNoExt;
+                                var Videopath = data.vlstHelpDtlDTO[i].ModuleVideoPath;
+                                if (Videopath != '' && Videopath != undefined) {
+                                    Videopath = Videopath.replace("../Uploads/HelpDoc/", "");
+                                }
+
+                                $("#imgInfoVideo").attr("onclick", "return OpenReportVideo('" + Videopath + "', '" + VideoName + "');");
+                            }
+                        }
+                    }
+                }
+                else {
+                    $('#divReportVideoURL').attr("style", "display:none");
+                }
+
+
+            }
+        });
+
+    }
+
+
+    $(document).ready(function () {
+        $('.dtPicker').blur(function () { }).datepicker({ dateFormat: 'm/d/yy' });
+
+        if ('@(Model.ModuleName.ToLower())' != "consume_pull" && '@(Model.ModuleName.ToLower())' != "cumulativepull" && '@(Model.ModuleName.ToLower())' != "kit"
+            && '@(Model.ModuleName.ToLower())' != "consume_pullsummary" && '@(Model.ModuleName.ToLower())' != "wopullsummary" && '@(Model.ModuleName.ToLower())' != "instockbybin"
+            && '@(Model.ModuleName.ToLower())' != "instockbyactivity" && '@(Model.ModuleName.ToLower())' != "inventorydailyhistory" && '@(Model.ModuleName.ToLower())' != "inventoryreconciliation"
+            && '@(Model.ModuleName.ToLower())' != "instockbybinmargin" && '@(Model.ModuleName.ToLower())' != "instockwithqoh" && '@(Model.ModuleName.ToLower())' != "range-receive"
+            && '@(Model.ModuleName.ToLower())' != "item-audittrail" && '@(Model.ModuleName.ToLower())' != "audittrail" && '@(Model.ModuleName.ToLower())' != "cart"
+            && '@(Model.ModuleName.ToLower())' != "evmi" && '@(Model.ModuleName.ToLower())' != "evmipollh"
+            && '@(Model.ModuleName.ToLower())' != "assetmaster" && '@(Model.ModuleName.ToLower())' != "countmaster" && '@(Model.ModuleName.ToLower())' != "staging"
+            && '@(Model.ModuleName.ToLower())' != "suggorderofexpdate" && '@(Model.ModuleName.ToLower())' != "checkouttool" && '@(Model.ModuleName.ToLower())' != "toolinouthistory"
+            && '@(Model.ModuleName.ToLower())' != "tool" && '@(Model.ModuleName.ToLower())' != "writtenofftools" && '@(Model.ModuleName.ToLower())' != "workorderlist" && '@(Model.ModuleName.ToLower())' != "itemlist"
+            && '@(Model.ModuleName.ToLower())' != "evmi_manualcount" && '@(Model.ModuleName.ToLower())' != "expiringitems" && '@(Model.ModuleName.ToLower())' != "reqitemsummary"
+            && '@(Model.ModuleName.ToLower())' != "closedorder" && '@(Model.ModuleName.ToLower())' != "toolmaintanancecost"
+            && '@(Model.ModuleName.ToLower())' != "maintenancedue" && '@(Model.ModuleName.ToLower())' != "attsummary" && '@(Model.ModuleName.ToLower())' != "not consume_pull"
+            && '@(Model.ModuleName.ToLower())' != "stock out item" && '@(Model.ModuleName.ToLower())' != "toolaudittrail" && '@(Model.ModuleName.ToLower())' != "toolaudittrailtransaction"
+            && '@(Model.ModuleName.ToLower())' != "precisedemandplanning"
+            && '@(Model.ModuleName.ToLower())' != "precisedemandplanningbyitem"
+            && '@(Model.ModuleName.ToLower())' != "inventorydailyhistorywithdaterange"
+            && '@(Model.ModuleName.ToLower())' != "inventory stock out"
+            && '@(Model.ModuleName.ToLower())' != "itemswithsuppliers") {
+            if ('@(Model.ModuleName.ToLower())' != "replenish_order") {
+                $('#divItemTypes').css('display', 'block');
+            }
+            if ('@Model.ParentReportName.ToLower()' != "order item summary"
+                && '@Model.ModuleName.ToLower()' != "movematerial") {
+                $('#divItemStatus').css('display', 'block');
+            }
+        }
+
+        if ('@Model.IsUserCanDelete' == "True") {
+            $('#btnCDelete').css('display', 'block');
+        }
+
+        //--------------------------------------------------------
+        //
+        if ('@Model.ModuleName.ToLower()' == "consume_pull"
+            || '@Model.ModuleName.ToLower()' == "cumulativepull"
+            || '@Model.ModuleName.ToLower()' == "wopullsummary"
+            || '@Model.ModuleName.ToLower()' == "not consume_pull"
+            || '@Model.ModuleName.ToLower()' == "workorder"
+            || '@Model.ParentReportName.ToLower()' == "instock") {
+
+            $("#ddlQuantityType").multiselect({
+                noneSelectedText: 'Quantity Type', selectedList: 5,
+                selectedText: function (numChecked, numTotal, checkedItems) {
+                    return 'Quantity Type' + ' ' + numChecked + ' ' + selected;
+                }
+            }).unbind("multiselectclick multiselectcheckall multiselectuncheckall").bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+                if (ui.checked) {
+                    $("#ddlQuantityType").multiselect("widget").find(":checkbox[value='" + ui.value + "']").attr("checked", "checked");
+                    $("#ddlQuantityType option[value='" + ui.value + "']").attr("selected", 1);
+                    FillModuleItem();
+                    SetLabelText('lblSelectedQuantityType', 'ddlQuantityType');
+                }
+                else {
+                    FillModuleItem();
+                    SetLabelText('lblSelectedQuantityType', 'ddlQuantityType');
+                }
+            });
+
+            $("#ddlQuantityType").multiselect("refresh");
+            //$('input:checkbox[id*=ddlQuantityType]').click();
+            //FillModuleItem();
+            SetLabelText('lblSelectedQuantityType', 'ddlQuantityType');
+        }
+        if ('@Model.ModuleName.ToLower()' == "instockbybin"
+            || '@Model.ModuleName.ToLower()' == "instockbybinmargin"
+                    || '@Model.ModuleName.ToLower()' == "instockwithqoh"
+                    || '@Model.ModuleName.ToLower()' == "instockbyactivity"
+            || '@Model.ModuleName.ToLower()' == "stock out item"
+            || '@Model.ModuleName.ToLower()' == "inventory stock out"
+            || '@Model.ModuleName.ToLower()' == "precisedemandplanning"
+            || '@Model.ModuleName.ToLower()' == "precisedemandplanningbyitem"
+            || '@Model.ParentReportName.ToLower()' == "pull summary"
+            || '@Model.ParentReportName.ToLower()' == "pull summary by quarter"
+            || '@Model.ModuleName.ToLower()' == "movematerial")
+        {
+            $("#ddlItemStatus").multiselect({
+                noneSelectedText: 'Item Status', selectedList: 5,
+                selectedText: function (numChecked, numTotal, checkedItems) {
+                    return 'Item Status' + ' ' + numChecked + ' ' + selected;
+                }
+            }).unbind("multiselectclick multiselectcheckall multiselectuncheckall").bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+                if (ui.checked) {
+                    $("#ddlItemStatus").multiselect("widget").find(":checkbox[value='" + ui.value + "']").attr("checked", "checked");
+                    $("#ddlItemStatus option[value='" + ui.value + "']").attr("selected", 1);
+
+                    if (!(typeof (IsEnterpriseQLRangeSelected) != "undefined" && IsEnterpriseQLRangeSelected())) {
+                        FillModuleItem();
+                    }
+                    SetLabelText('lblSelectedItemStatus', 'ddlItemStatus');
+                }
+                else {
+
+                    if (!(typeof (IsEnterpriseQLRangeSelected) != "undefined" && IsEnterpriseQLRangeSelected())) {
+                        FillModuleItem();
+                    }
+                    SetLabelText('lblSelectedItemStatus', 'ddlItemStatus');
+                }
+            });
+            $("#ddlItemStatus").multiselect("refresh");
+            //$('input:checkbox[id*=ddlItemStatus]').click();
+            //FillModuleItem();
+            SetLabelText('lblSelectedItemStatus', 'ddlItemStatus');
+
+            if ('@Model.ParentReportName.ToLower()' == "item serial lot datcode") {
+                $("#ddlItemTypeFilter").multiselect({
+                    noneSelectedText: 'Select ItemType', selectedList: 5,
+                    selectedText: function (numChecked, numTotal, checkedItems) {
+                        return 'ItemType Filter' + ' ' + numChecked + ' ' + selected;
+                    }
+                }).unbind("multiselectclick multiselectcheckall multiselectuncheckall").bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+                    if (ui.checked) {
+                        $("#ddlItemTypeFilter").multiselect("widget").find(":checkbox[value='" + ui.value + "']").attr("checked", "checked");
+                        $("#ddlItemTypeFilter option[value='" + ui.value + "']").attr("selected", 1);
+                        FillModuleItem();
+                        SetLabelText('lblselectedItemTypeFilter', 'ddlItemTypeFilter');
+                    }
+                    else {
+                        FillModuleItem();
+                        SetLabelText('lblselectedItemTypeFilter', 'ddlItemTypeFilter');
+                    }
+                });
+                $("#ddlItemTypeFilter").multiselect("refresh");
+                SetLabelText('lblselectedItemTypeFilter', 'ddlItemTypeFilter');
+            }
+        }
+
+        if ('@Model.ModuleName.ToLower()' == "cart") {
+            $("#ddlCartType").multiselect({
+                noneSelectedText: 'Cart Type', selectedList: 5,
+                selectedText: function (numChecked, numTotal, checkedItems) {
+                    return 'Cart Type' + ' ' + numChecked + ' ' + selected;
+                }
+            }).unbind("multiselectclick multiselectcheckall multiselectuncheckall").bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+                if (ui.checked) {
+                    $("#ddlCartType").multiselect("widget").find(":checkbox[value='" + ui.value + "']").attr("checked", "checked");
+                    $("#ddlCartType option[value='" + ui.value + "']").attr("selected", 1);
+                    FillModuleItem();
+                    SetLabelText('lblSelectedCartType', 'ddlCartType');
+                }
+                else {
+                    FillModuleItem();
+                    SetLabelText('lblSelectedCartType', 'ddlCartType');
+                }
+            });
+            $("#ddlCartType").multiselect("refresh");
+            SetLabelText('lblSelectedCartType', 'ddlCartType');
+        }
+
+        SetHelpDocVideo(ReportID);
+    });
+
+
+    function getSelectedID(objID) {
+        var selectedlist = '';
+        var selectedrecs = $("#" + objID).multiselect("getChecked");
+        if (selectedrecs.length > 0) {
+            $(selectedrecs).each(function (indx, obj) {
+                selectedlist += obj.value + ',';
+            });
+        }
+
+
+        //var selectedlist = '';
+        //$('.ui-multiselect-menu [type="checkbox"][id^="ui-multiselect-' + objID + '-option"]').each(function () {
+
+        //    if ($(this).attr('checked') == 'checked') {
+        //        if (selectedlist.length > 0)
+        //            selectedlist += ',';
+        //        selectedlist += $(this).val();
+        //    }
+        //});
+        return selectedlist;
+    }
+
+
+    $('input.dtPicker').on('change', function () {
+
+        var StartDateValid = true;
+        if ('@Model.ModuleName.ToLower()' == "inventorydailyhistory") {
+            try {
+                $.datepicker.parseDate(RoomDateJSFormat, $('#txtStartDate').val());
+                StartDateValid = true;
+            } catch (e) {
+                StartDateValid = false;
+            }
+
+            if (StartDateValid) {
+                FillModuleItem();
+            }
+            else {
+                $('#txtStartDate').val('');
+            }
+        }
+        else {
+            try {
+                $.datepicker.parseDate(RoomDateJSFormat, $('#txtStartDate').val());
+                StartDateValid = true;
+            } catch (e) {
+                StartDateValid = false;
+            }
+
+            try {
+                $.datepicker.parseDate(RoomDateJSFormat, $('#txtEndDate').val());
+                EndDateValid = true;
+            } catch (e) {
+                EndDateValid = false;
+            }
+            if (StartDateValid && EndDateValid) {
+                FillModuleItem();
+            }
+            else {
+                if (!StartDateValid)
+                    $('#txtStartDate').val('');
+                if (!EndDateValid)
+                    $('#txtEndDate').val('');
+            }
+        }
+        if ('@Model.ModuleName.ToLower()' == "stock out item") {
+
+            var DateCreatedearlierThanValid = true;
+            var DateActiveLaterThan = true;
+
+            try {
+                $.datepicker.parseDate(RoomDateJSFormat, $('#txtOutStockDateCreatedearlierThan').val());
+                DateCreatedearlierThanValid = true;
+            } catch (e) {
+                DateCreatedearlierThanValid = false;
+            }
+
+            try {
+                $.datepicker.parseDate(RoomDateJSFormat, $('#txtOutStockDateActiveLaterThan').val());
+                DateActiveLaterThan = true;
+            } catch (e) {
+                DateActiveLaterThan = false;
+            }
+            if (DateCreatedearlierThanValid && DateActiveLaterThan) {
+                FillModuleItem();
+            }
+            else {
+                if (!DateCreatedearlierThanValid)
+                    $('#txtOutStockDateCreatedearlierThan').val('');
+                if (!DateActiveLaterThan)
+                    $('#txtOutStockDateActiveLaterThan').val('');
+            }
+        }
+
+    });
+    $('input.ProjectExpirationDate').on('change', function () {
+        //alert($(this).attr('id') + ' ' + $(this).val());
+        var ProjectDateValid = true;
+
+
+        try {
+            $.datepicker.parseDate(RoomDateJSFormat, $('#txtProjectExpirationDate').val());
+            ProjectDateValid = true;
+        } catch (e) {
+            ProjectDateValid = false;
+        }
+        if (ProjectDateValid) {
+            FillModuleItem();
+        }
+    });
+    $('input#txtReturnItemCandidatesDays').on('change', function () {
+        //alert($(this).attr('id') + ' ' + $(this).val());
+
+
+
+
+        if ($(this).val() != '') {
+            FillModuleItem();
+        }
+        else {
+            alert("Please Enter Days");
+        }
+    });
+
+    $('input[type="checkbox"][name="obj.FieldFilterName"]').on('change', function () {
+
+        FillModuleItem();
+    });
+    $('input[type="checkbox"][id="chkIncludeNormalPull"]').on('change', function () {
+        FillModuleItem();
+    });
+
+    $('button.ui-multiselect').css('width', '300px');
+</script>

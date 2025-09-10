@@ -1,0 +1,446 @@
+
+@{
+    string PageName = "ToolsMaintenanceList";
+
+    if (ViewBag.TabName == "due")
+    {
+        PageName = "ToolsMaintenanceListDue";
+    }
+
+    eTurns.DAL.RegionSettingDAL objRegionSettingDAL = new eTurns.DAL.RegionSettingDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    string datetimetoConsider = objRegionSettingDAL.GetCurrentDatetimebyTimeZone(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.UserID).ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat);
+
+
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    ViewBag.Title = eTurns.DTO.ResToolsSchedulerMapping.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DisplayUDFButton = false, UDFSetupFor = "ToolsMaintenanceList", DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = PageName };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = PageName, ItemModelCallFromPageName = ViewBag.TabName };
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Assets, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Assets, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+}
+<script type="text/javascript" src="@Url.Content("~/Scripts/DynemicDataTable.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+@section scripts{
+    <script type="text/javascript">
+        var oTable;
+        var IsRefreshGrid = false;
+        var SelectedHistoryRecordID = 0;
+        var deleteURL = "/Assets/DeleteToolMaintenanceRecords";
+        var sImageUrl = "/Content/images/";
+        var anOpen = [];
+        var IsDeletePopupOpen = true;
+        var AllowDeletePopup = true;
+        var ItemName = '';
+        var ItemUniqueID = '';
+        var GridColumns = new Array();
+        GridColumns.push({ mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '' });
+        if ('@ViewBag.TabName' == 'due') {
+
+            GridColumns.push({
+                mDataProp: null, sClass: "read_only", sDefaultContent: '', bSortable: false, bSearchable: false, fnRender: function (obj, val) {
+                    if (obj.aData.Status == '@MaintenanceStatus.Open') {
+                        return "<a href='javascript:void(0);' onclick='return StartMaintenance(&quot;" + obj.aData.GUID.toString() + "&quot;,this,&quot;" + obj.aData.TrackngMeasurement.toString() + "&quot;);' >Start</a>";
+                    }
+                    else if (obj.aData.Status == '@MaintenanceStatus.Start') {
+                        return "<a href='javascript:void(0);' onclick='return EditMnts(&quot;" + obj.aData.GUID.toString() + "&quot;,&quot;" + obj.aData.WorkorderGUID + "&quot;,&quot;" + obj.aData.RequisitionGUID + "&quot;,this);' >@eTurns.DTO.Resources.ResCommon.Edit </a>";
+                    }
+                    else {
+                        return "<span></span>";
+                    }
+                }
+            });
+            GridColumns.push({
+                mDataProp: null, sClass: "read_only", sDefaultContent: '', bSortable: false, bSearchable: false, fnRender: function (obj, val) {
+                    
+                    if (obj.aData.Status == 'Open') {
+
+                        var infoReading = 'Enter ';
+                        if (obj.aData.TrackngMeasurement == 1) {
+                            if (obj.aData.TrackingMeasurementMapping == 2) {
+                                infoReading += '@ResToolsScheduler.OperationalHours';
+                            }
+                            else if (obj.aData.TrackingMeasurementMapping == 3) {
+                                infoReading += '@ResToolsScheduler.Mileage';
+                            }
+                            else {
+                                infoReading = "";
+                            }
+                        }
+                        else if (obj.aData.TrackngMeasurement == 2) {
+                            infoReading += '@ResToolsScheduler.OperationalHours';
+                        }
+                        else if (obj.aData.TrackngMeasurement == 3) {
+                            infoReading += '@ResToolsScheduler.Mileage';
+                        }
+                        else if (obj.aData.TrackngMeasurement == 4) {
+                            infoReading += '@ResToolsScheduler.CheckOuts';
+                        }
+                        else {
+                            infoReading = "";
+                        }
+                        if (obj.aData.TrackngMeasurement == 1 || obj.aData.TrackngMeasurement == 2 || obj.aData.TrackngMeasurement == 3) {
+                            return "<input type='text' placeholder='" + infoReading + "' name='txtReadingValue' class='text-boxinner numericinput' style='width:85%;' value='' />";
+                        }
+                        else {
+                            return "";
+                        }
+
+                    }
+                    else {
+                        return "<span></span>";
+                    }
+                }
+            });
+        }
+        GridColumns.push({
+            mDataProp: "MaintenanceName", sClass: "read_only",
+            "fnRender": function (obj, val) {
+                return "<a name='editorder' id='aEditlnk_" + obj.aData.ID + "' href='JavaScript:void(0);'>" + obj.aData.MaintenanceName + "</a>" + " <input type='hidden' id='hdnID' value='" + obj.aData.ID.toString() + "' />" + " <input type='hidden' id='hdnGUID' value='" + ((obj.aData.AssetGUID != null && obj.aData.AssetGUID.toString() != "") ? obj.aData.AssetGUID.toString() : ((obj.aData.ToolGUID != null && obj.aData.ToolGUID.toString() != "") ? obj.aData.ToolGUID.toString() : '')) + "' />" + " <input type = 'hidden' id = 'hdnToolsMaintenanceGuid' value = '" + obj.aData.GUID.toString() + "' />";
+            }
+        });
+        GridColumns.push({ mDataProp: "MaintenanceDate", sDefaultContent: '', sClass: "read_only", fnRender: function (obj, val) { return obj.aData.MaintenanceDateStr; } });
+        //GridColumns.push({ mDataProp: "MaintenanceDate", sDefaultContent: '', sClass: "read_only", fnRender: function (obj, val) { return GetDateInShortFormat(val); } });
+        GridColumns.push({ mDataProp: "ScheduleDate", sDefaultContent: '', sClass: "read_only", fnRender: function (obj, val) { return obj.aData.ScheduleDateStrOnlyDate; } });
+        GridColumns.push({ mDataProp: "SchedulerName", sClass: "read_only" });
+        GridColumns.push({ mDataProp: "SchedulerForName", sClass: "read_only" });
+        GridColumns.push({ mDataProp: "ToolName", sClass: "read_only" });
+        GridColumns.push({ mDataProp: "AssetName", sClass: "read_only" });
+        GridColumns.push({
+            mDataProp: "TrackngMeasurement", sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) {
+                
+                if (val == 1) {
+                    return "<span>@ResToolsScheduler.TimeBased</span>";
+                    //return "<select class='selectBox' id='slctTrackingMeasurementTimeBase'><option></option><option value='@((int)MaintenanceScheduleType.Mileage)'>@ResToolsScheduler.Mileage</option><option value='@((int)MaintenanceScheduleType.OperationalHours)'>@ResToolsScheduler.OperationalHours</option></select>";
+                }
+                else if (val == 2) {
+                    return "<span>@ResToolsScheduler.OperationalHours</span>";
+                }
+                else if (val == 3) {
+                    return "<span>@ResToolsScheduler.Mileage</span>";
+                }
+                else {
+                    return "<span></span>";
+                }
+            }
+        });
+        GridColumns.push({ mDataProp: "TrackingMeasurementValue", sClass: "read_only" });
+        GridColumns.push({ mDataProp: "LastMaintenanceDate", sDefaultContent: '', sClass: "read_only", fnRender: function (obj, val) { return obj.aData.LastMaintenanceDateStr; } });
+        GridColumns.push({ mDataProp: "LastMeasurementValue", sClass: "read_only" });
+        GridColumns.push({ mDataProp: "WOName", sClass: "read_only" });
+        GridColumns.push({ mDataProp: "RequisitionName", sClass: "read_only" });
+        GridColumns.push({ mDataProp: "Created", sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) { return obj.aData.CreatedDate; } });
+        GridColumns.push({ mDataProp: "Updated", sClass: "read_only", sDefaultContent: '', fnRender: function (obj, val) { return obj.aData.UpdatedDate; } });
+        GridColumns.push({ mDataProp: "UpdatedByName", sClass: "read_only" });
+        GridColumns.push({ mDataProp: "CreatedByName", sClass: "read_only" });
+        GridColumns.push({ mDataProp: "Serial", sClass: "read_only" });
+        GridColumns.push({
+            mDataProp: "TotalCost", sClass: "read_only", "fnRender": function (obj, val) {
+                if (obj.aData.TotalCost != null && obj.aData.TotalCost != NaN)
+                    return "<span>" + FormatedCostQtyValues(obj.aData.TotalCost, 1) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+
+            }
+        });
+        
+        //GridColumns.push(@Html.RenderColumnsArray("ToolsMaintenanceDetails"));
+        $(document).ready(function () {
+            var gaiSelected = [];
+            MaintenanceView = false;
+            $("#ColumnSortableModal").dialog({
+                autoOpen: false,
+                modal: true,
+                width: 500,
+                //title: "ReOrder Columns",
+                title: strReorderColumnPopupHeader,
+                draggable: true,
+                resizable: true,
+                open: function () {
+                    GenerateColumnSortable();
+                    $("#ColumnSortable").sortable({ axis: "y", containment: "parent" });
+                }
+            });
+
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "sScrollX": "100%",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[3, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable', //+ "&nbsp; This barcode text is not assing to any item.<br>Would you like to assing it?<br><a id='aBarcodeYes'href='javascript:void(0)' onclick='javascript:return OpenItemInPopup(this);' >Yes</a> ",
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    if (aData.IsDeleted == true && aData.IsArchived == true)
+                        //nRow.className = "GridDeleatedArchivedRow";
+                        $(nRow).css('background-color', '#B9BCBF');
+                    else if (aData.IsDeleted == true)
+                        //nRow.className = "GridDeletedRow";
+                        $(nRow).css('background-color', '#FFCCCC');
+                    else if (aData.IsArchived == true)
+                        //nRow.className = "GridArchivedRow";
+                        $(nRow).css('background-color', '#CCFFCC');
+                    var DisplayStart = 0;
+                    if (this.fnSettings() != null && this.fnSettings() != undefined)
+                    {
+                        DisplayStart = this.fnSettings()._iDisplayStart;
+                    }
+                    $("td.RowNo:first", nRow).html(DisplayStart + iDisplayIndex + 1);
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    oData.oSearch.sSearch = "";
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: '@PageName' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = json;
+                        }
+                    });
+
+
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: '@PageName' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+
+                    });
+
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Assets/ToolMaintenanceListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                    //PostCount = PostCount + 1;
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+                    // alert(oSettings.aaSorting);
+                    if (oSettings.aaSorting.length != 0) {
+                        var sortValue = "";
+                        for (var k = 0; k <= oSettings.aaSorting.length - 1; k++) {
+                            if (sortValue.length > 0)
+                                sortValue += ", "
+                            sortValue += arrCols[oSettings.aaSorting[k][0]] + ' ' + oSettings.aaSorting[k][1];
+
+                        }
+                        aoData.push({ "name": "SortingField", "value": sortValue });
+                    }
+                    else {
+                        aoData.push({ "name": "SortingField", "value": "0" });
+                    }
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+                    aoData.push({ "name": "tabname", "value": '@ViewBag.TabName' });
+
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        cache: false,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        beforeSend: function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        complete: function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            if ($("#global_filter").val() != '') {
+                                $('#myDataTable').highlight($("#global_filter").val());
+                            }
+                            CallShowHideData();
+                            if ($('#global_filter').val().length > 0) {
+
+                            }
+                        }
+                    })
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                },
+                "aoColumns": GridColumns
+            });
+
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+            $('#myDataTable').on('tap click', 'a[id^="aEditlnk_"]', function () {
+                var linkid = $(this).attr('id');
+                
+
+                $('#DivLoading').show();
+                 
+
+                var maintenanceid = linkid.split('_')[1];
+                var tr = $(this).parent().parent();
+                $("#myDataTable").find("tbody tr").removeClass("row_selected");
+                $(tr).addClass('row_selected');
+                MaintenanceEdit = false;
+                MaintenanceView = true;
+                ShowViewTab('MaintenanceEdit/' + maintenanceid, 'frmMaintenance');
+                return false;
+            });
+            _Common.setGloblaSearch('global_filter', 'myDataTable');
+
+            $("input:checkbox[GridFilter]").off('click');
+            $("input:checkbox[GridFilter]").on('click', function () {
+                // in the handler, 'this' refers to the box clicked on
+                var $box = $(this);
+                if ($box.is(":checked")) {
+                    // the name of the box is retrieved using the .attr() method
+                    // as it is assumed and expected to be immutable
+                    var group = "input:checkbox[name='" + $box.attr("name") + "']";
+                    // the checked state of the group/box on the other hand will change
+                    // and the current value is retrieved using .prop() method
+                    $(group).prop("checked", false);
+                    $box.prop("checked", true);
+                } else {
+                    $box.prop("checked", false);
+                }
+            });
+
+        });
+
+    </script>
+
+}
+<div class="searchWrapper">
+    <div class="searchBlock">
+        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+        <div class="searchinputB">
+            <input type="text" class="searchinput" id="global_filter" oninput="SearchOnEnterPressAfterTwoCharacters(event)" onkeyup="SearchOnEnterPressAfterTwoCharacters(event)" />
+            <a href="javascript:void(0);" class="xclose">
+                <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+            </a>
+        </div>
+    </div>
+</div>
+@Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Assets)
+@{ Html.RenderPartial("NarrowSearchMaintenance", modelCommon);}
+<div class="userContent ">
+    <table id="myDataTable" class="display">
+        <thead>
+            <tr>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.RowNo
+                </th>
+                @if (ViewBag.TabName == "due")
+                {
+                    <th>
+                        @eTurns.DTO.ResToolsMaintenance.ID
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResToolsMaintenance.Reading
+                    </th>
+                }
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.MaintenanceName
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.MaintenanceDate
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.ScheduleDate
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.ScheduleName
+                </th>
+
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.SchedulerFor
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolMaster.ToolName
+                </th>
+                <th>
+                    @eTurns.DTO.ResAssetMaster.AssetName
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.TrackingMeasurement
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.TrackingMeasurementValue
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.LastMaintenanceDate
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.LastMeasurementValue
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.WorkorderID
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.RequisitionID
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.Created
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.Updated
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.LastUpdatedBy
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.CreatedBy
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolMaster.Serial
+                </th>
+                <th>
+                    @eTurns.DTO.ResToolsMaintenance.TotalCost
+                </th>
+                @*@Html.RenderColumnsHeader("ToolsMaintenanceDetails", typeof(eTurns.DTO.ResToolsMaintenance))*@
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <div class="dialog" id="basic-modal-content-StartMainAction" style="display: none;">
+        <div class="inner">
+            <p class="text" id="ptextstartmain">
+                @eTurns.DTO.ResToolsMaintenance.msgNoMileageOrOdometer
+            </p>
+            <a href="JavaScript:void{};" id="btnModelYesStartMaint" class="yes" onclick="ConfirmYesNo(true);">
+                <img src="~/Content/images/yes.png" alt="Yes" />
+                @eTurns.DTO.Resources.ResMessage.ConfirmYes
+            </a>
+        </div>
+    </div>
+
+</div>

@@ -1,0 +1,456 @@
+﻿@model ToFillPreReceiveToolDTO
+@{
+    //DateTime RecvDate = DateTime.Parse(Model.ReceivedDate);
+
+    DateTime RecvDate = DateTime.MinValue;
+
+    // DateTime RecvDate = DateTime.Parse(Model.ReceivedDate);
+    //DateTime.TryParseExact(Model.ReceivedDate, eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurns.DTO.Resources.ResourceHelper.CurrentCult, System.Globalization.DateTimeStyles.None, out RecvDate);
+
+    DateTime.TryParseExact(Model.ReceivedDate, eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture, System.Globalization.DateTimeStyles.None, out RecvDate);
+    if (RecvDate <= DateTime.MinValue)
+    {
+        RecvDate = DateTime.Parse(Model.ReceivedDate);
+    }
+
+
+
+    bool isCost = false;
+    isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    ItemMasterDTO objItem = ViewBag.ItemDTO;
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+    int idx = 0;
+    List<LocationMasterDTO> lstBinMaster;
+}
+<div class="innerGrid" id="divPreReceiveInfo" style="background: none repeat scroll 0 0 #F8F8F8;
+    padding: 10px; float: left; width: 98%;">
+    <div class="infoBlock" style="margin: 5px; width: 96%">
+        <ul>
+            <li>
+                <label for="RoomName">
+                    Order#
+                </label>
+                : <span>@(Model.OrderNumber)</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    Release#
+                </label>
+                : <span>@(Model.ReleaseNumber)</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    Item#
+                </label>
+                : <span>@(Model.ToolName)</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    Type
+                </label>
+                : <span>@(Model.ToolTypeSerialLot)</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    Appr. Qty
+                </label>
+                : <span>@(Model.ApproveQty.GetValueOrDefault(Model.RequestedQty.GetValueOrDefault(0)))</span>
+            </li>
+            <li>
+                <label for="RoomName">
+                    Received Qty
+                </label>
+                : <span>@(Model.ReceiveQty.GetValueOrDefault(0))</span>
+            </li>
+        </ul>
+    </div>
+    <br />
+    <div style="float: left; clear: both; width: 98%; margin: 5px; overflow-y: auto; height: 350px; border: 1px solid #2181d4 ">
+        <table id="tblPreReceiveHeader" class="display" style="float: left; clear: both;
+            width: 98%;">
+            <thead>
+
+                <tr>
+                    @if (Model.SerialNumberTracking)
+                    {
+                        <th>
+                            @ResItemLocationDetails.SerialNumber
+                        </th>
+                    }
+                  
+                    @if (isCost)
+                    {
+                        <th>
+                            @ResItemLocationDetails.Cost
+                        </th>
+                    }
+                    <th>
+                        @ResItemLocationDetails.ReceivedDate
+                    </th>
+                    <th>
+                        @ResReceiveOrderDetails.ReceiveBin
+                    </th>
+                    <th>
+                        @ResOrder.PackSlipNumber
+                    </th>
+                    <th>
+                        @ResToolAssetQuantityDetail.Description
+                    </th>
+                    @Html.RenderColumnsHeader("ReceivedOrderTransferDetail", typeof(eTurns.DTO.ResReceiveOrderDetails), "")
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.MakePreReceiveDetail)
+                {
+                    idx = idx + 1;
+                    string Classname = "odd";
+                    if (idx % 2 == 0)
+                    {
+                        Classname = "even";
+                    }
+                    else
+                    {
+                        Classname = "odd";
+                    }
+
+                    <tr class="' + @Classname + '" style="border: 1px solid #dddddd;">                    
+                        @if (Model.SerialNumberTracking)
+                        {
+                            <td>
+                                @Html.TextBox("txtSerialNumber_" + @idx, item.SerialNumber, new { @id = "txtSerialNumber_" + @idx, @class = "text-boxinner txtSerialNumber", @style = "width:150px;",maxlength="1024" })
+                            </td>
+                        }
+                         
+                        @if (isCost)
+                        {
+                            <td>
+                               
+                                    @Html.TextBox("txtReceivedCost_" + @idx, Model.Cost.GetValueOrDefault(0), new { @id = "txtReceivedCost_" + @idx, @class = "text-boxinner numericinput txtReceivedCost", @style = "width:100px;" })
+                                 
+                            </td>
+                        }
+                        <td>
+                            @Html.TextBox("txtReceivedDate_" + @idx, RecvDate.ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture), new { @id = "txtReceivedDate_" + @idx, @class = "text-boxinner dateTextbox txtReceivedDate", @style = "width:100px;", @readonly = "readonly" })
+                            <input type="hidden" id="hdnOrdDtlGuid" value="@Model.OrderDetailGUID" />
+                            <input type="hidden" id="hdnOrdGuid" value="@Model.OrderGUID" />
+                            <input type="hidden" id="hdnTolGuid" value="@Model.ToolGUID" />
+                            @*<input type="hidden" id="hdnIsPackSlipMand" value="@Model.IsPackSlipMandatory" />*@
+                            <input type="hidden" id="hdnOrdStatus" value="@Model.OrderStatus" />
+                            <input type="hidden" id="hdnReceivedCost" value="@Model.Cost.GetValueOrDefault(0)" />
+                            <input type="hidden" id="hdnComment" value="@Model.Comment" />
+                        </td>
+                        <td>
+                            @*@Html.TextBox("txtReceiveBin_" + @idx, Model.BinNumber, new { @id = "txtReceiveBin" + @idx, @class = "text-boxinner ReciveEditAuto txtReceiveBin", @style = "width:100px;" })*@
+                            @if (HasOnTheFlyEntryRight)
+                            {
+                                <span style='position: relative'>
+                                    @Html.TextBox("txtReceiveBin_" + @idx, Model.BinNumber, new { id = "txtReceiveBin_" + @idx, @class = "PreRcvBinAuto text-boxinner txtReceiveBin", @style = "width:90px;" })
+                                    <a id='lnkShowAllOptions' href='javascript:void(0);' style='position: absolute; right: 5px;
+                                            top: 0px;' class="ShowAllOptions">
+                                        <img src='/Content/images/arrow_down_black.png' alt='select' />
+                                    </a>
+                                    <input type="hidden" value="false" id="hdnIsLoadMoreLocations" />
+                                </span>
+                            }
+                            else
+                            {
+                                lstBinMaster = new List<LocationMasterDTO>();
+                                lstBinMaster.Add(new LocationMasterDTO() { Location = Model.BinNumber ?? string.Empty });
+                                <span style='position: relative'>
+                                    @Html.DropDownList("slctReceiveBin_" + @idx, new SelectList(lstBinMaster, "Location", "Location", Model.Location), new { @class = "selectBox slctReceiveBin" })
+                                    <input type="hidden" name="txtReceiveBin" id="txtReceiveBin" value="@Model.BinNumber" />
+                                </span>
+                            }
+                        </td>
+                        <td>
+                            @Html.TextBox("txtPackslip_" + @idx, Model.PackSlipNumber, new { @id = "txtPackslip" + @idx, @class = "text-boxinner txtPackslip", @style = "width:100px;" })
+                        </td>
+                        <td>
+                            @Html.TextBox("txtDescription_" + @idx, Model.Description, new { @id = "txtDescription" + @idx, @class = "text-boxinner txtDescription", @style = "width:100px;", @maxlength = "1024" })
+                        </td>
+                        @Html.RenderColumnsArrayEditableObjectForDOMWithValue("ReceivedOrderTransferDetail", Model, "", "_" + @idx)
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <br />
+    <div style="width: 98%; float: left; text-align: center; margin: 10px;">
+        <input type="button" class="CreateBtn" value="@ResCommon.Save" id="bntSavePreReceive" style="text-align: center;
+            float: left" />
+        <input type="button" class="CreateBtn" value="@ResCommon.Cancel" id="bntPreReceiveCancel" style="text-align: center;
+            float: left" />
+        <input type="button" class="CreateBtn" value="@ResCommon.CancelAll" id="bntPreReceiveCancelAll"
+               style="text-align: center; float: right" />
+    </div>
+</div>
+<script type="text/javascript">
+    $(document).ready(function () {
+        $("table#tblPreReceiveHeader tbody tr").find("input#txtSerialNumber_1").focus();
+        $("input.dateTextbox,input.txtExpiration").datepicker({
+            dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+            changeMonth: true,
+            changeYear: true,
+            clearText: 'Clear', onClose: function () { this.focus(); }
+        });
+
+        $('.ShowAllOptions').click(function () {
+            $(this).siblings('.PreRcvBinAuto').trigger("focus");
+            $(this).siblings(".PreRcvBinAuto").autocomplete("search", " ");
+        });
+        UDFfillEditableOptionsForGrid();
+        $('#DivLoading').hide();
+    });
+
+    $('#bntPreReceiveCancel').on('click', function (e) {
+        $('#divPreRecieveInfo').dialog('close');
+    });
+
+    $('#bntPreReceiveCancelAll').on('click', function (e) {
+        $('#divPreRecieveInfo').dialog('close');
+        gblArrPreReceiveObj = null;
+        gblArrReceiveInfoToSave = null;
+        $('#btnReceiveAllNew').removeAttr('disabled');
+        $('#DivLoading').hide();
+        closeOrdReceiveInfoModel();
+    });
+
+    $('#bntSavePreReceive').on('click', function (e) {
+        var isDataValid = false;
+        var isDuplicateSr = false;
+        $('#tblPreReceiveHeader tbody tr').find('.txtSerialNumber').each(function (i) {
+            //alert(hexc($(this).css('background-color')))
+            if ($.trim($(this).val()).length > 0 && hexc($(this).css('background-color')) != '#ffffff') {
+                isDuplicateSr = true;
+                return;
+            }
+        });
+
+        if (isDuplicateSr) {
+            alert('@ResMessage.MsgDuplicateSerialFound');
+            return;
+        }
+
+        $('#tblPreReceiveHeader tbody tr').find('.txtSerialNumber').each(function (i) {
+            if ($.trim($(this).val()).length > 0) {
+                isDataValid = true;
+                return;
+            }
+        });
+
+        if (isDataValid) {
+            GetToFillPreRcvToAdd()
+            $('#divPreRecieveInfo').dialog('close');
+        }
+        else {
+            alert('@ResReceiveOrderDetails.EnterValidSerialNumber');
+        }
+    });
+
+    function GetToFillPreRcvToAdd() {
+        var j = 1;
+        $('#tblPreReceiveHeader tbody tr').each(function (i) {
+            
+            var qty = 0;
+            var serial = ''
+            var Lot = ''
+            var ExpDate = ''
+            var arrRcvdtlObj = new Array();
+            var description = '';
+
+            if ($(this).find('.txtSerialNumber').length > 0) {
+                serial = $(this).find('.txtSerialNumber').val();
+            }
+
+            if ($(this).find('.txtDescription').length > 0) {
+                description = $(this).find('.txtDescription').val();
+            }
+            
+
+            if ('@Model.SerialNumberTracking' == "True" && $.trim(serial).length > 0) {
+                var tr = $(this);
+
+                if ($(this).find('.txtExpiration').length > 0) {
+                    ExpDate = $(this).find('.txtExpiration').val();
+                }
+
+                var toFillRcvDtl = { "Quantity": 1, "ExpirationDate": ExpDate, "LotNumber": Lot, "SerialNumber": serial, "Description": description };
+                arrRcvdtlObj.push(toFillRcvDtl);
+
+                var Cost = 0;
+                if ($(tr).find('.txtReceivedCost').length > 0) {
+                    Cost = $(tr).find('.txtReceivedCost').val();
+                }
+                else if ($(tr).find('#hdnReceivedCost').length > 0) {
+                    Cost = $(tr).find('#hdnReceivedCost').val();
+                }
+
+                var IsPackslipMand = false;
+                var ordStatus = $(tr).find('#hdnOrdStatus').val();
+                var toolGUID = $(tr).find('#hdnTolGuid').val();
+                var ordDtlGuid = $(tr).find('#hdnOrdDtlGuid').val();
+                var ordGuid = $(tr).find('#hdnOrdGuid').val();
+                var uDF1 = getRecUDFSelectedVal(tr, "UDF1"+"_"+j);
+                var uDF2 = getRecUDFSelectedVal(tr, "UDF2" + "_" + j);
+                var uDF3 = getRecUDFSelectedVal(tr, "UDF3" + "_" + j);
+                var uDF4 = getRecUDFSelectedVal(tr, "UDF4" + "_" + j);
+                var uDF5 = getRecUDFSelectedVal(tr, "UDF5" + "_" + j);
+                //var bin = $(tr).find(".txtReceiveBin").val();
+                //var bin = $(tr).find(".txtReceiveBin").val();
+                var bin;
+                j++;
+                var recvComment = $(tr).find('#hdnComment').val();
+
+                if ($(tr).find(".txtReceiveBin").length > 0)
+                    bin = $(tr).find(".txtReceiveBin").val();
+                else if ($(tr).find(".slctReceiveBin").length > 0)
+                    bin = $(tr).find(".slctReceiveBin").val();
+
+                var packSlip = $(tr).find(".txtPackslip").val();
+                var recvDate = $(tr).find(".txtReceivedDate").val();
+                var toFillPreRcv = {
+                    "IsPackSlipMandatory": IsPackslipMand,
+                    "Cost": Cost,
+                    "Location": bin,
+                    "BinNumber": bin, "ReceivedDate": recvDate, "PackSlipNumber": packSlip,
+                    "UDF1": uDF1, "UDF2": uDF2, "UDF3": uDF3, "UDF4": uDF4, "UDF5": uDF5,
+                    "Comment": recvComment,
+                    "SerialNumber": serial,                   
+                    "ToolGUID": toolGUID, "OrderDetailGUID": ordDtlGuid,
+                    "OrderStatus": ordStatus, "OrderGUID": ordGuid,
+                    "MakePreReceiveDetail": arrRcvdtlObj
+                };
+                gblArrReceiveInfoToSave.push(toFillPreRcv);
+            }
+        });
+
+    }
+
+
+
+    $('#tblPreReceiveHeader').on('focus', "input.PreRcvBinAuto", function (e) {
+        var ajaxURL = '/Master/GetBinForItemOrStaging';
+        var itmGuid = $(this).parent().parent().parent().find('#hdnTolGuid').val();
+        var includeQty = false;
+        var tr = $(this).parent().parent().parent();
+
+
+        var hdnIsLoadMoreLocations = $(tr).find("#hdnIsLoadMoreLocations").val();
+
+        $(this).autocomplete({
+            source: function (request, response) {
+                $.ajax({
+                    url: ajaxURL,
+                    type: 'POST',
+                    data: JSON.stringify({ 'ItemGuid': itmGuid, 'StagingHeaderName': '', 'IncludeQty': includeQty, 'NameStartWith': request.term, 'IsLoadMoreLocations': hdnIsLoadMoreLocations }),
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    success: function (data) {
+                        response($.map(data, function (Items) {
+                            return {
+                                label: Items.Value,
+                                value: Items.Key
+                            }
+                        }));
+                    },
+                    error: function (err) {
+                    }
+                });
+            },
+            autoFocus: false,
+            minLength: 1,
+            select: function (event, ui) {
+                if (ui.item.value == MoreLocation) {
+                    $(tr).find("#hdnIsLoadMoreLocations").val("true");
+                    $(this).trigger("focus");
+                    $(this).autocomplete("search", " ");
+                    return false;
+                }
+                else {
+                    $(this).val(ui.item.value);
+                }
+            },
+            open: function () {
+                $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                $('ul.ui-autocomplete').css('max-height', '300px');
+                $('ul.ui-autocomplete').css('z-index', '99999');
+            },
+            close: function () {
+                $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+            },
+            change: function (event, ui) {
+            }
+        });
+    });
+
+    $('#tblPreReceiveHeader').off('blur', 'input.txtSerialNumber');
+    $('#tblPreReceiveHeader').on('blur', 'input.txtSerialNumber', function () {
+        var returnResult = false;
+        var txtsr = $(this);
+        var tr = $(this).parent().parent();
+
+        if ($(txtsr).val().length > 0) {
+            returnResult = true;
+            $('#tblPreReceiveHeader tbody tr').each(function (i) {
+                var othertxtSR = $(this).find('input.txtSerialNumber');
+                if ($(othertxtSR)[0].id != $(txtsr)[0].id && $(othertxtSR).val() == $(txtsr).val()) {
+                    returnResult = false;
+                    return false;
+                }
+            });
+
+            if (returnResult == false) {
+                $('#DivLoading').hide();
+                $(txtsr).css("background-color", "#F7BBC4");
+                $('input#bntSavePreReceive').focus();
+                alert('@ResMessage.MsgDuplicateSerialFound');
+                return false;
+            }
+        }
+
+        var toolGuid = $(tr).find('#hdnTolGuid').val();
+        returnResult = false;
+
+        if ($(txtsr).val() != '') {
+            $.ajax({
+                "url": '@Url.Content("~/ReceiveToolAsset/DuplicateCheckSrNumberTool")',
+                data: { SrNumber: $(txtsr).val(), ID: 0, ToolGUID: toolGuid },
+                "async": false,
+                cache: false,
+                "dataType": "text",
+                "success": function (response) {
+                    if (response == "duplicate") {
+                        $(txtsr).css("background-color", "#F7BBC4");
+                        // $(txtsr).select();
+                        // $(txtsr).focus();
+                        returnResult = false;
+                    }
+                    else {
+                        $(txtsr).css("background-color", "");
+                        returnResult = true;
+                    }
+                },
+                error: function (response) {
+                    $("#spanGlobalMessage").html(response);
+                    showNotificationDialog();
+                    returnResult = false;
+                }
+            });
+        }
+        else {
+            returnResult = true;
+        }
+        if (returnResult == false) {
+            $('#DivLoading').hide();
+            $('input#bntSavePreReceive').focus();
+            alert('@ResMessage.MsgDuplicateSerialFound');
+            //$("#spanGlobalMessage").removeClass('WarningIcon succesIcon').addClass('errorIcon').text('Duplicate Serial Number Found');
+
+            //showNotificationDialog();
+            //$(txtsr).focus();
+        }
+
+        return returnResult;
+    });
+</script>

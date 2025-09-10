@@ -1,0 +1,2230 @@
+﻿
+@{
+
+    ViewBag.Title = eTurns.DTO.ResItemMaster.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.Both, ShowSelectAll = true, DataTableName = "myDataTable", ListViewhref = "#", PictureViewhref = "ItemMasterPictureView", DisplayUDFButton = true, UDFSetupFor = "ItemMaster&UDFHeader=" + @eTurns.DTO.ResItemMaster.ItemMasterHeader, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "ItemMasterList", DisplayDeleteButton = true, BinViewhref = "ItemBinMasterView" };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "ItemMaster" };
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    eTurnsWeb.Controllers.InventoryController objINV = new eTurnsWeb.Controllers.InventoryController();
+    bool IsIncludeBOM = objINV.GetIsIncludePermission(eTurnsWeb.Helper.SessionHelper.CompanyID);
+    string ItemPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/Items.pdf", DateTime.Now.Ticks);
+    string ItemBasicVideo = "Item_basic.mp4";
+    string ItemDetailVideo = "Item_detail.mp4";
+    bool IsOrderViewrRights = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Orders, eTurnsWeb.Helper.SessionHelper.PermissionType.View);
+    bool IsQuoteViewrRights = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Quote, eTurnsWeb.Helper.SessionHelper.PermissionType.View);
+    bool IsTransferViewrRights = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Transfer, eTurnsWeb.Helper.SessionHelper.PermissionType.View);
+
+    bool IsShowChangeLog = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.ShowChangeLog);
+    //System.Xml.Linq.XElement Settinfile = System.Xml.Linq.XElement.Load(HttpContext.Current.Server.MapPath("/SiteSettings.xml"));
+    string UNCPathRootLink2 = eTurns.DTO.SiteSettingHelper.InventoryLink2; // Settinfile.Element("InventoryLink2").Value;
+    string UNCPathRootImage = eTurns.DTO.SiteSettingHelper.InventoryPhoto; // Settinfile.Element("InventoryPhoto").Value;
+
+    Int64 EnterpriseId = eTurnsWeb.Helper.SessionHelper.EnterPriceID;
+    Int64 CompanyID = eTurnsWeb.Helper.SessionHelper.CompanyID;
+    Int64 RoomID = eTurnsWeb.Helper.SessionHelper.RoomID;
+    UNCPathRootLink2 = UNCPathRootLink2.Replace("~", string.Empty);
+    UNCPathRootImage = UNCPathRootImage.Replace("~", string.Empty);
+    string LogoPathImage = (UNCPathRootLink2 + EnterpriseId + "/" + CompanyID + "/" + RoomID);
+    string LogoPathItemImage = (UNCPathRootImage + EnterpriseId + "/" + CompanyID + "/" + RoomID);
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    //HelpDocumentMasterDTO objHelpDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentMaster("Items");
+    //if (objHelpDTO != null)
+    //{
+    //    ItemBasicVideo = objHelpDTO.ModuleVideoPath.Replace("../Uploads/HelpVideo/", "");
+    //    //ItemPDFURL = string.Format("{0}?t={1}", objHelpDTO.ModuleDocPath.Replace("..", ""), DateTime.Now.Ticks);
+    //}
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("Items", (int)HelpDocType.Module);
+}
+<style>
+    .IteamBlock li {
+        width: 90% !important;
+    }
+</style>
+<script type="text/javascript" src="@Url.Content("~/Scripts/DynemicDataTable.js?v=" +version)"></script>
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL))
+{
+    <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />
+}
+else
+{
+    <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />
+}
+@section head{
+    <script type="text/javascript" src="@Url.Content("~/ScriptNG/Angular/Controller/ItemController.js?v=" +version)"></script>
+    <script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" +version)"></script>
+
+}
+<div id="ItemQty">
+</div>
+<div class="userListingWrapper" data-ng-controller="ItemController">
+    <div id="dvSupCatalogbutton" style="width: 10%; float: right;">
+        @*IsIncludeBOM != null &&*@
+        @if (IsIncludeBOM == true)
+        {
+            @(Html.Partial("BOM", new BOMItemDTO() { SourcePageName = "ItemMaster", OpenPopup = true, ButtonText = @eTurns.DTO.ResItemMaster.AddFromBOM }))
+        }
+    </div>
+    <h2>
+        @eTurns.DTO.ResItemMaster.ItemMasterHeader
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener">
+        </div>
+        <div id="Ctab" class="tabContener">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster)
+            @*@Html.Partial("NarrowSearchLayout", modelCommon)*@
+            @{ Html.RenderPartial("NarrowSearchLayout", modelCommon);}
+            <div class="userContent ">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th id="thUpdate">
+                                @eTurns.DTO.Resources.ResCommon.ExpandCollapse
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemType
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnHandQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnOrderQuantity
+                            </th>
+
+
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SuggestedOrderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SuggestedTransferQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsItemLevelMinMaxQtyRequired
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MinimumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MaximumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResCategoryMaster.Category
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.InventoryClassification
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.AverageUsage
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Cost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Markup
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SellPrice
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ExtendedCost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LongDescription
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Supplier
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SupplierPartNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.BPONumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ManufacturerName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ManufacturerNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.UPC
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.UNSPSC
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LeadTimeInDays
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.InTransferTransitQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnTransferQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.RequisitionedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.QtyToMeetDemand
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Turns
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.CriticalQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SerialNumberTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.LotNumberTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DateCodeTracking
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsLotSerialExpiryCost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResGLAccount.GLAccount
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.PricePerTerm
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DefaultReorderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DefaultPullQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.DefaultLocation
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Trend
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Taxable
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Consignment
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.StagedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.WeightPerPiece
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemUniqueNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsTransfer
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsPurchase
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RoomName
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResUnitMaster.Unit
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.AverageCost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.PerItemCost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Link2
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.BondedInventory
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnReturnQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.TrendingSetting
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.PullQtyScanOverride
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.PulledDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OrderedDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.CountedDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.TrasnferedDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.PriceSavedDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OutTransferQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnOrderInTransitQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemDocExternalURL
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsEnforceDefaultReorderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsActive
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ImagePath
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MonthlyAverageUsage
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.SuggestedReturnQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsAutoInventoryClassification
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsPackslipMandatoryAtReceive
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.IsAllowOrderCostuom
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnQuotedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.EnrichedProductData
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.EnhancedDescription
+                            </th>
+                            @Html.RenderColumnsHeader("ItemMaster", typeof(eTurns.DTO.ResItemMaster))
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <button id="btnAddNewCompany" value="Ok" style="display: none">
+                    @ResCommon.AddNew
+                </button>
+                <button id="btnDeleteCompany" value="cancel" style="display: none">
+                    Delete Selected
+                </button>
+                <div id="processing_message" style="display: none" title="Processing">@eTurns.DTO.Resources.ResMessage.RequestProcessMessage</div>
+                @*START : QTY Legends*@
+                @Html.Partial("_QTYLegends")
+                @*END : QTY Legends*@
+            </div>
+        </div>
+        <div id='CtabCL' class="tabContener">
+        </div>
+    </div>
+</div>
+<div id="ItemModel">
+</div>
+<div id="ItemsBin">
+</div>
+<div id="dlgItemsSerialLotForLabel">
+</div>
+<div id="divMoveMaterialModel">
+</div>
+<div id="divMoveMaterialPopup">
+</div>
+<div class="dialog" id="HistoryInfoDialog" style="display: none; width: 470px;">
+    <div class="inner" style="width: 470px;">
+        <p class="text" id="HistoryMSG" style="text-align: left; padding-left: 10px;">
+        </p>
+        <p class="text btnA" style="text-align: center; padding-left: 10px;">
+            <a href="javascript:void(0)" class="no" onclick="closeFromOk()">
+                <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.InformOk" />@eTurns.DTO.Resources.ResMessage.InformOk
+            </a>
+        </p>
+    </div>
+</div>
+@(Html.Partial("SupplierCatalog", new SupplierCatalogItemDTO() { SourcePageName = "ItemMaster", OpenPopup = true, ButtonText = "Add from Catalog" }))
+<script language="javascript" type="text/javascript">
+        var DrillDownItemGuid = '';
+        var DrillDownBinId = '';
+        var ItemIDToOpen = '';
+        var oTable;
+        var IsRefreshGrid = false;
+        var SelectedHistoryRecordID = 0;
+        var deleteURL = "/Inventory/DeleteRecords";
+        var sImageUrl = "/Content/images/";
+        var anOpen = [];
+        var IsDeletePopupOpen = true;
+        var AllowDeletePopup = true;
+        var ItemName = ';'
+        var ItemUniqueID = '';
+        var objColumns = {}
+        //var ItemMasterGridColumns = {};
+        var UpperTR;
+        var SelectedItemList = [];
+
+    var IsReloadItemList = false;
+    var MsgSelectRow = '@ResCommon.SelectRow';
+        //  var LatestGLAccountWidth='';
+        //var CostNarroSearchValue = '';
+        $(document).ready(function () {
+            objColumns = GetGridHeaderColumnsObject('myDataTable');
+            //ItemMasterGridColumns = GetGridHeaderColumnsObject('myDataTable');
+            var gaiSelected = [];
+            LoadTabs();
+            oTable = $('#myDataTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                //"bAutoWidth": false,
+                "sScrollX": "350%",
+                //"sScrollX": "8000px",
+                "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "aaSorting": [[3, "asc"]],
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bStateSave": true,
+                "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable', //+ "&nbsp; This barcode text is not assing to any item.<br>Would you like to assing it?<br><a id='aBarcodeYes'href='javascript:void(0)' onclick='javascript:return OpenItemInPopup(this);' >Yes</a> ",
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    if (aData.IsDeleted == true && aData.IsArchived == true)
+                        // nRow.className = "GridDeleatedArchivedRow";
+                        $(nRow).css('background-color', '#B9BCBF');
+                    else if (aData.IsDeleted == true)
+                        // nRow.className = "GridDeletedRow";
+                        $(nRow).css('background-color', '#FFCCCC');
+                        //}
+                    else if (aData.IsArchived == true)
+                        $(nRow).css('background-color', '#CCFFCC');
+                    //                        nRow.className = "GridArchivedRow";
+
+                    /*START : QTY Legends*/
+
+                    if (aData.IsItemLevelMinMaxQtyRequired == true || aData.IsItemLevelMinMaxQtyRequired == 'Yes') {
+
+                        aData.MinimumQuantity = aData.MinimumQuantity ? aData.MinimumQuantity : 0;
+                        aData.CriticalQuantity = aData.CriticalQuantity ? aData.CriticalQuantity : 0;
+                        var regex = "<span>";
+                        aData.CriticalQuantity = aData.CriticalQuantity.replace(regex, "");
+                        aData.MinimumQuantity = aData.MinimumQuantity.replace(regex, "");
+                        regex = "</span>";
+                        aData.CriticalQuantity = aData.CriticalQuantity.replace(regex, "");
+                        aData.MinimumQuantity = aData.MinimumQuantity.replace(regex, "");
+
+                        var OnHandQTY = 0;
+                        OnHandQTY = parseFloat($(aData.OnHandQuantity).text());
+
+                        if (OnHandQTY < aData.CriticalQuantity) {
+                            $(nRow).attr({ 'style': 'background-color:@eTurnsWeb.Helper.SessionHelper.CriticalQuantityBackColor !Important' });
+                        }
+                        else if (OnHandQTY < aData.MinimumQuantity) {
+
+                            $(nRow).attr({ 'style': 'background-color:@eTurnsWeb.Helper.SessionHelper.MinimumQuantityBackColor !Important' });
+                        }
+                    }
+                    //if (aData.IsActive == "0" || aData.IsActive == "No") {
+                      //  $(nRow).attr({ 'style': 'background-color:@eTurnsWeb.Helper.SessionHelper.InActiveQuantityBackColor !Important' });
+                    //}
+                    if ((aData.IsActive == "1" || aData.IsActive == "Yes") && (aData.IsOrderable == "0" || aData.IsOrderable == "No")) {
+                        $(nRow).attr({ 'style': 'background-color:@eTurnsWeb.Helper.SessionHelper.InActiveQuantityBackColor !Important' });
+                    }
+                    if (aData.IsDeleted || aData.IsArchived) {
+                        $(nRow).find("input,select").attr("disabled", "disabled");
+                        $("#thUpdate").css("display", 'none');
+                        $(nRow).find(".hideForDeleteItem").hide();
+                    }
+                    if (aData.IsDeleted == false) {
+                        $("#thUpdate").css("display", '');
+                    }
+                    $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                    /*END : QTY Legends*/
+                    return nRow;
+                },
+                "fnStateSaveParams": function (oSettings, oData) {
+                    oData.oSearch.sSearch = "";
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'ItemMasterList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = json;
+                        }
+                    });
+                },
+                "fnStateLoad": function (oSettings) {
+                    var o;
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/LoadGridState")',
+                        "type": "POST",
+                        data: { ListName: 'ItemMasterList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = JSON.parse(json.jsonData);
+                        }
+                    });
+                    return o;
+                },
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Inventory/ItemMasterListAjax")',
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+
+                    //PostCount = PostCount + 1;
+                    var arrCols = new Array();
+                    var objCols = this.fnSettings().aoColumns;
+                    for (var i = 0; i <= objCols.length - 1; i++) {
+                        arrCols.push(objCols[i].mDataProp);
+                    }
+                    for (var j = 0; j <= aoData.length - 1; j++) {
+                        if (aoData[j].name == "sColumns") {
+                            aoData[j].value = arrCols.join("|");
+                            break;
+                        }
+                    }
+
+                    //                // alert(oSettings.aaSorting);
+                    //                if (oSettings.aaSorting.length != 0) {
+                    //                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                    //                    //   alert(oSettings.aaSorting[0][3]);
+                    //                }
+                    //                else
+                    //                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                    if (oSettings.aaSorting.length != 0) {
+                        var sortValue = "";
+                        for (var k = 0; k <= oSettings.aaSorting.length - 1; k++) {
+                            if (sortValue.length > 0)
+                                sortValue += ", "
+                            sortValue += arrCols[oSettings.aaSorting[k][0]] + ' ' + oSettings.aaSorting[k][1];
+
+                        }
+                        aoData.push({ "name": "SortingField", "value": sortValue });
+                    }
+                    else {
+                        aoData.push({ "name": "SortingField", "value": "0" });
+                    }
+
+                    aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                    aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+
+                    //if (window.event && window.event.srcElement && window.event.srcElement.id == "NarroSearchClear") {
+                    //    aoData.push({ "name": "IsNarroSearchClear", "value": true });
+                    //}
+                    //else {
+                    //    aoData.push({ "name": "IsNarroSearchClear", "value": false });
+                    //}
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        "cache": false,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback,
+                        "beforeSend": function () {
+                            $('#myDataTable').removeHighlight();
+                            $('.dataTables_scroll').css({ "opacity": 0.2 });
+                        },
+                        "error": function (xhr, status, error) {
+                            // Boil the ASP.NET AJAX error down to JSON.
+                            console.log(xhr);
+                            //var err = eval("(" + xhr.responseText + ")");
+
+                            // Display the specific error raised by the server (e.g. not a
+                            //   valid value for Int32, or attempted to divide by zero).
+                            //alert(err.Message);
+                        },
+                        "complete": function () {
+                            $('.dataTables_scroll').css({ "opacity": 1 });
+                            CallShowHideData();
+                            if ($("#global_filter").val() != '') {
+
+                                var SearchText = $("#global_filter").val();
+                                var count = (SearchText.match(/"/g) || []).length;
+
+                                if (count == 2 && SearchText.indexOf('"') == 0) {
+                                    SearchText = SearchText.replace('"', '').replace('"', '');
+                                    $('#myDataTable').highlight(SearchText);
+                                }
+                                if (count == 0) {
+                                    $('#myDataTable').highlight($("#global_filter").val());
+                                }
+                            }
+                            if ($('#global_filter').val().length > 0) {
+                                //  if (oTable.fnGetData().length == 1) {
+                                //     // $('#myDataTable tr').find('#aEditLink').click();
+                                //     // $('#global_filter').val('');
+                                //     // $('#myDataTable').dataTable().fnFilter('', null, null, null);
+                                //  }
+                                //  else
+                                //  if (oTable.fnGetData().length <= 0) {
+                                //      $('#cnfBarcodeAddmdl').modal();
+                                //      $('#btnBarcodeAddYes').focus();
+                                //  }
+
+                            }
+                            if (ItemIDToOpen.length > 0) {
+                                $('#myDataTable tr').each(function (i) {
+                                    if ($(this).find('#ItemGUID').val() == ItemIDToOpen) {
+                                        $(this).find('img.ItemMasterImage').click();
+                                        ItemIDToOpen = '';
+                                        return;
+                                    }
+                                });
+                            }
+                            ShowHideChangeLog();
+                        }
+                    })
+                },
+                "fnDrawCallback": function (settings) {
+                    if (DrillDownItemGuid != null && DrillDownItemGuid != undefined && DrillDownItemGuid.trim() != '') {
+                        var hdnItemGUID = $('#myDataTable').find('#ItemGUID[value="' + DrillDownItemGuid + '"]');
+                        if (hdnItemGUID != null && hdnItemGUID != undefined && hdnItemGUID.length > 0) {
+                            var ItemMasterImage = $(hdnItemGUID[0]).closest('tr').find('.ItemMasterImage');
+                            if (ItemMasterImage != null && ItemMasterImage != undefined && ItemMasterImage.length > 0) {
+                                ItemMasterImage[0].click();
+                            }
+                        }
+                    }
+
+                    $('#myDataTable tbody tr').each(function () {
+                        ItemId = $(this).find('input[type="hidden"][id="IdHidden"]').val();
+                        if (SelectedItemList != undefined && SelectedItemList.includes(ItemId)) {
+                            $(this).addClass('row_selected');
+                        }
+                    });
+
+                    DrillDownItemGuid = '';
+                },
+                "fnInitComplete": function () {
+                    $('.ColVis').detach().appendTo(".setting-arrow");
+                    $('#divQTYLegends').show(1000);
+                    $("#SpanInActiveLegend").show();
+
+                    $("div.refreshBlock span").each(function (index, obj) {
+                        if ($(obj).text().indexOf("@@enterprise@@") > -1) {
+                            var EnterpriseName = $("#ddlEnterprise option:selected").text();
+                            var SpanText = $(obj).text().replace("@@@@enterprise@@@@", EnterpriseName);
+                            $(obj).text(SpanText);
+                        }
+                    });
+                },
+                "aoColumns": [
+                     {
+                         "mDataProp": null,
+                         "bSortable": false,
+                         "sClass": "read_only center NotHide RowNo",
+                         "sDefaultContent": ''
+                     },
+                            {
+
+                                "mDataProp": null,
+                                "bSortable": false,
+                                "sClass": "read_only control center NotHide hideForDeleteItem",
+                                "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+
+                                    if (obj.aData.ItemType == 4 || obj.aData.ItemType == 'Labor') {
+                                        return '';
+                                    }
+                                    else {
+                                        return '<img class="ItemMasterImage" src="' + sImageUrl + 'drildown_open.jpg' + '">';
+                                    }
+                                }
+                            },
+                            {
+                                "mDataProp": "ItemType", "sClass": "read_only"
+                                    , "sDefaultContent": '', "fnRender": function (obj, val) {
+                                        if (val == 1)
+                                            return "Item";
+                                        else if (val == 2)
+                                            return "Quick List";
+                                        else if (val == 3)
+                                            return "Kit";
+                                        else if (val == 4)
+                                            return "Labor";
+                                        else
+                                            return "";
+                                    }
+                            },
+                            {
+                                "mDataProp": "ItemNumber",
+                                "sClass": "read_only",
+                                "sDefaultContent": '',
+                                "bSortable": true,
+                                "bSearchable": false,
+                                "fnRender": function (obj, val) {
+                                    var strVal = val.toString();//.replace(/ /g, "&nbsp;");
+                                    strVal = strVal.replace(/&/g, "&amp;").replace(/>/g, "&gt;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+                                    // return "";
+                                    return "<a id='aEditLink' onclick='return ShowEditTabGUID(&quot;ItemEdit?ItemGUID=" + obj.aData.GUID.toString() + "&quot;,&quot;frmItem&quot;)' href='JavaScript:void(0);'>" + strVal + "</a><input type='hidden' id='ItemGUID' value='" + obj.aData.GUID.toString() + "' /><input type='hidden' id='ItemLevelMinMaxQtyRequiredHidden' value='" + obj.aData.IsItemLevelMinMaxQtyRequired + "' /><input type='hidden' id='CriticalQuantityHidden' value='" + obj.aData.CriticalQuantity + "' /><input type='hidden' id='MinimumQuantityHidden' value='" + obj.aData.MinimumQuantity + "' /><input type='hidden' id='OnHandQuantityHidden" + obj.aData.GUID + "' value='" + obj.aData.OnHandQuantity + "' /><input type='hidden' id='IdHidden' value='" + obj.aData.ID.toString() + "' />";
+                                }
+                            },
+
+    //                                "fnRender": function (obj, val) {
+    //                                    var strVal = val.replace(/ /g, "&nbsp;");
+    //                           return "<a id='aEditLink' onclick='return ShowEditTabGUID(&quot;ItemEdit?ItemGUID=" + obj.aData.GUID.toString() + "&quot;,&quot;frmItem&quot;)' href='JavaScript:void(o);'>" + strVal + "</a>" + " <input type='hidden' id='ItemGUID' value='" + obj.aData.GUID.toString() + "' />";
+    //
+    //			                    }
+                            { "mDataProp": "Description", "sClass": "read_only" },
+                            {
+                                "mDataProp": "OnHandQuantity", "sClass": "read_only numericalign", "sDefaultContent": '', "fnRender": function (obj, val) {
+                                    var spnid = "spnOnHand" + obj.aData.GUID;
+                                    if (obj.aData.OnHandQuantity != null && obj.aData.OnHandQuantity != NaN) {
+                                        return "<span id=" + spnid + ">" + FormatedCostQtyValues(obj.aData.OnHandQuantity, 2) + "</span>";
+                                        //return "<span id='spnOnHand" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.OnHandQuantity, 2) + "</span>";
+                                    }
+                                    else {
+                                        return "<span id=" + spnid + ">" + FormatedCostQtyValues(0, 2) + "</span>";
+                                        //return "<span id='spnOnHand" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                    }
+
+
+
+                                }
+                            },
+                            //{ "mDataProp": "OnOrderQuantity", "sClass": "read_only" },
+                            {
+                                "mDataProp": "OnOrderQuantity", "sClass": "read_only numericalign", "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+                                    var IsOrderViewRights = '@IsOrderViewrRights';
+
+                                    if (isNaN(parseFloat(val)))
+                                        val = 0;
+                                    if (val > 0 && (IsOrderViewRights == 'true' || IsOrderViewRights == 'True' || IsOrderViewRights == 'TRUE')) {
+                                        return "<a id='aOnOrderQty_" + obj.aData.GUID + "' href='javascript:void(0)' onclick='javascript:return DisplayOnOrderQty(this)' >" + FormatedCostQtyValues(val, 2) + "</a>";
+                                    }
+                                    else {
+                                        return FormatedCostQtyValues(val, 2);
+                                    }
+                                }
+                            },
+
+
+                            {
+                                "mDataProp": "SuggestedOrderQuantity", "sClass": "read_only numericalign", "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.SuggestedOrderQuantity != null && obj.aData.SuggestedOrderQuantity != NaN)
+                                        return "<span id='spnSuggested" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.SuggestedOrderQuantity, 2) + "</span>";
+                                    else
+                                        return "<span id='spnSuggested" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                }
+                            },
+                            {
+                                "mDataProp": "SuggestedTransferQuantity", "sClass": "read_only numericalign", "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.SuggestedTransferQuantity != null && obj.aData.SuggestedTransferQuantity != NaN)
+                                        return "<span id='spnSuggested" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.SuggestedTransferQuantity, 2) + "</span>";
+                                    else
+                                        return "<span id='spnSuggested" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                }
+                            },
+                            {
+                                "mDataProp": "IsItemLevelMinMaxQtyRequired", "sClass": "read_only"
+                                 , "fnRender": function (obj, val) {
+                                     return GetBoolInFormat(obj, val);
+                                 }
+                            },
+                            {
+                                "mDataProp": "MinimumQuantity", "sClass": "read_only numericalign",
+                                "fnRender": function (obj, val) {
+
+                                    if (obj.aData.IsItemLevelMinMaxQtyRequired == "No" || obj.aData.IsItemLevelMinMaxQtyRequired == false) {
+                                        return "<span>" + 'N/A' + "</span>";
+                                    }
+                                    else {
+                                        if (obj.aData.MinimumQuantity != null && obj.aData.MinimumQuantity != NaN)
+                                            return "<span>" + FormatedCostQtyValues(obj.aData.MinimumQuantity, 2) + "</span>";
+                                        else
+                                            return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                    }
+                                }
+                            },
+                            {
+                                "mDataProp": "MaximumQuantity", "sClass": "read_only numericalign",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.IsItemLevelMinMaxQtyRequired == "No" || obj.aData.IsItemLevelMinMaxQtyRequired == false) {
+                                        return "<span>" + 'N/A' + "</span>";
+                                    }
+                                    else {
+                                        if (obj.aData.MaximumQuantity != null && obj.aData.MaximumQuantity != NaN)
+                                            return "<span>" + FormatedCostQtyValues(obj.aData.MaximumQuantity, 2) + "</span>";
+                                        else
+                                            return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                    }
+                                }
+                            },
+                            { "mDataProp": "CategoryName", "sClass": "read_only" },
+                            { "mDataProp": "InventoryClassificationName", "sClass": "read_only" },
+
+                             {
+                                 "mDataProp": "AverageUsage", "sClass": "read_only numericalign", "sDefaultContent": '',
+                                 "fnRender": function (obj, val) {
+                                     if (isNaN(parseFloat(val)))
+                                         val = 0;
+                                     if (val > 0) {
+                                         return "<a id='aOnAverageUsageQty_" + obj.aData.GUID + "' href='javascript:void(0)' onclick='javascript:return DisplayAverageUsageQty(this)' >" + FormatedCostQtyValues(val, 4) + "</span>";
+                                     }
+                                     else {
+                                         return FormatedCostQtyValues(val, 4);
+                                     }
+                                 }
+                             },
+
+
+    //                            { "mDataProp": "AverageUsage", "sClass": "read_only",
+    //                                "fnRender": function (obj, val) {
+    //                                    if (obj.aData.AverageUsage != null && obj.aData.AverageUsage != NaN)
+    //                                        return "<span id='spnAverageUsage" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AverageUsage,4) + "</span>";
+    //                                    else
+    //                                        return "<span id='spnAverageUsage" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0,4) + "</span>";
+    //                                }
+    //                            },
+                            {
+                                "mDataProp": "Cost", "sClass": "read_only numericalign isCost", "sType": "decimal",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.Cost != null && obj.aData.Cost != NaN)
+                                        return "<span id='spnCost" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.Cost, 1) + "</span>";
+                                    else
+                                        return "<span id='spnCost" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 1) + "</span>";
+                                }
+                            },
+                            {
+                                "mDataProp": "Markup", "sClass": "read_only numericalign isCost",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.Markup != null && obj.aData.Markup != NaN)
+                                        return "<span>" + FormatedCostQtyValues(obj.aData.Markup, 1) + "</span>";
+                                    else
+                                        return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+                                }
+                            },
+                            {
+                                "mDataProp": "SellPrice", "sClass": "read_only numericalign isCost",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.SellPrice != null && obj.aData.SellPrice != NaN)
+                                        return "<span id='spnSellPrice" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.SellPrice, 1) + "</span>";
+                                    else
+                                        return "<span id='spnSellPrice" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 1) + "</span>";
+                                }
+                            },
+                            {
+                                "mDataProp": "ExtendedCost", "sClass": "read_only numericalign isCost",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.ExtendedCost != null && obj.aData.ExtendedCost != NaN)
+                                        return "<span id='spnExtendedCost" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.ExtendedCost, 1) + "</span>";
+                                    else
+                                        return "<span id='spnExtendedCost" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 1) + "</span>";
+                                }
+                            },
+                            {
+                                "mDataProp": "LongDescription", "sClass": "read_only", "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+                                    return "<div class='comment more'>" + val + "</div>";
+                                }
+                            },
+                            { "mDataProp": "SupplierName", "sClass": "read_only" },
+                            { "mDataProp": "SupplierPartNo", "sClass": "read_only" },
+                            { "mDataProp": "BPONumber", "sClass": "read_only" },
+                            { "mDataProp": "ManufacturerName", "sClass": "read_only" },
+                            { "mDataProp": "ManufacturerNumber", "sClass": "read_only" },
+                            { "mDataProp": "UPC", "sClass": "read_only" },
+                            { "mDataProp": "UNSPSC", "sClass": "read_only" },
+                            { "mDataProp": "LeadTimeInDays", "sClass": "read_only" },
+                            {
+                                "mDataProp": "InTransitquantity", "sClass": "read_only numericalign", "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+
+                                    if (isNaN(parseFloat(val)))
+                                        val = 0;
+
+                                    if (val > 0) {
+                                        return "<a id='aInTransitQty_" + obj.aData.GUID + "' href='javascript:void(0)' onclick='javascript:return DisplayOnTransferInTransitQty(this)' >" + FormatedCostQtyValues(val, 2) + "</span>";
+                                    }
+                                    else {
+                                        return FormatedCostQtyValues(val, 2);
+                                    }
+                                }
+                            },
+
+                        {
+                            "mDataProp": "OnTransferQuantity", "sClass": "read_only numericalign", "sDefaultContent": '',
+                            "fnRender": function (obj, val) {
+
+                                var IsTransferViewrRights = '@IsTransferViewrRights';
+
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+
+                                if (val > 0 && (IsTransferViewrRights == 'true' || IsTransferViewrRights == 'True' || IsTransferViewrRights == 'TRUE')) {
+                                    return "<a id='aOnTransferQty_" + obj.aData.GUID + "' href='javascript:void(0)' onclick='javascript:return DisplayOnTransferQty(this)' >" + FormatedCostQtyValues(val, 2) + "</span>";
+                                }
+                                else {
+                                    return FormatedCostQtyValues(val, 2);
+                                }
+                            }
+                        },
+
+                            {
+                                "mDataProp": "RequisitionedQuantity", "sClass": "read_only numericalign",
+                                "fnRender": function (obj, val) {
+                                    if (isNaN(parseFloat(val)))
+                                        val = 0;
+                                    if (val > 0) {
+                                        return "<a id='aRequisitionedQty_" + obj.aData.GUID + "' href='javascript:void(0)' onclick='javascript:return DisplayRequisitionedQty(this)' >" + FormatedCostQtyValues(val, 2) + "</span>";
+                                    }
+                                    else {
+                                        return FormatedCostQtyValues(val, 2);
+                                    }
+                                }
+
+                            },
+                            {
+                                "mDataProp": "QtyToMeetDemand", "sClass": "read_only numericalign", "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.QtyToMeetDemand != null && obj.aData.QtyToMeetDemand != NaN)
+                                        return "<span id='spnQtyToMeetDemand" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.QtyToMeetDemand, 2) + "</span>";
+                                    else
+                                        return "<span id='spnQtyToMeetDemand" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                }
+                            },
+                            {
+                                "mDataProp": "Turns", "sClass": "read_only numericalign", "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+                                    if (isNaN(parseFloat(val)))
+                                        val = 0;
+                                    if (val > 0) {
+                                        return "<a id='aTurnsQty_" + obj.aData.GUID + "' href='javascript:void(0)' onclick='javascript:return DisplayTurnsQty(this)' >" + FormatedCostQtyValues(val, 4) + "</span>";
+                                    }
+                                    else {
+                                        return FormatedCostQtyValues(val, 4);
+                                    }
+                                }
+                            },
+    //                            { "mDataProp": "Turns", "sClass": "read_only" ,
+    //                                "fnRender": function (obj, val) {
+    //                                    if (obj.aData.Turns != null && obj.aData.Turns != NaN)
+    //                                        return "<span>" + FormatedCostQtyValues(obj.aData.Turns,4) + "</span>";
+    //                                    else
+    //                                        return "<span>" + FormatedCostQtyValues(0,4) + "</span>";
+    //                                }
+    //                            },
+                            {
+                                "mDataProp": "CriticalQuantity", "sClass": "read_only numericalign",
+                                "fnRender": function (obj, val) {
+
+                                    if (obj.aData.IsItemLevelMinMaxQtyRequired == "No" || obj.aData.IsItemLevelMinMaxQtyRequired == false) {
+                                        return "<span>" + 'N/A' + "</span>";
+                                    }
+                                    else {
+                                        if (obj.aData.CriticalQuantity != null && obj.aData.CriticalQuantity != NaN)
+                                            return "<span>" + FormatedCostQtyValues(obj.aData.CriticalQuantity, 2) + "</span>";
+                                        else
+                                            return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                    }
+                                }
+                            },
+                            {
+                                "mDataProp": "SerialNumberTracking", "sClass": "read_only"
+                                 , "fnRender": function (obj, val) {
+                                     return GetBoolInFormat(obj, val);
+                                 }
+                            },
+                            {
+                                "mDataProp": "LotNumberTracking", "sClass": "read_only"
+                                , "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "DateCodeTracking", "sClass": "read_only"
+                                , "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            { "mDataProp": "IsLotSerialExpiryCost", "sClass": "read_only" },
+							{ "mDataProp": "GLAccount", "sClass": "read_only" },
+                            //{
+                            //    "mDataProp": "GLAccount", "sClass": "read_only",
+                            //    "fnRender": function (obj, val) {
+                            //        if (obj.aData.GLAccount != null) {
+                            //
+                            //            if ($("table.dataTable thead tr th:nth-child(35)").width() == '64') {
+                            //                return "<span id='spnGLAccount' style='word-wrap:break-word;min-width:54px;width:" + LatestGLAccountWidth + "px;display:block;height:auto;'>" + obj.aData.GLAccount + "</span>";
+                             //           }
+                             //           else {
+                            //                return "<span id='spnGLAccount' style='word-wrap:break-word;min-width:54px;width:" + $("table.dataTable thead tr th:nth-child(35)").width() + "px;display:block;height:auto;'>" + obj.aData.GLAccount + "</span>";
+                            //            }
+                            //        }
+                            //            //return obj.aData.GLAccount;
+                            //        else
+                            //            return '';
+                             //   }
+                            //},
+                            { "mDataProp": "ID", "sClass": "read_only" },
+                            { "mDataProp": "CostUOMName", "sClass": "read_only" },
+                            {
+                                "mDataProp": "DefaultReorderQuantity", "sClass": "read_only numericalign",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.DefaultReorderQuantity != null && obj.aData.DefaultReorderQuantity != NaN)
+                                        return "<span>" + FormatedCostQtyValues(obj.aData.DefaultReorderQuantity, 2) + "</span>";
+                                    else
+                                        return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                }
+                            },
+                            {
+                                "mDataProp": "DefaultPullQuantity", "sClass": "read_only numericalign",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.DefaultPullQuantity != null && obj.aData.DefaultPullQuantity != NaN)
+                                        return "<span>" + FormatedCostQtyValues(obj.aData.DefaultPullQuantity, 2) + "</span>";
+                                    else
+                                        return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                }
+                            },
+                            { "mDataProp": "DefaultLocationName", "sClass": "read_only" },
+                            {
+                                "mDataProp": "Trend", "sClass": "read_only"
+                                , "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "Taxable", "sClass": "read_only"
+                                , "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "Consignment", "sClass": "read_only"
+                                , "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "StagedQuantity", "sClass": "read_only numericalign",
+                                "fnRender": function (obj, val) {
+                                    var Qty = 0;
+                                    if (obj.aData.StagedQuantity != null && obj.aData.StagedQuantity != NaN)
+                                        Qty = obj.aData.StagedQuantity;
+
+                                    if (isNaN(parseFloat(Qty)))
+                                        Qty = 0;
+
+                                    if (Qty > 0) {
+                                        return "<a id='aStagedQty_" + obj.aData.GUID + "' href='javascript:void(0)' onclick='javascript:return DisplayStagedQuantity(this)' >" + FormatedCostQtyValues(Qty, 2) + "</a>";
+                                    }
+                                    else {
+                                        return FormatedCostQtyValues(Qty, 2);
+                                    }
+
+                                }
+                            },
+                            {
+                                "mDataProp": "WeightPerPiece", "sClass": "read_only numericalign",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.WeightPerPiece != null && obj.aData.WeightPerPiece != NaN)
+                                        return "<span>" + FormatedCostQtyValues(obj.aData.WeightPerPiece, 5) + "</span>";
+                                    else
+                                        return "<span>" + FormatedCostQtyValues(0, 5) + "</span>";
+                                }
+                            },
+                            { "mDataProp": "ItemUniqueNumber", "sClass": "read_only" },
+                            {
+                                "mDataProp": "IsTransfer", "sClass": "read_only"
+                                 , "fnRender": function (obj, val) {
+                                     return GetBoolInFormat(obj, val);
+                                 }
+                            },
+                              {
+                                  "mDataProp": "IsPurchase", "sClass": "read_only"
+                                 , "fnRender": function (obj, val) {
+                                     return GetBoolInFormat(obj, val);
+                                 }
+                              },
+                            { "mDataProp": "RoomName", "sClass": "read_only" },
+                            {
+                                "mDataProp": "Created", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.CreatedDate;
+                                }
+                            },
+    //			                {
+    //			                    "mDataProp": "Updated", "sClass": "read_only",
+    //			                    "fnRender": function (obj, val) {
+    //			                        return GetDateInFullFormat(val);
+    //			                    }
+    //			                },
+
+                             {
+                                 "mDataProp": "Updated", "sClass": "read_only", "sDefaultContent": '',
+                                 "fnRender": function (obj, val) {
+                                     return obj.aData.UpdatedDate;
+                                     //                                    if (obj.aData.Updated != null && obj.aData.Updated != NaN)
+                                     //                                        return "<span id='spnUpdated" + obj.aData.GUID + "'>" + GetDateInFullFormat(obj.aData.Updated) + "</span>";
+                                     //                                    else
+                                     //                                        return "<span id='spnUpdated" + obj.aData.GUID + "'>" + GetDateInFullFormat(obj.aData.Updated) + "</span>";
+                                 }
+                             },
+
+
+                            { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                            { "mDataProp": "Unit", "sClass": "read_only" },
+                            {
+                                "mDataProp": "AverageCost", "sClass": "read_only numericalign isCost",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.AverageCost != null && obj.aData.AverageCost != NaN)
+                                        return "<span id='spnAverageCost" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.AverageCost, 1) + "</span>";
+                                    else
+                                        return "<span id='spnAverageCost" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 1) + "</span>";
+                                }
+
+                            },
+                            {
+                                "mDataProp": "PerItemCost", "sClass": "read_only numericalign isCost",
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.PerItemCost != null && obj.aData.PerItemCost != NaN)
+                                        return "<span id='spnPerItemCost" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.PerItemCost, 1) + "</span>";
+                                    else
+                                        return "<span id='spnPerItemCost" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 1) + "</span>";
+                                }
+
+                            },
+                            {
+                                "mDataProp": "Link2", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+
+                                    if (obj.aData.Link2 != null && obj.aData.Link2 != NaN && obj.aData.ItemLink2ImageType == 'InternalLink') {
+                                        var path = '@LogoPathImage';
+
+
+                                        return "<a class='addNewLink' onclick='return OpenImg(this);' href='/Consume/Get?path=" + path + "/" + obj.aData.ID + "/" + obj.aData.Link2 + "' target='_blank'>" + obj.aData.Link2 + "</a>";
+
+                                    }
+                                    else if (obj.aData.ItemLink2ExternalURL != null && obj.aData.ItemLink2ExternalURL != NaN && obj.aData.ItemLink2ImageType == 'ExternalURL')
+                                        return "<a class='addNewLink' onclick='return OpenImg(this);' href='" + obj.aData.ItemLink2ExternalURL + "' target='_blank' >" + obj.aData.ItemLink2ExternalURL + "</a>";
+                                    else
+                                        return "<span id='spnAverageCost33" + obj.aData.GUID + "'>" + "" + "</span>";
+                                }
+                            },
+                            { "mDataProp": "BondedInventory", "sClass": "read_only numericalign" },
+                            {
+                                "mDataProp": "OnReturnQuantity", "sClass": "read_only numericalign", "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+                                    if (isNaN(parseFloat(val)))
+                                        val = 0;
+                                    if (val > 0) {
+                                        return "<a id='aOnReturnQty_" + obj.aData.GUID + "' href='javascript:void(0)' onclick='javascript:return DisplayOnRetunQty(this)' >" + FormatedCostQtyValues(val, 2) + "</a>";
+                                    }
+                                    else {
+                                        return FormatedCostQtyValues(val, 2);
+                                    }
+                                }
+                            },
+                            {
+                                "mDataProp": "TrendingSetting", "sClass": "read_only"
+                                , "sDefaultContent": '', "fnRender": function (obj, val) {
+                                    if (val !== '' || val !== "") {
+                                        if (val === 0)
+                                            return "@eTurns.DTO.ResItemMaster.TrendingSettingNone";
+                                        else if (val === 1)
+                                            return "@eTurns.DTO.ResItemMaster.TrendingSettingManual";
+                                        else if (val === 2)
+                                            return "@eTurns.DTO.ResItemMaster.TrendingSettingAutomatic";
+                                        else
+                                            return "";
+
+                                    } else {
+                                        return "";
+                                    }
+                                }
+                            },
+                        {
+                            "mDataProp": "PullQtyScanOverride", "sClass": "read_only"
+                             , "fnRender": function (obj, val) {
+                                 return GetBoolInFormat(obj, val);
+                             }
+                        },
+                        { "mDataProp": "AddedFrom", "sClass": "read_only" },
+                        { "mDataProp": "EditedFrom", "sClass": "read_only" },
+                        {
+                            "mDataProp": "ReceivedOn", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.ReceivedOnDate;
+                            }
+                        },
+                        {
+                            "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.ReceivedOnDateWeb;
+                            }
+                        },
+                        {
+                            "mDataProp": "PulledDate", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.PulledDateStr;
+                            }
+                        }
+                        ,
+                        {
+                            "mDataProp": "OrderedDate", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.OrderedDateStr;
+                            }
+                        },
+                        {
+                            "mDataProp": "CountedDate", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.CountedDateStr;
+                            }
+                        },
+                        {
+                            "mDataProp": "TrasnferedDate", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.TrasnferedDateStr;
+                            }
+                        }, {
+                            "mDataProp": "PriceSavedDate", "sClass": "read_only",
+                            "fnRender": function (obj, val) {
+                                return obj.aData.PriceSavedDateStr;
+                            }
+                        }, {
+                            "mDataProp": "OutTransferQuantity",
+                            "sClass": "read_only"
+                        }
+                        , {
+                            "mDataProp": "OnOrderInTransitQuantity", "sClass": "read_only numericalign", "sDefaultContent": '',
+                            "fnRender": function (obj, val) {
+                                var IsOrderViewRights = '@IsOrderViewrRights';
+
+                                if (isNaN(parseFloat(val)))
+                                    val = 0;
+                                if (val > 0 && (IsOrderViewRights == 'true' || IsOrderViewRights == 'True' || IsOrderViewRights == 'TRUE')) {
+                                    return "<a id='aOnOrderInTransitQty_" + obj.aData.GUID + "' href='javascript:void(0)' onclick='javascript:return DisplayOnOrderInTransitQty(this)' >" + FormatedCostQtyValues(val, 2) + "</a>";
+                                }
+                                else {
+                                    return FormatedCostQtyValues(val, 2);
+                                }
+                            }
+                        },
+                            {
+                                "mDataProp": "ItemDocExternalURL", "sClass": "read_only",
+                                "bSortable": true,
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.ItemDocExternalURL != null && obj.aData.ItemDocExternalURL != NaN)
+                                        return "<a class='addNewLink' onclick='return OpenImg(this);' href='" + obj.aData.ItemDocExternalURL + "' target='_blank' >" + obj.aData.ItemDocExternalURL + "</a>";
+                                    else
+                                        return "<span id='spnAverageCost34" + obj.aData.GUID + "'>" + "" + "</span>";
+                                }
+                            },
+                            {
+                                "mDataProp": "IsEnforceDefaultReorderQuantity", "sClass": "read_only",
+                                "bSortable": true,
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.IsEnforceDefaultReorderQuantity != null && obj.aData.IsEnforceDefaultReorderQuantity != NaN) {
+                                        if (obj.aData.IsEnforceDefaultReorderQuantity) {
+                                            return "Yes";
+                                        }
+                                        else {
+                                            return "No";
+                                        }
+                                    }
+                                    else {
+                                        return "";
+                                    }
+                                }
+                            },
+                            {
+                                "mDataProp": null,
+                                "bSortable": false,
+                                "sClass": "read_only center NotHide RowNo",
+                                "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+
+                                    if (obj.aData.IsOrderable != null && obj.aData.IsOrderable != NaN) {
+                                        if (obj.aData.IsOrderable == "1") {
+                                            return "Yes";
+                                        }
+                                        else {
+                                            return "No";
+                                        }
+                                    }
+                                    else {
+                                        return "";
+                                    }
+                                }
+                            },
+                            {
+                                "mDataProp": null,
+                                "bSortable": true,
+                                "sClass": "read_only control center RowNo",
+                                "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+
+                                    if (obj.aData.ImagePath != '' && obj.aData.ImagePath != null && obj.aData.ImageType != null && obj.aData.ImageType != '' && obj.aData.ImageType.toLowerCase() == "imagepath") {
+                                        @*var path = '/Uploads/InventoryPhoto/';
+                                        var entid = '@eTurnsWeb.Helper.SessionHelper.EnterPriceID.ToString()';
+                                        var companyid = '@eTurnsWeb.Helper.SessionHelper.CompanyID.ToString()';
+                                        var roomid = '@eTurnsWeb.Helper.SessionHelper.RoomID.ToString()';*@
+                                        var path = '@LogoPathItemImage';
+
+
+                                        return "<a class='addNewLink' target='_blank' href='/Consume/Get?path=" + path + "/" + obj.aData.ID + "/"  +obj.aData.ImagePath + "' target='_blank' >" + obj.aData.ImagePath + "</a>";
+                                    }
+                                    else if (obj.aData.ItemImageExternalURL != '' && obj.aData.ItemImageExternalURL != null && obj.aData.ItemImageExternalURL != null && obj.aData.ImageType != null && obj.aData.ImageType != '' && obj.aData.ImageType.toLowerCase() == "externalimage") {
+                                        return "<a class='addNewLink' target='_blank' href='" + obj.aData.ItemImageExternalURL + "' target='_blank' >" + obj.aData.ItemImageExternalURL + "</a>";
+                                    }
+                                    else {
+                                        return "";
+                                    }
+                                }
+                            }, { "mDataProp": "MonthlyAverageUsage", "sClass": "read_only" }
+                            ,
+                            {
+                                "mDataProp": "SuggestedReturnQuantity", "sClass": "read_only numericalign", "sDefaultContent": '',
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.SuggestedReturnQuantity != null && obj.aData.SuggestedReturnQuantity != NaN)
+                                        return "<span id='spnSuggestedReturn" + obj.aData.GUID + "'>" + FormatedCostQtyValues(obj.aData.SuggestedReturnQuantity, 2) + "</span>";
+                                    else
+                                        return "<span id='spnSuggestedReturn" + obj.aData.GUID + "'>" + FormatedCostQtyValues(0, 2) + "</span>";
+                                }
+                            },
+                            {
+                                "mDataProp": "IsAutoInventoryClassification", "sClass": "read_only"
+                                 , "fnRender": function (obj, val) {
+                                     return GetBoolInFormat(obj, val);
+                                 }
+                            },
+                            {
+                                "mDataProp": "IsPackslipMandatoryAtReceive", "sClass": "read_only"
+                                 , "fnRender": function (obj, val) {
+                                     return GetBoolInFormat(obj, val);
+                                 }
+                            },
+                            {
+                                "mDataProp": "IsAllowOrderCostuom", "sClass": "read_only"
+                                 , "fnRender": function (obj, val) {
+                                     return GetBoolInFormat(obj, val);
+                                 }
+                    },
+                    {
+                        "mDataProp": "OnQuotedQuantity", "sClass": "read_only numericalign", "sDefaultContent": '',
+                        "fnRender": function (obj, val) {
+                             var IsQuoteViewRights = '@IsQuoteViewrRights';
+
+                                    if (isNaN(parseFloat(val)))
+                                        val = 0;
+                                    if (val > 0 && (IsQuoteViewRights == 'true' || IsQuoteViewRights == 'True' || IsQuoteViewRights == 'TRUE')) {
+                                        return "<a id='aOnQuoteQty_" + obj.aData.GUID + "' href='javascript:void(0)' onclick='javascript:return DisplayOnQuoteQty(this)' >" + FormatedCostQtyValues(val, 2) + "</a>";
+                                    }
+                                    else {
+                                        return FormatedCostQtyValues(val, 2);
+                                    }
+                        }
+                    },
+                    { "mDataProp": "EnrichedProductData", "sClass": "read_only" },
+                    { "mDataProp": "EnhancedDescription", "sClass": "read_only" }
+
+//                            { "mDataProp": "ReceivedOnDate", "sClass": "read_only" },
+//                            { "mDataProp": "ReceivedOnDateWeb", "sClass": "read_only" }
+                        @Html.RenderColumnsArray("ItemMaster")
+                ]
+            }).makeEditable({
+                sUpdateURL: '@Url.Content("~/Master/UpdateBinMasterData")'
+            });
+
+            // $("table.dataTable thead tr").each(function () {
+            //    LatestGLAccountWidth = $("table.dataTable thead tr th:nth-child(35)").width();
+            //    $(this).find("span#spnGLAccount").width($("table.dataTable thead tr th:nth-child(35)").width());
+            // });
+            //HIDE PRINT CONTAINER
+            $('.DTTT_container').css('z-index', '-1');
+
+            if ('@isCost' == '@Boolean.FalseString') {
+
+                HideColumnUsingClassName("myDataTable");
+            }
+
+            var QueryStringParam1 = getParameterByName('fromdashboard');
+            var QueryStringParam2 = getParameterByName('ItemGUID');
+            if (QueryStringParam1 == 'yes' && QueryStringParam2 != '') {
+                ShowEditTabGUID("ItemEdit?ItemGUID=" + QueryStringParam2, "frmItem");
+                IsReloadItemList = true;
+            }
+
+
+            function getParameterByName(name) {
+                name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+                var regexS = "[\\?&]" + name + "=([^&#]*)";
+                var regex = new RegExp(regexS);
+                var results = regex.exec(window.location.search);
+                if (results == null)
+                    return "";
+                else
+                    return decodeURIComponent(results[1].replace(/\+/g, " "));
+            }
+
+            /*Functions used for nasted data binding START*/
+            $("#myDataTable").on("click", "td.control img.ItemMasterImage", function (event) {
+                var nTr = this.parentNode.parentNode;
+                var i = $.inArray(nTr, anOpen);
+                if (i === -1) {
+                    $('img', this.parentNode).attr('src', sImageUrl + "drildown_close.jpg");
+                    oTable.fnOpen(nTr, fnFormatDetails(oTable, nTr), '');
+                    anOpen.push(nTr);
+
+                }
+                else {
+                    $('img', this.parentNode).attr('src', sImageUrl + "drildown_open.jpg");
+                    oTable.fnClose(nTr);
+                    anOpen.splice(i, 1);
+
+                }
+
+            });
+
+            function fnFormatDetails(oTable, nTr) {
+                var oData = oTable.fnGetData(nTr);
+                ItemName = oData.ItemNumber;
+                ItemUniqueID = oData.ID;
+                var sOut = '';
+                $('#DivLoading').show();
+                $.ajax({
+                    "url": '@Url.Content("~/Inventory/ItemBinWiseSummary")',
+                    data: { ItemID: oData.ID, ItemGUID: oData.GUID },
+                    "async": false,
+                    cache: false,
+                    "dataType": "text",
+                    "success": function (json) {
+                        sOut = json;
+                        $('#DivLoading').hide();
+                    },
+                    error: function (response) {
+                    }
+                });
+
+                return sOut;
+            }
+            /*Functions used for nasted data binding END*/
+
+            $("#ItemModel").dialog({
+                autoOpen: false, modal: true, draggable: true, resizable: true, width: '82%', height: 710, title: 'Item Master',
+                open: function () {
+                    $('#DivLoading').show();
+                    var strUrl = $(this).data("url");
+
+                    $.get(strUrl, function (data) {
+                        $("#ItemModel").html(data);
+                        $('#DivLoading').hide();
+                    });
+                },
+                close: function () {
+                    $("#ItemModel").empty();
+                    $('#myDataTable').dataTable().fnDraw();
+                }
+            });
+
+            $("#ItemQty").dialog({
+                autoOpen: false, modal: true, draggable: true, resizable: true, width: '60%', height: 450, title: '@eTurns.DTO.ResItemMaster.QuantityDetails',
+                open: function () {
+                    $('#DivLoading').show();
+                    var itemGuid = $(this).data("itemGuid");
+                    var strUrl = $(this).data("url");
+                    $.get(strUrl, { ItemGuid: itemGuid }, function (data) {
+                        $('#DivLoading').hide();
+                        $("#ItemQty").html(data);
+
+                    });
+                },
+                close: function () {
+                    $("#ItemQty").empty();
+                }
+            });
+
+            $("#ItemsBin").dialog({
+                autoOpen: false, modal: true, draggable: true, resizable: true, width: '62%',
+                height: 480, title: '@ResCommon.SelectItemWithBins',
+                open: function () {
+                    var itemguids = '';
+                    $('#myDataTable tbody tr.row_selected').each(function () {
+                        ItemGUID = $(this).find('input[type="hidden"][id="ItemGUID"]').val();
+                        if(ItemGUID != undefined && ItemGUID != "undefined" && ItemGUID != null && ItemGUID != '')
+                        {
+                            if (itemguids.length > 0) {
+                                itemguids = itemguids + ',';
+                            }
+                            itemguids = itemguids + ItemGUID;
+                        }
+                    });
+                    if (itemguids.length > 0) {
+                        $('#DivLoading').show();
+                        $.ajax({
+                            url: 'GetItemsBinForLabels',
+                            data: { 'itemsguids': itemguids },
+                            type: 'Post',
+                            success: function (data) {
+                                $("#ItemsBin").html(data);
+                                $('#DivLoading').hide();
+                            },
+                            error: function (xhr) {
+                                $('#DivLoading').hide();
+                                alert('Ajax Error');
+                            }
+                        });
+                    }
+                    else {
+                        $(this).dialog('close');
+                    }
+                },
+                close: function () {
+                    $("#ItemsBin").empty();
+                }
+            });
+
+            $("#dlgItemsSerialLotForLabel").dialog({
+                autoOpen: false, modal: true, draggable: true, resizable: true, width: '62%',
+                height: 480, title: '@ResItemMaster.SelectItemsWithSerialLotHeader',
+                open: function () {
+                    var itemguids = '';
+                    $('#myDataTable tbody tr.row_selected').each(function () {
+                        ItemGUID = $(this).find('input[type="hidden"][id="ItemGUID"]').val();
+                        if(ItemGUID != undefined && ItemGUID != "undefined" && ItemGUID != null && ItemGUID != '')
+                        {
+                            if (itemguids.length > 0) {
+                                itemguids = itemguids + ',';
+                            }
+                            itemguids = itemguids + ItemGUID;
+                        }
+                    });
+                    if (itemguids.length > 0) {
+                        $('#DivLoading').show();
+                        $.ajax({
+                            url: 'GetItemsSerialOrLotForLabels',
+                            data: { 'itemsguids': itemguids },
+                            type: 'Post',
+                            success: function (data) {
+                                $("#dlgItemsSerialLotForLabel").html(data);
+                                $('#DivLoading').hide();
+                            },
+                            error: function (xhr) {
+                                $('#DivLoading').hide();
+                                alert('Ajax Error');
+                            }
+                        });
+                    }
+                    else {
+                        $(this).dialog('close');
+                    }
+                },
+                close: function () {
+                    $("#dlgItemsSerialLotForLabel").empty();
+                }
+            });
+        });
+
+    function SetItemSelectedIds(e) {
+        var ID = e.find('input[type="hidden"][id="IdHidden"]').val();
+
+        // Check if ID exists in SelectedItemList If ID does not exist, add it If ID exists, remove it
+
+        if (SelectedItemList != undefined) {
+            // If not already in the list, add it
+            if (SelectedItemList.indexOf(ID) === -1) {
+                SelectedItemList.push(ID);
+            } else {
+                // If it doesn't have the class and exists in the list, remove it
+                var index = SelectedItemList.indexOf(ID);
+                if (index !== -1) {
+                    SelectedItemList.splice(index, 1);
+                }
+            }
+        }
+    }
+
+    function ClearItemSelectedIds() {
+        SelectedItemList = [];
+    }
+
+    function GetCheckedRows() {
+            $('#myDataTable tbody tr').each(function () {
+                var OnHandQuantity = 0;
+                var CriticalQuantity = 0;
+                var MinimumQuantity = 0;
+                var ItemLevelMinMaxQtyRequired;
+                var ItemGUID;
+                ItemGUID = $(this).find('input[type="hidden"][id="ItemGUID"]').val();
+
+                OnHandQuantity = parseFloat($(this).find('input[type="hidden"][id="OnHandQuantityHidden' + ItemGUID + '"]').val());
+                CriticalQuantity = parseFloat($(this).find('input[type="hidden"][id="CriticalQuantityHidden"]').val());
+                MinimumQuantity = parseFloat($(this).find('input[type="hidden"][id="MinimumQuantityHidden"]').val());
+                ItemLevelMinMaxQtyRequired = $(this).find('input[type="hidden"][id="ItemLevelMinMaxQtyRequiredHidden"]').val();
+
+                if (ItemLevelMinMaxQtyRequired == "true" || ItemLevelMinMaxQtyRequired == 'Yes') {
+
+                    if (OnHandQuantity < FormatedCostQtyValues(CriticalQuantity, 2)) {
+                        $(this).attr({ 'style': 'background-color:@eTurnsWeb.Helper.SessionHelper.CriticalQuantityBackColor !Important' });
+                    }
+                    else if (OnHandQuantity < FormatedCostQtyValues(MinimumQuantity, 2)) {
+                        $(this).attr({ 'style': 'background-color:@eTurnsWeb.Helper.SessionHelper.MinimumQuantityBackColor !Important' });
+                    }
+                }
+
+            });
+        }
+
+
+
+        function DisplayOnOrderQty(obj) {
+            $("#ItemQty").empty();
+            var itemGuid = obj.id.split('_');
+            $('#ItemQty').data({ "itemGuid": itemGuid[1], "url": 'ItemOnOrderQty' }).dialog('open');
+            return false;
+        }
+        function DisplayOnQuoteQty(obj) {
+            $("#ItemQty").empty();
+            var itemGuid = obj.id.split('_');
+            $('#ItemQty').data({ "itemGuid": itemGuid[1], "url": 'ItemOnQuoteQty' }).dialog('open');
+            return false;
+        }
+
+        function DisplayOnOrderInTransitQty(obj) {
+            $("#ItemQty").empty();
+            var itemGuid = obj.id.split('_');
+            $('#ItemQty').data({ "itemGuid": itemGuid[1], "url": 'ItemOnOrderInTransitQty' }).dialog('open');
+            return false;
+        }
+
+        function DisplayTurnsQty(obj) {
+            $("#ItemQty").empty();
+            var itemGuid = obj.id.split('_');
+            $('#ItemQty').data({ "itemGuid": itemGuid[1], "url": 'ItemTurnsQty' }).dialog('open');
+            return false;
+        }
+
+        function DisplayAverageUsageQty(obj) {
+            $("#ItemQty").empty();
+            var itemGuid = obj.id.split('_');
+            $('#ItemQty').data({ "itemGuid": itemGuid[1], "url": 'ItemAverageUsageQty' }).dialog('open');
+            return false;
+        }
+
+        function DisplayOnRetunQty(obj) {
+            $("#ItemQty").empty();
+            var itemGuid = obj.id.split('_');
+            $('#ItemQty').data({ "itemGuid": itemGuid[1], "url": 'ItemOnReturnQty' }).dialog('open');
+            return false;
+        }
+
+
+        function DisplayInTransitQty(obj) {
+            $("#ItemQty").empty();
+            var itemGuid = obj.id.split('_');
+            $('#ItemQty').data({ "itemGuid": itemGuid[1], "url": 'ItemInTransitQty' }).dialog('open');
+            return false;
+        }
+
+        function DisplayOnTransferQty(obj) {
+            $("#ItemQty").empty();
+            var itemGuid = obj.id.split('_');
+            $('#ItemQty').data({ "itemGuid": itemGuid[1], "url": 'ItemOnTransferQty' }).dialog('open');
+            return false;
+        }
+        function DisplayOnTransferInTransitQty(obj) {
+            $("#ItemQty").empty();
+            var itemGuid = obj.id.split('_');
+            $('#ItemQty').data({ "itemGuid": itemGuid[1], "url": 'ItemOnTransferInTransitQty' }).dialog('open');
+            return false;
+        }
+
+        function DisplayRequisitionedQty(obj) {
+            $("#ItemQty").empty();
+            var itemGuid = obj.id.split('_');
+            $('#ItemQty').data({ "itemGuid": itemGuid[1], "url": 'ItemOnRequisationQty' }).dialog('open');
+            return false;
+        }
+
+        function DisplayStagedQuantity(obj) {
+            $("#ItemQty").empty();
+            var itemGuid = obj.id.split('_');
+            $('#ItemQty').data({ "itemGuid": itemGuid[1], "url": 'ItemStagedQuantity' }).dialog('open');
+            return false;
+        }
+
+        /* HISTORY related data deleated and archived START */
+        function fnGetSelected(oTableLocal) {
+            return oTableLocal.$('tr.row_selected');
+        }
+        function HistoryTabClick() {
+            GetHistoryData();
+        }
+        function GetHistoryData() {
+            HistorySelected = fnGetSelected(oTable);
+            if (HistorySelected != undefined && HistorySelected.length == 1) {
+                var ITGUID = $(HistorySelected).find('#ItemGUID')[0].value;
+                SelectedHistoryRecordID = ITGUID;
+                $('#DivLoading').show();
+                $("#CTab").hide();
+                $("#CtabCL").show();
+                //$('#CtabCL').load('/Master/ItemHistory', function () { $('#DivLoading').hide(); });
+                $('#CtabCL').load('/Inventory/ItemHistory?ItemGUID=' + ITGUID + '', function () { $('#DivLoading').hide(); });
+            }
+            else {
+                    $('#CtabCL').html('');
+                    $("#spanGlobalMessage").html('@ResCommon.msgSelectForViewHistory');
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    return false;
+            }
+        }
+        /* HISTORY related data deleated and archived END */
+
+        /* Cost Narrow Search Related Code  START */
+        function CostNarroSearch(CostDDLObject) {
+            //oTable.fnFilter($(CostDDLObject).val(),null,null,null);
+            if ($(CostDDLObject).val() != "0_-1") {
+                CostNarroSearchValue = $(CostDDLObject).val();
+                _NarrowSearchSave.objSearch.PullCost = CostNarroSearchValue;
+                DoNarrowSearch();
+            }
+            else {
+                CostNarroSearchValue = '';
+                _NarrowSearchSave.objSearch.PullCost = CostNarroSearchValue;
+                DoNarrowSearch();
+            }
+        }
+        function SActive(SSDDLObject) {
+            //oTable.fnFilter($(CostDDLObject).val(),null,null,null);
+            if ($(SSDDLObject).val() != "") {
+                ItemActive = $(SSDDLObject).val();
+                _NarrowSearchSave.objSearch.IsActive = ItemActive;
+                DoNarrowSearch();
+            }
+            else {
+                ItemActive = '';
+                _NarrowSearchSave.objSearch.IsActive = ItemActive;
+                DoNarrowSearch();
+            }
+        }
+        function SSNarroSearch(SSDDLObject) {
+            //oTable.fnFilter($(CostDDLObject).val(),null,null,null);
+            if ($(SSDDLObject).val() != "0") {
+                SSNarroSearchValue = $(SSDDLObject).val();
+                DoNarrowSearch();
+            }
+            else {
+                SSNarroSearchValue = '';
+                DoNarrowSearch();
+            }
+        }
+
+        function AverageCostNarroSearch(AverageCostDDLObject) {
+            //oTable.fnFilter($(CostDDLObject).val(),null,null,null);
+            if ($(AverageCostDDLObject).val() != "0_-1") {
+                AverageCostNarroSearchValue = $(AverageCostDDLObject).val();
+                _NarrowSearchSave.objSearch.AverageUsage = AverageCostNarroSearchValue;
+                DoNarrowSearch();
+            }
+            else {
+                AverageCostNarroSearchValue = '';
+                _NarrowSearchSave.objSearch.AverageUsage = AverageCostNarroSearchValue;
+                DoNarrowSearch();
+            }
+        }
+
+        function TurnsNarroSearch(TurnsDDLObject) {
+            //oTable.fnFilter($(CostDDLObject).val(),null,null,null);
+            if ($(TurnsDDLObject).val() != "0_-1") {
+                TurnsNarroSearchValue = $(TurnsDDLObject).val();
+                _NarrowSearchSave.objSearch.Turns = TurnsNarroSearchValue;
+                DoNarrowSearch();
+            }
+            else {
+                TurnsNarroSearchValue = '';
+                _NarrowSearchSave.objSearch.Turns = TurnsNarroSearchValue;
+                DoNarrowSearch();
+            }
+        }
+
+        /* Cost Narrow Search Related Code  END */
+        function OpenItemInPopup(obj) {
+            $("#ItemModel").empty();
+            if ($('#global_filter').val().length > 0) {
+                var strUrl = '@Url.Action("../Barcode/LoadItemMasterModel")';
+                strUrl = strUrl + "?BarcodeText=" + $('#global_filter').val();
+                $('#ItemModel').data({ "url": strUrl }).dialog('open');
+            }
+            return false;
+        }
+
+</script>
+
+<script type="text/javascript">
+    var TabsArry = [];
+    var isTabClick = false;
+    TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+
+    ];
+    if ('@IsShowChangeLog.ToString().ToUpper()' == 'TRUE') {
+        TabsArry.push(new TabClass("tab6", '@eTurns.DTO.Resources.ResCommon.ChangeLog', "callbackCL();", false, true));
+    }
+    function callbacknew() { window.location.hash = '#new'; ShowNewTab('ItemCreate', 'frmItemMaster'); }
+    function callbackhistory() {
+        window.location.hash = '#list';
+        if (IsEditMode) {
+            IsEditMode = false;
+        }
+        if (IsReloadItemList == true) {
+            $('#myDataTable').dataTable().fnDraw();
+            IsReloadItemList = false;
+        }
+
+        _NarrowSearchSave.applySearchOnTabChange();
+    }
+
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+        }
+
+    }
+    $(document).ready(function () {
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+    });
+    //HistoryTabClick(); }
+    function callbackCL() { HistoryTabClick(); }
+</script>
+<script type="text/javascript">
+
+    @*jQuery(function () {
+
+        setTimeout(function () {
+            $.ajax({
+                "dataType": 'json',
+                "type": "POST",
+                "url": '@Url.Action("ClearSession", "Inventory")',
+                "success": function (retdata) {
+
+                }
+            })
+
+        }, 4000);
+
+    });*@
+
+</script>
+<script type="text/javascript">
+
+    $(document).ready(function () {
+
+        $("#divMoveMaterialPopup").dialog(
+          {
+              autoOpen: false, show: "blind", hide: "explode", height: 450, width: 800
+            , modal: true, title: '@ResMoveMaterial.DailogTitle',
+              open: function () {
+                  $('#DivLoading').show();
+                  var obj = $(this).data("objData");
+                  if ((obj.LotNumberTracking != null && obj.LotNumberTracking.toLowerCase() == 'true') || (obj.SerialNumberTracking != null && obj.SerialNumberTracking.toLowerCase() == 'true')) {
+                      OpenMoveMaterialPopupByItemGuidForLotSerial(obj);
+                  }
+                  else {
+                      OpenMoveMaterialPopupByItemGuid(obj);
+                  }
+
+
+              },
+              close: function () {
+                  // alert('@(ViewBag.ItemGUID)');
+                  $("#divMoveMaterialPopup").empty();
+                  $('#DivLoading').hide();
+
+                  var obj = $(this).data("objData");
+                  //  alert(obj.ItemGUID);
+                  //$('#ItemModeDataTable').dataTable().fnDraw();
+                  ItemIDToOpen = obj.ItemGUID;
+                  $('#myDataTable').dataTable().fnDraw();
+                  //                  if ($('#ItemBinWiseSummaryTable' + obj.ItemGUID) != undefined) {
+                  //                      $("#ItemBinWiseSummaryTable" + obj.ItemGUID).DataTable().fnDraw();
+                  //                  }
+
+              }
+          });
+
+        $('#myDataTable').on('tap click', 'a[id^="aEditLink"]', function () {
+            var tr = $(this).parent().parent();
+            $("#myDataTable").find("tbody tr").removeClass("row_selected");
+            $(tr).addClass('row_selected');
+
+        });
+
+    });
+
+
+    function CallThisFunctionFromModel(msg) {
+        if (msg == 'success') {
+            GetPullNarrowSearchData('ItemMaster', false, false);
+            CallNarrowfunctions();
+
+            if (oTable !== undefined && oTable != null) {
+                oTable.fnDraw();
+            }
+        }
+    }
+
+    function MoveMaterial(btn, BinId) {
+        var itemGuid = $(btn).parent().parent().find('#ItemGUID').val();
+        var serialNumberTracking = $(btn).parent().parent().find('#SerialNumberTracking').val();
+        var lotNumberTracking = $(btn).parent().parent().find('#LotNumberTracking').val();
+        $("#divMoveMaterialPopup").empty();
+        var objData = { "ItemGUID": itemGuid, "MoveType": '@((int)MoveType.InvToInv)', "OpenFrom": '@MoveDialogOpenFrom.FromItem', "SourceBinID": BinId, "SerialNumberTracking": serialNumberTracking, "LotNumberTracking": lotNumberTracking };
+        $('#divMoveMaterialPopup').data({ "objData": objData }).dialog('open');
+    }
+
+    function PollItem(btn, BinId) {
+        var itemGuid = $(btn).parent().parent().find('#ItemGUID').val();
+
+         $.ajax({
+            'url': '@Url.Content("~/Inventory/SaveItemPollRequest")',
+             'data': { 'BinId': BinId, 'ItemGuid': itemGuid },
+            'type': 'Post',
+            'async': false,
+            'cache': false,
+            'dataType': 'json',
+             'success': function (response) {
+                if (response.Status === "ok") {
+                    $('#DivLoading').hide();
+                    showNotificationDialog();
+                    $("#spanGlobalMessage").html("Success");
+                    $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+                    if (response.IsRefresh) {
+                        oTable.fnDraw();
+                    }
+                }
+            },
+            'error': function (xhr) {
+                $('#DivLoading').hide();
+            }
+
+        });
+
+
+    }
+
+    function TareItem(btn, BinId) {
+        var itemGuid = $(btn).parent().parent().find('#ItemGUID').val();
+
+         $.ajax({
+            'url': '@Url.Content("~/Inventory/SaveItemTareRequest")',
+             'data': { 'BinId': BinId, 'ItemGuid': itemGuid },
+            'type': 'Post',
+            'async': false,
+            'cache': false,
+            'dataType': 'json',
+             'success': function (response) {
+                if (response.Status === "ok") {
+                    $('#DivLoading').hide();
+                    showNotificationDialog();
+                    $("#spanGlobalMessage").html("Success");
+                    $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                }
+            },
+            'error': function (xhr) {
+                $('#DivLoading').hide();
+            }
+
+        });
+
+
+    }
+
+      function CalibrateItem(btn, BinId) {
+        var itemGuid = $(btn).parent().parent().find('#ItemGUID').val();
+
+         $.ajax({
+            'url': '@Url.Content("~/Inventory/SaveItemCalibrateRequest")',
+             'data': { 'BinId': BinId, 'ItemGuid': itemGuid },
+            'type': 'Post',
+            'async': false,
+            'cache': false,
+            'dataType': 'json',
+             'success': function (response) {
+                if (response.Status === "ok") {
+                    $('#DivLoading').hide();
+                    showNotificationDialog();
+                    $("#spanGlobalMessage").html("Success");
+                    $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                }
+            },
+            'error': function (xhr) {
+                $('#DivLoading').hide();
+            }
+
+        });
+
+
+    }
+
+    function CheckMoveQty(obj, qty) {
+
+        if (isNaN(parseFloat($(obj).val())) === true || parseFloat($(obj).val()) <= 0) {
+
+            alert("Please enter move quantity.");
+            setTimeout("$('#txtMoveQty').focus();", 100);
+            return false;
+        }
+        else if (isNaN(parseFloat(qty)) === true || parseFloat(qty) <= 0) {
+            alert("No quantity available for move.");
+            setTimeout("$('#txtMoveQty').focus();", 100);
+            return false;
+        }
+        else if (parseFloat(qty) < parseFloat($(obj).val())) {
+            alert("Move quantity is greater than available quantity.");
+            //$(obj).focus();
+            setTimeout("$('#txtMoveQty').focus();", 100);
+            return false;
+        }
+        return true;
+    }
+
+    @*function SaveMoveItemToLocation(obj) {
+        $('#DivLoading').css('z-index', '999999999');
+        $('#DivLoading').show();
+
+        var tbl = $(obj).parent().parent().parent().parent();
+        var moveQty = $(tbl).find("#txtMoveQty").val()
+        var availQty = $(tbl).find("#hdnAvailQty").val()
+        var moveBinId = $(tbl).find("#ddlMoveLocation").val();
+        var locationName = '';
+        if (isNaN(parseInt(moveBinId)) === true || parseInt(moveBinId) <= 0) {
+            locationName = $('#txtMoveLocationName').val();
+            moveBinId = 0;
+            if ($.trim(locationName).toString().length <= 0) {
+                alert("Please select location to move.");
+                setTimeout("$('#txtMoveLocationName').focus();", 100);
+                $('#DivLoading').hide();
+                return false;
+            }
+        }
+        else if (isNaN(parseFloat(moveQty)) === true || parseFloat(moveQty) <= 0) {
+            alert("Please enter move quantity.");
+            setTimeout("$('#txtMoveQty').focus();", 100);
+            $('#DivLoading').hide();
+            return false;
+        }
+        else if (isNaN(parseFloat(availQty)) === true || parseFloat(availQty) <= 0) {
+            alert("No quantity available for move.");
+            setTimeout("$('#txtMoveQty').focus();", 100);
+            $('#DivLoading').hide();
+            return false;
+        }
+        else if (parseFloat(availQty) < parseFloat(moveQty)) {
+            alert("Move quantity is greater than available quantity.");
+            setTimeout("$('#txtMoveQty').focus();", 100);
+            $('#DivLoading').hide();
+            return false;
+        }
+        var binID = $(tbl).find("#hdnBinID").val()
+        var itemGuID = $(tbl).find("#hdnItemGUID").val()
+
+        $.ajax({
+            'url': '@Url.Content("~/Inventory/SaveMoveQuantityToLocation")',
+            'data': { 'BinId': binID, 'ItemGuid': itemGuID, 'MoveBinID': moveBinId, 'Quantity': moveQty, "LocationName": locationName },
+            'type': 'Post',
+            'async': false,
+            'cache': false,
+            'dataType': 'json',
+            'success': function (response) {
+                if (response.Status === "ok") {
+                    $('#ItemBinWiseSummaryTable' + itemGuID).dataTable().fnDraw();
+                    $('#divMoveMaterialModel').dialog("close");
+
+                    $('#DivLoading').hide();
+                }
+            },
+            'error': function (xhr) {
+                $('#DivLoading').hide();
+            }
+
+        });
+
+        return false;
+    }*@
+
+    function CancleMove(obj) {
+        $('#divMoveMaterialModel').dialog("close");
+        return false;
+    }
+
+    function OpenImg(curObj) {
+    }
+
+    $('#aBarcodeLabelsWithBins').click(function () {
+        $("#ItemsBin").dialog('open');
+        return false;
+    });
+    $('#aBarcodeLabelsWithSerialLot').click(function () {
+        $("#dlgItemsSerialLotForLabel").dialog('open');
+        return false;
+    });
+</script>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" +version)"></script>

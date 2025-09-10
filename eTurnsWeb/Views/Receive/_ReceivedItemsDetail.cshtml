@@ -1,0 +1,240 @@
+﻿@model eTurns.DTO.OrderDetailsDTO
+<div class="innerGrid" style="background: none repeat scroll 0 0 #F8F8F8; padding: 10px 0 0 0px;">
+    <table width="100%">
+        <tr>
+            <td class="BtnBlock" style="float: none; border: 1px solid #F8F8F8; height: 2px;">
+                <div class="innerHeadSec">
+                    <div style="position: absolute; left: 390px; top: -11px; width: 350px; z-index: 10;">
+                        <a style="float:right" href="javascript:void(null);" onclick="DeleteInnerGridTableDataNew('@Model.GUID','@Model.ItemGUID');" title="" id="btnDeleteRecords_@(Model.GUID)_@(Model.ItemGUID)">
+                            <img src="~/Content/images/delete.png" alt="" />
+                        </a>
+                        <input type="button" id="InnerGridGobtn" class="go" value="@eTurns.DTO.Resources.ResGridHeader.Go" />
+                        <input type="text" id="InnerGridPageNumber" class="inputNum" />
+                        <span class="label">@eTurns.DTO.Resources.ResGridHeader.GoToPage</span>
+                    </div>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 15px 0px 35px 0px; border: 1px solid #F8F8F8;">
+                <div class="userContentInnerGrid">
+                    <table id="ItemLocationTable_@(Model.GUID)_@(Model.ItemGUID)" class="display">
+                        <thead>
+                            <tr>
+                                <th>
+                                    @eTurns.DTO.ResBin.BinNumber
+                                </th>
+                                <th>@eTurns.DTO.ResItemLocationDetails.SerialNumber
+                                </th>
+                                <th>@eTurns.DTO.ResItemLocationDetails.LotNumber
+                                </th>
+                                <th>@eTurns.DTO.ResItemLocationDetails.ExpirationDate
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.CustomerOwnedQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.ConsignedQuantity
+                                </th>
+                                <th>
+                                    @eTurns.DTO.ResItemLocationDetails.Created
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<script type="text/javascript">
+    var oInnerGrid;
+    var ItemGUID = '@Model.ItemGUID';
+    var OrderDetailID = '@Model.GUID';
+
+    var ColumnObjectInnerGrid = new Array();
+    ColumnObjectInnerGrid.push({ mDataProp: "BinNumber", sClass: "read_only", fnRender: function (obj, val) { return val + "<input type='hidden' id='hdnUniqueID' value='" + obj.aData.GUID.toString() + "' />" } });
+    ColumnObjectInnerGrid.push({ mDataProp: "SerialNumber", sClass: "read_only" });
+    ColumnObjectInnerGrid.push({ mDataProp: "LotNumber", sClass: "read_only" });
+    ColumnObjectInnerGrid.push({ mDataProp: "ExpirationDate", sClass: "read_only", fnRender: function (obj, val) { if (val == '') return ""; else return GetDateInFullFormat(val); } });
+    ColumnObjectInnerGrid.push({ mDataProp: "CustomerOwnedQuantity", sClass: "read_only" });
+    ColumnObjectInnerGrid.push({ mDataProp: "ConsignedQuantity", sClass: "read_only" });
+    ColumnObjectInnerGrid.push({ mDataProp: "Created", sClass: "read_only", fnRender: function (obj, val) { return GetDateInFullFormat(val); } });
+
+
+    $(document).ready(function () {
+
+        oInnerGrid = $("#ItemLocationTable_" + OrderDetailID + "_" + ItemGUID).dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "sScrollX": "100%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            "aaSorting": [[1, "asc"]],
+            "oColReorder": {},
+            "bAutoWidth": false,
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "bServerSide": true,
+            "fnStateSaveParams": function (oSettings, oData) {
+                $.ajax({
+                    "url": "/Master/SaveGridState",
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'ReceivedLineItemLocationList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+
+                        o = json;
+                    }
+                });
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": "/Master/LoadGridState",
+                    "type": "POST",
+                    data: { ListName: 'ReceivedLineItemLocationList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "sAjaxSource": '@Url.Content("~/Inventory/ItemLocationsListAjax")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                aoData.push({ "name": "ItemGUID", "value": ItemGUID });
+                aoData.push({ "name": "OrderDetailGUID", "value": OrderDetailID });
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting.length != 0)
+                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                    }
+                })
+            },
+            "fnDrawCallback": function (oSettings) {
+                UpdateReceiveQty($('#ddlOrders_' + '@Model.ItemGUID').val(), '@Model.ItemGUID');
+            },
+            "aoColumns": ColumnObjectInnerGrid
+        }).makeEditable();
+
+        $('#ItemLocationTable_@(@Model.GUID)_@(Model.ItemGUID)' + '_wrapper .ColVis').css({ 'left': '780px' });
+    });
+
+
+    var objColumnsLocation = {
+        '@MvcHtmlString.Create(eTurns.DTO.ResBin.BinNumber)': 0,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.SerialNumber)': 1,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.LotNumber)': 2,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.ExpirationDate)': 3,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.CustomerOwnedQuantity)': 4,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.ConsignedQuantity)': 5,
+        '@MvcHtmlString.Create(eTurns.DTO.ResItemLocationDetails.Created)': 6
+    };
+
+
+
+    $("#btnModelYesInnerGrid").live("click", function () {
+        var anSelectedLocation = fnGetSelectedInnerGrid(oInnerGrid);
+
+        var stringIDs = "";
+        for (var i = 0; i <= anSelectedLocation.length - 1; i++) {
+            //stringIDs = stringIDs + anSelectedLocation[i].id + ",";
+            stringIDs = stringIDs + $(anSelectedLocation[i]).find('#hdnUniqueID').val() + ",";
+        }
+
+        if (anSelectedLocation.length !== 0) {
+            $.ajax({
+                'url': '@Url.Content("~/Order/DeleteRecieveAndUpdateReceivedQty")',
+                'data': { 'ItemGUID': ItemGUID, 'ordDetailGUID': OrderDetailID, 'deleteIDs': stringIDs },
+                'async': false,
+                'cache': false,
+                'dataType': 'text',
+                'success': function (response) {
+                    if (response == "ok") {
+                        for (var i = 0; i <= anSelectedLocation.length - 1; i++) {
+                            oInnerGrid.fnDeleteRow(anSelectedLocation[i]);
+                        }
+                        if (anSelectedLocation.length > 0)
+                            $("#spanGlobalMessage").text("Record(" + anSelectedLocation.length + ") deleted successfully.");
+                        oInnerGrid.fnDraw();
+                        showNotificationDialog();
+                        UpdateReceiveQty(OrderDetailID);
+                    }
+                },
+                'error': function (err) {
+
+                }
+            });
+
+            $.modal.impl.close();
+        }
+    });
+    function fnGetSelectedInnerGrid(oTableLocal) {
+        return oTableLocal.$('tr.row_selected');
+    }
+
+    function DeleteInnerGridTableData() {
+
+
+        var anSelectedLocation = fnGetSelectedInnerGrid(oInnerGrid);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelectedLocation.length - 1; i++) {
+            stringIDs = stringIDs + anSelectedLocation[i].id + ",";
+        }
+        if (anSelectedLocation.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+        }
+    }
+
+
+    function DeleteInnerGridTableDataNew(OrdDtlGUID, ItmGUID) {
+        var anSelectedLocation = fnGetSelectedInnerGrid($("#ItemLocationTable_" + OrdDtlGUID + "_" + ItmGUID).dataTable());
+        var stringIDs = "";
+        for (var i = 0; i <= anSelectedLocation.length - 1; i++) {
+            stringIDs = stringIDs + anSelectedLocation[i].id + ",";
+        }
+        if (anSelectedLocation.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+        }
+    }
+
+    function CallThisFunctionFromModel() {
+        $("#ItemLocationTable_" + OrderDetailID + "_" + ItemGUID).dataTable().fnDraw();
+        //oInnerGrid.fnDraw();
+    }
+</script>

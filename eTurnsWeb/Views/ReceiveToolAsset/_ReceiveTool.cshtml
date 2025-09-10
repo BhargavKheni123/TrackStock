@@ -1,0 +1,530 @@
+@model ReceivableToolDTO
+@{
+    string strDecimalFormat = eTurnsWeb.Helper.SessionHelper.QuantityFormat;
+    string strPriceFormat = eTurnsWeb.Helper.SessionHelper.PriceFormat;
+    bool isAllowConsigned = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowedToChangeConsignedQuantityItems, eTurnsWeb.Helper.SessionHelper.PermissionType.Approval);
+    bool isCost = false;
+    isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+    bool isUpdate = false;
+    bool isInsert = false;
+    isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ReceiveToolAsset, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ReceiveToolAsset, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    eTurns.DAL.RegionSettingDAL objRegionSettingDAL = new eTurns.DAL.RegionSettingDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+
+}
+<div class="innerGrid" id="InnerGrid_@Model.ToolAssetOrderDetailID" style="background: none repeat scroll 0 0 #F8F8F8; padding: 10px;float:left;  width: 98%;">
+    @if ((Model.OrderStatus < (int)ToolAssetOrderStatus.Closed && !Model.IsCloseTool.GetValueOrDefault(false)) && (!Model.SerialNumberTracking  ))
+    {
+        <table id="NewReceiveEntry@(Model.ToolAssetOrderDetailID)" class="display" style="float:left;clear:both;width:36%">
+            <thead>
+                <tr>
+                    <th>
+                        @eTurns.DTO.ResToolAssetOrder.Receive
+                    </th>
+                    @if (Model.SerialNumberTracking)
+                    {
+                    <th>
+                        @eTurns.DTO.ResToolAssetQuantityDetail.SerialNumber
+                    </th>
+                    }
+                     
+                    @if (!Model.SerialNumberTracking)
+                    {
+                        <th>
+                            Quantity To Receive 
+                        </th>
+                    }
+                    <th>
+                        @eTurns.DTO.ResToolAssetOrder.PackSlipNumber
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResReceiveToolAssetOrderDetails.ReceiveBin
+                    </th>
+                    
+                    <th>
+                        @eTurns.DTO.ResToolAssetQuantityDetail.Cost
+                    </th>
+                    
+                    <th>
+                        @eTurns.DTO.ResToolAssetQuantityDetail.ReceivedDate
+                    </th>
+                    <th>
+                        @eTurns.DTO.Resources.ResCommon.CreatedOn
+                    </th>
+                    <th>
+                        @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                    </th>
+                    <th>
+                        @eTurns.DTO.Resources.ResCommon.AddedFrom
+                    </th>
+                    <th>
+                        @eTurns.DTO.Resources.ResCommon.EditedFrom
+                    </th>
+                    <th>
+                        @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                    </th>
+                    <th>
+                        @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                    </th>
+                    @Html.RenderColumnsHeader("ReceivedToolAssetOrderTransferDetail", typeof(eTurns.DTO.ResReceiveToolAssetOrderDetails), "")
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        @if (isInsert && !Model.IsCloseTool.GetValueOrDefault(false))
+                        {
+                            
+                                <input type="button" id="btnReceive_@Model.ToolAssetOrderDetailID" onclick="javascript:return ReceiveNew('@Model.ToolAssetOrderDetailID',this)" class="GridBtnStyle inLineBtn" value="Receive" />
+                             
+                        }
+                         <input type="hidden" id="hdnIsSerial_@Model.ToolAssetOrderDetailID" value="@Model.SerialNumberTracking.ToString()" />
+                        <input type="hidden" id="hdnOrderDetailGUID_@Model.ToolAssetOrderDetailID" value="@Model.ToolAssetOrderDetailGUID" />
+                        <input type="hidden" id="hdnToolGuid_@Model.ToolAssetOrderDetailID" value="@Model.ToolGUID" />
+                        <input type="hidden" id="hdnToolType_@Model.ToolAssetOrderDetailID" value="@Model.ToolType" />
+                        <input type="hidden" id="hdnRequestedQty_@Model.ToolAssetOrderDetailID" value="@Model.RequestedQuantity" />
+                        <input type="hidden" id="hdnApprovedQty_@Model.ToolAssetOrderDetailID" value="@Model.ApprovedQuantity" />
+                        <input type="hidden" id="hdnReceivedQty_@Model.ToolAssetOrderDetailID" value="@Model.ReceivedQuantity" />
+                        <input type="hidden" id="hdnOrderGuid_@Model.ToolAssetOrderDetailID" value="@Model.ToolAssetOrderGUID" />
+                        
+                        @Html.HiddenFor(t => t.ToolCost, new { @id = "hdnCostBox_" + Model.ToolAssetOrderDetailID })
+                        @Html.HiddenFor(model => Model.IsOnlyFromUI)
+                    </td>
+                    @if (Model.SerialNumberTracking)
+                    {
+                        <td>
+                            @Html.TextBox("txtsrnumber_" + Model.ToolAssetOrderDetailID, "", new { @class = "text-boxinner", @onblur = "return isDuplicateSerial('" + Model.ToolAssetOrderDetailID.ToString() + "')", @style = "width:80px;" })
+                        </td>
+                    }
+                    
+                   
+                    @if (!Model.SerialNumberTracking)
+                    {
+                        <td>
+                            @if (Model.SerialNumberTracking)
+                            {
+                                @Html.TextBox("txtReceiveQuantity_" + Model.ToolAssetOrderDetailID, (Model.ApprovedQuantity - Model.ReceivedQuantity) > 0 ? Model.ApprovedQuantity - Model.ReceivedQuantity : 0, new { @class = "text-boxinner numericinput",@style="width:93%", @onblur = "fillReceivedDateQuantity('txtReceiveQuantity_','" + Model.ToolAssetOrderDetailID + "');" })
+                            }
+                            else
+                            {
+                                @Html.TextBox("txtReceiveQuantity_" + Model.ToolAssetOrderDetailID, (Model.ApprovedQuantity - Model.ReceivedQuantity) > 0 ? Model.ApprovedQuantity - Model.ReceivedQuantity : 0, new { @class = "text-boxinner numericinput", @style = "width:93%", @onblur = "fillReceivedDateQuantity('txtReceiveQuantity_','" + Model.ToolAssetOrderDetailID + "');" })
+                            }
+                        </td>
+                    }
+                    <td>
+                        @Html.TextBox("txtPackslip_" + Model.ToolAssetOrderDetailID, Model.ODPackSlipNumbers, new { @class = "text-boxinner", @style = "width:93%;" })
+                    </td>
+                    <td>
+                        @if (HasOnTheFlyEntryRight)
+                        {
+                            if (@Model.ReceiveBinName != "[|EmptyStagingBin|]")
+                            {
+                                <span style='position: relative'>
+                                    @Html.TextBoxFor(modelItem => modelItem.ReceiveBinName, new { @id = "txtReceiveBinNumber_" + Model.ToolAssetOrderDetailID, @class = "text-boxinner ReciveInAuto", @style = "width:90px;" })
+                                    <a id='lnkShowAllOptions' href='javascript:void(0);' style='position: absolute; right: 5px;
+                                    top: 0px;' class="ShowAllOptions">
+                                        <img src='/Content/images/arrow_down_black.png' alt='select' />
+                                    </a>
+                                </span>
+                            }
+                        }
+                        else
+                        {
+                            List<LocationMasterDTO> lstBinMaster = new List<LocationMasterDTO>();
+                            lstBinMaster.Add(new LocationMasterDTO() { Location = Model.ReceiveBinName });
+                            @Html.DropDownList("slctBinNumber", new SelectList(lstBinMaster, "Location", "Location", Model.ReceiveBinName), new { @id = "slctReceiveBinNumber_" + Model.ToolAssetOrderDetailID, @class = "selectBox" })
+                            <input type="text" name="txtReceiveBinNumber_@(Model.ToolAssetOrderDetailID)" id="txtReceiveBinNumber_@(Model.ToolAssetOrderDetailID)" value="@Model.ReceiveBinName" style="display:none;" />
+                        }
+                    </td>
+                    @if (isCost)
+                    {
+                        <td>
+                                @Html.TextBoxFor(modelItem => Model.ToolCost, strPriceFormat, new { @class = "numericinput text-box disableBack", @id = "txtCostBox_" + Model.ToolAssetOrderDetailID, @readonly = "readonly" })
+                        </td>
+                    }
+                    <td>
+                        @*@Html.TextBox("txtReceived_" + Model.ToolAssetOrderDetailID, eTurns.DAL.DateTimeUtility.DateTimeNow.ToString("MM/dd/yyyy"), new { name = "Received", @class = "text-boxinner", @style = "width:85px" })*@
+                        @Html.TextBox("txtReceived_" + Model.ToolAssetOrderDetailID, objRegionSettingDAL.GetCurrentDatetimebyTimeZone(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.UserID, eTurns.DTO.Resources.ResourceHelper.CurrentCult, eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture).ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture), new { name = "Received", @class = "text-boxinner", @style = "width:85px" })
+                    </td>
+                    <td>
+                        @Html.Label(Model.CreatedDate, objRegionSettingDAL.GetCurrentDatetimebyTimeZone(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.UserID, eTurns.DTO.Resources.ResourceHelper.CurrentCult, eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture).ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture), new { @style = "width:180px;", @readonly = "readonly" })
+                    </td>
+                    <td>
+                        @Html.Label(Model.UpdatedDate, objRegionSettingDAL.GetCurrentDatetimebyTimeZone(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.UserID, eTurns.DTO.Resources.ResourceHelper.CurrentCult, eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture).ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture), new { @style = "width:180px;", @readonly = "readonly" })
+                    </td>
+                    <td>
+                        @Html.Label(Model.AddedFrom, Model.EditedFrom, new { @style = "width:180px;", @readonly = "readonly" })
+                    </td>
+                    <td>
+                        @Html.Label(Model.EditedFrom, Model.EditedFrom, new { @style = "width:180px;", @readonly = "readonly" })
+                    </td>
+                    <td>
+                        @Html.Label(Model.ReceivedOnDateWeb, objRegionSettingDAL.GetCurrentDatetimebyTimeZone(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.UserID, eTurns.DTO.Resources.ResourceHelper.CurrentCult, eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture).ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture), new { @style = "width:180px;", @readonly = "readonly" })
+                    </td>
+                    <td>
+                        @Html.Label(Model.ReceivedOnDate, objRegionSettingDAL.GetCurrentDatetimebyTimeZone(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.UserID, eTurns.DTO.Resources.ResourceHelper.CurrentCult, eTurnsWeb.Helper.SessionHelper.RoomDateFormat,eTurnsWeb.Helper.SessionHelper.RoomCulture).ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture), new { @style = "width:180px;", @readonly = "readonly" })
+                    </td>
+                    @Html.RenderColumnsArrayEditableObjectForDOM("ReceivedToolAssetOrderTransferDetail")
+                </tr>
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <table id="NewReceiveEntry@(Model.ToolAssetOrderDetailID)" style="float:display:none;">
+            <tr>
+                <td>
+                     <input type="hidden" id="hdnIsSerial_@Model.ToolAssetOrderDetailID" value="@Model.SerialNumberTracking.ToString()" />
+                    <input type="hidden" id="hdnOrderDetailGUID_@Model.ToolAssetOrderDetailID" value="@Model.ToolAssetOrderDetailGUID" />
+                    <input type="hidden" id="hdnToolGuid_@Model.ToolAssetOrderDetailID" value="@Model.ToolGUID" />
+                    <input type="hidden" id="hdnToolType_@Model.ToolAssetOrderDetailID" value="@Model.ToolType" />
+                    <input type="hidden" id="hdnRequestedQty_@Model.ToolAssetOrderDetailID" value="@Model.RequestedQuantity" />
+                    <input type="hidden" id="hdnApprovedQty_@Model.ToolAssetOrderDetailID" value="@Model.ApprovedQuantity" />
+                    <input type="hidden" id="hdnReceivedQty_@Model.ToolAssetOrderDetailID" value="@Model.ReceivedQuantity" />
+                    <input type="hidden" id="hdnOrderGuid_@Model.ToolAssetOrderDetailID" value="@Model.ToolAssetOrderGUID" />
+                </td>
+            </tr>
+        </table>
+    }
+    <div id="ItemReceivedGrid_@Model.ToolAssetOrderDetailID" style="float: left;clear:both; width: 70%;margin:25px 0px 15px 0px;">
+    </div>
+</div>
+<script type="text/javascript">
+    var IsLoadMoreLocations = false;
+    $(document).ready(function () {
+
+        UDFfillEditableOptionsForGrid();
+
+        $('.ShowAllOptions').click(function () {
+            $(this).siblings('.ReciveInAuto').trigger("focus");
+            $(this).siblings(".ReciveInAuto").autocomplete("search", " ");
+        });
+
+        $('form').areYouSure();
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormatSR").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 0
+        });
+
+        $("[name*=" + "Received" + "]").blur(function () {
+        }).datepicker({
+            dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+            changeMonth: true,
+            changeYear: true,
+            clearText: 'Clear', onClose: function () { this.focus(); }
+        });
+
+        $("[name*=" + "Expiration" + "]").blur(function () {
+        }).datepicker({
+            dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+            changeMonth: true,
+            changeYear: true,
+            clearText: 'Clear', onClose: function () { this.focus(); }
+        });
+        
+
+        fillReceivedToolGrid('@Model.ToolAssetOrderDetailID');
+
+        $('#NewReceiveEntry' + '@Model.ToolAssetOrderDetailID').on({
+            mouseover: function () {
+                var itmGuid = '@Model.ToolGUID';
+                var orderGuid = '@Model.ToolAssetOrderGUID';
+                if (gblControllerName.toLowerCase() == "order") {
+                    getItemInventoryStagingLocation1($(this), "", itmGuid, orderGuid);
+                }
+                else {
+                    getItemInventoryStagingLocation($(this), "", itmGuid, orderGuid);
+                }
+
+            },
+            focus: function () {
+                var itmGuid = '@Model.ToolGUID';
+                var orderGuid = '@Model.ToolAssetOrderGUID';
+                getItemInventoryStagingLocation($(this), "", itmGuid, orderGuid);
+            },
+            change: function () {
+                $(this).parent().find("input[id='txtReceiveBinNumber_@Model.ToolAssetOrderDetailID']").val($(this).val());
+
+            }
+        }, "#slctReceiveBinNumber_" + '@Model.ToolAssetOrderDetailID');
+
+        $('#NewReceiveEntry' + '@Model.ToolAssetOrderDetailID').on('focus', "input.ReciveInAuto", function (e) {
+
+            var ajaxURL = '/ReceiveToolAsset/GetToolLocations';
+            var tr = $(this).parent().parent().parent();
+            var toolGuid = '@Model.ToolGUID';
+            var toolAssetOrderGUID = '@Model.ToolAssetOrderGUID';
+
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'ToolAssetOrderGuid': toolAssetOrderGUID, 'ToolGuid': toolGuid, 'NameStartWith': request.term, 'IsLoadMoreLocations': IsLoadMoreLocations }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key
+                                }
+                            }));
+
+                        },
+                        error: function (err) {
+                            $('#DivLoading').hide();
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    if (ui.item.value == MoreLocation) {
+                        IsLoadMoreLocations = true;
+                        $(this).trigger("focus");
+                        $(this).autocomplete("search", " ");
+                        return false;
+                    }
+                    else {
+                        $(this).val(ui.item.value);
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                    $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                    $('ul.ui-autocomplete').css('max-height', '300px');
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                }
+            });
+        });
+    });
+
+
+
+
+    
+
+    function getUDFValues(udfName, orddtlID) {
+        var UdfVal = '';
+        if ($('#NewReceiveEntry' + orddtlID).find('#' + udfName).length > 0) {
+            if ($('#NewReceiveEntry' + orddtlID).find("#" + udfName)[0].nodeName === "SELECT")
+                UdfVal = $('#NewReceiveEntry' + orddtlID).find("#" + udfName + " option:selected").text();
+            else
+                UdfVal = $('#NewReceiveEntry' + orddtlID).find('#' + udfName).val();
+        }
+        return UdfVal;
+    }
+
+
+
+
+    function ReceiveNew(ordDetailID, obj) {
+        
+        $(obj).attr('disabled', 'disabled');
+        $('#DivLoading').show();
+        var isError = false;
+        var ErrorMassage = "";
+
+        var tr = $(obj).parent().parent();
+        var RecvQty = 0;
+        var RecvItemNumber = '@Model.ToolName';
+        var RecvCost = '@Model.ToolCost';
+        var RecvOrderNumber = '@Model.ToolAssetOrderNumber';
+        var RecvReleaseNumber = '@Model.OrderReleaseNumber';
+        var RecvItemTypeSerialLot = '';
+        var RecvSerialNumberTracking = '@Model.SerialNumberTracking';
+        var RecvRequestedQty = '@Model.RequestedQuantity';
+        var RecvApprovedQty = '@Model.ApprovedQuantity';
+        var RecvReceivedQty = '@Model.ReceivedQuantity';
+        var RecvItemGUID = '@Model.ToolGUID';
+        var RecvOrderDetailGUID = '@Model.ToolAssetOrderDetailGUID';
+        var RecvOrderGUID = '@Model.ToolAssetOrderGUID';
+        var RecvOrderStatus = '@Model.OrderStatus';
+        var RecvDate = getCurrentDate();
+        var RecvPackSlip = $(tr).find('#txtPackslip_' + ordDetailID).val();
+        var RecvComment = $(tr).find('#Comment_' + ordDetailID).val();
+        var RecvBin = $(tr).find('#txtReceiveBinNumber_' + ordDetailID).val();
+
+        var RecvUDF1 = getUDFValues('UDF1', ordDetailID);
+        var RecvUDF2 = getUDFValues('UDF2', ordDetailID);
+        var RecvUDF3 = getUDFValues('UDF3', ordDetailID);
+        var RecvUDF4 = getUDFValues('UDF4', ordDetailID);
+        var RecvUDF5 = getUDFValues('UDF5', ordDetailID);
+        var ExpDate = '';
+        var Lot = '';
+        var Serial = '';
+
+        if ($(tr).find("#txtCostBox_" + ordDetailID).length > 0) {
+            RecvCost = $(tr).find("#txtCostBox_" + ordDetailID).val();
+        }
+        else if ($(tr).find("#hdnCostBox_" + ordDetailID).length > 0) {
+            RecvCost = $(tr).find("#hdnCostBox_" + ordDetailID).val();
+        }
+
+        if ($(tr).find("#txtReceived_" + ordDetailID).length > 0) {
+            RecvDate = $(tr).find("#txtReceived_" + ordDetailID).val();
+        }
+
+        if ($(tr).find("#txtReceiveQuantity_" + ordDetailID).length > 0 && RecvQty == 0)
+            RecvQty = $(tr).find("#txtReceiveQuantity_" + ordDetailID).val();
+
+        if (RecvSerialNumberTracking == 'True') {
+            RecvItemTypeSerialLot = "Serial#";
+            RecvSerialNumberTracking = true;
+            RecvQty = 1;
+            Serial = $(tr).find("#txtsrnumber_" + ordDetailID).val();
+        }
+        
+         
+        if (RecvItemTypeSerialLot.length > 0) {
+            RecvItemTypeSerialLot = RecvItemTypeSerialLot + " Tracking Item";
+        }
+
+        if (RecvBin.length <= 0) {
+            isError = true;
+            ErrorMassage += "<b style='color: Red;'>Please enter bin number.</b><br/>"
+        }
+
+        if ((RecvSerialNumberTracking == 'True' || RecvSerialNumberTracking == true) && Serial.length <= 0) {
+            isError = true;
+            ErrorMassage += "<b style='color: Red;'>Please enter serial number.</b><br/>"
+        }
+     
+        else if (isNaN(RecvQty) || RecvQty <= 0) {
+            isError = true;
+            ErrorMassage += "<b style='color: Red;'>Please enter quantity to receive.</b><br/>"
+        }
+
+        if (isError) {
+            ErrorMassage = '<b>This Tool is not able to receive, due to following reasons.</b><br />' + ErrorMassage;
+            $('#OrdReceivedErrorDialog').find("#OrdReceivErrorMSG").html(ErrorMassage);
+            $('#DivLoading').hide();
+            $('#OrdReceivedErrorDialog').modal();
+            $('#btnReceive_' + ordDetailID).removeAttr('disabled');
+            return false;
+        }
+        else {
+            var isTrue = false;
+
+            if (parseFloat(RecvApprovedQty) < (parseFloat(RecvQty) + parseFloat(RecvReceivedQty))) {
+                var msg = 'This receive will exceed the approved quantity.';
+                if (confirm(msg)) {
+                    isTrue = true;
+                }
+            }
+            else
+                isTrue = true;
+
+            if (isTrue) {
+              
+                var arrMakePreRecieveDetail = new Array();
+                var arrFillPreReciveInfo = new Array();
+
+                var makePreReceiveDetail = { "Quantity": RecvQty, "SerialNumber": Serial };
+                arrMakePreRecieveDetail.push(makePreReceiveDetail);
+
+                var toFillPreReceive = {
+                    "ToolName": RecvItemNumber, "ToolAssetOrderNumber": RecvOrderNumber,
+                    "ReleaseNumber": RecvReleaseNumber,
+                    "SerialNumberTracking": RecvSerialNumberTracking,
+                    "IsModelShow": false, "Cost": RecvCost,
+                    "BinNumber": RecvBin, "Location": RecvBin,
+                    "ReceivedDate": RecvDate, "PackSlipNumber": RecvPackSlip,
+                    "Comment": RecvComment,
+                    "UDF1": RecvUDF1, "UDF2": RecvUDF2, "UDF3": RecvUDF3, "UDF4": RecvUDF4, "UDF5": RecvUDF5,
+                    "ToolGUID": RecvItemGUID, "OrderDetailGUID": RecvOrderDetailGUID, "OrderGUID": RecvOrderGUID,
+                    "OrderStatus": RecvOrderStatus, "RequestedQty": RecvRequestedQty, "ApproveQty": RecvApprovedQty,
+                    "ReceiveQty": RecvReceivedQty, "MakePreReceiveDetail": arrMakePreRecieveDetail
+                };
+                arrFillPreReciveInfo.push(toFillPreReceive);
+                $('#DivLoading').show();
+
+                $.ajax({
+                    "url": '@Url.Content("~/ReceiveToolAsset/SaveReceiveInformationTool")',
+                    "data": JSON.stringify(arrFillPreReciveInfo),
+                    "type": 'POST',
+                    "async": false,
+                    "cache": false,
+                    "dataType": "json",
+                    "contentType": "application/json",
+                    "success": function (response) {
+                        if (response.Status) {
+                            SetReplenishRedCount();
+                            UDFInsertNewForGrid($('#NewReceiveEntry' + ordDetailID));
+                            ImageIDToOpen = "#imgPlusMinus_" + ordDetailID;
+                            $('#myDataTable').dataTable().fnStandingRedraw();
+                            $("#spanGlobalMessage").removeClass('WarningIcon errorIcon').addClass('succesIcon').text("Received Successfully.");
+                            $('#DivLoading').hide();
+                            showNotificationDialog();
+
+                        }
+                        else if (response.Errors.length > 0) {
+                            var err = '';
+                            for (var i = 0; i < response.Errors.length; i++) {
+                                err = err + '' + response.Errors[i].ErrorMassage;
+                            }
+                            $('#OrdReceivedErrorDialog').find("#OrdReceivErrorMSG").html(err);
+                            $('#OrdReceivedErrorDialog').modal();
+                        }
+                        else {
+                            $('#DivLoading').hide();
+                            alert("Error! Not Received");
+                        }
+                        $('#DivLoading').hide();
+                        $('#btnReceive_' + ordDetailID).removeAttr('disabled');
+                        return false;
+                    },
+                    "error": function (error) {
+                        $('#btnReceive_' + ordDetailID).removeAttr('disabled');
+                        $('#DivLoading').hide();
+                        $('#OrdReceivedInfoDialog').find("#OrdReceivedMSG").html("<b style='color: Red;'>Server error</b>");
+                        $('#OrdReceivedInfoDialog').modal();
+                        return false;
+                    },
+                    "completed": function (obj) {
+                        $('#btnReceive_' + ordDetailID).removeAttr('disabled');
+                        $('#myDataTable').find("#imgPlusMinus_" + ordDetailID).click();
+                        $('#DivLoading').hide();
+                    }
+                })
+            }
+            else {
+                $('#btnReceive_' + ordDetailID).removeAttr('disabled');
+                $('#DivLoading').hide();
+                return false;
+            }
+
+        }
+    }
+
+    function getUDFValues(udfName, orddtlID) {
+        var UdfVal = '';
+        if ($('#NewReceiveEntry' + orddtlID).find('#' + udfName).length > 0) {
+            if ($('#NewReceiveEntry' + orddtlID).find("#" + udfName)[0].nodeName === "SELECT")
+                UdfVal = $('#NewReceiveEntry' + orddtlID).find("#" + udfName + " option:selected").text();
+            else
+                UdfVal = $('#NewReceiveEntry' + orddtlID).find('#' + udfName).val();
+        }
+        return UdfVal;
+    }
+
+
+
+</script>

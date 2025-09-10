@@ -1,0 +1,160 @@
+﻿@model IEnumerable<eTurns.DTO.UserRoleModuleDetailsDTO>
+@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    //Layout = "~/Views/Shared/_PopupMaster.cshtml";
+    var settings1 = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplayDeleteButton = false, DisplayPrintBlock = true, DataTableName = "HistoryTable", ColumnSetupFor = "UserChangeLog" };
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplayDeleteButton = false, DisplayPrintBlock=false, DataTableName = "HistoryTable" };
+
+    long UserID = ViewBag.UserID;
+}
+<div class="searchWrapper">
+    <div class="searchBlock">
+        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+        <div class="searchinputB">
+            <input type="text" class="searchinput" id="URCLSearchText" />
+            <a href="javascript:void(0);" class="xclose">
+                <img src="~/Content/images/x.png" alt="X" id="URCLSearchClear" />
+            </a>
+        </div>
+    </div>
+</div>
+@Html.GridTopHeader(settings)
+@Html.GridTopHeaderForHistory(settings1)
+<div style="margin: 0 0.4% 1%;">
+    <table id="HistoryTable" class="display">
+        <thead>
+            <tr>
+                
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.HistoryID
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.CompanyName
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.RoomName
+                </th>
+                <th>
+                    @eTurns.DTO.ResUserMaster.Role
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.HistoryDate
+                </th>
+                <th>
+                    @eTurns.DTO.Resources.ResCommon.PermissionChanges
+                </th>
+             
+          
+          
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+</div>
+<script language="javascript" type="text/javascript">
+        var oHistoryTable;
+        var objHistoryColumns = {}
+
+        $(document).ready(function () {
+            objHistoryColumns = GetGridHeaderColumnsObject('HistoryTable');
+
+            oHistoryTable = $('#HistoryTable').dataTable({
+                "bJQueryUI": true,
+                "bScrollCollapse": true,
+                "bAutoWidth": true,
+                "sScrollX": "100%",
+                "sDom": 'R<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+                "oColVis": {},
+                "oColReorder": {},
+                "sPaginationType": "full_numbers",
+                "bProcessing": true,
+                "bSort": false,
+                "bServerSide": true,
+                "sAjaxSource": '@Url.Content("~/Master/UserRoleChangeLogListAjax")',
+                "oLanguage": {
+                                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries',
+                                "sLoadingRecords": '@eTurns.DTO.Resources.ResMessage.MsgLoading'
+                            },
+                "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+
+                    aoData.push({ "name": "UserID", "value": '@(UserID.ToString())' });
+
+                    oSettings.jqXHR = $.ajax({
+                        "dataType": 'json',
+                        "type": "POST",
+                        "url": sSource,
+                        "cache": false,
+                        "data": aoData,
+						"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                        "success": fnCallback
+
+                   })
+                },
+                "fnInitComplete": function () {
+                    compareHistoryRows(this);
+                },
+                "aoColumns": [
+
+                            { "mDataProp": "UserRoleChangeLogID", "sClass": "read_only" },
+
+                            { "mDataProp": "CompanyName", "sClass": "read_only" },
+                            { "mDataProp": "RoomName",  "sClass": "read_only" },
+                            { "mDataProp": "RoleName", "sClass": "read_only" },
+                             {
+                                 "mDataProp": "HistoryDate",   "sClass": "read_only",
+                                 "fnRender": function (obj, val) {
+                                     return obj.aData.HistoryDateDisplay;
+                                 }
+                             },
+			                {
+			                    "mDataProp": "PermissionChanges",
+			                    "sClass": "read_only", "width": "50%",
+			                    "sDefaultContent": '',
+			                    "fnRender": function (obj, val) {
+			                        return val;
+			                    }
+			                }
+
+                    ]
+            });
+
+            //HIDE PRINT CONTAINER
+            $('#CtabURCL .print').css('margin-top','-33px');
+            $('#CtabURCL .print').css('margin-right', '45px');
+            $('.DTTT_container').css('z-index', '-1');
+
+            function getParameterByName(name) {
+                name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+                var regexS = "[\\?&]" + name + "=([^&#]*)";
+                var regex = new RegExp(regexS);
+                var results = regex.exec(window.location.search);
+                if (results == null)
+                    return "";
+                else
+                    return decodeURIComponent(results[1].replace(/\+/g, " "));
+            }
+
+            $("#URCLSearchText").keydown(function (e) {
+                var code = (e.keyCode ? e.keyCode : e.which);
+                if (code == 13) {
+                    oHistoryTable.fnFilter(this.value);
+                }
+            });
+
+            $("#URCLSearchClear").click(function () {
+                if ($("#URCLSearchText").val().length > 0) {
+                    $("#URCLSearchText").val("");
+                    oHistoryTable.fnFilter("");
+                }
+                return false;
+            });
+
+            _Common.setGloblaSearch('URCLSearchText', 'HistoryTable');
+        });
+
+
+</script>

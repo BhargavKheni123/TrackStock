@@ -1,0 +1,3176 @@
+﻿@model eTurns.DTO.NotificationDTO
+@{
+    List<ReportBuilderDTO> lstReports = ViewBag.lstReportList;
+    List<EmailTemplateDTO> lstEmailTemplates = ViewBag.EmailTemplates;
+    IEnumerable<SupplierMasterDTO> lstSuppliers = ViewBag.Suppliers;
+    List<FTPMasterDTO> lstFTP = ViewBag.FtpDetails;
+    List<AlertReportDTO> lstAlertReport = ViewBag.AlertReport;
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Notifications, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Notifications, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    bool CopyMode = ViewBag.forcopy;
+    List<TransactionEventMasterDTO> lstEventMaster = new List<TransactionEventMasterDTO>();
+    string isInSkExpItms = string.Empty;
+    if (Model.OnlyExpirationItems)
+    {
+        isInSkExpItms = "checked='checked'";
+    }
+
+    string UserSupplierIds = (eTurnsWeb.Helper.SessionHelper.UserSupplierIds != null && eTurnsWeb.Helper.SessionHelper.UserSupplierIds.Any())
+                            ? string.Join(",", eTurnsWeb.Helper.SessionHelper.UserSupplierIds)
+                            : string.Empty;
+    string PDFURL = "";
+    string VideoURL = "";
+    bool IsHelpDocShow = false;
+    bool IsHelpVideoShow = false;
+    string ModuleName = "";
+    string HelpDocReportName = "";
+    int ModuleHelpDocType = (int)HelpDocType.Report;
+    if (ViewBag.HelpDocReportName != null)
+    {
+        HelpDocReportName = ViewBag.HelpDocReportName;
+    }
+
+
+}
+<script language="javascript" type="text/javascript">
+    var IsRefreshGrid = false;
+    var IsDeletePopupOpen = false;
+    var AllowDeletePopup = true;
+    var CopyMode = '@CopyMode';
+    var currentDate = '@DateTime.Now.Date.ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat)';
+</script>
+<style>
+    #cke_contents_txtTemplate {
+        height: 400px !important;
+    }
+
+    div.userHead span.field-validation-valid {
+        color: Red;
+    }
+
+    .neweditorlabel, .neweditorlabelrm {
+        padding-left: 0px !important;
+        width: 55% !important;
+        min-height: 50px !important;
+    }
+</style>
+<div class="userHead">
+    @using (Ajax.BeginForm("NotificationSave", "Notification", new AjaxOptions { HttpMethod = "Post", OnBegin = "OnBegin", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmNotificationConfigAlert" }))
+    {
+        @Html.AntiForgeryToken()
+        @Html.ValidationSummary(true)
+        <div class="mainForm">
+            @Html.HiddenFor(model => model.ParentReportName)
+            @if (Model.ScheduleFor == 66)
+            {
+                <div class="editorForm" style="width: 25%;">
+                    <ul>
+                        <li>
+                            @Html.DropDownListFor(model => model.EmailTemplates, new SelectList(lstEmailTemplates, "ID", "TemplateName"), new { @style = "width: 100%; height: 500px;", @class = "selectBox", @size = 100, @Name = "drpEmailTemplates" })
+                            @Html.HiddenFor(model => model.EmailTemplates)
+                            @Html.ValidationMessageFor(model => model.EmailTemplates)
+                        </li>
+                    </ul>
+                </div>
+            }
+            else if (Model.ScheduleFor == 55)
+            {
+                <div class="editorForm" style="width: 25%;">
+                    <ul>
+                        <li>
+                            @*@Html.DropDownListFor(model => model.Reports, new SelectList(lstReports, "ID", "ReportName"), new { @style = "width: 100%; height: 780px;", @class = "selectBox", @size = 100, @Name = "drpReports" })*@
+                            @Html.DropDownListFor(model => model.Reports, new SelectList(lstReports, "ID", "ReportResourceName", Model.Reports), new { @style = "width: 100%; height: 500px;", @class = "selectBox", @size = 100, @Name = "drpReports" })
+                            @Html.HiddenFor(model => model.Reports)
+                            @Html.ValidationMessageFor(model => model.Reports)
+                        </li>
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <div class="editorForm" style="width: 25%;">
+                    <ul>
+                        <li>
+                            @*@Html.DropDownListFor(model => model.Reports, new SelectList(lstReports, "ID", "ReportName"), new { @style = "width: 100%; height: 780px;", @class = "selectBox", @size = 100, @Name = "drpReports" })*@
+                            @Html.DropDownListFor(model => model.NotificationName, new SelectList(lstAlertReport, "ID", "AlertReportName", Model.Reports), new { @style = "width: 100%; height: 500px;", @class = "selectBox", @size = 100, @Name = "drpNotificationName" })
+                            @Html.HiddenFor(model => model.NotificationName)
+                            @Html.ValidationMessageFor(model => model.NotificationName)
+                        </li>
+                    </ul>
+                </div>
+            }
+
+            <div class="editorForm padRightNone" style="width: 55%;">
+                <ul>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ScheduleName)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.ScheduleName, new { @class = "text-box" })
+                            @Html.ValidationMessageFor(model => model.ScheduleName)
+                        </div>
+                    </li>
+
+                    @if (Model != null)
+                    {
+                        <li id="liCompanyIds" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResLayout.Company + ":")
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <select id="ddlRCompany" multiple="multiple" style="width: 150px;" name="example-basic"
+                                        size="5" class="text-box"></select>
+
+                            </div>
+                            @Html.HiddenFor(model => model.CompanyIds)
+                        </li>
+                        <li id="liCompanyIdsList" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.SelectedCompany)
+                            </div>
+                            <div class="editor-label neweditorlabel">
+                                <label id="lblselectedCompany">
+                                </label>
+                            </div>
+                        </li>
+
+                    }
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                    </li>
+                    @if (Model != null)
+                    {
+                        <li id="liRoomIds" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResCommon.Room + ":")
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <select id="ddlRRoom" multiple="multiple" width="150px" name="example-basic" size="5"
+                                        class="text-box"></select>
+
+                            </div>
+                            @Html.HiddenFor(model => model.RoomIds)
+                        </li>
+                        <li id="liRoomIdsList" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.SelectedRoom)
+                            </div>
+                            <div class="editor-label neweditorlabelrm">
+                                <label id="lblselectedRoom">
+                                </label>
+                            </div>
+                        </li>
+                    }
+                    <li>
+                        <div id="dvParams">
+                            @*@Html.Partial("SchedulerInfo", Model.SchedulerParams)*@
+                        </div>
+                    </li>
+                    <li id="liAllCheckedOutTools" style="display:none;">
+                        <div class="editor-label">
+                            &nbsp;@Html.Label(" ")
+                        </div>
+                        <div class="editor-field">
+                            @Html.CheckBoxFor(model => model.AllCheckedOutTools, new { ID = "chkAllCheckedOutTools" })
+                            @Html.Label(@eTurns.DTO.ResSchedulerReportList.DisplayAllCheckedOutTools)
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.IsActive)
+                        </div>
+                        <div class="editor-field">
+                            <div style="width: 34%; float: left;">
+                                @Html.CheckBoxFor(model => model.IsActive)
+                            </div>
+                        </div>
+                    </li>
+
+
+                    <li id="liImmediateActions" style="display:none;">
+                        <div class="editor-label">
+                            @ResSchedulerReportList.ImmediateActions
+                            <br />
+                            <br />
+                        </div>
+                        <div class="editor-field">
+                            <div style="width: 34%; float: left;">
+                                @*@Html.DropDownList("ddlAllowedIMMActions", new SelectList((IEnumerable<eTurns.DTO.TransactionEventMasterDTO>)lstEventMaster, "EventCode", "EventName"), new { id = "ddlAllowedIMMActions", @size = 7, @class = "selectBox", multiple = "multiple" })
+                                    <input type="hidden" id="hdnActionEventCodes" value="" name="hdnActionEventCodes" />*@
+                                @Html.DropDownListFor(model => model.ActionCode, new SelectList((IEnumerable<eTurns.DTO.TransactionEventMasterDTO>)lstEventMaster, "EventCode", "EventName"), new { @size = 7, @class = "selectBox", multiple = "multiple" })
+                                @Html.HiddenFor(model => model.ActionCodes)
+                                <input type="checkbox" id="chkEventCheckALL" /> <label for="chkEventCheckALL">@ResCommon.CheckALL</label>
+                            </div>
+                        </div>
+                        <span id="spnEventNote">@ResSchedulerReportList.ActionMessageAllNone </span>
+                    </li>
+
+
+                    <li id="liSuppliers">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.Suppliers)
+                            <br />
+                            <br />
+                            <span id="spnSupplierNote">@ResSchedulerReportList.SuppliersMessage </span>
+                        </div>
+                        <div class="editor-field">
+                            <div style="width: 36%; float: left;">
+                                @Html.DropDownListFor(model => model.Suppliers, new SelectList(lstSuppliers, "ID", "SupplierName"), new { @class = "selectBox", @size = 10, @multiple = "multiple", @style = "float:left;" })
+                                @Html.HiddenFor(model => model.SupplierIds)
+                                <div id="checkalldiv" style="float: left;margin-top: 25%;">
+                                    <input type="checkbox" id="chkCheckALL" /> <label for="chkCheckALL">@ResCommon.CheckALL</label>
+                                </div>
+                            </div>
+                            @Html.ValidationMessageFor(model => model.Suppliers)
+                        </div>
+                        @*<span id="spnSupplierNote">@ResSchedulerReportList.SuppliersMessageAllNone </span>*@
+                    </li>
+
+
+
+
+                    @if (Model != null)
+                    {
+                        <li>
+                            <div class="editor-label">
+                                &nbsp;
+                            </div>
+                        </li>
+                        <li id="liQtyRange" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.FilterQOH)
+                            </div>
+                            <div class="editor-field" style="width: 200px; float: left">
+                                <select id="ddlFilterQOH" size="5" class="selectBox" style="width: 150px;"></select>
+                            </div>
+                            @Html.HiddenFor(model => model.FilterQOH)
+                        </li>
+                        <li id="liQtyRangeSelected" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.SelectedQOHFilters)
+                            </div>
+                            <div class="editor-field">
+                                <label id="lblselectedQOHFilters">
+                                </label>
+                            </div>
+                        </li>
+                        <li id="liMonthlyAvg" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.MonthlyUsages)
+                            </div>
+                            <div class="editor-field">
+                                <input type="text" id="MonthlyAverageUsage" readonly="readonly" value="@Model.MonthlyAverageUsage" class='numericinput numericalign disableBack' onkeypress='return onlyNumeric(event)' />
+                            </div>
+                        </li>
+
+                        <li id="liInstockOnlyExpItems" style="display:none;">
+                            <div class="editor-label">
+                                &nbsp;@Html.Label(" ")
+                            </div>
+                            <div class="editor-field">
+                                <input type="checkbox" id="chkOnlyExpirationItems" name="OnlyExpirationItems" @isInSkExpItms value="@Model.OnlyExpirationItems" />
+                                @Html.Label(ResSchedulerReportList.OnlyExpirationItems)
+                                <input type="hidden" value="false" name="OnlyExpirationItems" />
+                            </div>
+                        </li>
+
+                        <li id="liItemStatus" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.ItemStatus)
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <select id="ddlItemStatus" multiple="multiple" width="150px" name="example-basic" size="5" class="text-box">
+                                    <option value="1">@ResSchedulerReportList.Active</option>
+                                    <option value="0">@ResSchedulerReportList.InActive</option>
+                                </select>
+                            </div>
+                            @Html.HiddenFor(model => model.ItemStatus)
+                        </li>
+                        <li id="liMoveType" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.MoveType + ":")
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <select id="ddlMoveType" multiple="multiple" width="150px" name="example-basic" size="5" class="text-box">
+                                    <option value="1">@ResMoveMaterial.MoveTypeItemInvtoInv</option>
+                                    <option value="2">@ResMoveMaterial.MoveTypeItemInvtoStage</option>
+                                    <option value="3">@ResMoveMaterial.MoveTypeItemStageToInv</option>
+                                    <option value="4">@ResMoveMaterial.MoveTypeItemStageToStage</option>
+                                </select>
+                            </div>
+                            @Html.HiddenFor(model => model.MoveType)
+                        </li>
+                        <li id="liReportRange" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.Range)
+                            </div>
+                            <div class="editor-field" style="width: 200px; float: left">
+                                <select class="selectBox" id="ddlReportRange" style="width: 150px;">
+                                </select>
+                            </div>
+                            @Html.HiddenFor(model => model.ReportRange)
+                        </li>
+                        <li id="liExcludeZeroOrdQty" style="display:none;">
+                            <div class="editor-label">
+                                &nbsp;@Html.Label(" ")
+                            </div>
+                            <div class="editor-field">
+                                @Html.CheckBoxFor(model => model.ExcludeZeroOrdQty, new { @id = "chkExcludeZeroOrdQty" })
+
+                                @*<input type="checkbox" id="chkExcludeZeroOrdQty" name="ExcludeZeroOrdQty" checked="@Model.ExcludeZeroOrdQty" />*@
+                                @Html.Label(ResReportMaster.ExcludeZeroQuantityOrder)
+                                @*<input type="hidden" id="ExcludeZeroOrdQty" name="ExcludeZeroOrdQty" />*@
+                            </div>
+                        </li>
+                        <li id="liRRSelectAll" style="display:none;">
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.SelectAllRangeData)
+                            </div>
+                            <div class="editor-field">
+                                <div style="width: 34%; float: left;">
+                                    @Html.CheckBoxFor(model => model.SelectAllRangeData, new { @id = "chkCheckAllItem" })
+                                </div>
+                            </div>
+                        </li>
+
+                        <li>
+                            <div class="editor-label" style="width: 100%; float: left; height: 20px;">
+                                &nbsp;
+                            </div>
+                        </li>
+                        <li id="liReportRangeData" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.InStock, new { @id = "lblModuleLabel" })
+                            </div>
+                            <div class="editor-field">
+                                <select style="width: 200px; min-height: 250px;" name="lstModuleItem" multiple="multiple"
+                                        id="lstModuleItem"></select>
+                                @*<input type="checkbox" id="chkCheckAllItem" />*@
+                                <select style="display:none;" name="lstModuleItemTemp" multiple="multiple"
+                                        id="lstModuleItemTemp"></select>
+                                <input type="hidden" name="dataGuidsForPullOrInstock" id="dataGuidsForPullOrInstock" />
+                            </div>
+                            @Html.HiddenFor(model => model.ReportRangeData)
+                        </li>
+
+                    }
+
+                    <li id="liAttachmentTypes" style="display:none;">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.AttachmentTypes)
+                        </div>
+                        <div class="editor-field">
+                            <input type="checkbox" name="chkAttachmentTypes" id="chkPDF" value="1" />
+                            @Html.Label(@ResSchedulerReportList.PDF, new { @for = "chkPDF" })
+
+                            <input type="checkbox" name="chkAttachmentTypes" id="chkExcell" value="2" />
+                            @Html.Label(@ResSchedulerReportList.Excel, new { @for = "chkExcell" })
+
+                            @Html.HiddenFor(model => model.AttachmentTypes)
+                            @Html.ValidationMessageFor(model => model.AttachmentTypes)
+                        </div>
+                    </li>
+
+                    @if (Model != null)
+                    {
+                        <li id="liRequisitionStatus" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResRequisitionMaster.RequisitionStatus + ":")
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <select id="ddlSCHRequisitionStatus" multiple="multiple" width="150px" name="example-basic" size="5"
+                                        class="text-box"></select>
+
+                            </div>
+                            @Html.HiddenFor(model => model.Status)
+                        </li>
+                    }
+                    @if (Model != null)
+                    {
+                        <li id="liWOStatus" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.WorkOrderStatus + ":")
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <select id="ddlWOStatus" multiple="multiple" width="150px" name="example-basic" size="5"
+                                        class="text-box"></select>
+
+                            </div>
+                            @Html.HiddenFor(model => model.WOStatus)
+                        </li>
+                    }
+                    @if (Model != null)
+                    {
+                        <li id="liOrderStatus" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResOrder.OrderStatus + ":")
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <select id="ddlOrderStatus" multiple="multiple" width="150px" name="example-basic" size="5"
+                                        class="text-box"></select>
+
+                            </div>
+                            @Html.HiddenFor(model => model.OrderStatus)
+                        </li>
+                    }
+                    @if (Model != null)
+                    {
+                        <li id="liOrderWithLineItemStatus" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResOrder.OrderStatus + ":")
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <select id="ddlOrderWithLineItemStatus" multiple="multiple" width="150px" name="example-basic" size="5"
+                                        class="text-box"></select>
+
+                            </div>
+                            @Html.HiddenFor(model => model.OrderStatus)
+                        </li>
+                    }
+
+                    @if (Model != null)
+                    {
+                        <li id="liAppliedFilter" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.AppliedFilter)
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <select id="ddlAppliedFilter" width="150px" class="text-box" style="width:140px;">
+                                    <option value="All">@ResCommon.All</option>
+                                    <option value="Applied">@ResSchedulerReportList.AppliedOnly</option>
+                                    <option value="NotApplied">@ResSchedulerReportList.NotAppliedOnly</option>
+                                </select>
+                            </div>
+
+                            @Html.HiddenFor(model => model.CountAppliedFilter)
+                        </li>
+
+                    }
+
+                    @if (Model != null)
+                    {
+                        <li id="liQuantityType" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.QuantityType)
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+
+                                <select id="ddlQuantityType" multiple="multiple" width="150px" name="example-basic" size="5" class="text-box">
+                                    <option value="1">@ResItemLocationDetails.CustomerOwnedQuantity</option>
+                                    <option value="2">@ResItemLocationDetails.ConsignedQuantity</option>
+                                </select>
+
+                            </div>
+                            @Html.HiddenFor(model => model.QtyType)
+                        </li>
+                    }
+
+                    @if (Model != null)
+                    {
+                        <li id="liUsageType" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.UsageType)
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <select id="ddlUsageType" width="150px" class="text-box" style="width:140px;">
+                                    <option value="Consolidate">@ResSchedulerReportList.CombineAllLocation</option>
+                                    <option value="Separate">@ResSchedulerReportList.SeparateByLocation</option>
+                                </select>
+                            </div>
+
+                            @Html.HiddenFor(model => model.UsageType)
+                        </li>
+
+                        <li id="liItemWithZeroPullUsage" style="display:none;">
+                            <div class="editor-label">
+                                @*@Html.Label(" ")&nbsp;*@
+                                @Html.Label(ResSchedulerReportList.AllowIncludeItemsWithZeroPullUsage)
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                @*<input type="checkbox" id="chkAllowItemWithZeroPullUsage" />*@
+                                <div style="width: 34%; float: left;">
+                                    @Html.CheckBoxFor(model => model.IsAllowedZeroPullUsage)
+                                </div>
+                            </div>
+                            @*@Html.HiddenFor(model => model.IsAllowedZeroPullUsage)*@
+                        </li>
+
+                    }
+
+                    @if (Model != null)
+                    {
+                        <li id="liOnlyAvailableTools" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.OnlyAvailableTools)
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <div style="width: 34%; float: left;">
+                                    @Html.CheckBoxFor(model => model.OnlyAvailableTools)
+                                </div>
+
+                            </div>
+                        </li>
+                    }
+                    @if (Model != null)
+                    {
+                        <li id="liOnlyExpiredItems" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.OnlyExpiredItems)
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <div style="width: 34%; float: left;">
+                                    @Html.CheckBoxFor(model => model.OnlyExpiredItems)
+                                </div>
+
+                            </div>
+                            @Html.HiddenFor(model => model.WOStatus)
+                        </li>
+
+                        <li id="liOnlyExpiredItemsDays" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.DaysUntilItemExpires)
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <div style="width: 34%; float: left;">
+                                    @Html.TextBoxFor(model => model.DaysUntilItemExpires, new { @class = "text-box", @onkeypress = "return isNumberKey(event);" })
+                                </div>
+
+                            </div>
+
+                        </li>
+                        <li id="liOnlyExpiredItemsOrder" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.DaysToApproveOrder)
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <div style="width: 34%; float: left;">
+                                    @Html.TextBoxFor(model => model.DaysToApproveOrder, new { @class = "text-box", @onkeypress = "return isNumberKey(event);" })
+                                </div>
+
+                            </div>
+
+                        </li>
+                        <li id="liOnlyExpiredItemsDate" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.ProjectExpirationDate)
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <div style="width: 34%; float: left;">
+                                    @Html.TextBoxFor(model => model.ProjectExpirationDate, new { @class = "text-box dtPicker", @style = "width: 130px;" })
+                                </div>
+
+                            </div>
+
+                        </li>
+                    }
+                    @if (Model != null)
+                    {
+                        <li id="liCartType" style="display:none;">
+                            <div class="editor-label">
+                                @Html.Label(ResSchedulerReportList.CartType)
+                            </div>
+                            <div class="editor-field" style="width: 250px; float: left">
+                                <select id="ddlCartType" multiple="multiple" width="150px" name="example-basic" size="5" class="text-box">
+                                    <option value="Purchase">@ResCommon.mnuSuggestedOrders</option>
+                                    <option value="Transfer">@ResCommon.mnuSuggestedTransfers</option>
+                                    <option value="SuggestedReturn">@ResCommon.mnuSuggestedReturn</option>
+                                </select>
+                            </div>
+                            @Html.HiddenFor(model => model.CartType)
+                        </li>
+
+                        <li id="liincludeStockouttool" style="display:none;">
+                            <div class="editor-label">
+                                @Html.LabelFor(model => model.IsIncludeStockouttool)
+                            </div>
+                            <div class="editor-field">
+                                <div style="width: 34%; float: left;">
+                                    @Html.CheckBoxFor(model => model.IsIncludeStockouttool)
+                                </div>
+                            </div>
+                        </li>
+                    }
+
+
+
+                    @*@if (Model.ScheduleFor == 6)
+                        {*@
+                    <li id="liReportAttachments">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.AttachmentReportIDs)
+                        </div>
+                        <div class="editor-field">
+                            <input type="hidden" value="@Model.AttachmentReportIDs" id="hdnAttachmentReportIDs" />
+                            @Html.DropDownListFor(model => model.AttachmentReportIDs, new SelectList(lstReports, "ID", "ReportName"), eTurns.DTO.ResSchedulerReportList.PickReport, new { @class = "selectBox" })
+                            @Html.DropDownList("ddlAttachmentReports", new SelectList(lstReports, "ID", "ReportName"), eTurns.DTO.ResSchedulerReportList.PickReport, new { @style = "display:none" })
+                            @Html.ValidationMessageFor(model => model.AttachmentReportIDs)
+                        </div>
+                    </li>
+                    @*}*@
+                    <li>&nbsp;</li>
+
+
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SendEmptyEmail)
+                        </div>
+                        <div class="editor-field">
+                            <div style="width: 34%; float: left;">
+                                @Html.CheckBoxFor(model => model.SendEmptyEmail)
+                            </div>
+                        </div>
+                    </li>
+                    <li id="HideHeaderLI">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.HideHeader)
+                        </div>
+                        <div class="editor-field">
+                            <div style="width: 34%; float: left;">
+                                @Html.CheckBoxFor(model => (model.HideHeader))
+                            </div>
+                        </div>
+                    </li>
+                    <li id="ShowSignatureLI">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ShowSignature)
+                        </div>
+                        <div class="editor-field">
+                            <div style="width: 34%; float: left;">
+                                @Html.CheckBoxFor(model => (model.ShowSignature))
+                            </div>
+                        </div>
+                    </li>
+                    <li id="SortFieldFirstOrder">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SortFieldFirstValue)
+                        </div>
+                        <div class="editor-field">
+                            <div style="width: 34%; float: left;">
+                                @Html.DropDownListFor(model => model.SortFieldFirstValue, Enumerable.Empty<SelectListItem>())
+                                @Html.DropDownListFor(model => model.SortFieldFirstOrder, Enumerable.Empty<SelectListItem>())
+                            </div>
+                        </div>
+                    </li>
+                    <li id="SortFieldSecondValue">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SortFieldSecondValue)
+                        </div>
+                        <div class="editor-field">
+                            <div style="width: 34%; float: left;">
+                                @Html.DropDownListFor(model => model.SortFieldSecondValue, Enumerable.Empty<SelectListItem>())
+                                @Html.DropDownListFor(model => model.SortFieldSecondOrder, Enumerable.Empty<SelectListItem>())
+                            </div>
+                        </div>
+                    </li>
+                    <li id="SortFieldThirdValue">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SortFieldThirdValue)
+                        </div>
+                        <div class="editor-field">
+                            <div style="width: 34%; float: left;">
+                                @Html.DropDownListFor(model => model.SortFieldThirdValue, Enumerable.Empty<SelectListItem>())
+                                @Html.DropDownListFor(model => model.SortFieldThirdOrder, Enumerable.Empty<SelectListItem>())
+                            </div>
+                        </div>
+                    </li>
+                    <li id="SortFieldFourthValue">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SortFieldFourthValue)
+                        </div>
+                        <div class="editor-field">
+                            <div style="width: 34%; float: left;">
+                                @Html.DropDownListFor(model => model.SortFieldFourthValue, Enumerable.Empty<SelectListItem>())
+                                @Html.DropDownListFor(model => model.SortFieldFourthOrder, Enumerable.Empty<SelectListItem>())
+                            </div>
+                        </div>
+                    </li>
+                    <li id="SortFieldFifthValue">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.SortFieldFifthValue)
+                        </div>
+                        <div class="editor-field">
+                            <div style="width: 34%; float: left;">
+                                @Html.DropDownListFor(model => model.SortFieldFifthValue, Enumerable.Empty<SelectListItem>())
+                                @Html.DropDownListFor(model => model.SortFieldFifthOrder, Enumerable.Empty<SelectListItem>())
+                            </div>
+                        </div>
+                    </li>
+                    @*@if (Model.ScheduleFor == 5)
+                        {*@
+                    <li id="liNotificationMode5">
+                        <div class="editor-label">
+                            <br />
+                            @Html.LabelFor(model => model.NotificationMode)
+                        </div>
+                        <div class="editor-field" style="width: 670px;">
+                            <ul style="float: right;">
+                                <li>
+                                    @Html.RadioButtonFor(model => model.NotificationMode, 1) &nbsp; @ResSchedulerReportList.EmailAddress
+                                    : @Html.TextAreaFor(model => model.EmailAddress, new { @class = "text-box" }) @Html.ValidationMessageFor(model => model.EmailAddress)
+                                    <br>
+                                    <span style="color:#76923c">@eTurns.DTO.Resources.ResMessage.msgMultiemailEntry</span>
+                                </li>
+                                <li>
+                                    @Html.RadioButtonFor(model => model.NotificationMode, 2) &nbsp; @ResSchedulerReportList.FTPName
+                                    : @Html.DropDownListFor(model => model.FTPId, new SelectList(lstFTP, "ID", "SFtpName"), new { @class = "selectBox" })
+                                    @Html.ValidationMessageFor(model => model.FTPId)
+                                    <input type="hidden" id="tmpNotificationMode" name="tmpNotificationMode" />
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+                    @*}
+                        @if (Model.ScheduleFor == 6)
+                        {*@
+                    <li id="liNotificationMode6">
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.EmailAddress)
+                        </div>
+                        <div class="editor-field">
+                            <ul style="float: left;">
+                                <li>
+                                    @Html.TextAreaFor(model => model.EmailAddress, new { @class = "text-box", @style = "width:80%" })
+                                    @*@Html.ValidationMessageFor(model => model.EmailAddress)*@
+                                    <span class="field-validation-error" id="spnValEmailAddress" style="display:none;"></span>
+                                    @Html.HiddenFor(model => model.NotificationMode)
+                                    <br />
+                                    <span style="color:#76923c">Multiple emails should be separated by a comma(,).</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div id="divApproverRequestertitle" class="editor-label">
+                            @Html.LabelFor(model => model.EmailAddress, new { @style = "display:none;" })
+                        </div>
+                        <div id="divApproverRequesterNote" class="editor-field" style="width: 670px;">
+                            <ul style="float: right;">
+                                <li style="width:40%">
+                                </li>
+                                <li style="width:60%">
+                                    <br />
+                                    <span id="spnApproverRequester" style="color:#76923c;">@ResSchedulerReportList.ApproverRequesterEmaillNote</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+                    @*}*@
+                    <li>&nbsp;</li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CultureCode)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.CultureCode, (List<SelectListItem>)ViewBag.DDLanguage, new { @class = "selectBox" })
+                            @Html.ValidationMessageFor(model => model.CultureCode)
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.EmailSubject)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.EmailSubject, new { @class = "text-box" })
+                            @Html.ValidationMessageFor(model => model.EmailSubject)
+
+                        </div>
+                    </li>
+
+
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.EmailTemplateToken)
+                        </div>
+                        <div class="editor-field">
+                            <div style="width: 34%; float: left;">
+                                @Html.DropDownListFor(model => model.EmailTemplateToken, Enumerable.Empty<SelectListItem>())
+                                <input type="button" value="@ResSchedulerReportList.AddToken" id="buttonAddToken" />
+                            </div>
+                        </div>
+                    </li>
+                    <li>
+                        <div style="width: 100%; float: left;">
+                            <textarea class="ckeditor" id="txtTemplate"></textarea>
+                        </div>
+                        @Html.HiddenFor(model => model.EmailTemplateDetails)
+                    </li>
+                    @*</ul>
+                        </div>
+                        <div class="editorForm" style="width: 75%">
+                            <ul>*@
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                        <div class="BtnBlockform">
+                            @if ((Model.ID <= 0 && isInsert) || (Model.ID > 0 && isUpdate))
+                            {
+                                <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                            }
+                            @Html.HiddenFor(model => model.ID)
+                            @Html.HiddenFor(model => model.ScheduleFor)
+                            @Html.HiddenFor(model => model.IsSupplierRequired)
+                            @Html.HiddenFor(model => model.IsDateRangeRequired)
+                            <input type="hidden" id="hdnModuleName" name="hdnModuleName" />
+                            <input type="hidden" id="hdnTemplateName" name="hdnTemplateName" />
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            @if (CopyMode != true && Model.ID > 0 && Model.ScheduleFor == 5)
+            {
+                <div class="editorForm padRightNone" style="width:18%;">
+                    <ul>
+                        <li style="border-right: none;">
+                            <label for="label" style="width: 100px; float: left; padding: 1.3% 0;">
+                                @Html.Label(ResReportMaster.FromDate) <em style="color: Red">*</em>
+                            </label>
+                            @Html.TextBoxFor(model => model.FromdDateStr, new { @class = "text-box", id = "txtFromDate", @readonly = "readonly", @style = "background:white", maxlength = 128 })
+                            @Html.ValidationMessageFor(model => model.FromdDateStr)
+                        </li>
+
+                        <li>
+                            <div class="editor-label">
+                                &nbsp;
+                            </div>
+                            <div class="BtnBlockform">
+                                <input type="button" value="@ResSchedulerReportList.Run" id="btnRun" class="CreateBtn" onclick="RunReport();" />
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            }
+        </div>
+    }
+</div>
+<script type="text/javascript">
+    var RecID = '@Model.ID';
+    var RecScheduleFor = '@Model.ScheduleFor';
+    var RecReportID = '@Model.ReportID';
+    var RecEmailTemplateID = '@Model.EmailTemplateID';
+    var RecSuppliers = '@Model.SupplierIds';
+    var RecAttachmentTypes = '@Model.AttachmentTypes';
+    var RecAttachmentReportIDs = '@Model.AttachmentReportIDs';
+    var RecActionCodes = '@Model.ActionCodes';
+
+    var PDFURL = '@PDFURL';
+    var IsHelpDocShow = '@IsHelpDocShow';
+    var VideoURL = '@VideoURL';
+    var IsHelpVideoShow = '@IsHelpVideoShow';
+    var ModuleName = '@ModuleName';
+    var mode = '@Model.NotificationMode';
+
+    //if (parseInt(RecID) > 0) {
+    //    if (IsHelpDocShow == true || IsHelpDocShow == "True") {
+    //        $('#aNotificationPDFURL').attr("style", "display:visible");
+    //        $("#aNotificationPDFURL").attr("href", PDFURL);
+    //    }
+    //    else {
+    //        $('#aNotificationPDFURL').attr("style", "display:none");
+    //    }
+    //    if ((IsHelpVideoShow == true || IsHelpVideoShow == "True") && VideoURL != null && VideoURL != '') {
+    //        $('#divNotificationVideoURL').attr("style", "display:visible");
+    //    }
+    //    else {
+    //        $('#divNotificationVideoURL').attr("style", "display:none");
+    //    }
+    //}
+
+    function OpenReportVideo(VideoURL, ModuleName) {
+        if (VideoURL != null && VideoURL != '') {
+            OpenHelpDocVideo(VideoURL, ModuleName);
+            return false;
+        }
+    }
+
+    function SetHelpDocVideo(HelpDocReportName)
+    {
+        $("#divListPageInfoclass").hide();
+        $("#divinnerInfoclass").show();
+        $.ajax({
+            url: '@Url.Action("GetHelpDocumentMasterByDocType", "HelpDocument")',
+            data: { "ModuleName": HelpDocReportName, "DocType": parseInt(@ModuleHelpDocType) },
+            type: "Get",
+            dataType: 'json',
+            async: false,
+            cache: false,
+            success: function (data) {
+                if (data.vIsDocHelp != null && data.vIsDocHelp != undefined && data.vIsDocHelp != ""
+                    && data.vlstHelpDtlDTO != null && data.vlstHelpDtlDTO.length > 0)
+                {
+                    var DocCount = 0;
+                    for (var i = 0; i < data.vlstHelpDtlDTO.length; i++) {
+                        if (data.vlstHelpDtlDTO[i].IsDoc == true || data.vlstHelpDtlDTO[i].IsDoc == 'True') {
+                            DocCount = DocCount + 1;
+                        }
+                    }
+                    if (DocCount > 1) {
+                        $("#imgNotificationInfoDoc").removeAttr("onclick");
+                        $('#divSubNotificationPDFURL').attr("style", "display:visible");
+                        var Dochtml = '<ul class="sub_subMenu">';
+                        var hasData = false;
+                        for (var i = 0; i < data.vlstHelpDtlDTO.length; i++) {
+                            if (data.vlstHelpDtlDTO[i].IsDoc == true || data.vlstHelpDtlDTO[i].IsDoc == 'True') {
+                                hasData = true;
+                                var DocName = data.vlstHelpDtlDTO[i].ModuleDocNoExt;
+                                var Docpath = data.vlstHelpDtlDTO[i].ModuleDocPath;
+                                Dochtml += '<li><a id="aNotificationPDFURL" href="' + Docpath + '" target="_blank">' + DocName + '</a></li>';
+                            }
+                        }
+                        if (hasData == true) {
+                            Dochtml += '</ul>';
+                            $('#divNotificationPDFURL').attr("style", "display:visible");
+                            $('#divSubNotificationPDFURL').html('');
+                            $('#divSubNotificationPDFURL').html(Dochtml);
+                        }
+                        else {
+                            $('#divNotificationPDFURL').attr("style", "display:none");
+                        }
+                    }
+                    else {
+                        $('#divSubNotificationPDFURL').attr("style", "display:none");
+                        $('#divNotificationPDFURL').attr("style", "display:visible");
+                        for (var i = 0; i < data.vlstHelpDtlDTO.length; i++) {
+                            if (data.vlstHelpDtlDTO[i].IsDoc == true || data.vlstHelpDtlDTO[i].IsDoc == 'True') {
+                                var DocName = data.vlstHelpDtlDTO[i].ModuleDocNoExt;
+                                var Docpath = data.vlstHelpDtlDTO[i].ModuleDocPath;
+                                $("#imgNotificationInfoDoc").attr("onclick", "return window.open('" + Docpath + "', '_blank');");
+                            }
+                        }
+                    }
+
+                }
+                else {
+                    $('#divNotificationPDFURL').attr("style", "display:none");
+                }
+
+                if (data.vIsVideoHelp != null && data.vIsVideoHelp != undefined && data.vIsVideoHelp != ""
+                    && data.vlstHelpDtlDTO != null && data.vlstHelpDtlDTO.length > 0) {
+                    var VideoCount = 0;
+                    for (var i = 0; i < data.vlstHelpDtlDTO.length; i++) {
+                        if (data.vlstHelpDtlDTO[i].IsVideo == true || data.vlstHelpDtlDTO[i].IsVideo == 'True') {
+                            VideoCount = VideoCount + 1;
+                        }
+                    }
+                    if (VideoCount > 1) {
+                        $("#imgNotificationInfoVideo").removeAttr("onclick");
+                        $('#divSubNotificationVideoURL').attr("style", "display:visible");
+                        var Dochtml = '<ul class="sub_subMenu">';
+                        var hasData = false;
+                        for (var i = 0; i < data.vlstHelpDtlDTO.length; i++) {
+                            if (data.vlstHelpDtlDTO[i].IsVideo == true || data.vlstHelpDtlDTO[i].IsVideo == 'True') {
+                                hasData = true;
+                                var VideoName = data.vlstHelpDtlDTO[i].ModuleVideoNoExt;
+                                var Videopath = data.vlstHelpDtlDTO[i].ModuleVideoPath;
+                                if (Videopath != '' && Videopath != undefined) {
+                                    Videopath = Videopath.replace("../Uploads/HelpDoc/", "");
+                                }
+                                Dochtml += '<li><a id="aNotificationVideoURL" href="#" target="_blank" onclick="return OpenReportVideo(\'' + Videopath + '\',\'' + VideoName + '\')">' + VideoName + '</a></li>';
+                            }
+                        }
+                        if (hasData == true) {
+                            Dochtml += '</ul>';
+                            $('#divNotificationVideoURL').attr("style", "display:visible");
+                            $('#divSubNotificationVideoURL').html('');
+                            $('#divSubNotificationVideoURL').html(Dochtml);
+                        }
+                        else {
+                            $('#divNotificationVideoURL').attr("style", "display:none");
+                        }
+                    }
+                    else {
+                        $('#divSubNotificationVideoURL').attr("style", "display:none");
+                        $('#divNotificationVideoURL').attr("style", "display:visible");
+                        for (var i = 0; i < data.vlstHelpDtlDTO.length; i++) {
+                            if (data.vlstHelpDtlDTO[i].IsVideo == true || data.vlstHelpDtlDTO[i].IsVideo == 'True') {
+                                var VideoName = data.vlstHelpDtlDTO[i].ModuleVideoNoExt;
+                                var Videopath = data.vlstHelpDtlDTO[i].ModuleVideoPath;
+                                if (Videopath != '' && Videopath != undefined) {
+                                    Videopath = Videopath.replace("../Uploads/HelpDoc/", "");
+                                }
+                                $("#imgNotificationInfoVideo").attr("onclick", "return OpenReportVideo('" + Videopath + "', '" + VideoName + "');");
+                            }
+                        }
+                    }
+                }
+                else {
+                    $('#divNotificationVideoURL').attr("style", "display:none");
+                }
+
+            }
+        });
+
+    }
+
+    $(document).ready(function () {
+        $("#divListPageInfoclass").hide();
+        $("#divinnerInfoclass").show();
+        if (parseInt(RecID) < 1 || CopyMode == "True") {
+            $('#IsActive').prop('checked', true);
+        }
+
+        $("#chkCheckALL").change(function () {
+            if ($(this).is(":checked")) {
+                $("select#Suppliers option").prop("selected", "selected");
+                var allSup = "";
+                allSup = $.map($('#Suppliers option:selected'), function (element) {
+                    return element.value;
+                });
+                $("input#SupplierIds").val(allSup);
+            }
+            else {
+                $("select#Suppliers option").removeProp("selected");
+                var allSup = "";
+                $("input#SupplierIds").val(allSup);
+            }
+
+        });
+
+
+        $("#chkEventCheckALL").change(function () {
+            if ($(this).is(":checked")) {
+                $("select#ActionCode option").prop("selected", "selected");
+                var allEvents = "";
+                allEvents = $.map($('#ActionCode option:selected'), function (element) {
+                    return element.value;
+                });
+                $("input#ActionCodes").val(allEvents);
+            }
+            else {
+                $("select#ActionCode option").removeProp("selected");
+                var allEvents = "";
+                $("input#ActionCodes").val(allEvents);
+            }
+        });
+
+
+        $("#chkCheckAllItem").change(function () {
+            if ($(this).is(":checked")) {
+                $("select#lstModuleItem option").prop("selected", "selected");
+                var allRRData = "";
+                allRRData = $.map($('#lstModuleItem option:selected'), function (element) {
+                    return element.value;
+                });
+                $("input#ReportRangeData").val(allRRData);
+            }
+            else {
+                $("select#lstModuleItem option").removeProp("selected");
+                var allRRData = "";
+                $("input#ReportRangeData").val(allRRData);
+            }
+
+        });
+
+        if ($("input#OnlyExpiredItems").is(":checked")) {
+            $("input#DaysUntilItemExpires").val('');
+            $("input#DaysToApproveOrder").val('');
+            $("input#DaysUntilItemExpires").attr("disabled", "diabled");
+            $("input#DaysToApproveOrder").attr("disabled", "diabled");
+            $("input#ProjectExpirationDate").val('');
+            $("input#ProjectExpirationDate").attr("disabled", "diabled");
+            $("input#ProjectExpirationDate").addClass("disableBack");
+            $("input#DaysUntilItemExpires").addClass("disableBack");
+            $("input#DaysToApproveOrder").addClass("disableBack");
+        }
+
+        $('.dtPicker').blur(function () { }).datepicker({ dateFormat: 'm/d/yy' });
+        BindDropDownList(null);
+        enableDisableMode('@Model.NotificationMode');
+        SetScheduleForFields($("#ScheduleFor").val(), $("#ID").val());
+        jQuery.validator.addMethod("multiemails", function (value, element) {
+            if (this.optional(element)) // return true on optional element
+                return true;
+            var emails = value.split(/[,]+/); // split element by , and ;
+            valid = true;
+            for (var i in emails) {
+                if (emails[i].toLowerCase() != "[Requester]".toLowerCase()
+                    && emails[i].toLowerCase() != "[Approver]".toLowerCase()) {
+                    value = emails[i];
+                    valid = valid && jQuery.validator.methods.email.call(this, $.trim(value), element);
+                }
+            }
+            return valid;
+        }, jQuery.validator.messages.multiemails);
+
+        jQuery.validator.unobtrusive.adapters.add('multiemails', {}, function (options) {
+            if ($("#EmailAddress").val().toLowerCase() != "[Requester]".toLowerCase()
+                && $("#EmailAddress").val().toLowerCase() != "[Approver]".toLowerCase()) {
+                options.rules['multiemails'] = true;
+                options.messages['multiemails'] = options.message;
+            }
+            else {
+                options.rules['multiemails'] = false;
+            }
+        });
+        if (typeof (arrEmailTemplateDtl) !== "undefined") {
+
+            arrEmailTemplateDtl = new Array();
+        }
+        AttachCkEditor();
+        $('#CultureCode').data('prevVal', $('#CultureCode').val());
+
+
+        $("input[name='NotificationMode']").change(function () {
+            enableDisableMode($(this).val());
+        });
+
+        $("#btnSave").click(function () {
+            if (typeof (arrEmailTemplateDtl) !== "undefined") {
+                arrEmailTemplateDtl = jQuery.grep(arrEmailTemplateDtl, function (arritm, i) {
+                    return (arritm.CultureCode != $('#CultureCode').val());
+                });
+                arrEmailTemplateDtl.push({ CultureCode: $('#CultureCode').val(), MailSubject: $("#EmailSubject").val(), MailBodyText: escape(CKEDITOR.instances.txtTemplate.getData()) });
+                $("#EmailTemplateDetails").val(JSON.stringify(arrEmailTemplateDtl));
+            }
+            var SelectedCompanyID = getSelectedID('ddlRCompany');
+            var SelectedRoomID = getSelectedID('ddlRRoom');
+
+            var isSupplierRequiredOrNot = $("#IsSupplierRequired").val();
+
+            if (typeof (isSupplierRequiredOrNot) != "undefined" && isSupplierRequiredOrNot != null && isSupplierRequiredOrNot.length > 0
+                && isSupplierRequiredOrNot.toLowerCase() == "true") {
+
+                var selectedSPValues = $.map($('#Suppliers option:selected'), function (element) {
+                    return element.value;
+                });
+
+                if (selectedSPValues == null || selectedSPValues.length <= 0) {
+                    alert('@ResSchedulerReportList.ReqSupllierToScheduleReport')
+                    return false;
+                }
+            }
+
+            if ($("#ScheduleFor").val() == 5)
+            {
+                var IsDateRangeRequiredOrNot = $("#IsDateRangeRequired").val();
+
+                if (typeof (IsDateRangeRequiredOrNot) != "undefined" && IsDateRangeRequiredOrNot != null && IsDateRangeRequiredOrNot.length > 0
+                    && IsDateRangeRequiredOrNot.toLowerCase() == "true")
+                {
+                    var reportDataSelectionTypeValue = $("input:radio[name='ReportDataSelectionType']:checked").val();//$("ReportDataSelectionType").val();
+
+                    if (typeof (reportDataSelectionTypeValue) == "undefined" || reportDataSelectionTypeValue == null || reportDataSelectionTypeValue.length <= 0) {
+                        var isNeedtoValidate = true;
+                        var ParentReportName = $('input#ParentReportName').val().toLowerCase();
+                        if (typeof (ParentReportName) != "undefined" && ParentReportName != null && ParentReportName.toLowerCase() == "tools checked out") {
+                            if ($('#chkAllCheckedOutTools') != null
+                                && $('#chkAllCheckedOutTools') != undefined
+                                && $('#chkAllCheckedOutTools').length > 0) {
+                                if ($('#chkAllCheckedOutTools').attr('checked') == "checked") {
+                                    isNeedtoValidate = false;
+                                }
+                                else { isNeedtoValidate = true; }
+                            }
+                            else {
+                                isNeedtoValidate = true;
+                            }
+                        }
+                        else if (typeof (ParentReportName) != "undefined" && ParentReportName != null && ParentReportName.toLowerCase() == "receivable items") {
+                            isNeedtoValidate = false;
+                        }
+                        if (isNeedtoValidate == true) {
+                            alert('@ResMessage.ReportDataSelectionTypeRequired');
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        var reportDataSince = $("#txtReportDataSince").val();
+                        if (reportDataSelectionTypeValue == "2" && (typeof (reportDataSince) == "undefined"
+                            || reportDataSince == null || reportDataSince.trim().length < 1))
+                        {
+                            alert('@ResMessage.DatasinceDaysRequired');
+                            return false;
+                        }
+                    }
+                }
+            }
+            if ($('#lstModuleItem:visible').length > 0) {
+                var selectedRangeValues = $.map($('#lstModuleItem option:selected'), function (element) {
+                    return element.value;
+                });
+
+                if (selectedRangeValues == null || selectedRangeValues.length <= 0 && ($('#chkCheckAllItem').is(":checked") == false)) {
+                    alert('@ResSchedulerReportList.ReqRangeValue')
+                    return false;
+                }
+            }
+
+            var toManyAddress = $("#EmailAddress").val().split(",");
+            var res = true;
+            for (var i = 0; i < toManyAddress.length; i++) {
+                if (toManyAddress[i] != '') {
+                    if (toManyAddress[i].toLowerCase() != "[Requester]".toLowerCase()
+                        && toManyAddress[i].toLowerCase() != "[Approver]".toLowerCase()) {
+                        if (!isValidEmailAddress(toManyAddress[i])) {
+                            $("#spnValEmailAddress").show();
+                            $("#spnValEmailAddress").text("Please enter valid Send To email address");
+                            res = false;
+                            return false;
+                        }
+                    }
+                }
+            }
+            if (res == true) {
+                $("#spnValEmailAddress").hide();
+            }
+            //$('#NarroSearchClear').click();
+        });
+        var lastFocused;
+        var currentObjctId = '';
+        $("input[type='text']").focus(function () {
+            lastFocused = document.activeElement;
+            currentObjctId = $(lastFocused).attr("id");
+        });
+        CKEDITOR.on('instanceReady', function (evt) {
+            var editor = evt.editor,
+                body = CKEDITOR.document.getBody();
+
+            editor.on('focus', function () {
+
+                lastFocused = document.activeElement;
+                currentObjctId = 'txtTemplate';
+            });
+
+            editor.on('blur', function () {
+
+            });
+        });
+
+        $("#buttonAddToken").click(function () {
+            if ($("select#EmailTemplateToken").val() != '' && $("select#EmailTemplateToken").val() != null) {
+
+
+                if (currentObjctId == "EmailSubject") {
+                    insertText($("select#EmailTemplateToken").val());
+
+                }
+                else if (currentObjctId == "txtTemplate") {
+
+                    //var cursorPos = $('#txtTemplate').prop('selectionStart');
+
+                    //var selection = CKEDITOR.instances.txtTemplate.getSelection();
+                    //var range = selection.getRanges()[0];
+
+                    //var cursor_position = range.startOffset;
+                    //alert(cursor_position);
+                    //var body = (CKEDITOR.instances.txtTemplate.getData());
+                    //alert(CKEDITOR.instances.txtTemplate.getData());
+                    ////alert(escape(CKEDITOR.instances.txtTemplate.getData()));
+                    //var output = [body.slice(0, cursor_position), $("select#EmailTemplateToken").val(), body.slice(cursor_position)].join('');
+
+                    //body = '';
+                    //body = (output);
+
+                    //CKEDITOR.instances.txtTemplate.setData((body));
+                    //CKEDITOR.instances.insertText('text');
+                    //$("#EmailSubject").val($("#EmailSubject").val() + $("select#EmailTemplateToken").val());
+                    var body = escape(CKEDITOR.instances.txtTemplate.getData());
+                    body += $("select#EmailTemplateToken").val();
+                    //CKEDITOR.instances.txtTemplate.setData(unescape(body));
+                    CKEDITOR.instances.txtTemplate.insertHtml(unescape($("select#EmailTemplateToken").val()));
+                }
+
+
+            }
+        });
+
+        function insertText(text) {
+            var input = lastFocused;
+            if (input == undefined) { return; }
+            var scrollPos = input.scrollTop;
+            var pos = 0;
+            var browser = ((input.selectionStart || input.selectionStart == "0") ?
+              "ff" : (document.selection ? "ie" : false));
+            if (browser == "ie") {
+                input.focus();
+                var range = document.selection.createRange();
+                range.moveStart("character", -input.value.length);
+                pos = range.text.length;
+            }
+            else if (browser == "ff") { pos = input.selectionStart };
+
+            var front = (input.value).substring(0, pos);
+            var back = (input.value).substring(pos, input.value.length);
+            input.value = front + text + back;
+            pos = pos + text.length;
+            if (browser == "ie") {
+                input.focus();
+                var range = document.selection.createRange();
+                range.moveStart("character", -input.value.length);
+                range.moveStart("character", pos);
+                range.moveEnd("character", 0);
+                range.select();
+            }
+            else if (browser == "ff") {
+                input.selectionStart = pos;
+                input.selectionEnd = pos;
+                input.focus();
+            }
+            input.scrollTop = scrollPos;
+        }
+        $("#Reports").change(function () {
+            if ($(this).val() != '') {
+                $('span[data-valmsg-for="Reports"]').html('');
+            }
+            else {
+                var errmsg = '';
+                errmsg = $('select[name="drpReports"]').attr("data-val-required");
+                $('span[data-valmsg-for="Reports"]').html(errmsg);
+            }
+        });
+        $("#EmailTemplates").change(function () {
+            ShowHideImmediateButton();
+            if ($(this).val() != '') {
+                $('span[data-valmsg-for="EmailTemplates"]').html('');
+            }
+            else {
+                var errmsg = '';
+                errmsg = $('select[name="drpEmailTemplates"]').attr("data-val-required");
+                $('span[data-valmsg-for="EmailTemplates"]').html(errmsg);
+            }
+        });
+        //$('select[name="drpNotificationName"]').change(function () {
+        //    var currentReport = $('select[name="drpNotificationName"] option:selected').text();
+
+        //    var currentType = $(this).val().split('_')[1];
+        //    var currentReportId = $(this).val().split('_')[1];
+        //    if ($.trim(currentType) == "5") {
+        //        $("#liNextExecDate,#liDataSelectionTyp,#liReportDataSince,#liCompanyIds,#liCompanyIdsList,#liRoomIds,#liRoomIdsList").show();
+        //        if (currentReport == "Company") {
+        //            $("#liRoomIds,#liRoomIdsList").hide();
+        //            $("#ddlRRoom > option").remove();
+        //            $("#ddlRRoom").multiselect("refresh");
+        //        }
+
+
+        //        BindDropDownList(currentReport);
+        //    }
+        //    else {
+        //        $("#liNextExecDate,#liDataSelectionTyp,#liReportDataSince,#liCompanyIds,#liCompanyIdsList,#liRoomIds,#liRoomIdsList,#liRequisitionStatus,#liWOStatus,#liOnlyExpiredItems,#liOnlyExpiredItemsDays,#liOnlyExpiredItemsOrder,#liOnlyExpiredItemsDate,#liOnlyAvailableTools,#liQuantityType").hide();
+        //    }
+        //});
+        $("#frmNotificationConfigAlert").submit(function (e) {
+
+            if ($("#ScheduleFor").val() == 6) {
+                var currentReport = $("select[name='drpNotificationName']").val();
+
+                //var currentReport = $('select[name="drpNotificationName"] option:selected').text();
+                if (currentReport == "21_6" || currentReport == "48_6") {
+                    var SelectedCompanyID = getSelectedID('ddlRCompany');
+                    var SelectedRoomID = getSelectedID('ddlRRoom');
+                    if ($.trim(SelectedCompanyID.replace(",", '')).length == 0) {
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        $("#spanGlobalMessage").html("@ResSchedulerReportList.ReqCompany");
+                        $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                        return false;
+                    }
+                    
+                    
+                    if ($.trim(SelectedRoomID.replace(",", '')).length == 0 && currentReport != "Company") {
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        $("#spanGlobalMessage").html("@ResSchedulerReportList.ReqRoom");
+                        $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                        return false;
+                    }
+                    
+                    $("body").find("input#CompanyIds").val(SelectedCompanyID);
+                    if (currentReport != "Company") {
+                        $("body").find("input#RoomIds").val(SelectedRoomID);
+                    }
+                    else {
+                        $("body").find("input#RoomIds").val('');
+                    }
+                }
+
+                //if ($("select[name='drpNotificationName']").val() == "21_6") {
+                //    if ($.trim($("input[type='hidden'][id='SupplierIds']").val()) == "") {
+                //        $('div#target').fadeToggle();
+                //        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                //        $("#spanGlobalMessage").html("Supplier is mandatory when you choose order to supplier email");
+                //        $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                //        return false;
+                //    }
+                //}
+                //if ($("select[name='drpNotificationName']").val() == "10_6") {
+                //    if ($.trim($("input[type='hidden'][id='SupplierIds']").val()) == "") {
+                //        $('div#target').fadeToggle();
+                //        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                //        $("#spanGlobalMessage").html("Supplier is mandatory when you choose order to approval email");
+                //        $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                //        return false;
+                //    }
+                //}
+                var AttachmentReportID = $("select#AttachmentReportIDs");
+                if (AttachmentReportID !== undefined && AttachmentReportID.val() != '' && !isNaN(parseInt(AttachmentReportID.val())) && parseInt(AttachmentReportID.val()) > 0) {
+                    var attachmentTypes = $('input[name="chkAttachmentTypes"]');
+                    if (attachmentTypes !== undefined && attachmentTypes != null && (attachmentTypes.length > 0)) {
+                        var selectedAttachmentTypes = [];
+                        $.each($("input[name='chkAttachmentTypes']:checked"), function () {
+                            selectedAttachmentTypes.push($(this).val());
+                        });
+                        if (selectedAttachmentTypes.length < 1) {
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            $("#spanGlobalMessage").html('@ResMessage.AttachmentTypeIsMandatoryWithAttachmentReport');
+                            $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            if ($("input[name='SelectAllRangeData']") != undefined && $("input[name='SelectAllRangeData']").is(":checked") == true) {
+                var vcount = $("#lstModuleItem :selected").length;
+                var vlength = $('#lstModuleItem').children('option').length;
+                if (vcount == vlength) {
+                    $('input[name="SelectAllRangeData"]').attr('checked', true);
+                }
+                else {
+                    $('input[name="SelectAllRangeData"]').attr('checked', false);
+                }
+            }
+
+            if ($("#ScheduleFor").val() == 5) {
+
+                var SelectedCompanyID = getSelectedID('ddlRCompany');
+                var SelectedRoomID = getSelectedID('ddlRRoom');
+                var fieldsCompany = $("input#ddlRCompany").serializeArray();
+                var fieldsRoom = $("input#ddlRRoom").serializeArray();
+                if ($.trim(SelectedCompanyID.replace(",", '')).length == 0) {
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $("#spanGlobalMessage").html("@ResSchedulerReportList.ReqCompany");
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    return false;
+                }
+                var currentReport = $('select[name="drpNotificationName"] option:selected').text();
+
+                if ($.trim(SelectedRoomID.replace(",", '')).length == 0 && currentReport != "Company") {
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $("#spanGlobalMessage").html("@ResSchedulerReportList.ReqRoom");
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    return false;
+                }
+
+                @*var attachmentTypes = $('input[name="chkAttachmentTypes"]');
+                if (attachmentTypes !== undefined && attachmentTypes != null && (attachmentTypes.length > 0)) {
+                    var selectedAttachmentTypes = [];
+                    $.each($("input[name='chkAttachmentTypes']:checked"), function () {
+                        selectedAttachmentTypes.push($(this).val());
+                    });
+                    if (selectedAttachmentTypes.length < 1) {
+                        $('div#target').fadeToggle();
+                        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        $("#spanGlobalMessage").html('@ResMessage.AttachmentTypeIsMandatory');
+                        $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                        return false;
+                    }
+                }*@
+
+                var AttachmentReportID = $("select#AttachmentReportIDs");
+                if (AttachmentReportID !== undefined && AttachmentReportID.val() != '' && !isNaN(parseInt(AttachmentReportID.val())) && parseInt(AttachmentReportID.val()) > 0)
+                {
+                    var attachmentTypes = $('input[name="chkAttachmentTypes"]');
+                    if (attachmentTypes !== undefined && attachmentTypes != null && (attachmentTypes.length > 0)) {
+                        var selectedAttachmentTypes = [];
+                        $.each($("input[name='chkAttachmentTypes']:checked"), function () {
+                            selectedAttachmentTypes.push($(this).val());
+                        });
+                        if (selectedAttachmentTypes.length < 1) {
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                            $("#spanGlobalMessage").html('@ResMessage.AttachmentTypeIsMandatoryWithAttachmentReport');
+                            $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                            return false;
+                        }
+                    }
+                }
+
+                $("body").find("input#CompanyIds").val(SelectedCompanyID);
+                if (currentReport != "Company") {
+                    $("body").find("input#RoomIds").val(SelectedRoomID);
+                }
+                else {
+                    $("body").find("input#RoomIds").val('');
+                }
+            }
+
+            var ParentReportName = $('input#ParentReportName').val().toLowerCase();
+
+            if (typeof (ParentReportName) != "undefined" && ParentReportName != null && ParentReportName == "pull")
+            {
+                var QuantityType = "";
+
+                if ($('#ddlQuantityType') != null && $('#ddlQuantityType') != undefined && $('#ddlQuantityType').length > 0) {
+                    var QuantityType = getSelectedID('ddlQuantityType');
+                    if (QuantityType != null && QuantityType != undefined && QuantityType != '')
+                        QuantityType = QuantityType;
+                    else
+                        QuantityType = "";
+                }
+
+                if (QuantityType == "" || QuantityType.length < 1)
+                {
+                    $('div#target').fadeToggle();
+                    $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                    $("#spanGlobalMessage").html('@ResMessage.QuantityTypeSelectionRequired');
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    return false;
+                }
+            }
+
+            if ($("input#Reports").val() == '') {
+                var errmsg = '';
+                errmsg = $('select[name="drpReports"]').attr("data-val-required");
+                $('span[data-valmsg-for="Reports"]').html('');
+
+                $('span[data-valmsg-for="Reports"]').html(errmsg);
+            }
+            if ($("input#EmailTemplates").val() == '') {
+                var errmsg = '';
+                errmsg = $('select[name="drpEmailTemplates"]').attr("data-val-required");
+                $('span[data-valmsg-for="EmailTemplates"]').html('');
+
+                $('span[data-valmsg-for="EmailTemplates"]').html(errmsg);
+            }
+            if ($("input#NotificationName").val() == '') {
+                var errmsg = '';
+                errmsg = $('select[name="drpNotificationName"]').attr("data-val-required");
+                $('span[data-valmsg-for="NotificationName"]').html('');
+
+                $('span[data-valmsg-for="NotificationName"]').html(errmsg);
+            }
+            $.validator.unobtrusive.parse("#frmNotificationConfigAlert");
+
+            e.preventDefault();
+        });
+        if (CopyMode == "True") {
+
+            LoadScheduleparams($("#ScheduleName").val(), true, '@Model.ID');
+        }
+        else {
+            LoadScheduleparams($("#ScheduleName").val(), false, '@Model.ID');
+        }
+
+        setTimeout(function () { SetEditMode(); }, 2000);
+
+        if ('@UserSupplierIds' !== undefined && '@UserSupplierIds' != null && '@UserSupplierIds' != "") {
+            $("select#Suppliers").val('@UserSupplierIds');
+            $("input[type='hidden'][id='SupplierIds']").val('@UserSupplierIds');
+            //$("select#Suppliers option:first").attr('selected', 'true');
+            $("select#Suppliers").attr('disabled', 'disabled');
+        }
+        ShowHideImmediateButton();
+
+        $("select#ddlReportRange").change(function () {
+            $("body").find("input#ReportRange").val($(this).val());
+        });
+
+        $("#txtFromDate").datepicker({
+            dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+            changeMonth: true,
+            changeYear: true,
+            clearText: 'Clear', onClose: function () { this.focus(); }
+        });
+
+        if ('@HelpDocReportName' != '' && '@HelpDocReportName' != null && '@HelpDocReportName' != undefined) {
+            SetHelpDocVideo('@HelpDocReportName');
+        }
+        else {
+            $('#divNotificationPDFURL').attr("style", "display:none");
+            $('#divNotificationVideoURL').attr("style", "display:none");
+        }
+
+    });
+
+
+    $('#chkOnlyExpirationItems').live('change', function () {
+        oei = $(this);
+        oei.val(oei.prop('checked'));
+
+        FillModuleItem();
+    });
+
+    $('#IsAllowedZeroPullUsage').live('change', function () {
+        oei = $(this);
+        oei.val(oei.prop('checked'));
+
+        FillModuleItem();
+    });
+    $('#chkExcludeZeroOrdQty').off('change');
+    $('#chkExcludeZeroOrdQty').on('change', function () {
+        oei = $(this);
+        oei.val(oei.prop('checked'));
+
+        FillModuleItem();
+    });
+    $('#chkAllCheckedOutTools').off('change');
+    $('#chkAllCheckedOutTools').on('change', function () {
+        oei = $(this);
+        if (oei.prop('checked')) {
+            $("#rbtnReportDataSelectionTypeOne").attr('checked', false);
+            $("#rbtnReportDataSelectionTypeOne").attr('previousValue', false);
+
+            $("#rbtnReportDataSelectionTypeTwo").attr('checked', false);
+            $("#rbtnReportDataSelectionTypeTwo").attr('previousValue', false);
+
+            $("#rbtnReportDataSelectionTypeThree").attr('checked', false);
+            $("#rbtnReportDataSelectionTypeThree").attr('previousValue', false);
+
+            $("#rbtnReportDataSelectionTypeOne").attr('disabled', true);
+            $("#rbtnReportDataSelectionTypeTwo").attr('disabled', true);
+            $("#rbtnReportDataSelectionTypeThree").attr('disabled', true);
+        }
+        else {
+            $("#rbtnReportDataSelectionTypeOne").attr('disabled', false);
+            $("#rbtnReportDataSelectionTypeTwo").attr('disabled', false);
+            $("#rbtnReportDataSelectionTypeThree").attr('disabled', false);
+        }
+    });
+    $("#CtabNew").on("change", "select#lstModuleItem", function () {
+        var curselect = $(this);
+        $("input[type='hidden'][id='ReportRangeData']").val($(curselect).val());
+        var OptionSelected = $('#lstModuleItem option:selected').length;
+        var TotalOptions = $('#lstModuleItem option').length;
+
+        if (OptionSelected == TotalOptions) {
+            $("#chkCheckAllItem").attr('checked', 'checked');
+        }
+        else {
+            $("#chkCheckAllItem").removeAttr('checked');
+        }
+    });
+
+    $('#ddlReportRange').on('change', function () {
+        FillModuleItem();
+    });
+
+    function FillModuleItem() {
+        var resModuleName = $('input#hdnModuleName').val();
+        var StrStatusType = "";
+        var CompanyIDs = getSelectedID('ddlRCompany');
+        var RoomIDs = getSelectedID('ddlRRoom');
+        var FilterDateOn = "";
+        var Startdate = "";
+        var Enddate = "";
+        var Starttime = "";
+        var Endtime = "";
+        var ModuleName = resModuleName;
+        var StrItemType = "";
+        var reportID = vTemplateID;
+        var NotificationID = vNotificationID;
+        var onlyExpItems = '';
+        var ExpiredItem = '';
+        var ItemExpiredDays = '';
+        var ItemApproveDays = '';
+        var ProjectExpirationDate = "";
+        var countAppliedFilter = '';
+        var usageTypeFilter = '';
+        var IsIncludeStockouttool = '';
+        var isAllowZeroPullUsage = false;
+        var ExcludeZeroOrdQty = false;
+        var AllCheckedOutTools = false;
+
+        if ($('#chkOnlyExpirationItems').length > 0) {
+            if ($('#chkOnlyExpirationItems').attr('checked') == "checked") {
+                onlyExpItems = 'Yes';
+            }
+        }
+
+        var qohFilt = '';
+        if ($('#ddlFilterQOH').length > 0) {
+            qohFilt = getSelectedID('ddlFilterQOH');
+        }
+
+        var range = "";
+        if ($('#ddlReportRange') !== undefined && $('#ddlReportRange') != null) {
+            range = $('#ddlReportRange').val();
+        }
+
+        var QuantityType = "";
+        if ($('#ddlQuantityType') != null && $('#ddlQuantityType') != undefined && $('#ddlQuantityType').length > 0) {
+            var QuantityType = getSelectedID('ddlQuantityType');
+            if (QuantityType != null && QuantityType != undefined && QuantityType != '')
+                QuantityType = QuantityType;
+            else
+                QuantityType = "";
+        }
+
+        var ItemIsActive = "";
+        if ($('#ddlItemStatus') != null && $('#ddlItemStatus') != undefined && $('#ddlItemStatus').length > 0) {
+            var ItemIsActive = getSelectedID('ddlItemStatus');
+            if (ItemIsActive != null && ItemIsActive != undefined && ItemIsActive != '')
+                ItemIsActive = ItemIsActive;
+            else
+                ItemIsActive = "1,0";
+        }
+
+        if ($('#ddlAppliedFilter') != null && $('#ddlAppliedFilter') != undefined && $('#ddlAppliedFilter').length > 0) {
+            countAppliedFilter = $('#ddlAppliedFilter').val();
+        }
+
+
+        if ($('#ddlUsageType') != null && $('#ddlUsageType') != undefined && $('#ddlUsageType').length > 0) {
+            usageTypeFilter = $('#ddlUsageType').val();
+        }
+        var SelectedCartType = "";
+        if ($('#ddlCartType') != null && $('#ddlCartType') != undefined && $('#ddlCartType').length > 0) {
+            var CartType = getSelectedID('ddlCartType');
+            if (CartType != null && CartType != undefined && CartType != '' && CartType != ',')
+                SelectedCartType = CartType;
+            else
+                SelectedCartType = "";
+        }
+
+        if ($('#IsIncludeStockouttool').length > 0) {
+            if ($('#IsIncludeStockouttool').attr('checked') == "checked") {
+                IsIncludeStockouttool = 'Yes';
+            }
+        }
+
+        if ($('#IsAllowedZeroPullUsage').length > 0) {
+            if ($('#IsAllowedZeroPullUsage').attr('checked') == "checked") {
+                isAllowZeroPullUsage = true;
+            }
+        }
+
+        var SelectedMoveType = "";
+        if ($('#ddlMoveType') != null && $('#ddlMoveType') != undefined && $('#ddlMoveType').length > 0) {
+            var MoveType = getSelectedID('ddlMoveType');
+            if (MoveType != null && MoveType != undefined && MoveType != '' && MoveType != ',')
+                SelectedMoveType = MoveType;
+            else
+                SelectedMoveType = "";
+        }
+        if ($('#chkExcludeZeroOrdQty').length > 0) {
+            if ($('#chkExcludeZeroOrdQty').attr('checked') == "checked") {
+                ExcludeZeroOrdQty = true;
+            }
+        }
+        if ($('#chkAllCheckedOutTools').length > 0) {
+            if ($('#chkAllCheckedOutTools').attr('checked') == "checked") {
+                AllCheckedOutTools = true;
+            }
+        }
+        $.ajax({
+            type: "POST",
+            url: "/ReportBuilder/GetModuleItemForSchedule",
+            data: JSON.stringify({ 'CompanyID': CompanyIDs, 'RoomID': RoomIDs, 'startDate': Startdate, 'endDate': Enddate, 'StrStatusType': StrStatusType, 'ModuleName': ModuleName, 'StrItemType': StrItemType, '_ReportID': reportID, 'NotificationID': NotificationID, "ReportRange": range, 'QOHFilter': qohFilt, 'OnlyExirationItems': onlyExpItems, 'Starttime': Starttime, 'Endtime': Endtime, 'QuantityType': QuantityType, 'ExpiredItem': ExpiredItem, 'ItemExpiredDays': ItemExpiredDays, 'ItemApproveDays': ItemApproveDays, 'ProjectExpirationDate': ProjectExpirationDate, 'CountAppliedFilter': countAppliedFilter, 'FilterDateOn': FilterDateOn, 'UsageType': usageTypeFilter, 'ItemIsActive': ItemIsActive, 'SelectedCartType': SelectedCartType, 'IsIncludeStockouttool': IsIncludeStockouttool, "IsAllowZeroPullUsage": isAllowZeroPullUsage, "MoveType": SelectedMoveType, "ExcludeZeroOrdQty": ExcludeZeroOrdQty, "AllCheckedOutTools": AllCheckedOutTools }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            async: false,
+            success: function (message) {
+                var ParentReportName = $('input#ParentReportName').val().toLowerCase();
+                if (ParentReportName != "instock"
+                    && ParentReportName != "instock by activity"
+                    && ParentReportName != "order item summary") {
+                    var opt = '';
+                    $("#lstModuleItem").empty()
+                    $('#lstModuleItem').append(opt);
+                    var arrReportRangeData = $("input[type='hidden'][id='ReportRangeData']").val().split(',');
+                    if (message.KeyValList != null && message.KeyValList.length > 0) {
+                        for (var i = 0; i < message.KeyValList.length; i++) {
+                            if (message.KeyValList[i].value.length > 0 && message.KeyValList[i].key.length > 0) {
+                                if ($.inArray(message.KeyValList[i].key.toString(), arrReportRangeData) > -1 || $("input[name='SelectAllRangeData']").is(":checked") == true) {
+                                    opt += '<option selected="selected" value="' + message.KeyValList[i].key + '">' + message.KeyValList[i].value + '</option>';
+                                }
+                                else {
+                                    opt += '<option value="' + message.KeyValList[i].key + '">' + message.KeyValList[i].value + '</option>';
+                                }
+                            }
+                        }
+                        $('#lstModuleItem').append(opt);
+                    }
+                }
+                else {
+                    var opt = '';
+                    $("#lstModuleItem").empty()
+                    $('#lstModuleItem').append(opt);
+                    var arrReportRangeData = $("input[type='hidden'][id='ReportRangeData']").val().split(',');
+                    if (message.KeyValList != null && message.KeyValList.length > 0) {
+                        for (var i = 0; i < message.KeyValList.length; i++) {
+                            if (message.KeyValList[i].value.length > 0 && message.KeyValList[i].key.length > 0) {
+                                if ($("input[name='SelectAllRangeData']").is(":checked") == true) {
+                                    opt += '<option selected="selected" value="' + message.KeyValList[i].key + '">' + message.KeyValList[i].value + '</option>';
+                                }
+                                else {
+                                    if (message.KeyValList[i].key.indexOf(',') > -1) {
+                                        var responseKeyArray = message.KeyValList[i].key.split(',');
+                                        for (var e = 0; e < responseKeyArray.length; e++) {
+                                            if ($.inArray(responseKeyArray[e], arrReportRangeData) > -1 || $("input[name='SelectAllRangeData']").is(":checked") == true) {
+                                                opt += '<option selected="selected" value="' + message.KeyValList[i].key + '">' + message.KeyValList[i].value + '</option>';
+                                                break;
+                                            }
+                                            else {
+                                                opt += '<option value="' + message.KeyValList[i].key + '">' + message.KeyValList[i].value + '</option>';
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    else {
+                                        if ($.inArray(message.KeyValList[i].key.toString(), arrReportRangeData) > -1 || $("input[name='SelectAllRangeData']").is(":checked") == true) {
+                                            opt += '<option selected="selected" value="' + message.KeyValList[i].key + '">' + message.KeyValList[i].value + '</option>';
+                                        }
+                                        else {
+                                            opt += '<option value="' + message.KeyValList[i].key + '">' + message.KeyValList[i].value + '</option>';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        $('#lstModuleItem').append(opt);
+                    }
+                }
+            },
+            error: function (message) {
+
+            }
+        });
+
+    }
+
+
+    function BindFilterReportRange(TemplateID, NotificationID, objExistSelected) {
+
+        var objList = '';
+        var objdisabledList = '';
+        var objExistselect = objExistSelected.split(',');
+        $.ajax({
+            type: "POST",
+            url: "/ReportBuilder/GetReportRangeByReportIDForScheduler",
+            data: JSON.stringify({ 'TemplateID': TemplateID, 'NotificationID': NotificationID }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            async: false,
+            success: function (response) {
+                objList = response.Grouplist;
+                objdisabledList = response.DisableGroupList;
+
+                $("#ddlReportRange > option").remove();
+
+                var s = '';
+                for (var i = 0; i < objList.length; i++) {
+
+                    if (objList[i].Value == objExistSelected) {
+                        s += '<option selected="true" value=' + objList[i].Value + '  >' + objList[i].Text + '</option>';
+                        $("body").find("input#ReportRange").val(objList[i].Value);
+                    }
+                    else {
+
+                        s += '<option value=' + objList[i].Value + '  >' + objList[i].Text + '</option>';
+                        if (i == 0) {
+                            $("body").find("input#ReportRange").val(objList[i].Value);
+                        }
+                    }
+                }
+                $("#ddlReportRange").append(s);
+
+                var sd = '';
+                for (var i = 0; i < objdisabledList.length; i++) {
+                    sd += '<option disabled="true" value=' + objdisabledList[i].Value + '  >' + objdisabledList[i].Text + '</option>';
+                }
+                $("#ddlReportRange").append(sd);
+
+            },
+            error: function (response) {
+                $("#ddlReportRange > option").remove();
+                var op = '';
+                $("#ddlReportRange").append(sd);
+            }
+        });
+    }
+
+    function BindFilterQOHDDL(CurrentReport, objExistSelected) {
+        var objList = '';
+        var objSelect = '';
+        var objExistselect = objExistSelected.split(',');
+        $.ajax({
+            type: "POST",
+            url: "/ReportBuilder/GetStatus",
+            data: JSON.stringify({ 'ReportModuleName': CurrentReport }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            async: false,
+            success: function (message) {
+                objList = message.RoomList;
+                objSelect = message.Selected;
+            },
+            error: function (response) {
+
+            }
+        });
+
+        $("#ddlFilterQOH > option").remove();
+
+        $("#ddlFilterQOH").multiselect('destroy');
+        $("#ddlFilterQOH").multiselectfilter('destroy');
+
+        $("#ddlFilterQOH").multiselect("refresh");
+        var s = '';
+        for (var i = 0; i < objList.length; i++) {
+            s += '<option value=' + objList[i].key + '  >' + objList[i].value + '</option>';
+        }
+        $("#ddlFilterQOH").append(s);
+
+        if ($("#ddlFilterQOH").length > 0) {
+            $("#ddlFilterQOH")[0].selectedIndex = -1;
+        }
+        $("#ddlFilterQOH").multiselect("refresh");
+        $("#ddlFilterQOH").multiselectfilter('refresh');
+
+        $("#ddlFilterQOH").multiselect({
+            noneSelectedText: 'Select QOH Filter', selectedList: 5,
+            selectedText: function (numChecked, numTotal, checkedItems) {
+                return 'QOH Filter' + ' ' + numChecked + ' ' + selected;
+            },
+            header: false
+        }).unbind("multiselectclick").bind("multiselectclick", function (event, ui) {
+            if (ui.checked) {
+
+
+                var uiLastest = ui;
+                $("#ddlFilterQOH").multiselect("uncheckAll");
+
+
+                ui = uiLastest;
+                $("ul.ui-multiselect-checkboxes li").each(function () {
+                    if ($(this).find("input[type=checkbox]").val() == $.trim(ui.value)) {
+                        $(this).find("input[type=checkbox]").attr("checked", "checked");
+                    }
+                });
+
+
+                //$("#ddlFilterQOH").multiselect("widget").find(":checkbox[value='" + ui.value + "']").attr("checked", "checked");
+                //$("#ddlFilterQOH option[value='" + ui.value + "']").attr("selected", 1);
+                SetLabelText('lblselectedQOHFilters', 'ddlFilterQOH');
+
+                var SelectedStatusID = getSelectedID('ddlFilterQOH');
+                $("body").find("input#FilterQOH").val(SelectedStatusID);
+                FillModuleItem();
+
+            }
+            else {
+
+                var SelectedStatusID = getSelectedID('ddlFilterQOH');
+                $("body").find("input#FilterQOH").val(SelectedStatusID);
+                SetLabelText('lblselectedQOHFilters', 'ddlFilterQOH');
+                FillModuleItem();
+            }
+        });
+
+        $("#ddlFilterQOH").multiselect("refresh");
+
+        var selectedLtext = '';
+        for (var i = 0; i < objList.length; i++) {
+
+            if (objList[i].key == objSelect) {
+                $("#ddlFilterQOH").multiselect("widget").find(":checkbox[value='" + objList[i].key + "']").attr("checked", "checked");
+                $("#ddlFilterQOH option[value='" + objList[i].key + "']").attr("selected", 1);
+                $("#ddlFilterQOH").multiselect("refresh");
+
+            }
+        }
+        for (var i = 0; i < objExistselect.length; i++) {
+
+            for (var j = 0; j < objList.length; j++) {
+
+                if (objList[j].key == objExistselect[i]) {
+                    $("#ddlFilterQOH").multiselect("widget").find(":checkbox[value='" + objList[j].key + "']").attr("checked", "checked");
+                    $("#ddlFilterQOH option[value='" + objList[j].key + "']").attr("selected", 1);
+                    $("#ddlFilterQOH").multiselect("refresh");
+
+                }
+            }
+        }
+        SetLabelText('lblselectedQOHFilters', 'ddlFilterQOH');
+    }
+
+    function BindStatus(CurrentReport, objExistSelected) {
+        var objList = '';
+        var objSelect = '';
+        var objExistselect = objExistSelected.split(',');
+        $.ajax({
+            type: "POST",
+            url: "/ReportBuilder/GetStatus",
+            data: JSON.stringify({ 'ReportModuleName': CurrentReport }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            async: false,
+            success: function (message) {
+                objList = message.RoomList;
+                objSelect = message.Selected;
+            },
+            error: function (response) {
+
+            }
+        });
+
+        $("#ddlSCHRequisitionStatus > option").remove();
+        $("#ddlSCHRequisitionStatus").multiselect("refresh");
+        var s = '';
+        for (var i = 0; i < objList.length; i++) {
+            s += '<option value=' + objList[i].key + '  >' + objList[i].value + '</option>';
+        }
+        $("#ddlSCHRequisitionStatus").append(s);
+        $("#ddlSCHRequisitionStatus").multiselect({
+            noneSelectedText: 'Requisition Status', selectedList: 5,
+            selectedText: function (numChecked, numTotal, checkedItems) {
+                return 'Requisition Status' + ' ' + numChecked + ' ' + selected;
+            }
+        }).unbind("multiselectclick multiselectcheckall multiselectuncheckall").bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+            if (ui.checked) {
+                $("#ddlSCHRequisitionStatus").multiselect("widget").find(":checkbox[value='" + ui.value + "']").attr("checked", "checked");
+                $("#ddlSCHRequisitionStatus option[value='" + ui.value + "']").attr("selected", 1);
+                // SetLabelText('lblselectedRoom', 'ddlStatus');
+
+                var SelectedStatusID = getSelectedID('ddlSCHRequisitionStatus');
+                $("body").find("input#Status").val(SelectedStatusID);
+
+
+            }
+            else {
+
+                var SelectedStatusID = getSelectedID('ddlSCHRequisitionStatus');
+                $("body").find("input#Status").val(SelectedStatusID);
+            }
+        });
+        $("#ddlSCHRequisitionStatus").multiselect("refresh");
+
+        var selectedLtext = '';
+        if ('@Model' != null && '@Model.ID' <= 0) {
+            for (var i = 0; i < objList.length; i++) {
+
+                if (objList[i].key == objSelect) {
+                    $("#ddlSCHRequisitionStatus").multiselect("widget").find(":checkbox[value='" + objList[i].key + "']").attr("checked", "checked");
+                    $("#ddlSCHRequisitionStatus option[value='" + objList[i].key + "']").attr("selected", 1);
+                    $("#ddlSCHRequisitionStatus").multiselect("refresh");
+                }
+            }
+        }
+        for (var i = 0; i < objExistselect.length; i++) {
+
+            for (var j = 0; j < objList.length; j++) {
+
+                if (objList[j].key == objExistselect[i]) {
+                    $("#ddlSCHRequisitionStatus").multiselect("widget").find(":checkbox[value='" + objList[j].key + "']").attr("checked", "checked");
+                    $("#ddlSCHRequisitionStatus option[value='" + objList[j].key + "']").attr("selected", 1);
+                    $("#ddlSCHRequisitionStatus").multiselect("refresh");
+
+                }
+            }
+        }
+        //  SetLabelText('lblselectedRoom', 'ddlRRoom');
+    }
+
+    function BindWOStatus(CurrentReport, objExistSelected) {
+        var objList = '';
+        var objSelect = '';
+        var objExistselect = objExistSelected.split(',');
+        $.ajax({
+            type: "POST",
+            url: "/ReportBuilder/GetStatus",
+            data: JSON.stringify({ 'ReportModuleName': CurrentReport }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            async: false,
+            success: function (message) {
+                objList = message.RoomList;
+                objSelect = message.Selected;
+            },
+            error: function (response) {
+
+            }
+        });
+
+        $("#ddlWOStatus > option").remove();
+        $("#ddlWOStatus").multiselect("refresh");
+        var s = '';
+        for (var i = 0; i < objList.length; i++) {
+            s += '<option value=' + objList[i].key + '  >' + objList[i].value + '</option>';
+        }
+        $("#ddlWOStatus").append(s);
+        $("#ddlWOStatus").multiselect({
+            noneSelectedText: 'WorkOrder Status', selectedList: 5,
+            selectedText: function (numChecked, numTotal, checkedItems) {
+                return 'WorkOrder Status' + ' ' + numChecked + ' ' + selected;
+            }
+        }).unbind("multiselectclick multiselectcheckall multiselectuncheckall").bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+            if (ui.checked) {
+                $("#ddlWOStatus").multiselect("widget").find(":checkbox[value='" + ui.value + "']").attr("checked", "checked");
+                $("#ddlWOStatus option[value='" + ui.value + "']").attr("selected", 1);
+                // SetLabelText('lblselectedRoom', 'ddlStatus');
+
+                var SelectedStatusID = getSelectedID('ddlWOStatus');
+                $("body").find("input#WOStatus").val(SelectedStatusID);
+            }
+            else {
+
+                var SelectedStatusID = getSelectedID('ddlWOStatus');
+                $("body").find("input#WOStatus").val(SelectedStatusID);
+            }
+        });
+        $("#ddlWOStatus").multiselect("refresh");
+
+        var selectedLtext = '';
+        for (var i = 0; i < objList.length; i++) {
+
+            if (objList[i].key == objSelect) {
+                $("#ddlWOStatus").multiselect("widget").find(":checkbox[value='" + objList[i].key + "']").attr("checked", "checked");
+                $("#ddlWOStatus option[value='" + objList[i].key + "']").attr("selected", 1);
+                $("#ddlWOStatus").multiselect("refresh");
+            }
+        }
+        for (var i = 0; i < objExistselect.length; i++) {
+
+            for (var j = 0; j < objList.length; j++) {
+
+                if (objList[j].key == objExistselect[i]) {
+                    $("#ddlWOStatus").multiselect("widget").find(":checkbox[value='" + objList[j].key + "']").attr("checked", "checked");
+                    $("#ddlWOStatus option[value='" + objList[j].key + "']").attr("selected", 1);
+                    $("#ddlWOStatus").multiselect("refresh");
+                }
+            }
+        }
+        //  SetLabelText('lblselectedRoom', 'ddlRRoom');
+    }
+    function BindOrderStatus(CurrentReport, objExistSelected) {
+        var objList = '';
+        var objSelect = '';
+        var objExistselect = objExistSelected.split(',');
+        $.ajax({
+            type: "POST",
+            url: "/ReportBuilder/GetOrderStatus",
+            data: JSON.stringify({ 'ReportModuleName': CurrentReport }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            async: false,
+            success: function (message) {
+                objList = message.RoomList;
+                objSelect = message.Selected;
+            },
+            error: function (response) {
+            }
+        });
+
+        $("#ddlOrderStatus > option").remove();
+        $("#ddlOrderStatus").multiselect("refresh");
+        var s = '';
+        for (var i = 0; i < objList.length; i++) {
+            s += '<option value=' + objList[i].key + '  >' + objList[i].value + '</option>';
+        }
+        $("#ddlOrderStatus").append(s);
+        $("#ddlOrderStatus").multiselect({
+            noneSelectedText: 'Order Status', selectedList: 5,
+            selectedText: function (numChecked, numTotal, checkedItems) {
+                return 'Order Status' + ' ' + numChecked + ' ' + selected;
+            }
+        }).unbind("multiselectclick multiselectcheckall multiselectuncheckall").bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+            if (ui.checked) {
+                $("#ddlOrderStatus").multiselect("widget").find(":checkbox[value='" + ui.value + "']").attr("checked", "checked");
+                $("#ddlOrderStatus option[value='" + ui.value + "']").attr("selected", 1);
+                var SelectedStatusID = getSelectedID('ddlOrderStatus');
+                $("body").find("input#OrderStatus").val(SelectedStatusID);
+            }
+            else {
+                var SelectedStatusID = getSelectedID('ddlOrderStatus');
+                $("body").find("input#OrderStatus").val(SelectedStatusID);
+            }
+        });
+        $("#ddlOrderStatus").multiselect("refresh");
+
+        var selectedLtext = '';
+        for (var i = 0; i < objList.length; i++) {
+
+            if (objList[i].key == objSelect) {
+                $("#ddlOrderStatus").multiselect("widget").find(":checkbox[value='" + objList[i].key + "']").attr("checked", "checked");
+                $("#ddlOrderStatus option[value='" + objList[i].key + "']").attr("selected", 1);
+                $("#ddlOrderStatus").multiselect("refresh");
+
+            }
+        }
+        for (var i = 0; i < objExistselect.length; i++) {
+            for (var j = 0; j < objList.length; j++) {
+                if (objList[j].key == objExistselect[i]) {
+                    $("#ddlOrderStatus").multiselect("widget").find(":checkbox[value='" + objList[j].key + "']").attr("checked", "checked");
+                    $("#ddlOrderStatus option[value='" + objList[j].key + "']").attr("selected", 1);
+                    $("#ddlOrderStatus").multiselect("refresh");
+                }
+            }
+        }
+    }
+
+    function BindOrderLineItemStatus(CurrentReport, objExistSelected) {
+        var objList = '';
+        var objSelect = '';
+        var objExistselect = objExistSelected.split(',');
+        $.ajax({
+            type: "POST",
+            url: "/ReportBuilder/GetOrderStatus",
+            data: JSON.stringify({ 'ReportModuleName': CurrentReport }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            async: false,
+            success: function (message) {
+                objList = message.RoomList;
+                objSelect = message.Selected;
+            },
+            error: function (response) {
+            }
+        });
+
+        $("#ddlOrderWithLineItemStatus > option").remove();
+        $("#ddlOrderWithLineItemStatus").multiselect("refresh");
+        var s = '';
+        for (var i = 0; i < objList.length; i++) {
+            s += '<option value=' + objList[i].key + '  >' + objList[i].value + '</option>';
+        }
+        $("#ddlOrderWithLineItemStatus").append(s);
+        $("#ddlOrderWithLineItemStatus").multiselect({
+            noneSelectedText: 'Order Status', selectedList: 5,
+            selectedText: function (numChecked, numTotal, checkedItems) {
+                return 'Order Status' + ' ' + numChecked + ' ' + selected;
+            }
+        }).unbind("multiselectclick multiselectcheckall multiselectuncheckall").bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+            if (ui.checked) {
+                $("#ddlOrderWithLineItemStatus").multiselect("widget").find(":checkbox[value='" + ui.value + "']").attr("checked", "checked");
+                $("#ddlOrderWithLineItemStatus option[value='" + ui.value + "']").attr("selected", 1);
+                var SelectedStatusID = getSelectedID('ddlOrderWithLineItemStatus');
+                $("body").find("input#OrderStatus").val(SelectedStatusID);
+            }
+            else {
+                var SelectedStatusID = getSelectedID('ddlOrderWithLineItemStatus');
+                $("body").find("input#OrderStatus").val(SelectedStatusID);
+            }
+        });
+        $("#ddlOrderWithLineItemStatus").multiselect("refresh");
+
+        var selectedLtext = '';
+        for (var i = 0; i < objList.length; i++) {
+            if (objList[i].key == objSelect) {
+                $("#ddlOrderWithLineItemStatus").multiselect("widget").find(":checkbox[value='" + objList[i].key + "']").attr("checked", "checked");
+                $("#ddlOrderWithLineItemStatus option[value='" + objList[i].key + "']").attr("selected", 1);
+                $("#ddlOrderWithLineItemStatus").multiselect("refresh");
+
+            }
+        }
+        for (var i = 0; i < objExistselect.length; i++) {
+            for (var j = 0; j < objList.length; j++) {
+                if (objList[j].key == objExistselect[i]) {
+                    $("#ddlOrderWithLineItemStatus").multiselect("widget").find(":checkbox[value='" + objList[j].key + "']").attr("checked", "checked");
+                    $("#ddlOrderWithLineItemStatus option[value='" + objList[j].key + "']").attr("selected", 1);
+                    $("#ddlOrderWithLineItemStatus").multiselect("refresh");
+                }
+            }
+        }
+    }
+
+    function AttachCkEditor() {
+        if (!CKEDITOR.instances['txtTemplate']) {
+            CKEDITOR.replace('txtTemplate');
+        }
+        else {
+            ReBindCKEditor();
+        }
+    }
+    function enableDisableMode(radioval) {
+        //SetScheduleForFields(6);
+
+        if (radioval == 1) {
+            $("#EmailAddress").removeProp("disabled");
+            $("#FTPId").prop("disabled", true);
+        }
+        else {
+            $("#EmailAddress").prop("disabled", true);
+            $("#FTPId").removeProp("disabled");
+        }
+        $("#tmpNotificationMode").val(radioval);
+    }
+    function ReBindCKEditor() {
+        try {
+            var editor = CKEDITOR.instances['txtTemplate'];
+            if (editor) {
+                editor.destroy(true);
+            }
+        }
+        catch (e) { }
+        CKEDITOR.replace('txtTemplate');
+    }
+
+    function onSuccess(response) {
+
+        var retstat;
+        IsRefreshGrid = true;
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#ID").val();
+        if (idValue < 1 || idValue == "") {
+            retstat = response.Status;
+            switch (retstat) {
+                case "fail":
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    break;
+                case "duplicate":
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    break;
+                case "ok":
+                    $('#NarroSearchClear').click();
+                    if (oTable !== undefined && oTable != null) {
+                        oTable.fnDraw();
+                        if (RecScheduleFor == 55) {
+                            callbackReportScheduleSetup();
+                        }
+                        else if (RecScheduleFor == 66) {
+                            callbackAlertSetup();
+                        }
+                        else {
+                            callbackReportAlertScheduleSetup();
+                        }
+                    }
+                    break;
+            }
+        }
+        else if (idValue > 0) {
+
+            retstat = response.Status;
+            switch (retstat) {
+                case "fail":
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    break;
+                case "duplicate":
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    break;
+                case "ok":
+                    $('#NarroSearchClear').click();
+                    if (oTable !== undefined && oTable != null) {
+                        oTable.fnDraw();
+                        $("#tab5").click();
+                         $("#divListPageInfoclass").show();
+                        $("#divinnerInfoclass").hide();
+                    }
+                    break;
+            }
+        }
+    }
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#ScheduleName").focus();
+    }
+    function OnBegin() {
+
+    }
+
+    function SetEditMode() {
+        //alert("3");
+        if (RecID > 0) {
+            if (RecScheduleFor == 5) {
+                $("#Reports").find("option[value='" + RecReportID + "']").prop("selected", "selected");
+                $("#Reports").prop("disabled", "disabled");
+                setTimeout(function () { $("#NotificationName").prop("disabled", "disabled"); }, 100);
+                $("input[type='hidden'][id='Reports']").val(RecReportID);
+                GetEmailTemplateDetails(RecEmailTemplateID, RecID, $("#ScheduleFor").val(), RecReportID);
+
+            }
+            else if (RecScheduleFor == 6) {
+                $("#EmailTemplates").find("option[value='" + RecEmailTemplateID + "']").prop("selected", "selected");
+                $("#EmailTemplates").prop("disabled", "disabled");
+                setTimeout(function () { $("#NotificationName").prop("disabled", "disabled"); }, 100);
+
+                $("input[type='hidden'][id='EmailTemplates']").val(RecEmailTemplateID);
+
+                if (RecReportID == null || RecReportID == undefined) {
+                    RecReportID = 0;
+                }
+
+                GetEmailTemplateDetails(RecEmailTemplateID, RecID, $("#ScheduleFor").val(), RecReportID);
+            }
+            var arrSuppliers = RecSuppliers.split(',');
+            $(arrSuppliers).each(function (indx, val) {
+                $("#Suppliers").find("option[value='" + val + "']").prop("selected", "selected");
+            });
+            arrSuppliers = RecAttachmentTypes.split(',');
+            $(arrSuppliers).each(function (indx, val) {
+                if (val == 1) {
+                    $("#chkPDF").prop("checked", "checked");
+                }
+                if (val == 2) {
+                    $("#chkExcell").prop("checked", "checked");
+                }
+            });
+
+            var arrActionCode = RecActionCodes.split(',');
+            $(arrActionCode).each(function (indx, val) {
+                $("#ActionCode").find("option[value='" + val + "']").prop("selected", "selected");
+            });
+
+
+        }
+        if (CopyMode == "True") {
+            $("input[type='hidden'][id='ID']").val("0");
+            $("#dvParams").find("#ScheduleID").val("0");
+            $("#ScheduleName").val("");
+            if (RecScheduleFor == 5) {
+                $("#Reports").find("option:selected").removeProp("selected");
+                $("input[type='hidden'][id='Reports']").val("");
+                $("#Reports").removeProp("disabled");
+            }
+            else if (RecScheduleFor == 6) {
+                $("#EmailTemplates").find("option:selected").removeProp("selected");
+                $("input[type='hidden'][id='EmailTemplates']").val("");
+                $("#EmailTemplates").removeProp("disabled");
+            }
+        }
+    }
+
+    $('.dtPicker').on('change', function () {
+        //alert($(this).attr('id') + ' ' + $(this).val());
+        var StartDateValid = true;
+        try {
+            $.datepicker.parseDate(RoomDateJSFormat, $('.dtPicker').val());
+            StartDateValid = true;
+        } catch (e) {
+            StartDateValid = false;
+        }
+    });
+    function isNumberKey(evt) {
+        var keyCode = [evt.keyCode || evt.which];
+
+        if (keyCode == 8 || keyCode == 13 || keyCode == 9)
+            return true;
+        if (keyCode > 57 || keyCode < 48)
+            return false;
+        else
+            return true;
+    }
+    $("input#OnlyExpiredItems").live('change', function () {
+        if ($(this).is(":checked")) {
+            $("input#DaysUntilItemExpires").val('');
+            $("input#DaysToApproveOrder").val('');
+            $("input#DaysUntilItemExpires").attr("disabled", "diabled");
+            $("input#DaysToApproveOrder").attr("disabled", "diabled");
+            $("input#ProjectExpirationDate").val('');
+            $("input#ProjectExpirationDate").attr("disabled", "diabled");
+            $("input#ProjectExpirationDate").addClass("disableBack");
+            $("input#DaysUntilItemExpires").addClass("disableBack");
+            $("input#DaysToApproveOrder").addClass("disableBack");
+        }
+        else {
+            $("input#DaysToApproveOrder").val('');
+            $("input#DaysUntilItemExpires").removeAttr("disabled");
+            $("input#DaysUntilItemExpires").val('');
+            $("input#ProjectExpirationDate").val('');
+            $("input#ProjectExpirationDate").removeAttr("disabled");
+            $("input#DaysToApproveOrder").removeAttr("disabled");
+            $("input#ProjectExpirationDate").removeClass("disableBack");
+            $("input#DaysUntilItemExpires").removeClass("disableBack");
+            $("input#DaysToApproveOrder").removeClass("disableBack");
+        }
+    });
+
+    function RunReport() {
+        var notificationMode = $("#tmpNotificationMode").val(); //$("#NotificationMode").val();
+        if (notificationMode == 1) {
+            if ($("#EmailAddress").val() == "") {
+                alert("Please enter Send To email address");
+                return false;
+            }
+            else {
+                var toManyAddress = $("#EmailAddress").val().split(",");
+                var res = true;
+                for (var i = 0; i < toManyAddress.length; i++) {
+                    if (toManyAddress[i] != '') {
+                        if (toManyAddress[i].toLowerCase() != "[Requester]".toLowerCase()
+                            && toManyAddress[i].toLowerCase() != "[Approver]".toLowerCase()) {
+                            if (!isValidEmailAddress(toManyAddress[i])) {
+                                alert("Please enter valid Send To email address");
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+            if ($("#EmailSubject").val() == "") {
+                alert("Please enter Subject");
+                return false;
+            }
+            if (escape(CKEDITOR.instances.txtTemplate.getData()) == "") {
+                alert("Please enter Body");
+                return false;
+            }
+
+            if (!($('#txtFromDate').length > 0 && $('#txtFromDate').val().length > 0)) {
+                alert('@ResSchedulerReportList.ReqFromDate');
+                return false;
+            }
+
+            var ParentReportName = $('input#ParentReportName').val().toLowerCase();
+            var moduleName = $('input#hdnModuleName').val().toLowerCase();
+            if (ParentReportName != "instock" && ParentReportName != "instock by activity" && ParentReportName != "pull summary" && ParentReportName != "pull" && ParentReportName != "pull incomplete"
+                && ParentReportName != "pull item summary" && ParentReportName != "pull completed" && ParentReportName != "pull summary by consignedpo" && ParentReportName != "pull summary by quarter"
+                && ParentReportName != "pull no header" && ParentReportName != "credit pull" && ParentReportName != "cumulative pull" && ParentReportName != "total pulled" ) {
+                if (moduleName.indexOf("consume_pull") > -1 || moduleName.indexOf("instockbybin") > -1 || moduleName.indexOf("instockbyactivity") > -1
+                    || moduleName.indexOf("instockbybinmargin") > -1 || moduleName.indexOf("instockwithqoh") > -1
+                    || moduleName.indexOf("workorderlist") > -1) {
+                    var rangeType = "";
+                    if ($('#ddlReportRange') !== undefined && $('#ddlReportRange') != null) {
+                        rangeType = $('#ddlReportRange').val();
+                    }
+
+                    var selectedFilterValues = $.map($('#lstModuleItem option:selected'), function (element) {
+                        return element.value;
+                    });
+                    var rangeValue = selectedFilterValues.join(',');
+                    var url = (moduleName.indexOf("consume_pull") > -1) ? "/ReportBuilder/GetDataGuidsBasedOnRangeForRunPullReports"
+                        : "/ReportBuilder/GetDataGuidsBasedOnRangeForRunInStockReports";
+
+                    //if (moduleName.indexOf("workorderlist") > -1) {
+                    //    url = "/ReportBuilder/GetDataGuidsBasedOnRangeForRunWokrOrderListReports";
+                    //}
+                    if (moduleName.indexOf("workorderlist") > -1) {
+                        // Do Nothing
+                    } else { GetDataGuidsForPullOrInStockReport(url, rangeType, rangeValue); }
+
+                }
+                else {
+                    FillModuleItemForRunReport();
+                }
+            }
+
+            var objkeyVal = new Array();
+            var roomIDs = new Array();
+            var compIDs = new Array();
+            var status = new Array();
+            var orderStatus = new Array();
+            objkeyVal = new Array();
+
+            compIDs = getSelectedID('ddlRCompany');
+            roomIDs = getSelectedID('ddlRRoom');
+            status = getSelectedID('ddlModuleItem');
+
+            if ($("#liOrderStatus").is(":visible")) {
+                orderStatus = getSelectedID('ddlOrderStatus');
+            }
+            else if ($("#liOrderWithLineItemStatus").is(":visible"))
+            {
+                orderStatus = getSelectedID('ddlOrderWithLineItemStatus');
+            }
+
+            var selectedValues = $.map($('#lstModuleItemTemp option:selected'), function (element) {
+                return element.value;
+            });
+
+            if (compIDs.length > 0) {
+                objkeyVal.push({ 'key': 'CompanyIDs', 'value': compIDs });
+            }
+
+            if (typeof (orderStatus) != "undefined" && orderStatus != null && orderStatus.length > 0) {
+                objkeyVal.push({ 'key': 'OrderStatus', 'value': orderStatus });
+            }
+            if ((moduleName.indexOf("consume_requisition") > -1 || moduleName.indexOf("workorder") > -1)
+                && (moduleName != 'workorderlist')) {
+                if (selectedValues.length > 0 && selectedValues != ",") {
+                    objkeyVal.push({ 'key': 'DataGuids', 'value': selectedValues.join(',') });
+                }
+                else {
+                    objkeyVal.push({ 'key': 'DataGuids', 'value': '00000000-0000-0000-0000-000000000000' });
+                }
+            }
+            else if ($("#dataGuidsForPullOrInstock").val().length > 0 && (moduleName.indexOf("consume_pull") > -1
+                || moduleName.indexOf("instockbybin") > -1 || moduleName.indexOf("instockbyactivity") > -1
+                || moduleName.indexOf("instockbybinmargin") > -1 || moduleName.indexOf("instockwithqoh") > -1)) {
+
+                objkeyVal.push({ 'key': 'DataGuids', 'value': $("#dataGuidsForPullOrInstock").val() });
+            }
+            if (ParentReportName == "instock"
+                || ParentReportName == "pull summary"
+                || ParentReportName == "pull"
+                || ParentReportName == "pull incomplete"
+                || ParentReportName == "order item summary"
+                || ParentReportName.toLowerCase() == "instock by activity"
+                || ParentReportName == "pull item summary"
+                || ParentReportName == "pull completed"
+                || ParentReportName == "pull summary by consignedpo"
+                || ParentReportName == "pull summary by quarter"
+                || ParentReportName == "pull no header"
+                || ParentReportName == "credit pull"
+                || ParentReportName == "cumulative pull"
+                || ParentReportName == "total pulled") {
+
+                var selectedFilterValues = $.map($('#lstModuleItem option:selected'), function (element) {
+                    return element.value;
+                });
+
+                if (selectedFilterValues.length > 0 && selectedFilterValues != ",") {
+                    objkeyVal.push({ 'key': 'DataGuids', 'value': selectedFilterValues.join(',') });
+                }
+                else {
+                    objkeyVal.push({ 'key': 'DataGuids', 'value': '00000000-0000-0000-0000-000000000000' });
+                }
+            }
+            //if (selectedValues.length > 0) {
+            //objkeyVal.push({ 'key': 'WorkOrderGuid', 'value': selectedValues.join(',') });
+            //}
+
+            if (moduleName.indexOf("workorderlist") > -1) {
+                objkeyVal.push({ 'key': 'RangeFieldName', 'value': rangeType });
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+
+            if (roomIDs.length > 0) {
+                objkeyVal.push({ 'key': 'RoomIDs', 'value': roomIDs });
+            }
+
+            if ($('#txtFromDate').length > 0 && $('#txtFromDate').val().length > 0) {
+                objkeyVal.push({ 'key': 'StartDate', 'value': $('#txtFromDate').val() });
+            }
+
+            objkeyVal.push({ 'key': 'EndDate', 'value': currentDate });
+
+            var sortField = '';
+            if (($("select#SortFieldFirstValue").val() != null && $("select#SortFieldFirstValue").val() != '') && ($("select#SortFieldFirstOrder").val() != null && $("select#SortFieldFirstOrder").val() != '')) {
+                sortField += $("select#SortFieldFirstValue").val() + ' ' + $("select#SortFieldFirstOrder").val();
+            }
+            if (($("select#SortFieldSecondValue").val() != null && $("select#SortFieldSecondValue").val() != "") && ($("select#SortFieldSecondOrder").val() != null && $("select#SortFieldSecondOrder").val() != "")) {
+                if (sortField.length > 0)
+                    sortField += ', ';
+                sortField += $("select#SortFieldSecondValue").val() + ' ' + $("select#SortFieldSecondOrder").val();
+            }
+            if (($("select#SortFieldThirdValue").val() != null && $("select#SortFieldThirdValue").val() != "") && ($("select#SortFieldThirdOrder").val() != null && $("select#SortFieldThirdOrder").val() != "")) {
+                if (sortField.length > 0)
+                    sortField += ', ';
+                sortField += $("select#SortFieldThirdValue").val() + ' ' + $("select#SortFieldThirdOrder").val();
+            }
+            if (($("select#SortFieldFourthValue").val() != null && $("select#SortFieldFourthValue").val() != "") && ($("select#SortFieldFourthOrder").val() != null && $("select#SortFieldFourthOrder").val() != "")) {
+                if (sortField.length > 0)
+                    sortField += ', ';
+                sortField += $("select#SortFieldFourthValue").val() + ' ' + $("select#SortFieldFourthOrder").val();
+            }
+            if (($("select#SortFieldFifthValue").val() != null && $("select#SortFieldFifthValue").val() != "") && ($("select#SortFieldFifthOrder").val() != null && $("select#SortFieldFifthOrder").val() != "")) {
+                if (sortField.length > 0)
+                    sortField += ', ';
+                sortField += $("select#SortFieldFifthValue").val() + ' ' + $("select#SortFieldFifthOrder").val();
+            }
+            if (sortField.length > 0) {
+                objkeyVal.push({ 'key': 'SortFields', 'value': sortField });
+            }
+
+            var qohFilter = new Array();
+            if ($('#ddlFilterQOH').length > 0)
+                qohFilter = getSelectedID('ddlFilterQOH');
+
+            if (qohFilter.length > 0) {
+                objkeyVal.push({ 'key': 'QOHFilter', 'value': qohFilter });
+            }
+
+            if ($('#chkOnlyExpirationItems').length > 0) {
+                if ($('#chkOnlyExpirationItems').attr('checked') == "checked") {
+                    objkeyVal.push({ 'key': 'OnlyExirationItems', 'value': 'Yes' });
+                }
+            }
+
+            if ($('#OnlyAvailableTools') !== undefined && $('#OnlyAvailableTools').length > 0 && $('#OnlyAvailableTools').attr('checked') == "checked") {
+                objkeyVal.push({ 'key': 'OnlyAvailableTools', 'value': 'HasQty' });
+            }
+            else {
+                objkeyVal.push({ 'key': 'OnlyAvailableTools', 'value': '' });
+            }
+
+            if ($('#HideHeader').attr('checked') == "checked") {
+                objkeyVal.push({ 'key': 'IsNoHeader', 'value': '1' });
+            }
+
+            if ($('#ShowSignature').attr('checked') == "checked") {
+                objkeyVal.push({ 'key': 'ShowSignature', 'value': '1' });
+            }
+            var attachmentTypes = ""
+            if ($('#chkPDF').attr('checked') == "checked") {
+                attachmentTypes = "1";
+            }
+            if ($('#chkExcell').attr('checked') == "checked") {
+                attachmentTypes += attachmentTypes != "" ? ",2" : "2";
+            }
+
+            if (attachmentTypes == "") {
+                alert('@ResSchedulerReportList.ReqAttachmentTypes');
+                return false;
+            }
+
+            if ($("select#ddlAppliedFilter").length > 0) {
+                objkeyVal.push({ 'key': 'AttachmentTypes', 'value': attachmentTypes });
+            }
+
+            if ($("select#ddlAppliedFilter").length > 0) {
+                objkeyVal.push({ 'key': 'AppliedFilter', 'value': $("select#ddlAppliedFilter").val() });
+            }
+            if ($('#ddlQuantityType') != null && $('#ddlQuantityType') != undefined && $('#ddlQuantityType').length > 0) {
+                var QuantityType = getSelectedID('ddlQuantityType');
+                if (QuantityType != null && QuantityType != undefined && QuantityType != '' && QuantityType != ',')
+                    objkeyVal.push({ 'key': 'QuantityType', 'value': QuantityType });
+                else
+                    objkeyVal.push({ 'key': 'QuantityType', 'value': '' });
+            }
+
+            if ($('#ddlItemStatus') != null && $('#ddlItemStatus') != undefined && $('#ddlItemStatus').length > 0) {
+                var ItemIsActive = getSelectedID('ddlItemStatus');
+                if (ItemIsActive != null && ItemIsActive != undefined && ItemIsActive != '' && ItemIsActive != ',')
+                    objkeyVal.push({ 'key': 'ItemIsActive', 'value': ItemIsActive });
+                else
+                    objkeyVal.push({ 'key': 'ItemIsActive', 'value': '1,0' });
+            }
+
+            if ($("select#ddlUsageType").length > 0) {
+                objkeyVal.push({ 'key': 'UsageType', 'value': $("select#ddlUsageType").val() });
+            }
+
+
+            objkeyVal.push({ 'key': 'IsFromRunReport', 'value': '1' });
+
+            if ($('#ddlCartType') != null && $('#ddlCartType') != undefined && $('#ddlCartType').length > 0) {
+                var SelectedCartType = getSelectedID('ddlCartType');
+                if (SelectedCartType != null && SelectedCartType != undefined && SelectedCartType != '' && SelectedCartType != ',')
+                    objkeyVal.push({ 'key': 'SelectedCartType', 'value': SelectedCartType });
+                else
+                    objkeyVal.push({ 'key': 'SelectedCartType', 'value': '' });
+            }
+
+            if ($('#IsIncludeStockouttool').length > 0) {
+                if ($('#IsIncludeStockouttool').attr('checked') == "checked") {
+                    objkeyVal.push({ 'key': 'Includestockedouttools', 'value': 'Yes' });
+                }
+            }
+
+            if ($('#IsAllowedZeroPullUsage').length > 0) {
+                if ($('#IsAllowedZeroPullUsage').attr('checked') == "checked") {
+                    objkeyVal.push({ 'key': 'IsAllowedZeroPullUsage', 'value': 'Yes' });
+                }
+            }
+            if (ParentReportName == "order item summary" && $('#chkExcludeZeroOrdQty').length > 0) {
+                if ($('#chkExcludeZeroOrdQty').attr('checked') == "checked") {
+                    objkeyVal.push({ 'key': 'ExcludeZeroOrdQty', 'value': $('#chkExcludeZeroOrdQty').prop('checked')});
+                }
+            }
+            if (ParentReportName == "pull summary") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeDataPull', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    var ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName == "pull" || ParentReportName == "pull incomplete" || ParentReportName == "pull item summary" || ParentReportName == "pull completed" || ParentReportName == "pull summary by consignedpo"
+                || ParentReportName == "pull summary by quarter" || ParentReportName == "pull no header" || ParentReportName == "credit pull" || ParentReportName == "cumulative pull" || ParentReportName == "total pulled") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeDataPull', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    var ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName == "instock" || ParentReportName == "instock by activity") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeDataInStock', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    var ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "move bin transactions") {
+
+                if ($('#ddlMoveType') != null && $('#ddlMoveType') != undefined && $('#ddlMoveType').length > 0) {
+                    var SelectedMoveType = getSelectedID('ddlMoveType');
+                    if (SelectedMoveType != null && SelectedMoveType != undefined && SelectedMoveType != '' && SelectedMoveType != ',')
+                        objkeyVal.push({ 'key': 'MoveType', 'value': SelectedMoveType });
+                    else
+                        objkeyVal.push({ 'key': 'MoveType', 'value': '' });
+                }
+
+                objkeyVal.push({ 'key': 'IsSelectAllRangeDataMove', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    var ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+
+            if (ParentReportName == "order item summary") {
+                objkeyVal.push({ 'key': 'IsSelectAllRangeData', 'value': $("#chkCheckAllItem").is(":checked") });
+                var SelectedReportRange = null;
+                if ($("select#ddlReportRange").length > 0) {
+                    var ReportRange = getSelectedID('ddlReportRange');
+                    var ReportRange = (ReportRange).trim();
+                    var lastChar = ReportRange.slice(-1);
+                    if (lastChar == ',') { // check last character is string
+                        ReportRange = ReportRange.slice(0, -1); // trim last character
+                    }
+                    if (ReportRange != null && ReportRange != undefined && ReportRange != '' && ReportRange != ',')
+                        SelectedReportRange = ReportRange;
+                    else
+                        SelectedReportRange = null;
+                    objkeyVal.push({ 'key': 'Range', 'value': SelectedReportRange });
+                }
+                if ($("#chkCheckAllItem").is(":checked") == true) {
+                    var indexNew = -1;
+                    var arrinvalidrows = objkeyVal.filter(function (obj, index) {
+                        if ($.trim(obj.key) == "DataGuids") {
+                            indexNew = index;
+                        }
+                        return $.trim(obj.key) == "DataGuids";
+                    });
+                    if (indexNew != -1) {
+                        objkeyVal[indexNew].value = "";
+                    }
+                }
+            }
+            if (ParentReportName.toLowerCase() == "tools checked out") {
+                if ($('#chkAllCheckedOutTools').length > 0) {
+                    if ($('#chkAllCheckedOutTools').attr('checked') == "checked") {
+                        objkeyVal.push({ 'key': 'AllCheckedOutTools', 'value': $('#chkAllCheckedOutTools').prop('checked') });
+                    }
+                }
+            }
+            var notificationDTO = "";
+            var allSup = "";
+            allSup = $.map($('#Suppliers option:selected'), function (element) {
+                return element.value;
+            });
+
+            if (allSup.length > 0) {
+                notificationDTO = {
+                    SupplierIds: allSup.join(",")
+                };
+            }
+
+            var obj = { paras: objkeyVal, ReportID: '@Model.ReportID', objNotificationDTO: notificationDTO }
+            var obj1 = { ReportID: '@Model.ReportID' }
+            var mailBodyHtmlContent = CKEDITOR.instances.txtTemplate.getData();
+            var dom = document.createElement("DIV");
+            dom.innerHTML = mailBodyHtmlContent;
+            var mailBody = (dom.textContent || dom.innerText);
+
+            $.ajax({
+                url: '/Master/SetPDFReportParaDictionary',
+                type: 'POST',
+                data: JSON.stringify(obj),
+                dataType: 'json',
+                async: false,
+                contentType: 'application/json',
+                success: function (result) {
+
+                    if (result.message == "ok") {
+                        $.ajax({
+                            url: '/ReportBuilder/GeneratePDF',
+                            type: 'POST',
+                            data: JSON.stringify(obj1),
+                            dataType: 'json',
+                            async: false,
+                            contentType: 'application/json',
+                            success: function (result) {
+                                var sendMailRequestModel =
+                                    {
+                                        sendTo: $("#EmailAddress").val(),
+                                        subject: $("#EmailSubject").val(),
+                                        body: mailBody,
+                                        attchfilepath: result.ReportPDFFilePath,
+                                        attchfilepathforExcel: result.ReportExportPathForExcel
+                                    }
+                                $.ajax({
+                                    url: '@Url.Action("sendEmail", "ReportBuilder")',
+                                    type: 'POST',
+                                    data: JSON.stringify(sendMailRequestModel),
+                                    dataType: 'json',
+                                    contentType: 'application/json',
+                                    async: false,
+                                    success: function (data) {
+                                        if (data) {
+                                            alert('@ResSchedulerReportList.Reportrunsuccessfully');
+                                        }
+                                    },
+                                    complete: function () {
+                                        //$("#sendEmailForm").dialog("close");
+                                    }
+                                });
+                            },
+                            error: function (result) {
+                                return null;
+                            }
+                        });
+                    }
+
+                },
+                error: function (result) {
+                }
+            });
+        }
+        else {
+            alert('@ResSchedulerReportList.RunReportUsedIn');
+        }
+    }
+
+    function isValidEmailAddress(emailAddress) {
+        var re = /^([\w-\.]+)@@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([\w-]+\.)+))([a-zA-Z]{2,5}|[0-9]{1,3})(\]?)$/;
+        return re.test(emailAddress);
+    };
+
+    function FillModuleItemForRunReport() {
+
+        $('#DivLoading').show();
+        $("select#NotificationName option").attr("disabled", "disabled");
+
+        var resModuleName = $('input#hdnModuleName').val();
+        var StrStatusType = getSelectedID('ddlSCHRequisitionStatus');
+        var CompanyIDs = getSelectedID('ddlRCompany');
+        var RoomIDs = getSelectedID('ddlRRoom');
+        var FilterDateOn = "";
+        var Startdate = $('#txtFromDate').val();
+        var Enddate = currentDate;
+        var Starttime = "00:00";
+        var Endtime = "23:59";
+        var ModuleName = resModuleName;
+        var StrItemType = "";
+        var reportID = vTemplateID;
+        var NotificationID = vNotificationID;
+        var onlyExpItems = '';
+        var ExpiredItem = '';
+        var ItemExpiredDays = '';
+        var ItemApproveDays = '';
+        var ProjectExpirationDate = "";
+        var countAppliedFilter = '';
+        var usageTypeFilter = '';
+        var IsIncludeStockouttool = '';
+        var SelectedCartType = '';
+        var objkeyVal = new Array();
+        var isAllowZeroPullUsage = false;
+        var SelectedMoveType = '';
+        var ExcludeZeroOrdQty = false;
+        var AllCheckedOutTools = false;
+
+        if (resModuleName == "WorkOrder") {
+            StrStatusType = getSelectedID('ddlWOStatus');
+        }
+
+        if ($('#chkOnlyExpirationItems').length > 0) {
+            if ($('#chkOnlyExpirationItems').attr('checked') == "checked") {
+                onlyExpItems = 'Yes';
+            }
+        }
+
+        var qohFilt = '';
+        if ($('#ddlFilterQOH').length > 0) {
+            qohFilt = getSelectedID('ddlFilterQOH');
+        }
+
+        var range = "";
+        if ($('#ddlReportRange') !== undefined && $('#ddlReportRange') != null) {
+            range = $('#ddlReportRange').val();
+        }
+
+        var QuantityType = "";
+        if ($('#ddlQuantityType') != null && $('#ddlQuantityType') != undefined && $('#ddlQuantityType').length > 0) {
+            var QuantityType = getSelectedID('ddlQuantityType');
+            if (QuantityType != null && QuantityType != undefined && QuantityType != '')
+                QuantityType = QuantityType;
+            else
+                QuantityType = "";
+        }
+
+        var ItemIsActive = "";
+        if ($('#ddlItemStatus') != null && $('#ddlItemStatus') != undefined && $('#ddlItemStatus').length > 0) {
+            var ItemIsActive = getSelectedID('ddlItemStatus');
+            if (ItemIsActive != null && ItemIsActive != undefined && ItemIsActive != '')
+                ItemIsActive = ItemIsActive;
+            else
+                ItemIsActive = "1,0";
+        }
+
+        if ($('#ddlAppliedFilter') != null && $('#ddlAppliedFilter') != undefined && $('#ddlAppliedFilter').length > 0) {
+            countAppliedFilter = $('#ddlAppliedFilter').val();
+        }
+
+        if ($('#ddlUsageType') != null && $('#ddlUsageType') != undefined && $('#ddlUsageType').length > 0) {
+            usageTypeFilter = $('#ddlUsageType').val();
+        }
+        if ($('#ddlCartType') != null && $('#ddlCartType') != undefined && $('#ddlCartType').length > 0) {
+            var CartType = getSelectedID('ddlCartType');
+            if (CartType != null && CartType != undefined && CartType != '' && CartType != ',')
+                SelectedCartType = CartType;
+            else
+                SelectedCartType = "";
+        }
+
+        if ($('#IsIncludeStockouttool').length > 0) {
+            if ($('#IsIncludeStockouttool').attr('checked') == "checked") {
+                IsIncludeStockouttool  = 'Yes';
+            }
+        }
+
+        if ($('#IsAllowedZeroPullUsage').length > 0) {
+            if ($('#IsAllowedZeroPullUsage').attr('checked') == "checked") {
+                isAllowZeroPullUsage = true;
+            }
+        }
+        if ($('#chkExcludeZeroOrdQty').length > 0) {
+            if ($('#chkExcludeZeroOrdQty').attr('checked') == "checked") {
+                ExcludeZeroOrdQty = true;
+            }
+        }
+
+        if ($('#ddlMoveType') != null && $('#ddlMoveType') != undefined && $('#ddlMoveType').length > 0) {
+            var MoveType = getSelectedID('ddlMoveType');
+            if (MoveType != null && MoveType != undefined && MoveType != '' && MoveType != ',')
+                SelectedMoveType = MoveType;
+            else
+                SelectedMoveType = "";
+        }
+        if ($('#chkAllCheckedOutTools').length > 0) {
+            if ($('#chkAllCheckedOutTools').attr('checked') == "checked") {
+                AllCheckedOutTools = true;
+            }
+        }
+        $.ajax({
+            type: "POST",
+            url: "/ReportBuilder/GetModuleItemForSchedule",
+            data: JSON.stringify({ 'CompanyID': CompanyIDs, 'RoomID': RoomIDs, 'startDate': Startdate, 'endDate': Enddate, 'StrStatusType': StrStatusType, 'ModuleName': ModuleName, 'StrItemType': StrItemType, '_ReportID': reportID, 'NotificationID': NotificationID, "ReportRange": range, 'QOHFilter': qohFilt, 'OnlyExirationItems': onlyExpItems, 'Starttime': Starttime, 'Endtime': Endtime, 'QuantityType': QuantityType, 'ExpiredItem': ExpiredItem, 'ItemExpiredDays': ItemExpiredDays, 'ItemApproveDays': ItemApproveDays, 'ProjectExpirationDate': ProjectExpirationDate, 'CountAppliedFilter': countAppliedFilter, 'FilterDateOn': FilterDateOn, 'UsageType': usageTypeFilter, 'ItemIsActive': ItemIsActive, 'SelectedCartType': SelectedCartType, 'IsIncludeStockouttool': IsIncludeStockouttool, "IsAllowZeroPullUsage": isAllowZeroPullUsage, "MoveType": SelectedMoveType, "ExcludeZeroOrdQty": ExcludeZeroOrdQty, "AllCheckedOutTools": AllCheckedOutTools }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            async: false,
+            success: function (message) {
+                $("select#NotificationName option").removeAttr("disabled");
+                $('#DivLoading').hide();
+                var opt = '';
+                $("#lstModuleItemTemp").empty()
+                $('#lstModuleItemTemp').append(opt);
+                if (message.KeyValList != null && message.KeyValList.length > 0) {
+                    for (var i = 0; i < message.KeyValList.length; i++) {
+                        opt += '<option selected="selected" value="' + message.KeyValList[i].key + '">' + message.KeyValList[i].value + '</option>';
+                    }
+                    $('#lstModuleItemTemp').append(opt);
+                }
+            },
+            error: function (message) {
+                $("select#NotificationName option").removeAttr("disabled");
+                $('#DivLoading').hide();
+            }
+        });
+    }
+
+    function GetDataGuidsForPullOrInStockReport(url, rangeType, rangeValue) {
+        $.ajax({
+            type: "POST",
+            url: url,
+            data: JSON.stringify({ 'rangeType': rangeType, 'rangeTypeIds': rangeValue, 'ReportID': '@Model.ReportID' }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            async: false,
+            success: function (message) {
+                $("#dataGuidsForPullOrInstock").val(message.data);
+            },
+            error: function (message) {
+            }
+        });
+    }
+
+</script>

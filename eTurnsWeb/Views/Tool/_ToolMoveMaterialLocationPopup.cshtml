@@ -1,0 +1,403 @@
+﻿@model eTurns.DTO.ToolAssetMoveMaterialDTO
+@{
+    List<LocationMasterDTO> lstBins = new List<LocationMasterDTO>();
+    lstBins.Add(new LocationMasterDTO() { Location = "" });
+
+
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+}
+<hr />
+<div style="width: 100%; float: left;">
+    @using (Ajax.BeginForm("MoveQuantitySourceToDestination", "Tool", new AjaxOptions { HttpMethod = "Post", OnSuccess = "OnSuccessMove", OnFailure = "OnFailureMove" }, new { @id = "frmMoveQty" }))
+    {
+        @Html.AntiForgeryToken()        
+        <div id="divHeader" style="width: 100%; float: left; text-align: left; margin-bottom: 10px;
+            padding-left: 10px;">
+            <table style="width: 100%; float: left;">
+                <tr>
+                    <td style="float: left; height: 25px; margin-top: 5px; text-align: left; width: 15%;">
+                        @ResToolAssetMoveMaterial.LabelMoveType:
+                    </td>
+                    <td style="width: 80%; text-align: left; float: left">
+                        @Html.DropDownListFor(model => model.MoveType, new SelectList(Model.MoveTypeList, "ID", "Text", Model.MoveType), new { @id = "ddlMoveTypePopup", @class = "selectBox", @style = "width:200px;" })
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <br />
+        <div id="divInfo" style="width: 100%; float: left; text-align: left; margin-bottom: 10px;">
+            <div class="infoBlock">
+                <ul>
+                    <li>
+                        <label>@ResToolMaster.ToolName</label>: <span>@(Model.ToolName)</span> </li>
+                    <li>
+                        <label>@ResToolMaster.Quantity</label>: <span>@(Model.ToolQuantity)</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <br />
+        <div id="divLocations" style="width: 100%; float: left; text-align: left; margin-bottom: 10px;
+            padding-left: 10px;">
+            <table style="width: 100%; float: left;">
+                <thead>
+                    <tr style="height: 25px;">
+                        <th>
+                            @ResToolAssetMoveMaterial.LabelSourceLacation<em style="color: Red">*</em>
+                        </th>
+                        <th>
+                            Quantity To Move<em style="color: Red">*</em>
+                        </th>
+                        
+                            <th>
+                                @ResToolAssetMoveMaterial.LabelDestinationLocation
+                            </th>
+                        
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="height: 35px; vertical-align: top;">
+                        <td>
+                            @if (HasOnTheFlyEntryRight)
+                            {
+                                <span style='position:relative'>
+                                @Html.TextBoxFor(x => x.SourceLocation, new { @id = "txtSourceLocation", @class = "text-box AutoCompleteddl", @style = "width:150px;background:white" })
+                                <a id='lnkShowAllOptions' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptions" >
+                                <img src='/Content/images/arrow_down_black.png' alt='select' /></a>
+                                </span>
+                            }
+                            else
+                            {
+                                @Html.DropDownListFor(x => x.SourceLocation, new SelectList(lstBins, "Location", "Location"), new { @id = "slctSourceLocation", @class = "selectBox", @style = "width:150px; background:white" })
+
+                            }
+                            <br />
+                            @* @Html.ValidationMessageFor(model => model.SourceLocation)*@
+                        </td>
+                        <td>
+                            @Html.TextBoxFor(x => x.MoveQuanity, new { @id = "txtMoveQuanity", @class = "text-box", @style = "width:80px;background:white" })
+                            <br />
+                            @* @Html.ValidationMessageFor(model => model.MoveQuanity)*@
+                        </td>
+                        
+                        <td>
+                            @if (HasOnTheFlyEntryRight)
+                            {
+                                <span style='position:relative'>
+                                @Html.TextBoxFor(x => x.DestinationLocation, new { @id = "txtDestinationLocation", @class = "text-box AutoCompleteddl", @style = "width:150px;background:white" })
+                                <a id='lnkShowAllOptions' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptions" >
+                                <img src='/Content/images/arrow_down_black.png' alt='select' /></a>
+                                </span>
+                            }
+                            else
+                            {
+
+                                @Html.DropDownListFor(x => x.DestinationLocation, new SelectList(lstBins, "Location", "Location"), new { @id = "slctDestinationLocation", @class = "selectBox", @style = "width:150px; background:white" })
+                            }
+                            <br />
+                            @*@Html.ValidationMessageFor(model => model.DestinationLocation)*@
+                        </td>
+                    </tr>
+                    <tr style="height: 25px; vertical-align: middle;">
+                        <td>
+                            <label id="lblCapAvailableQty">
+                                <b>@ResMoveMaterial.LabelAvailableQty:</b>
+                            </label>
+                            &nbsp;&nbsp;<span id="spnAvailableQty"></span>
+                            <br />
+                            
+                        </td>
+                        <td>&nbsp;
+                        </td>
+                        <td>&nbsp;
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <div id="divErrors" style="width: 100%; float: left; height: 120px; color: Red; font-weight: bold;">
+                &nbsp;
+            </div>
+            <table style="width: 100%; float: left;">
+                <tr>
+                    <td style="width: 55%; text-align: center; float: left">
+                        <input type="button" id="btnCancelMove" class="CreateBtn" value="@ResToolAssetMoveMaterial.ButtonCancel" />
+                        <span style="width: 20px; height: 20px; float: right;"></span>
+                        <input type="submit" id="btnMove" class="CreateBtn" value="@ResToolAssetMoveMaterial.ButtonMove" />
+                    </td>
+                    <td style="width: 45%; text-align: center; float: left">
+                        @Html.HiddenFor(x => x.ToolGUID, new { @id = "hdnItemGuid" })
+                        @Html.HiddenFor(x => x.OpenFrom, new { @id = "hdnOpenFrom" })
+                        @Html.HiddenFor(x => x.SourceToolBinID, new { @id = "hdnSourceBinID" })
+                        
+                        @Html.HiddenFor(x => x.DestToolBinID, new { @id = "hdnDestBinID" })
+                        @Html.HiddenFor(x => x.ToolQuantity)
+                        @Html.HiddenFor(x => x.IsOnlyFromToolUI)
+                    </td>
+                </tr>
+            </table>
+        </div>
+    }
+</div>
+<script type="text/javascript" language="javascript">
+    var itmGuid = '';
+    var movTyp = '';
+    var openFrom = '';
+    var IsLoadMoreLocations = false;
+
+    $(document).ready(function (e) {
+        itmGuid = $('#divLocations').find('#hdnItemGuid').val();
+        movTyp = $('#divLocations').find('#ddlMoveTypePopup').val();
+        openFrom = $('#divLocations').find('#hdnOpenFrom').val();
+
+        $('.ShowAllOptions').click(function () {
+
+            $(this).siblings('.AutoCompleteddl').trigger("focus");
+            $(this).siblings(".AutoCompleteddl").autocomplete("search", " ");
+        });
+
+        var moveQty = '@Model.MoveQuanity';
+        if (parseFloat(moveQty) > 0 && parseInt('@Model.SourceToolBinID') > 0) {
+            $('#spnAvailableQty').text(moveQty);
+            $('#txtMoveQuanity').val(moveQty);
+            $('#txtSourceLocation').attr('readonly', true);
+
+        }
+
+        $("form").submit(function (e) {
+            $('#DivLoading').show();
+            $('#divErrors').html('');
+        });
+
+        $("#divLocations").on('focus', "input.AutoCompleteddl", function (e) {
+
+            var ctrlID = $(this).attr('id');
+            var locTyp = '';
+
+            if (ctrlID === "txtSourceLocation") {
+                locTyp = "SL";
+            }
+            else if (ctrlID === "txtDestinationLocation") {
+                locTyp = "DL";
+            }
+            
+
+            movTyp = $('#ddlMoveTypePopup').val();
+
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $('#DivLoading').show();
+                    $.ajax({
+                        url: 'GetLocationByType',
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        data: { 'NameStartWith': request.term, 'ToolGuid': itmGuid, 'locType': locTyp, 'moveType': movTyp, 'IsLoadMoreLocations': IsLoadMoreLocations },
+                        success: function (data) {
+                            if (locTyp === 'SL') {
+                                $('#spnAvailableQty').text('');
+                                $('#txtMoveQuanity').val('');
+                                $('#hdnSourceBinID').val('');
+                            }
+                            else if (locTyp === 'DL') {
+                                $('#hdnDestBinID').val('');
+                             
+                            }
+
+                            response(
+                            $.map(data, function (Items) {
+                                return {
+                                    label: Items.Key,
+                                    value: Items.Value,
+                                    qty: Items.Quantity,
+                                    id: Items.ID,
+                                    guid: Items.GUID
+                                }
+                            }));
+                            $('#DivLoading').hide();
+                        },
+                        error: function (err) {
+                            $('#DivLoading').hide();
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    $(this).val(ui.item.label);
+                    if (locTyp === 'SL') {
+                        $('#spnAvailableQty').text(ui.item.qty);
+                        $('#txtMoveQuanity').val(ui.item.qty);
+                        $('#hdnSourceBinID').val(ui.item.id);
+
+                    }
+                    else if (locTyp === 'DL') {
+                        $('#hdnDestBinID').val(ui.item.id);
+                        
+                        if (ui.item.value == MoreLocation) {
+                            IsLoadMoreLocations = true;
+                            $(this).trigger("focus");
+                            $(this).autocomplete("search", " ");
+                            $(this).val("");
+                            return false;
+                        }
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                    $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                    $('ul.ui-autocomplete').css('max-height', '300px');
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                    $('#DivLoading').hide();
+                },
+                change: function (event, ui) {
+
+                    if ($.trim($(this).val()).length <= 0) {
+                        if (locTyp === 'SL') {
+                            $('#spnAvailableQty').text('');
+                            $('#txtMoveQuanity').val('');
+                            $('#hdnSourceBinID').val('');
+                            
+                        }
+                        else if (locTyp === 'DL') {
+                            $('#hdnDestBinID').val('');
+                        }
+                    }
+                }
+            }); //.bind('focus', function () { $(this).autocomplete("search", " ") });
+        });
+
+        $("input.AutoCompleteddl").click(function (e) {
+            if ($(this).attr('readonly') != 'readonly') {
+                if ($(this).val().length > 0) {
+                    $(this).autocomplete("search", $(this).val());
+                }
+                else {
+                    $(this).autocomplete("search", " ");
+                }
+            }
+        });
+
+       
+
+        $("#divLocations").on({
+            mouseover: function () {
+
+                FillSourceDestLocations($(this));
+            },
+            focus: function () {
+                FillSourceDestLocations($(this));
+            },
+            change: function () {
+                if ($.trim($(this).val()) != "") {
+                    //var Valfield = obj.Key + "[||]" + obj.Value + "[||]" + obj.Quantity + "[||]" + obj.ID + "[||]" + obj.GUID + "[||]" + obj.OtherInfo1 + "[||]" + obj.OtherInfo2;
+                    if ($(this).attr('id') == 'slctDestinationLocation') {
+                        var arrselval = $(this).val().split("[||]");
+                        var Qty = arrselval[2];
+                        var ID = arrselval[3];
+                        $('#hdnDestBinID').val(ID);
+                        var someGUID = arrselval[4];
+                        
+                    }
+
+                    @*else {
+                        var arrselval = $(this).val().split("[||]");
+                        var Qty = arrselval[2];
+                        $('#spnAvailableQty').text(Qty);
+                        $('#txtMoveQuanity').val(Qty);
+                        var ID = arrselval[3];
+                        $('#hdnSourceBinID').val(ID);
+                        var someGUID = arrselval[4];
+                        var stageHeader = arrselval[5];
+
+                        $('#hdnSourceStageHeadGuid').val('');
+                        //ASK
+                        if (movTyp == '@((int)MoveType.StagToInv)' || movTyp == '@((int)MoveType.StagToStag)') {
+                            $('#spnStageHeader').text(stageHeader);
+                            $('#hdnSourceStageHeadGuid').val(someGUID);
+                        }
+                    }*@
+                }
+            }
+        }, "#slctSourceLocation,#slctDestinationLocation");
+    });
+
+    
+
+    function OnSuccessMove(response) {
+        if (!response.Status) {
+            var errors = '';
+            for (var i = 0; i < response.ErrorList.length; i++) {
+                errors = errors + response.ErrorList[i] + "<br/>";
+            }
+            $('#divErrors').html(errors);
+            $('#DivLoading').hide();
+        }
+        else {
+            var movType = $('#ddlMoveTypePopup').val();
+            var objData = { "ToolGUID": '@Model.ToolGUID', "MoveType": movType, "OpenFrom": '@Model.OpenFrom' };
+             if ('@((int)Model.OpenFrom)' == '@((int)ToolMoveDialogOpenFrom.FromTool)') {
+                objData.SourceToolBinID = $('#hdnSourceBinID').val();
+
+                $('#DivLoading').hide();
+                OpenMoveMaterialPopupByToolGuid(objData);
+            }
+        }
+    }
+
+    function OnFailureMove(response) {
+        $('#DivLoading').hide();
+    }
+
+    $('#btnCancelMove').on('click', function () {
+        $('#divMoveMaterialPopup').dialog('close');
+    });
+
+    function FillSourceDestLocations(dropdownobj) {
+        var selval = $(dropdownobj).val();
+        
+        var ctrlID = $(dropdownobj).attr('id');
+        var locTyp = '';
+
+        if (ctrlID === "slctSourceLocation") {
+            locTyp = "SL";
+        }
+        else if (ctrlID === "slctDestinationLocation") {
+            locTyp = "DL";
+        }
+        
+
+        movTyp = $('#ddlMoveTypePopup').val();
+
+        if (!$(dropdownobj).hasClass("populated")) {
+            $(dropdownobj).html("");
+            var stroptions = "";
+            var stroptions = "<option value=''></option>";
+            $.ajax({
+                "url": '/Tool/GetLocationByType',
+                "type": "POST",
+                "data": { 'NameStartWith': '', 'ToolGuid': itmGuid, 'locType': locTyp, 'moveType': movTyp},
+                "async": false,
+                "cache": false,
+                "dataType": "json",
+                "success": function (response) {
+                    $(response).each(function (indx, obj) {
+                        var Valfield = obj.Key + "[||]" + obj.Value + "[||]" + obj.Quantity + "[||]" + obj.ID + "[||]" + obj.GUID + "[||]" + obj.OtherInfo1 + "[||]" + obj.OtherInfo2;
+                        if (selval == obj.BinNumber) {
+                            stroptions = stroptions + "<option selected='selected' value='" + Valfield + "'>" + obj.Key + "</option>";
+                        }
+                        else {
+                            stroptions = stroptions + "<option value='" + Valfield + "'>" + obj.Key + "</option>";
+                        }
+
+                    });
+                    $(dropdownobj).html(stroptions);
+                    $(dropdownobj).addClass("populated");
+                },
+                "error": function (response) {
+                }
+            });
+        }
+    }
+
+</script>

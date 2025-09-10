@@ -1,0 +1,775 @@
+﻿@model eTurns.DTO.ToolMasterDTO
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = false, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = false, DataTableName = "ToolKitLineItem" + Model.ID };
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ToolMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool haveToolWrittenOffRights = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowToolWrittenOff);
+    string qtyFormat = "N";
+    string costFormat = "N";
+
+    if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits))
+    {
+        costFormat = "N" + eTurnsWeb.Helper.SessionHelper.CurrencyDecimalDigits;
+    }
+    if (!string.IsNullOrWhiteSpace(eTurnsWeb.Helper.SessionHelper.NumberDecimalDigits))
+    {
+        qtyFormat = "N" + eTurnsWeb.Helper.SessionHelper.NumberDecimalDigits;
+    }
+    Double AvailableQty = 0;
+    double ToolCost = 0;
+}
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="InnerItem_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_QLItem_filter" />
+                        </a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Kits)
+            <div class="userContent" style="width: 99%; margin-left: 5px !important; float: left;">
+                <table id="ToolKitLineItem@(Model.GUID)" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResToolMaster.ToolName
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResToolMaster.Serial
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResKitToolMaster.QuantityPerKit
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResKitToolMaster.AvailableItemsInWIP
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResKitToolMaster.QuantityReadyForAssembly
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResKitToolMaster.QtyToMove
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResKitToolMaster.MoveIn
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResKitToolMaster.MoveOut
+                            </th>
+                            <th class="NotHide">
+                                @eTurns.DTO.ResKitToolMaster.WrittenOff
+                            </th>
+                            <th>
+                                @ResKitToolMaster.AvailableQty
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResKitToolMaster.Quantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResKitToolMaster.Cost
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.ToolKitItemList != null && Model.ToolKitItemList.Count > 0)
+                        {
+                            foreach (var item in Model.ToolKitItemList)
+                            {
+                                AvailableQty = (item.Quantity - ((item.CheckedOutQTY ?? 0) + (item.CheckedOutMQTY ?? 0)));
+                                ToolCost = item.Cost??0;
+                                <tr id="@item.GUID">
+                                    <td></td>
+                                    <td>
+                                        @item.ID
+                                    </td>
+                                    <td>
+                                        @item.ToolName
+                                        <input id="hdnID" type="hidden" value="@item.ID" />
+                                        <input id="hdnGUID" type="hidden" value="@item.GUID" />
+                                        <input id="hdnItemType" type="hidden" value="@item.Type" />
+                                        <input id="hdnToolGUID" type="hidden" value="@item.ToolGUID" />
+                                        <input id="hdnSerial" type="hidden" value="@item.Serial" />
+                                        <input id="hdnToolKitGUID" type="hidden" value="@item.ToolItemGUID" />
+                                        <input id="hdnQtyOnDemand" type="hidden" value="@(((item.QuantityPerKit.GetValueOrDefault(0) * 1) - item.AvailableItemsInWIP.GetValueOrDefault(0)) > 0 ? ((item.QuantityPerKit.GetValueOrDefault(0) * 1) - item.AvailableItemsInWIP.GetValueOrDefault(0)) : 0)" />
+                                        <input id="hdnAvlItmInWIP" type="hidden" value="@item.AvailableItemsInWIP.GetValueOrDefault(0)" />
+                                    </td>
+                                    <td>
+                                        @item.Serial
+                                    </td>
+                                    <td>
+                                        @Html.TextBox("txtQtyPerKit", item.QuantityPerKit, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @id = "txtQtyPerKit" + item.ID.ToString(), @style = "width:50px;", @maxlength = "10", @class = "text-boxQuantityFormat text-boxinner disableBack numericalign", @readonly = "readonly" })
+
+                                    </td>
+                                    <td class="numericalign">
+                                        <span id="spnAvlItmInWIP">@item.AvailableItemsInWIP.GetValueOrDefault(0).ToString(qtyFormat)</span>
+                                    </td>
+                                    <td class="numericalign">
+                                        @item.QuantityReadyForAssembly.GetValueOrDefault(0).ToString(qtyFormat)
+                                    </td>
+                                    <td>
+
+                                        @Html.TextBox("txtQtyToMove", "", new { @id = "txtQtyToMove", @style = "width:50px;", @maxlength = "10", @class = "numericinput text-boxinner", })
+
+                                    </td>
+
+                                    <td>
+                                        @if (AvailableQty > 0)
+                                        {
+                                            <input type="button" value="@ResKitMaster.MoveIn" id="btnMoveIn" class="GridBtnStyle inLineBtn" />
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (item.AvailableItemsInWIP > 0 && isUpdate)
+                                        {
+                                            <input type="button" value="@ResKitMaster.MoveOut" id="btnMoveOut" class="GridBtnStyle inLineBtn" />
+                                        }
+                                        else
+                                        {
+                                            @Html.Label("");
+                                        }
+                                    </td>
+                                    <td>
+
+                                        @if (item.AvailableItemsInWIP > 0 && haveToolWrittenOffRights)
+                                        {
+                                            <input type="button" data-serial="@item.Serial" value="@ResToolMaster.WrittenOffTool" id="btnWrittenOff" class="GridBtnStyle inLineBtn" />
+                                        }
+                                    </td>
+
+                                    <td class="numericalign">
+                                        @AvailableQty.ToString(qtyFormat)
+                                    </td>
+                                    <td class="numericalign">
+                                        @item.Quantity.ToString(qtyFormat)
+                                    </td>
+                                    <td class="numericalign">
+                                        @ToolCost.ToString(qtyFormat)
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+                @if (1 == 0)
+                {
+                    <input type="button" id="btnMoveInSelected" value="Move In" class="GridBtnStyle inLineBtn" />
+                    <input type="button" id="btnMoveOutSelected" value="Move Out" class="GridBtnStyle inLineBtn" />
+                }
+            </div>
+        </div>
+    </div>
+</div>
+<div class="dialog" id="KitDetailConfirmationModel" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+        </p>
+        <a href="JavaScript:void{}" id="aKitDeleteYes" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no"
+               onclick="closeConfirmModal()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<script type="text/javascript">
+    var KitID = '@Model.ID';
+    var KitGUID = '@Model.GUID.ToString()';
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var oTableKitLineItems;
+    var bIsFilter = false;
+    var modeltitle = 'Move item quantity';
+    var objKitDetailColumns = {};
+    $(document).ready(function () {
+
+        @*var ColumnObject = new Array();
+        ColumnObject = GetGridHeaderColumnsObject('KitLineItem@(Model.GUID)');*@
+        objKitDetailColumns = GetGridChildGridColumnsObject('ToolKitLineItem@(Model.GUID)');
+
+        modeltitle = 'Move item quantity';
+
+
+        var gaiSelected = [];
+
+        oTableKitLineItems = $('#ToolKitLineItem' + KitGUID).dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "200%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[1, "desc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                return nRow;
+            },
+            "aoColumnDefs": [
+		        { mDataProp: null, sClass: "read_only center NotHide RowNo", "bSortable": false, sDefaultContent: '', aTargets: [0] }
+            ],
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+
+                // if (!bIsFilter) {
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'ToolKitLineItemList' },
+                    "async": false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = json;
+                    }
+                });
+                // }
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'ToolKitLineItemList' },
+                    "async": false,
+                    "dataType": "json",
+                    "success": function (json) {
+
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "fnInitComplete": function (oSettings, json) {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+            }
+            // , "aoColumns": ColumnObject
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+
+
+
+
+        $('#btnblock').css({ 'margin-right': '45px' });
+
+
+        $('.DTTT_container').css('z-index', '-1');
+
+
+        if ('@Model.IsDeleted' === "True" || '@Model.IsArchived' === "True") {
+            $('#btnCancel').removeAttr('disabled');
+            $('#saveRows,#deleteRows1').css('display', 'none');
+        }
+        else if ('@Convert.ToString(Session["IsInsert"])' != 'True' && '@isUpdate' != 'True') {
+            $('#btnCancel').removeAttr('disabled');
+            $('#saveRows,#deleteRows1').css('display', 'none');
+        }
+
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+
+        SetKitButtons();
+
+    });
+
+    function SetKitButtons() {
+
+        if (parseInt('@Model.NoOfItemsInKit') > 0)
+            $('#txtKitParts').val('@Model.NoOfItemsInKit');
+        if (parseInt('@Model.WIPKitCost') > 0)
+            $('#txtKitParts').val('@Model.WIPKitCost');
+        var AvilableQty = parseFloat('@Model.AvailableKitQuantity') - (parseFloat('@Model.CheckedOutQTY') + parseFloat('@Model.CheckedOutMQTY'))
+
+        $('#txtAQ').val(parseFloat(AvilableQty).toFixed(parseInt($('#hdQuantitycentsLimit').val(), 10)));
+        $('#txtAWIP').val(parseFloat('@Model.AvailableWIPKit').toFixed(parseInt($('#hdQuantitycentsLimit').val(), 10)));
+        $('#txtCheckOutToolQty').val(parseFloat($('#txtCheckOutToolQty').val()).toFixed(parseInt($('#hdQuantitycentsLimit').val(), 10)));
+        $('#txtCheckOutMToolQty').val(parseFloat($('#txtCheckOutMToolQty').val()).toFixed(parseInt($('#hdQuantitycentsLimit').val(), 10)));
+        $('#txtAQGI').val(parseFloat('@Model.AvailableInGeneralInventory').toFixed(0));
+
+
+        $('#btnBuild').css('display', 'none');
+        $('#btnBreak').css('display', 'none');
+
+
+        //$('#spnBuildBreakQty').css('display', 'none');
+        if (parseFloat('@Model.AvailableWIPKit') > 0) {
+
+            $('#btnBuild').css('display', '');
+            $('#spnBuildBreakQty').css('display', '');
+
+        }
+        if (parseFloat('@Model.AvailableKitQuantity') > 0) {
+            $('#btnAddNewItem').css('display', 'none');
+
+            var AvailableQty = (parseFloat('@Model.Quantity') - (parseFloat('@Model.CheckedOutQTY') + parseFloat('@Model.CheckedOutMQTY')));
+            if (parseFloat(AvailableQty) > 0) {
+                $('#btnBreak').css('display', '');
+            }
+            $('#spnBuildBreakQty').css('display', '');
+        }
+    }
+
+
+    $('#ToolKitLineItem' + KitGUID + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    $('#ToolKitLineItem' + KitGUID + ' tbody tr').live('tap click', function () {
+        $(this).toggleClass('row_selected');
+        return false;
+    });
+
+    var InnerGrdArr = null;
+    var InnerGrdRows = null;
+
+
+    $('#deleteRows1').click(function () {
+        InnerGrdArr = new Array();
+        InnerGrdRows = new Array();
+
+        if (parseInt('@Model.AvailableKitQuantity.GetValueOrDefault(0)') <= 0 && parseInt('@Model.AvailableWIPKit.GetValueOrDefault(0)') <= 0) {
+            var anSelected = fnGetSelected(oTableKitLineItems);
+            var stringIDs = "";
+            for (var i = 0; i <= anSelected.length - 1; i++) {
+
+                var avlWIP = $(anSelected[i]).find('#spnAvlItmInWIP').text();
+                if (avlWIP != null && avlWIP != NaN && avlWIP != undefined && parseFloat(avlWIP) <= 0) {
+                    var KDGUID = $(anSelected[i]).find("#hdnGUID").val();
+                    InnerGrdRows.push(anSelected[i]);
+                    stringIDs = stringIDs + KDGUID + ",";
+                }
+            }
+
+            InnerGrdArr = stringIDs.split(',');
+
+            if (InnerGrdArr.length > 0 && InnerGrdArr[InnerGrdArr.length - 1].length == 0) {
+                InnerGrdArr.pop();
+            }
+
+            if (InnerGrdArr != undefined && InnerGrdArr != NaN && InnerGrdArr.length > 0) {
+                $('#KitDetailConfirmationModel').modal();
+            }
+        }
+
+    });
+
+    $("#aKitDeleteYes").live("click", function () {
+
+        if (InnerGrdArr != null && InnerGrdArr != undefined && InnerGrdArr.length > 0) {
+
+            $.ajax({
+                'url': '/Kit/KitLineItemsDelete',
+                data: { ids: InnerGrdArr.join(',') },
+                success: function (response) {
+                    if (response == "ok") {
+                        for (var i = 0; i <= InnerGrdArr.length - 1; i++) {
+                            oTableKitLineItems.fnDeleteRow(InnerGrdRows[i]);
+                        }
+                        $("#spanGlobalMessage").html("@ResCommon.RecordDeletedSuccessfully".replace("{0}","(" + InnerGrdArr.length + ")"));
+                        showNotificationDialog();
+                        InnerGrdArr = null;
+                        UpdateLineItemGrid();
+                    }
+                },
+                error: function (response) {
+
+                }
+            });
+            $.modal.impl.close();
+        }
+    });
+
+    function closeConfirmModal() {
+        $.modal.impl.close();
+    }
+
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+
+        $('#ToolKitLineItem' + KitGUID).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+    /* global search function */
+    function fnFilterKitLineItem() {
+
+        bIsFilter = true;
+        var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+        $('#ToolKitLineItem' + KitGUID).dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+
+        $('#ToolKitLineItem' + KitGUID + ' td').removeHighlight();
+
+        if (searchtext.length > 0)
+            $('#ToolKitLineItem' + KitGUID + ' td').highlight($("#InnerItem_filter").val());
+
+    }
+
+
+    $("#InnerItem_filter").on("keyup", function (e) {
+
+        var code = (e.keyCode ? e.keyCode : e.which);
+        var index = $.inArray(code, NotAllowedCharCodes);
+        if (index >= 0) return false;
+
+        fnFilterKitLineItem();
+
+    });
+
+    $("#InnerItem_filter").on("keydown", function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            fnFilterKitLineItem();
+        }
+
+    });
+
+
+    $("#clear_QLItem_filter").click(function () {
+        $("#InnerItem_filter").val('');
+        fnFilterKitLineItem();
+        $("#InnerItem_filter").focus();
+        return false;
+    });
+
+
+    $('#saveRows').live("click", function () {
+        var msg = UpdateLineItemGrid();
+        if (msg.Status == "ok") {
+            showNotificationDialog();
+            $("#spanGlobalMessage").html(msg.Message);
+            $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+
+        }
+        else if (msg.Status == 'No') {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html('@ResCommon.NoChanges');
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+        }
+        else {
+            $('#DivLoading').hide();
+            $("#spanGlobalMessage").html(msg.Message);
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+        }
+
+    });
+
+    function UpdateLineItemGrid() {
+        var arrItems = new Array();
+        $('#ToolKitLineItem' + KitGUID + ' tbody tr').each(function () {
+            var ID = $(this).find('#hdnID').val();
+            var GUID = $(this).find('#hdnGUID').val();
+            var ItemID = $(this).find('#hdnItemID').val();
+            var ItemGUID = $(this).find('#hdnToolGUID').val();
+            var kitID = $(this).find('#hdnKitID').val();
+            var kitGUID = $(this).find('#hdnToolKitGUID').val();
+            var Qty = $(this).find('#txtQtyPerKit' + ID).val();
+            var KitItemWIPQty = $(this).find('#spnAvlItmInWIP').text();
+            var QtyOnDemand = $(this).find('#hdnQtyOnDemand').val();
+
+            if (Qty !== undefined && Qty !== NaN && parseFloat(Qty) > 0) {
+                var data = { "ID": ID, "ItemID": ItemID, "ItemGUID": ItemGUID, "KitID": kitID, "KitGUID": kitGUID, "QuantityPerKit": Qty, 'AvailableItemsInWIP': KitItemWIPQty, 'GUID': GUID, 'QtyToMeetDemand': QtyOnDemand };
+                arrItems.push(data);
+            }
+        });
+        return SaveLineItemsGrid(arrItems);
+
+    }
+
+    function SaveLineItemsGrid(arrItems) {
+        var status = "No";
+        var message = "@ResCommon.NoChanges"
+        if (arrItems.length > 0) {
+            $('#DivLoading').show();
+            $.ajax({
+                url: '@Url.Content("~/Kit/AddItemToDetailTable")',
+                data: { 'para': JSON.stringify(arrItems) },
+                dataType: 'json',
+                type: 'POST',
+                async: false,
+                cache: false,
+                success: function (response) {
+                    if (response.Status == "ok") {
+                        CallThisFunctionFromModel('success');
+                    }
+                    status = response.Status;
+                    message = response.Message;
+                }
+            });
+        }
+        var obj = { 'Status': status, 'Message': message };
+        return obj;
+    }
+
+
+    function OpenMoveOutQtyModel(kitDetailGUID) {
+        var tr = $('#ToolKitLineItem' + KitGUID + ' tr[id=' + kitDetailGUID + ']');
+        var AvWIP = parseFloat($(tr).find('#spnAvlItmInWIP').text());
+        if (AvWIP != null && AvWIP != NaN && AvWIP != undefined && AvWIP > 0) {
+            $('#MoveOutQtyModel').data("KitDetailGUID", kitDetailGUID).dialog('open')
+        }
+        else {
+            $("#spanGlobalMessage").html('@ResKitMaster.QtyNotAvailableMoveOut');
+            showNotificationDialog();
+            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+        }
+        return false;
+    }
+
+
+    $('div.userContent').find('#btnMoveIn,#btnMoveOut,#btnWrittenOff').off('click');
+
+    $('div.userContent').find('#btnMoveIn').on('click', function () {
+        var hasPullPopup = false;
+        var tr = $(this).parent().parent();
+        var qtyToMove = $(tr).find('#txtQtyToMove').val();
+
+        if (isNaN(parseFloat(qtyToMove)) || parseFloat(qtyToMove) <= 0) {
+            alert("Please enter quantity to Move");
+            return false;
+        }
+
+        var itemType = $(tr).find('#hdnItemType').val();
+
+        var GUID = $(tr).find('#hdnGUID').val();
+        var ToolDetailGUID = $(tr).find('#hdnToolKitGUID').val();
+        var ToolGUID = $(tr).find('#hdnToolGUID').val();
+
+        var tr = $(this).parent().parent();
+        var arrObj = new Array();
+        var obj = {};
+        obj.GUID = GUID;
+        obj.ToolDetailGUID = ToolGUID;
+        obj.ToolItemGUID = ToolDetailGUID;
+        obj.Quantity = qtyToMove;
+        obj.MoveInOut = "IN";
+        arrObj.push(obj);
+        MoveInOut(arrObj);
+
+    });
+
+    $('div.userContent').find('#btnWrittenOff').on('click', function () {
+        var hasPullPopup = false;
+        var tr = $(this).parent().parent();
+        var qtyToMove = $(tr).find('#txtQtyToMove').val();
+        var tmpAvlItmInWIP = parseFloat($(tr).find('#hdnAvlItmInWIP').val());
+
+        if (isNaN(parseFloat(qtyToMove)) || parseFloat(qtyToMove) <= 0) {
+            alert('@ResKitToolMaster.EnterQtyToWrittenOff');
+            return false;
+        }
+        else if (parseFloat(qtyToMove) > tmpAvlItmInWIP) {
+            alert('@ResKitToolMaster.CantWrittenOffQtyMoreThanAvailableInWIP');
+            return false;
+        }
+
+        var itemType = $(tr).find('#hdnItemType').val();
+        var GUID = $(tr).find('#hdnGUID').val();
+        var ToolDetailGUID = $(tr).find('#hdnToolKitGUID').val();
+        var ToolGUID = $(tr).find('#hdnToolGUID').val();
+        var isSerial = $(tr).find('#hdnItemSRTrack').val();
+
+        if (isSerial == "True") {
+            hasPullPopup = true;
+        }
+        var kitDetailID = $(tr).find('#hdnID').val();
+        var kitDetailGUID = $(tr).find('#hdnGUID').val();
+        var vBinName = $(tr).find('#hdnBinName').val();
+        var vBinId = $(tr).find('#hdnBinID').val();
+        var vItemGUID = $(tr).find("#hdnToolKitGUID").val();
+        //if (vBinName.length <= 0) {
+        //    vBinName = $(tr).find("#txtItemLocations").val();
+        //}
+        vBinName = '';
+        var qtyToMove = $(tr).find("#txtQtyToMove").val();
+        var kitNumber = '@Model.ToolName';
+        var kitGuid = '@Model.GUID';
+        var itemNumber = $(tr).find('#hdnItemNumber').val();
+        var AvlItmInWIP = $(tr).find('#hdnAvlItmInWIP').val(); //
+        var serial = $(this)[0].dataset["serial"];
+        var ItemToMoveIn = new Array();
+
+        ItemToMoveIn.push({
+            GUID: vItemGUID, ToolKitDetailID: kitDetailID, ToolKitDetailGUID: kitDetailGUID,
+            ToolKitGuid: kitGuid, KitPartNumber: kitNumber,
+            SerialNumberTracking: isSerial, ToolName: itemNumber, Quantity: parseFloat(qtyToMove), Serial: serial,
+
+        });
+        if (ItemToMoveIn.length > 0) {
+            $.ajax({
+                type: 'Post',
+                url: urlWrittenOffToolQuantity,
+                contentType: 'application/json',
+                dataType: 'html',
+                data: JSON.stringify(ItemToMoveIn),
+                success: function (result) {
+                    $('#DivPullSelection').html(result);
+                    $("#DivPullSelection").dialog('open');
+                },
+                error: function (xhr) {
+                    alert(xhr.status + ' ' + xhr.statusText);
+                }
+            })
+        }
+    });
+
+    $('div.userContent').find('#btnMoveOut').on('click', function () {
+        var tr = $(this).parent().parent();
+        // var kitDetailGuid = $(tr).find('#hdnToolKitGUID').val();
+        var qtyToMove = $(tr).find('#txtQtyToMove').val();
+        var itemType = $(tr).find('#hdnItemType').val();
+        // var ToolDetailGuid = $(tr).find('hdnGUID').val();
+        var binName = '';
+
+        if (isNaN(parseFloat(qtyToMove)) || parseFloat(qtyToMove) <= 0) {
+            alert("Please enter quantity to Move");
+            return false;
+        }
+
+        var GUID = $(tr).find('#hdnGUID').val();
+        var ToolDetailGUID = $(tr).find('#hdnToolKitGUID').val();
+        var ToolGUID = $(tr).find('#hdnToolGUID').val();
+
+        var arrObj = new Array();
+        var obj = {};
+        obj.GUID = GUID;
+        obj.ToolDetailGUID = ToolGUID;
+        obj.ToolItemGUID = ToolDetailGUID;
+        obj.Quantity = qtyToMove;
+        //obj.ToolDetailGuid = ToolDetailGuid;
+        // obj.BinNumber = binName;
+        if ($(this).attr('id') == 'btnMoveIn')
+            obj.MoveInOut = "IN";
+        else if ($(this).attr('id') == 'btnMoveOut')
+            obj.MoveInOut = "OUT";
+
+        arrObj.push(obj);
+        MoveInOut(arrObj);
+    });
+
+    $('#btnMoveInSelected,#btnMoveOutSelected').off('click');
+
+    $('#btnMoveInSelected,#btnMoveOutSelected').on('click', function () {
+        var arrObj = new Array();
+        var btnName = $(this).attr('id');
+        $('#ToolKitLineItem' + '@Model.GUID' + ' tbody tr.row_selected').each(function (i) {
+            var ID = $(this).find('#hdnID').val();
+            var GUID = $(this).find('#hdnGUID').val();
+            var Qty = $(this).find('#txtQtyToMove').val();
+            // var binName = $(this).find('#txtItemLocations').val().split(' (')[0];
+
+            if (isNaN(parseFloat(Qty)) || parseFloat(Qty) <= 0) {
+                alert("Please enter quantity to Move");
+                return false;
+            }
+
+            //if (binName.length <= 0) {
+            //    alert('Please select Bin');
+            //    return false;
+            //}
+
+            var obj = {};
+            obj.KitDetailGUID = GUID;
+            obj.TotalQuantity = Qty;
+            // obj.BinNumber = binName;
+
+            if (btnName == 'btnMoveInSelected' && $(this).find('#btnMoveIn').length > 0) {
+                obj.MoveInOut = "IN";
+                arrObj.push(obj);
+            }
+            else if (btnName == 'btnMoveOutSelected' && $(this).find('#btnMoveOut').length > 0) {
+                obj.MoveInOut = "OUT";
+                arrObj.push(obj);
+            }
+
+        });
+
+        if (arrObj != null && arrObj.length > 0) {
+            MoveInOut(arrObj)
+        }
+        else {
+            alert('@ResCommon.ReqProperDara');
+        }
+    });
+
+    $("#ColumnOrderSetup1").off('click')
+    $("#ColumnOrderSetup1").on('click', function () {
+        var dtName = 'ToolKitLineItem' + KitGUID
+        $("#divDetailGridReorderPopup").data({ 'DataTableName': dtName, 'ListName': 'ToolKitLineItemList', 'ColumnObjectName': 'objKitDetailColumns' }).dialog("open");
+        return false;
+    });
+
+    function FillDetailGridDiv() {
+        $('#divKitLineItems').html('')
+        $.ajax({
+            url: '@Url.Action("LoadToolKitLineItemsByToolKitMasterDTO")',
+            type: 'POST',
+            data: { 'ToolKitGUID': '@Model.GUID' },
+            success: function (r) {
+                $("#divDetailGridReorderPopup").dialog("close");
+                $('#divKitLineItems').html(r);
+                $('#DivLoading').hide();
+            }
+        });
+    }
+
+
+</script>

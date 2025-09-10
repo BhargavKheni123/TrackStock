@@ -1,0 +1,197 @@
+﻿@model IList<eTurns.DTO.EnterpriseQLDetailDTO>
+@{
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+
+
+}
+<div id="divQLDetail" style="width: 99.5%; min-height: 140px">
+    <div>
+        <div>
+            <div style="text-align: center; float: left; width: 80%;">
+                <span id="spanErrorMsg" style="color: Green;"></span>
+            </div>
+            <div>
+                
+                @*<div style="text-align: center; bottom: auto; float: right; width: 48%; padding-bottom: 5px;">
+                    <table>
+                        <tr>
+                            <td>
+                                <div class="editor-field" style="width: 250px;">
+                                    <select id="ddlSupplierPartNo" multiple="multiple" width="150px" name="example-basic" size="5"
+                                            class="text-box"></select>
+                                </div>
+                            </td>
+                            <td>
+                                <input type="button" value="@eTurns.DTO.Resources.ResCommon.AddDetail" class="CreateBtn" onclick="return AddNewBinReplanish()" />
+                            </td>
+                        </tr>
+                    </table>                  
+                    
+                </div>*@
+            </div>
+        </div>
+    </div>
+    <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;float: left;">
+        <table id="QLDetail" class="display">
+            <thead>
+                <tr>
+                    <th>
+                        @eTurns.DTO.Resources.ResCommon.DetailNumber
+                    </th>
+                    <th>
+                        @eTurns.DTO.Resources.ResCommon.Quantity
+                    </th>
+                    <th>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null)
+                {
+                    foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                @*@Html.TextBox("txtQLDetailNumber", item.QLDetailNumber, new { @style = "width:93%;", @maxlength = "200", @class = "text-box " })*@
+                                <span style='position:relative'>
+                                    @Html.TextBox("txtQLDetailNumber", item.QLDetailNumber, new { @style = "width:93%;", @maxlength = "200", @class = "text-box AutoSupplierPartNo" })
+                                    @*@Html.Hidden("BinID", item.ID, new { @id = "SubBinID" })*@
+                                    <a id='lnkShowAllOptionsSupplierPartNo' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsSupplierPartNo">
+                                        <img src='/Content/images/arrow_down_black.png' alt='select' />
+                                    </a>
+                                </span>
+                            </td>
+                            <td>
+                                @Html.TextBox("txtQuantity", item.Quantity, eTurnsWeb.Helper.SessionHelper.QuantityFormat, new { @style = "width:50px;", @maxlength = "10", @class = "text-boxinner numericinput " })
+                            </td>
+
+                            <td>
+                                @if (item.GUID != Guid.Empty)
+                                {
+                                    <a href="JavaScript:void{0}" onclick="return DeletetoSeesionBinReplanishSingle(this)">
+                                        <img alt="@ResCommon.Save" src="/Content/images/delete.png">
+                                    </a>
+                                }
+                                <input id="hdnID" type="hidden" value="@item.ID" />
+                                <input id="hdnGUID" type="hidden" value="@item.GUID" />
+                                <input id="hdnItemGUID" type="hidden" value="@item.QLMasterGUID" />
+                                <input id="hdnSessionSr" type="hidden" value="@item.SessionSr" />
+                                @*<input id="hdnBinID" type="hidden" value="@item.ID" />*@
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="dialog" id="mdlQLYesNo" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+        </p>
+        <a href="JavaScript:void{}" id="btnQLModelYesSP" class="yes">
+            <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResMessage.ConfirmYes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no" onclick="QLcloseModal()">
+            <img src="~/Content/images/no.png" alt="@eTurns.DTO.Resources.ResMessage.ConfirmNo" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<script type="text/javascript">
+    var oTableProjectItems;
+    var deleteURL1 = "/EnterpriseQL/ItemLocationLvelQuantityDelete";
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var DTName = 'QLDetail' + '@ViewBag.ProjectGUID';
+    var bIsFilter = false;
+
+    $(document).ready(function () {
+        $('form').areYouSure();
+        var gaiSelected = [];
+
+        oTableProjectItems = $('#' + DTName).dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "100%",
+            "sDom": 'R<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            "oColVis": {},
+            "aaSorting": [[1, "desc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "ordering": true,
+            "bStateSave": true,
+            "oLanguage": {
+                    "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                    "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                    "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                    "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "aoColumns": [
+                 {
+                    "mDataProp": "QLDetailNumber", "bSortable": false
+                 },
+                 {
+                     "mDataProp": "Quantity", "bSortable": false
+                 },
+                 {
+                     "mDataProp": null,
+                     "bSortable": false
+                 }]
+        });
+        $('.DTTT_container').css('z-index', '-1');
+
+        $('#divQLDetail').on('focus', "input.AutoSupplierPartNo", function (e) {
+            var ajaxURL = '@Url.Action("GetAllSupplierPartNo", "EnterpriseQL")';
+            var $this = $(this);
+
+            _AutoCompleteWrapper.init($this
+                , ajaxURL
+                , function (request) {
+                    var obj = JSON.stringify({ 'SupplierPartNo': request.term, 'RoomIds': getSelectedID('ddlRRoom')});
+                    return obj;
+                },
+                function (data) {
+                    return $.map(data, function (Items) {
+                        return {
+                            label: Items.SupplierPartNo,
+                            value: Items.SupplierNumber,
+                            //desc: Items.RoomNames,
+                        }
+                    })
+                }
+                , function (curVal, selectedItem) {
+                    //        $(this).val(ui.item.value);
+                }
+                , function (selectedItem) {
+
+                }
+                , true, true);
+
+            //$this.tooltip({
+            //    items: "a",
+            //    content: function () {
+            //        return $(this).text() + "...some super extra tooltip stuff";
+            //    }
+            //});
+        });
+
+        $('#divQLDetail').on("click", ".ShowAllOptionsSupplierPartNo", function () {
+            var ddl = $(this).siblings('.AutoSupplierPartNo');
+            _AutoCompleteWrapper.searchHide(ddl);
+        });
+    });
+
+    $('#' + DTName + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    // To adjust the print block next to colvis button
+    $('#btnblock').css({ 'margin-right': '45px' });
+</script>

@@ -1,0 +1,367 @@
+@{
+    ViewBag.Title = eTurns.DTO.ResWorkOrder.PageTitle;
+    var settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DisplayUDFButton = true, DisplayDeleteButton = true, UDFSetupFor = "WorkOrder&UDFHeader=" + @eTurns.DTO.ResWorkOrder.PageHeader, DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "WorkOrder", DisplayArchiveButton = true, ShowCloseButton = true };
+    var modelCommon = new eTurns.DTO.CommonDTO { PageName = "WorkOrder" };
+
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.WorkOrders, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.WorkOrders, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    Session["IsInsert"] = "";
+    string WorkOrdersPDFURL = string.Format("{0}?t={1}", "/Uploads/HelpDoc/WorkOrder.pdf", DateTime.Now.Ticks);
+    bool IsShowChangeLog = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.ItemMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.ShowChangeLog);
+    bool isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    var version = eTurnsWeb.Helper.CommonUtility.GetReleaseNumber();
+    //HelpDocumentMasterDTO objHelpDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentMaster("WorkOrder");
+    //string WOBasicVideo = "";
+    //if (objHelpDTO != null)
+    //{
+    //    WOBasicVideo = objHelpDTO.ModuleVideoPath.Replace("../Uploads/HelpVideo/", "");
+    //}
+    List<HelpDocumentDetailDTO> objHelpDocDtlDTO = eTurnsWeb.Helper.SessionHelper.GetHelpDocumentDetail("WorkOrder", (int)HelpDocType.Module);
+}
+<style>
+    .paginationBlock {
+        float: left;
+        position: absolute;
+        right: 253px;
+        top: -4px;
+    }
+</style>
+
+@if (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableOktaLoginForSpecialUrls.Contains(eTurnsWeb.Helper.SessionHelper.CurrentDomainURL)){<link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyleBS.css")" />}else{ <link rel="stylesheet" type="text/css" href="@Url.Content("~/Content/tabstyle.css")" />}
+<style type="text/css">
+    .dataTables_scrollBody {
+        max-height: 400px;
+        overflow-y: scroll;
+    }
+
+    .IteamBlock li {
+        width: 93% !important;
+    }
+</style>
+@section head{
+
+}
+
+<div class="userListingWrapper">
+    <h2>
+        @eTurns.DTO.ResWorkOrder.PageHeader
+    </h2>
+    <div class="Infoclass" style="width:70px !important">
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsVideoShow == true)
+        {
+            var VideoCount = objHelpDocDtlDTO.Where(x => x.IsVideo == true).Count();
+            if (VideoCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/InfoVideo.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsVideo == true && !string.IsNullOrWhiteSpace(item.ModuleVideoName) && !string.IsNullOrWhiteSpace(item.ModuleVideoPath))
+                                {
+                                    <li class="help_docvideo" onclick="return OpenHelpDocVideo('@item.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@item.ModuleVideoNoExt');">@item.ModuleVideoNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsVideo == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsVideo == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleVideoPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/InfoVideo.png" alt="@helpDetails.ModuleVideoNoExt" onclick="return OpenHelpDocVideo('@helpDetails.ModuleVideoPath.Replace("../Uploads/HelpDoc/", "")', '@helpDetails.ModuleVideoNoExt');" />
+                    </div>
+                }
+            }
+        }
+        @if (objHelpDocDtlDTO != null && objHelpDocDtlDTO.Count > 0 && objHelpDocDtlDTO.FirstOrDefault().IsDocShow == true)
+        {
+            var DocCount = objHelpDocDtlDTO.Where(x => x.IsDoc == true).Count();
+            if (DocCount > 1)
+            {
+                <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                    <a href="#" style="z-index:205 !important">
+                        <img src="~/Content/images/Info.png" alt="Help" />
+                    </a>
+                    <div class="refreshBlock" style="z-index:200 !important; top: 20px;">
+                        <ul class="sub_subMenu">
+                            @foreach (var item in objHelpDocDtlDTO)
+                            {
+                                if (item.IsDoc == true && !string.IsNullOrWhiteSpace(item.ModuleDocName) && !string.IsNullOrWhiteSpace(item.ModuleDocPath))
+                                {
+                                    <li class="help_docvideo" onclick="return window.open('@item.ModuleDocPath', '_blank')">@item.ModuleDocNoExt</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                HelpDocumentDetailDTO helpDetails = new HelpDocumentDetailDTO();
+                helpDetails = objHelpDocDtlDTO.Where(x => x.IsDoc == true).FirstOrDefault();
+
+                if (helpDetails != null && helpDetails.IsDoc == true && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocName) && !string.IsNullOrWhiteSpace(helpDetails.ModuleDocPath))
+                {
+                    <div class="refresh" style="z-index: 200 !important; margin-right: 5px;">
+                        <img class="help_docvideo" src="~/Content/images/Info.png" alt="@helpDetails.ModuleDocNoExt" onclick="return window.open('@helpDetails.ModuleDocPath', '_blank')" />
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="userListBlock">
+        @Html.Hidden("hdnInsertRights", isInsert)
+        @Html.Hidden("hdnUpdateRights", isUpdate)
+        @Html.Hidden("hdnPageName", modelCommon.PageName)
+        <input type="hidden" id="hdnModuleName" name="hdnModuleName" value="WorkOrder" />
+        <ul class='tabs'></ul>
+        <div id="CtabNew" class="tabContener" style="min-height: 750px;">
+        </div>
+        <div id="Ctab" class="tabContener" style="min-height: 750px;">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="global_filter" />
+                        <a href="javascript:;" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_global_filter" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @Html.GridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.WorkOrders)
+            @Html.Partial("NarrowSearchLayout", modelCommon)
+            <div class="userContent ">
+                <table id="myDataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RowNo
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Expand
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.WOName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.ReleaseNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResRequisitionMaster.RequisitionNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.WOStatus
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResTechnician.Technician
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResCustomer.Customer
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResAssetMaster.AssetName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResToolMaster.ToolName
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.Odometer_OperationHours
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.UsedItems
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.UsedItemsCost
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.RoomName
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResWorkOrder.Signature
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.AddedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.EditedFrom
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.Supplier
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.SupplierAccountDetail
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResProjectMaster.ProjectSpendName
+                            </th>
+
+                            @Html.RenderColumnsHeader("WorkOrder", typeof(eTurns.DTO.ResWorkOrder))
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <button id="btnAddNewCompany" value="Ok" style="display: none">
+                    @ResCommon.AddNew
+                </button>
+                <button id="btnDeleteCompany" value="cancel" style="display: none">
+                    Delete Selected
+                </button>
+                <div id="processing_message" style="display: none" title="Processing">
+                    @eTurns.DTO.Resources.ResMessage.RequestProcessMessage
+                </div>
+            </div>
+        </div>
+        <div id="CtabCL" class="tabContener" style="min-height: 750px;">
+        </div>
+    </div>
+</div>
+<div class="dialog" id="WorkOrderListCloseConfirm" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.CloseWorkorderConfirmationMsg
+        </p>
+        <a href="JavaScript:void(0)" id="bntCloseWorkOrderListConfirmYes" class="yes yesornooryes">
+            <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResCommon.Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no" onclick="closeWorkOrderDialog();">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+@*<script type='text/javascript' src="@Url.Content("~/Scripts/TabCommon.js?v=" + version)"></script>
+<script language="javascript" type="text/javascript" src="@Url.Content("~/Scripts/Authorization.js?v=" + version)"></script>
+<script type='text/javascript' src="@Url.Content("~/Scripts/PageScripts/WorkOrder/WorkOrderList.js?v=" + version)"></script>
+<script type='text/javascript' src="@Url.Content("~/Scripts/PageScripts/WorkOrder/Wo_CreateWorkOrder.js?v=" + version)"></script>
+<script type='text/javascript' src="@Url.Content("~/Scripts/PageScripts/WorkOrder/CreateWOItem.js?v=" + version)"></script>*@
+
+<script type="text/javascript">
+
+    var msgSelectForViewHistory = '@ResCommon.msgSelectForViewHistory';
+    var MsgResErrorInProcess = '@ResCommon.ErrorInProcess';
+    var MsgSelectRow = '@ResCommon.SelectRow';
+    var MsgInvalidFileSelected = '@ResWorkOrder.MsgInvalidFileSelected';
+    var MsgvalidFileList = '@ResWorkOrder.MsgvalidFileList';
+    var MsgRemoveDuplicateFileName = '@ResWorkOrder.MsgRemoveDuplicateFileName';
+    var MsgValidFileName = '@ResCommon.ValidFileName';
+    var MsgLostChangesConfirmation = '@ResCommon.MsgLostChangesConfirmation';
+    var msgProjectSpendLimitConfirmation = '@ResPullMaster.msgProjectSpendLimitConfirmation';
+    var MsgUseBrowserToPrint = '@ResWorkOrder.MsgUseBrowserToPrint';
+    var RecordClosedSuccessfully = '@ResCommon.RecordClosedSuccessfully';
+    var MsgErrorInProcess = '@ResCommon.ErrorInProcess';
+    var WorkOrderType = '@eTurns.DTO.Resources.ResNarrowSearch.WorkOrderType';
+    var CustomerNS = '@eTurns.DTO.Resources.ResNarrowSearch.Customer';
+    var AssetNS = '@eTurns.DTO.Resources.ResNarrowSearch.Asset';
+    var ToolNS = '@eTurns.DTO.Resources.ResNarrowSearch.Tool';
+
+</script>
+
+<script type='text/javascript' src="@Url.Content("~/bundles/workOrderList?v=" + version)"></script>
+
+
+<script type="text/javascript">
+    var oLanguageWO = {
+        "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+        "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+        "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+        "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+    },
+        arrWorkOrder_Col_WO = [@Html.RenderColumnsArray("WorkOrder",false)],
+        isCostWOL = '@isCost';
+    var msgSelectForViewHistory = '@ResCommon.msgSelectForViewHistory';
+    _WorkOrderList.initUrls('@Url.Content("~/Master/SaveGridState")', '@Url.Content("~/Master/LoadGridState")'
+        , '@Url.Content("~/WorkOrder/WOMasterListAjax")', '@Url.Content("~/Master/UpdateData")'
+        , '@Url.Content("~/WorkOrder/WODetails")', '@Url.Content("~/WorkOrder/BlankSession")'
+    );
+    _WorkOrderList.init();
+</script>
+
+<script type="text/javascript">
+    var isTabClick = false;
+    var urlCloseWorkOrders = '@Url.Content("~/WorkOrder/CloseWorkOrders")';
+    var msgSelectOpenWorkOrderToClose = '@eTurns.DTO.Resources.ResMessage.SelectOpenWorkOrderToClose';
+    var TabsArry = [new TabClass('tab1', '@eTurns.DTO.Resources.ResCommon.New', 'callbacknew();', true, true),
+         new TabClass('tab5', '@eTurns.DTO.Resources.ResCommon.List', 'callbackhistory();', true, true),
+
+    ];
+    if ('@IsShowChangeLog.ToString().ToUpper()' == 'TRUE') {
+        TabsArry.push(new TabClass('tab6', '@eTurns.DTO.Resources.ResCommon.ChangeLog', 'callbackCL();', false, true));
+    }
+
+    function callbacknew() { window.location.hash = '#new';  ShowNewTab('WOCreate', 'frmWOMaster'); }
+    function callbackhistory() { window.location.hash = '#list'; }
+    function callbackCL() { window.location.hash = ''; _WorkOrderList.HistoryTabClick(); }
+    function SetTabView() {
+        var tabname = window.location.hash.toLowerCase();
+
+        switch (tabname) {
+            case "#list":
+                $("#tab5").click();
+                break
+            case "#new":
+                $("#tab1").click();
+                break
+        }
+
+    }
+    $(document).ready(function () {
+        $(window).on('hashchange', function () {
+            if (isTabClick == false) {
+                SetTabView();
+            }
+            else {
+                isTabClick = false;
+            }
+        });
+        //SetTabView();
+    });
+</script>
+
+<script language="javascript" type="text/javascript">
+       
+        $(document).ready(function () {
+            
+           
+            /*Functions used for nasted data binding END*/
+
+
+
+        });
+        /* HISTORY related data deleated and archived START */
+
+        /* HISTORY related data deleated and archived END */
+</script>
+

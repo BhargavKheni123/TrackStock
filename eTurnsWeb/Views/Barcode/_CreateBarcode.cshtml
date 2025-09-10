@@ -1,0 +1,541 @@
+﻿@model eTurns.DTO.BarcodeMasterDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+
+    List<ModuleMasterDTO> lstModulename = new List<ModuleMasterDTO>();
+    if (ViewBag.ModuleMasterList != null)
+    {
+        lstModulename = ViewBag.ModuleMasterList;
+        lstModulename = lstModulename.Where(t => t.ModuleName == "Item Master" || t.ModuleName == "Assets" || t.ModuleName == "Tool Master").ToList();
+        lstModulename = lstModulename.OrderBy(t => t.ModuleName).ToList();
+    }
+    List<ItemMasterDTO> lstItem = new List<ItemMasterDTO>();
+    if (ViewBag.ItemMasterList != null)
+    {
+        lstItem = ViewBag.ItemMasterList;
+        lstItem = lstItem.OrderBy(t => t.ItemNumber).ToList();
+    }
+}
+@{
+    bool isUpdate;
+    bool isInsert;
+    bool onlyView = false;
+
+    if (ViewBag.ViewOnly == true)
+    {
+        isUpdate = false;
+        isInsert = false;
+        onlyView = true;
+    }
+    else
+    {
+        //isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.BarcodeMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+        //isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.BarcodeMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+        var isHavingBarcodeRights = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Barcode);
+        isInsert = isHavingBarcodeRights;
+        isUpdate = isHavingBarcodeRights;
+    }
+}
+
+
+@using (Ajax.BeginForm("BarcodeSave", "Barcode", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmBarcode" }))
+{
+    @Html.AntiForgeryToken()
+    <script type='text/javascript' src="@Url.Content("~/Scripts/BarcodeReader.js?v=" + eTurnsWeb.Helper.CommonUtility.GetReleaseNumber())"></script>
+    <div class="userHead">
+        @Html.ValidationSummary(true)
+        @if (Model.ID != 0)
+        {
+            <div class="infoBlock">
+                <ul>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.RoomName)
+                        </label>
+                        : <span>@(Model.RoomName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.CreatedDate)
+                        </label>
+                        @*: <span>@eTurnsWeb.Helper.CommonUtility.ToClientDateTime(Model.Created)</span></li>*@
+                        : <span>@Model.ReceivedOnDateWeb</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.CreatedByName)
+                        </label>
+                        : <span>@(Model.CreatedByName)</span>
+                    </li>
+                    <li>
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.UpdatedDate)
+                        </label>
+                        @*: <span>@eTurnsWeb.Helper.CommonUtility.ToClientDateTime(Model.Updated)</span></li>*@
+                        : <span>@Model.ReceivedOnDate</span>
+                    </li>
+                    <li style="border: none">
+                        <label for="RoomName">
+                            @Html.LabelFor(model => model.UpdatedByName)
+                        </label>
+                        : <span>@(Model.UpdatedByName)</span>
+                    </li>
+                </ul>
+            </div>
+        }
+        <div class="editorForm">
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.ModuleName) <em>*</em>
+                    </div>
+                    <div class="editor-field">
+                        @*@Html.DropDownListFor(model => model.ToolCategoryID, new SelectList(ViewBag.ToolCategoryList, "ID", "ToolCategory", Model.ToolCategoryID), "", new { @class = "selectBox" })*@
+                        @Html.DropDownListFor(model => model.ModuleGUID, new SelectList(lstModulename, "GUID", "ModuleName", Model.ModuleGUID), ResBarcodeMaster.SelectModule, new { @class = "selectBox", id = "ModuleList" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.ModuleGUID)</span>
+                        @Html.HiddenFor(model => model.ModuleName)
+                        @Html.HiddenFor(model => model.ModuleGUID)
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.items) <em>*</em>
+                    </div>
+                    <div class="editor-field">
+                        @*@Html.DropDownListFor(model => model.ToolCategoryID, new SelectList(ViewBag.ToolCategoryList, "ID", "ToolCategory", Model.ToolCategoryID), "", new { @class = "selectBox" })*@
+                        @Html.DropDownListFor(model => model.items, new SelectList(lstItem, "GUID", "ItemNumber", Model.RefGUID), ResBarcodeMaster.SelectItemList, new { @class = "selectBox", id = "ItemList" })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.items)</span>
+                        @Html.HiddenFor(model => model.items)
+                        @Html.HiddenFor(model => model.RefGUID)
+                        @Html.HiddenFor(model => model.OldBarcodeString)
+                    </div>
+                </li>
+
+                <li id="BinDetailLI">
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.BinNumber)
+                    </div>
+                    <div class="editor-field">
+                        @Html.DropDownListFor(model => model.BinGuid, new SelectList("GUID", "BinNumber"), ResBarcodeMaster.SelectBinNumber, new { @class = "selectBox", id = "BinList" })
+                        @Html.HiddenFor(model => model.BinGuid)
+                        @Html.HiddenFor(model => model.BinNumber)
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.BinGuid)</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.BarcodeString)
+                    </div>
+                    <div class="editor-field">
+                        @Html.EditorFor(model => model.BarcodeString)
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.BarcodeString)</span>
+                        @Html.HiddenFor(model => model.ID, new { id = "hiddenID" })
+                        @Html.HiddenFor(model => model.GUID)
+                        @Html.HiddenFor(model => model.CreatedOn)
+                        @Html.HiddenFor(model => model.UpdatedOn)
+                        @Html.HiddenFor(model => model.CreatedBy)
+                        @Html.HiddenFor(model => model.UpdatedBy)
+                        @Html.HiddenFor(model => model.CompanyID)
+                        @Html.HiddenFor(model => model.RoomID)
+                        @Html.HiddenFor(model => model.RoomName)
+                        @Html.HiddenFor(model => model.CreatedByName)
+                        @Html.HiddenFor(model => model.UpdatedByName)
+                        @Html.HiddenFor(model => model.IsDeleted)
+                        @Html.HiddenFor(model => model.IsArchived)
+                        @Html.HiddenFor(model => model.BarcodeAdded)
+
+                    </div>
+                </li>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.BarcodeAdded)
+                    </div>
+                    <div class="editor-field">
+                        <label>@Model.BarcodeAdded</label>
+
+                    </div>
+                </li>
+
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="BtnBlockform">
+                        <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnCancel" class="CreateBtn" />
+                        @if ((isInsert == true && Model.ID == 0) || (isUpdate == true && Model.ID > 0) || Convert.ToString(Session["IsInsert"]) == "True")
+                        {
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" onclick="SetModuleName();" />
+                        }
+                        else //if (isUpdate == false && isInsert == false)
+                        {
+                            <script>
+                                //This is the case when archived or deleted record is being viewed..
+                                disableControls('frmBarcode');
+                            </script>
+                        }
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+    </div>
+}
+@Html.Partial("_RequiredMessages")
+<script type="text/javascript">
+
+    var MsgBinNumberNotAvailable = '@eTurns.DTO.ResBarcodeMaster.MsgBinNumberNotAvailable';
+    $(document).ready(function () {
+        $('form').areYouSure();
+    
+    });
+    function EditMode() {
+        if ($("input#BarcodeAdded").val() != "Manual") {
+            $("select#ModuleList").attr("disabled", "disabled");
+            $("select#ItemList").attr("disabled", "disabled");
+        }
+        // $("select#BinList").attr("disabled", "disabled");
+    }
+    function SetModuleName() {
+        $("input#ModuleName").val($("select#ModuleList option:selected").text());
+        $("input#items").val($("select#ItemList option:selected").text());
+        $("input#BinNumber").val($("select#BinList option:selected").text());
+        $("input#ModuleGUID").val($("select#ModuleList").val());
+        $("input#RefGUID").val($("select#ItemList").val());
+        $("input#BinGuid").val($("select#BinList").val());
+        return ValidateBarcodeString();
+
+
+    }
+    $("form").submit(function (e) {
+        $.validator.unobtrusive.parse("#frmBarcode");
+
+        e.preventDefault();
+        $('#NarroSearchClear').click();
+    });
+
+
+
+    function onSuccess(response) {
+        IsRefreshGrid = true;
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Massage);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#hiddenID").val();
+
+        if (response.Status == "fail") {
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#BarcodeString").val("");
+            $("#BarcodeString").focus();
+        }
+        else if (idValue == 0) {
+            $("#BarcodeString").val("");
+            $("#BarcodeString").focus();
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+                GetModuleWiseCreatedData($("body").find("input#hdnPageName").val(), '@eTurnsWeb.Helper.SessionHelper.CompanyID', '@eTurnsWeb.Helper.SessionHelper.RoomID', $("select#ddlModuleType").val());
+                var _IsArchived = false;
+                var _IsDeleted = false;
+
+                if (typeof ($('#IsArchivedRecords')) != undefined)
+                    _IsArchived = $('#IsArchivedRecords').is(':checked');
+
+                if (typeof ($('#IsDeletedRecords')) != undefined)
+                    _IsDeleted = $('#IsDeletedRecords').is(':checked');
+                GetBarcodeMasterNarrowSearchData('BarcodeMaster', _IsArchived, _IsDeleted);
+                ShowNewTab('BarcodeCreate', 'frmBarcode');
+            }
+
+        }
+        else if (idValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                $("#BarcodeString").focus();
+            }
+            else {
+                GetModuleWiseCreatedData($("body").find("input#hdnPageName").val(), '@eTurnsWeb.Helper.SessionHelper.CompanyID', '@eTurnsWeb.Helper.SessionHelper.RoomID', $("body").find("select#ddlModuleType").val());
+                clearControls('frmBarcode');
+                SwitchTextTab(0, 'BarcodeCreate', 'frmBarcode');
+            }
+        }
+        return false;
+    }
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+
+        showNotificationDialog();
+        $("#AssetName").focus();
+    }
+
+    $(document).ready(function () {
+
+
+
+        //$.ajaxSetup({
+        //    beforeSend: function (req) {
+        //        $('#DivLoading').show();
+        //    },
+        //    complete: function (req) {
+        //        $('#DivLoading').hide();
+        //    }
+        //});
+        $('#btnCancel').click(function (e) {
+            //            if (IsRefreshGrid)
+             SwitchTextTab(0, 'BarcodeCreate', 'frmBarcode');
+            if (oTable !== undefined && oTable != null) {
+                oTable.fnDraw();
+            }
+        });
+
+        checkRememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+
+
+    });
+
+</script>
+@if (isUpdate != false && isInsert != false)
+{
+    <script>
+        $(document).ready(function () {
+
+        });
+    </script>
+}
+<div id="NewMasterPopUP">
+</div>
+<script type="text/javascript">
+    $(document).ready(function () {
+
+        if ($("select#ddlModuleType").val() == 1) {
+            $("select#ModuleList option").each(function () {
+                if ($(this).text() == 'Item Master') {
+                    $(this).attr('selected', 'selected');
+                }
+            });
+        }
+        else {
+            if($("select#ddlModuleType").val() == 2){
+                $("select#ModuleList option").each(function () {
+                    if ($(this).text() == 'Assets') {
+                        $(this).attr('selected', 'selected');
+                    }
+                });
+            }
+            if ($("select#ddlModuleType").val() == 3) {
+                $("select#ModuleList option").each(function () {
+                    if ($(this).text() == 'Tools Master') {
+                        $(this).attr('selected', 'selected');
+                    }
+                });
+            }
+        }
+        $("select#ItemList").append($("<option></option>").val('').html('@ResBarcodeMaster.SelectItemList'));
+        $("select#BinList").append($("<option></option>").val('').html('@ResBarcodeMaster.SelectBinNumber'));
+        BindItemDropdown($("select#ModuleList option:selected").text());
+
+    });
+    $("select#ModuleList").change(function () {
+        var currentText = $("select#ModuleList option:selected").text();
+        $("select#ItemList").append($("<option></option>").val('').html('@ResBarcodeMaster.SelectItemList'));
+        $("select#BinList").append($("<option></option>").val('').html('@ResBarcodeMaster.SelectBinNumber'));
+        $("#ItemList option").remove();
+        BindItemDropdown(currentText);
+
+    });
+    function BindItemDropdown(currentText) {
+
+        // if ($("#ItemList option").length <= 0 && currentText != '')
+        {
+            var ajaxURL = '/Inventory/GetItemList';
+            if (currentText == 'Item Master') {
+                ajaxURL = '/Inventory/GetItemList';
+                showBinList();
+            }
+
+            if (currentText == 'Assets') {
+                ajaxURL = '/Assets/GetAssetList';
+                HideBinList();
+            }
+
+            if (currentText == 'Tool Master') {
+                ajaxURL = '/Assets/GetToolList';
+                HideBinList();
+            }
+            $('#DivLoading').show();
+            $("select#ItemList").html('');
+            $("select#BinList").html('@ResBarcodeMaster.SelectBinNumber');
+            $.ajax({
+                url: ajaxURL,
+                type: 'POST',
+                data: JSON.stringify({ 'NameStartWith': '' }),
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function (data) {
+                    $('#DivLoading').hide()
+
+                    $("select#ItemList").html('');
+                    if (currentText == 'Item Master') {
+                        $("select#ItemList").append($("<option></option>").val('').html('@ResBarcodeMaster.SelectItemList'));
+                        $("select#BinList").append($("<option></option>").val('').html('@ResBarcodeMaster.SelectBinNumber'));
+                    }
+                    else if (currentText == 'Assets') {
+                        $("select#ItemList").append($("<option></option>").val('').html('@ResBarcodeMaster.SelectAssetList'));
+
+                    }
+                    else if (currentText == 'Tools Master') {
+                        $("select#ItemList").append($("<option></option>").val('').html('@ResBarcodeMaster.SelectToolList'));
+
+                    }
+
+                    $.each(data, function (key, value) {
+
+                        $("select#ItemList").append($("<option></option>").val(value.GUID).html(value.Key));
+
+                    });
+                    $("select#ItemList").val('@Model.RefGUID');
+
+                    if ($("select#ModuleList option:selected").text() == "Item Master") {
+                        getBinList('@Model.RefGUID');
+                    }
+                },
+                error: function (err) {
+                    $('#DivLoading').hide();
+                }, complete: function () {
+                    if ('@Model.ID' != '0') {
+
+                        EditMode();
+                    }
+                }
+            });
+        }
+        if ('@Model.ID' != '0') {
+            $("select#ItemList").val('@Model.RefGUID');
+            if ($("select#ModuleList option:selected").text() == "Item Master") {
+                getBinList('@Model.RefGUID');
+            }
+            EditMode();
+        }
+    }
+    $("select#ItemList").change(function () {
+        var currentItemGUID = $(this).val();
+        if (currentItemGUID != '') {
+            if ($("select#ModuleList option:selected").text() == "Item Master") {
+                getBinList(currentItemGUID);
+            }
+        }
+    });
+    function getBinList(ItemGuid) {
+        var ajaxURL = '/Inventory/GetItemBinList';
+        var Value = '';
+        var itmGuid = ItemGuid;
+        $('#DivLoading').show();
+        $("select#BinList").html('');
+        $.ajax({
+            url: ajaxURL,
+            type: 'POST',
+            data: JSON.stringify({ 'NameStartWith': '', 'ItemGuid': itmGuid }),
+            contentType: 'application/json',
+            dataType: 'json',
+            success: function (data) {
+                $('#DivLoading').hide()
+                $.each(data, function (key, value) {
+
+                    $("select#BinList").append($("<option></option>").val(value.GUID).html(value.Key));
+
+                });
+                if (CreateBarcode_BinBindFromBarcode == true) {
+                    AssigneScanedBin();
+                }
+                else {
+                    setDefaultBin(ItemGuid);
+                }
+
+            },
+            error: function (err) {
+                $('#DivLoading').hide();
+            }, complete: function () {
+
+            }
+        });
+    }
+    function setDefaultBin(ItemGuid) {
+        var ajaxURL = '/Inventory/GetItemDefaultBin';
+        $.ajax({
+            url: ajaxURL,
+            type: 'POST',
+            data: JSON.stringify({ 'NameStartWith': '', 'ItemGuid': ItemGuid }),
+            contentType: 'application/json',
+            dataType: 'json',
+            success: function (data) {
+                $('#DivLoading').hide();
+                $("select#BinList").val($.trim(data));
+
+                if ('@Model.BinGuid' != '') {
+                    $("select#BinList").val('@Model.BinGuid');
+                }
+            },
+            error: function (err) {
+                $('#DivLoading').hide();
+            }
+        });
+    }
+    function showBinList() {
+        $("li#BinDetailLI").show();
+    }
+    function HideBinList() {
+        $("li#BinDetailLI").hide();
+    }
+    function ValidateBarcodeString() {
+        var NewBarcodeString = $.trim($("input#BarcodeString").val());
+        var barCodeId = $("input#hiddenID").val();
+        $.ajax({
+            url: "/barcode/ValidateBarcodeString",
+            type: "POST",
+            data: { "NewBarcodeString": NewBarcodeString, "barCodeId": barCodeId },
+            success: function (res) {
+
+                if (res != "ok") {
+                    if ($.trim(res).toLowerCase() == "duplicate") {
+                        //alert("BarcodeString '" + NewBarcodeString + "' already exists. Try again.");
+                        $("#spanGlobalMessage").html('@ResBarcodeMaster.BarcodeStringExists');
+                        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                        $("#BarcodeString").val("");
+                        $("#BarcodeString").focus();
+                        //$("input#BarcodeString").val('');
+                        return false;
+                    }
+                    else {
+                        alert(res);
+                        return false;
+                    }
+                }
+                else {
+                    return true;
+                }
+            },
+            error: function (xhr) {
+                console.log(xhr.status);
+            },
+            complete: function () {
+
+            }
+        });
+    }
+
+    //-------------------------------------------------
+    //
+    CreateBarcode_ModuleListId = 'ModuleList';
+    CreateBarcode_ItemListId = 'ItemList';
+    CreateBarcode_BinListId = 'BinList';
+    CreateBarcode_BarcodeStringId = 'BarcodeString';
+    CreateBarcode_btnSaveId = 'btnSave';
+    CreateBarcode_BindEventsForBarcodeScanning();
+    _Common.addRequiredSign();
+</script>

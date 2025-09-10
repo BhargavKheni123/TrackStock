@@ -1,0 +1,319 @@
+﻿@model IEnumerable<eTurns.DTO.ToolsOdometerDTO>
+@using eTurns.DTO
+@using eTurns.DTO.Resources
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = false, DisplayColumnSetupButton = true, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = true, DataTableName = "OdometerListTable" };
+}
+<div class="">
+
+    <div class="userListBlock">
+         <div>
+                <span style="font-size: larger; font-style: inherit; color: Navy;">
+                    @if (ViewBag.ToolAssetName != null)
+                    {
+                        @Convert.ToString(ViewBag.ToolAssetName)@Html.Raw("'Odometer")
+                    }
+                </span>
+                <hr />
+            </div>
+        <div id="tab7" class="" style="width: 99.5%">
+
+            <div class="searchWrapper">
+
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="InnerItem_filter" />
+                        <a href="javascript:void(0);" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="clear_QLItem_filter" /></a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Assets)
+            <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="OdometerListTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>@eTurns.DTO.ResToolsOdometer.ID</th>
+                            <th>@eTurns.DTO.ResToolsOdometer.EntryDate</th>
+                            <th>@eTurns.DTO.ResToolsOdometer.Odometer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null)
+                        {
+                            foreach (var item in Model)
+                            { 
+                            <tr>
+                                <td>@item.ID 
+                                    <input type="hidden" id="hdnID" value="@(item.GUID)" />
+                                </td>
+                                <td>
+                                <a onclick='return ShowOdometerEditTab("OdometerEdit?GUID=@(item.GUID)","frmScheduler")' href='JavaScript:void(0);'>
+                                 @item.EntryDate
+                                 </a>
+                                 </td>
+                                <td>@item.Odometer</td>
+                            </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="dialog" id="mdlQLYesNo" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm</p>
+        <a href="JavaScript:void{}" id="btnQLModelYesSP" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes</a><a href="javascript:void(0)" class="no"
+                onclick="QLcloseModal()">
+                <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo</a>
+    </div>
+</div>
+<script type="text/javascript">
+    var oTableProjectItems;
+    var deleteURL12 = "/Assets/DeleteOdometerRecords";
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var DTName = 'OdometerListTable';
+    var bIsFilter = false;
+
+
+    $(document).ready(function () {
+
+        var gaiSelected = [];
+        oTableProjectItems = $('#' + DTName).dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "100%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            "aaSorting": [],
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+               // if (!bIsFilter) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        "type": "POST",
+                        data: { Data: JSON.stringify(oData), ListName: 'OdometerList' },
+                        "async": false,
+                        cache: false,
+                        "dataType": "json",
+                        "success": function (json) {
+                            o = json;
+                        }
+                    });
+                //}
+                bIsFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'OdometerList' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            }
+        });
+        $('.DTTT_container').css('z-index', '-1');
+    });
+
+
+    $('#' + DTName + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    // To adjust the print block next to colvis button
+    $('#btnblock').css({ 'margin-right': '45px' });
+
+    $('#' + DTName + ' tbody tr').live('touchstart click', function () {
+        $(this).toggleClass('row_selected');
+        return false;
+    });
+
+    /* Add a click handler for the delete rows multiple rows */
+
+    $('#deleteRows1').click(function () {
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+        if ($("body").hasClass('DTTT_Print')) {
+            return false;
+        }
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+
+
+        var anSelected = fnGetSelected(oTableProjectItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            //anSelected[0].cells[0].innerHTML            
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+            IsDeletePopupOpen = false;
+        }
+
+
+    });
+
+    $("#btnModelYesInnerGrid").live("click", function () {
+
+        var anSelected = fnGetSelected(oTableProjectItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+
+        if (anSelected.length !== 0) {
+            $.ajax({ 'url': deleteURL12,
+                data: { ids: stringIDs },
+                success: function (response) {
+                    if (response == "ok") {
+                        for (var i = 0; i <= anSelected.length - 1; i++) {
+                            oTableProjectItems.fnDeleteRow(anSelected[i]);
+                        }
+
+                        if (anSelected.length > 0) {
+                            $("#spanGlobalMessage").html('@ResCommon.RecordDeletedSuccessfully'.replace("{0}","(" + anSelected.length + ")"));
+                        }
+                        //$('div#target').fadeToggle();
+                        //$("div#target").delay(2000).fadeOut(200);
+                        showNotificationDialog();
+                        //CallThisFunctionFromModel('success');
+                        //oTableProjectItems.fnDraw();
+                    }
+                },
+                error: function (response) {
+                    // through errror message
+                }
+            });
+            $.modal.impl.close();
+        }
+    });
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+        $('#' + DTName).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+    /* global search function */
+    function fnFilterGlobalPS() {
+        //set filter only if more than 2 characters are pressed
+        //if (typeof $("#InnerItem_filter") != 'undefined' && ($("#InnerItem_filter").val().length > 2 || $("#InnerItem_filter").val().length == 0)) {
+        if (typeof $("#InnerItem_filter") != 'undefined') {
+            bIsFilter = true;
+            var searchtext = $("#InnerItem_filter").val().replace(/'/g, "''");
+
+            $('#' + DTName + ' td').removeHighlight();
+
+            $('#' + DTName).dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+
+
+            if (searchtext.length > 0)
+                $('#' + DTName + ' td').highlight($("#InnerItem_filter").val());
+        }
+    }
+
+
+    //Apply filter
+    $("#InnerItem_filter").keyup(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        var index = $.inArray(code, NotAllowedCharCodes);
+        if (code == 13) {
+        }
+        else {
+            fnFilterGlobalPS();
+        }
+    });
+
+    //Keydown event is required to handle ENTER KEY to work in IE
+    $("#InnerItem_filter").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            fnFilterGlobalPS();
+        }
+    });
+
+    //Clear Filter
+    $("#clear_QLItem_filter").click(function () {
+        $("#InnerItem_filter").val('');
+        fnFilterGlobalPS();
+        $("#InnerItem_filter").focus();
+        return false;
+    });
+
+    function callPrint1(DataTableName) {
+        var oConfig = {
+            "sInfo": "<h6>Print view</h6><p>Please use your browser's print function to " + "print this table. Press escape when finished.",
+            "sMessage": null,
+            "bShowAll": false,
+            "sToolTip": "View print view",
+            "sButtonClass": "DTTT_button_print",
+            "sButtonText": "Print"
+        };
+        if (typeof (TableTools) != undefined && typeof (TableTools) != 'undefined')
+            TableTools.fnGetInstance(DataTableName).fnPrint(true, oConfig);
+    }
+
+    function ShowOdometerEditTab(action, formName) {
+        var IsArchived = $('#IsArchivedRecords').is(':checked');
+        var IsDeleted = $('#IsDeletedRecords').is(':checked');
+        action += '&IsArchived=' + IsArchived + '&IsDeleted=' + IsDeleted;
+        IsEditMode = true;
+        IsShowHistory = true;
+        AllowDeletePopup = false;
+
+
+        $('#DivLoading').show();
+        $("#tabOdometer").show();
+        $("#tabOdometer").click();
+        $(formName).append($('#CtabOdometer').load(action, function () { $('#DivLoading').hide(); $("#" + formName + " :input:text:visible:first").focus(); }));
+        $.validator.unobtrusive.parseDynamicContent('#' + formName + ' input:last');
+    }
+    /* DATA TABLE GRID COMMON FUNCTIONS END */
+
+</script>

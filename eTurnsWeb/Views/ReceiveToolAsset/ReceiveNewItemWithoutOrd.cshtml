@@ -1,0 +1,290 @@
+﻿@model ItemMasterDTO
+@{
+    string strDecimalFormat = eTurnsWeb.Helper.SessionHelper.QuantityFormat;
+    bool isAllowConsigned = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowedToChangeConsignedQuantityItems, eTurnsWeb.Helper.SessionHelper.PermissionType.Approval);
+    bool isCost = false;
+    isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+}
+<div class="innerGrid" id="InnerGrid_@Model.ID" style="background: none repeat scroll 0 0 #F8F8F8; padding: 10px;float:left">
+    <table id="NewReceiveEntry@(Model.ID)" class="display">
+        <thead>
+            <tr>
+                <th>
+                    @eTurns.DTO.ResOrder.OrderNumber
+                </th>
+                @if (Model.SerialNumberTracking)
+                {
+                    <th>
+                        @eTurns.DTO.ResOrder.RequestedQuantity
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResItemLocationDetails.SerialNumber
+                    </th>
+                    
+                }
+                @if (Model.LotNumberTracking)
+                {
+                    <th>
+                        @eTurns.DTO.ResItemLocationDetails.LotNumber
+                    </th>
+                }
+                @if (Model.DateCodeTracking)
+                {
+                    <th>
+                        @eTurns.DTO.ResItemLocationDetails.ExpirationDate
+                    </th>
+                }
+                @if (!Model.SerialNumberTracking)
+                {
+                    <th>
+                        Quantity To Receive
+                    </th>
+                }
+                <th>
+                    @eTurns.DTO.ResReceiveOrderDetails.ReceiveBin
+                </th>
+                @if (isCost)
+                {
+                    <th>
+                        @eTurns.DTO.ResItemLocationDetails.Cost
+                    </th>
+                }
+                <th>
+                    @eTurns.DTO.ResItemLocationDetails.ReceivedDate
+                </th>
+                @Html.RenderColumnsHeader("ReceivedOrderTransferDetail", typeof(eTurns.DTO.ResReceiveOrderDetails), "")
+                <th>
+                    &nbsp;
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    @Html.TextBox("txtordernumber_" + Model.ID, "", new { @class = "text-boxinner", @style = "width:100px;" })
+                    <input type="hidden" id="hdnordernumberforsort_@Model.ID" value="" />
+                </td>
+                @if (Model.SerialNumberTracking)
+                {
+                    <td>
+                        @Html.TextBox("txtreqQty_" + Model.ID, "", new { @class = "text-boxinner", @onblur = "fillReceivedDate('txtlotnumber_','" + Model.ID + "');", @style = "width:80px;" })
+                    </td>
+                    <td>
+                        @Html.TextBox("txtsrnumber_" + Model.ID, "", new { @class = "text-boxinner", @onblur = "return isDuplicateSerial('" + Model.ID.ToString() + "')", @style = "width:80px;" })
+                    </td>
+                }
+                @if (Model.LotNumberTracking)
+                {
+                    <td>
+                        @Html.TextBox("txtlotnumber_" + Model.ID, "", new { @class = "text-boxinner", @onblur = "fillReceivedDate('txtlotnumber_','" + Model.ID + "');", @style = "width:80px;" })
+                    </td>
+                }
+                @if (Model.DateCodeTracking)
+                {
+                    <td>
+                        @Html.TextBox("txtExpiration_" + Model.ID, DateTime.Now, new { name = "Expiration", @class = "text-boxinner", @style = "width:80px;", @onblur = "fillReceivedDate('txtExpiration_','" + Model.ID + "');" })
+                    </td>
+                }
+                @if (!Model.SerialNumberTracking)
+                {
+                    <td>
+                        @if (Model.SerialNumberTracking)
+                        {
+                            @Html.TextBox("txtReceiveQuantity_" + Model.ID, 0, "{0:0}", new { @class = "text-boxinner text-boxQuantityFormatSR", @onblur = "fillReceivedDateQuantity('txtReceiveQuantity_','" + Model.ID + "');" })
+                        }
+                        else
+                        {
+                            @Html.TextBox("txtReceiveQuantity_" + Model.ID, 0, strDecimalFormat, new { @class = "text-boxinner text-boxQuantityFormat", @onblur = "fillReceivedDateQuantity('txtReceiveQuantity_','" + Model.ID + "');" })
+                        }
+                    </td>
+                }
+                <td>
+                    @Html.DropDownListFor(modelItem => Model.DefaultLocation, new SelectList((IEnumerable<eTurns.DTO.BinMasterDTO>)ViewBag.BinLocations, "ID", "BinNumber", Model.DefaultLocation), new { @id = "ddlBin_" + Model.ID, @class = "selectBox", @style = "width:150px !important" })
+                </td>
+                @if (isCost)
+                {
+                    <td>
+                        @Html.TextBoxFor(modelItem => Model.Cost, eTurnsWeb.Helper.SessionHelper.PriceFormat, new { @class = "text-boxinner text-boxPriceFormat", @id = "txtCostBox_" + Model.ID })
+                    </td>
+                }
+                else
+                {   @Html.HiddenFor(t => t.Cost)  }
+                <td>
+                    @Html.TextBox("txtReceived_" + Model.ID, DateTime.Now.ToString("MM/dd/yyyy"), new { name = "Received", @class = "text-boxinner", @style = "width:85px" })
+                </td>
+                @Html.RenderColumnsArrayEditableObjectForDOM("ReceivedOrderTransferDetail", false, "_" + Model.ID)
+                <td>
+                    <input type="button" id="btnReceive_@Model.ID" onclick="javascript:return NewReceiveWithoutOrder('@Model.ID')" class="GridBtnStyle inLineBtn" value="Receive" />
+                    <input type="hidden" id="hdnIsConsign_@Model.ID" value="@Model.Consignment.ToString()" />
+                    <input type="hidden" id="hdnIsSerial_@Model.ID" value="@Model.SerialNumberTracking.ToString()" />
+                    <input type="hidden" id="hdnIsLot_@Model.ID" value="@Model.LotNumberTracking.ToString()" />
+                    <input type="hidden" id="hdnIsDateCode_@Model.ID" value="@Model.DateCodeTracking.ToString()" />
+                    <input type="hidden" id="hdnItemGuid_@Model.ID" value="@Model.GUID" />
+                    <input type="hidden" id="hdnItemType_@Model.ID" value="@Model.ItemType" />
+                    <input type="hidden" id="hdnOrderGUID_@Model.ID" value="" />
+                    <input type="hidden" id="hdnOrderID_@Model.ID" value="" />
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<script type="text/javascript">
+    $(document).ready(function () {
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormatSR").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 0
+        });
+
+        $("[name*=" + "Received" + "]").datepicker(
+            {
+                dateFormat: 'mm/dd/yy',
+                showButtonPanel: true,
+                clearText: 'Clear',
+                onClose: function () {
+                    this.focus();
+                }
+            });
+
+        $("[name*=" + "Expiration" + "]").datepicker(
+                {
+                    dateFormat: 'mm/dd/yy',
+                    showButtonPanel: true,
+                    clearText: 'Clear',
+                    onClose: function () {
+                        this.focus();
+                    }
+                });
+
+
+    });
+
+    function NewReceiveWithoutOrder(itemID) {
+
+        $("#DivLoading").show();
+
+        var orderNumber = $("#txtordernumber_" + itemID).val();
+        if ($.trim(orderNumber).length <= 0) {
+            alert('@ResReceiveOrderDetails.ReqOrderNumber');
+            $("#txtordernumber_" + itemID).focus();
+            return false;
+        }
+        var orderID = $("#hdnOrderGUID_" + itemID).val();
+        var orderGUID = $("#hdnOrderID_" + itemID).val();
+        var itemGUID = $("#hdnItemGuid_" + itemID).val();
+        var isLot = $("#hdnIsLot_" + itemID).val();
+        var isDCTrack = $("#hdnIsDateCode_" + itemID).val();
+        var isSerial = $("#hdnIsSerial_" + itemID).val();
+        var srNumber = "";
+        var expiredate = "";
+        var lotNumber = "";
+        var reqQty = 0;
+        var recvQty = 0;
+        var recvDate = $("#txtReceived_" + itemID).val();
+        var recvcost = $("#txtCostBox_" + itemID).val();
+        var binID = $("#ddlBin_" + itemID).val();
+
+        if (isSerial === "True") {
+            srNumber = $("#txtsrnumber_" + itemID).val();
+            reqQty = $("#txtreqQty_" + itemID).val();
+        }
+
+        if (isLot === "True") {
+            lotNumber = $("#txtlotnumber_" + itemID).val();
+        }
+
+        if (isDCTrack === "True") {
+            expiredate = $("#txtExpiration_" + itemID).val();
+        }
+
+        if (isSerial !== "True") {
+            recvQty = $("#txtReceiveQuantity_" + itemID).val();
+        }
+        var UDF1 = '';
+        var UDF2 = '';
+        var UDF3 = '';
+        var UDF4 = '';
+        var UDF5 = '';
+
+        if ($('#NewReceiveEntry' + itemID).find('#UDF1').length > 0) {
+            if ($('#NewReceiveEntry' + itemID).find("#UDF1")[0].nodeName === "SELECT")
+                UDF1 = $('#NewReceiveEntry' + itemID).find("#UDF1 option:selected").text();
+            else
+                UDF1 = $('#NewReceiveEntry' + itemID).find('#UDF1').val();
+        }
+
+        if ($('#NewReceiveEntry' + itemID).find('#UDF2').length > 0) {
+            if ($('#NewReceiveEntry' + itemID).find("#UDF2")[0].nodeName === "SELECT")
+                UDF2 = $('#NewReceiveEntry' + itemID).find("#UDF2 option:selected").text();
+            else
+                UDF2 = $('#NewReceiveEntry' + itemID).find('#UDF2').val();
+        }
+
+
+        if ($('#NewReceiveEntry' + itemID).find('#UDF3').length > 0) {
+            if ($('#NewReceiveEntry' + itemID).find("#UDF3")[0].nodeName === "SELECT")
+                UDF3 = $('#NewReceiveEntry' + itemID).find("#UDF3 option:selected").text();
+            else
+                UDF3 = $('#NewReceiveEntry' + itemID).find('#UDF3').val();
+        }
+
+
+        if ($('#NewReceiveEntry' + itemID).find('#UDF4').length > 0) {
+            if ($('#NewReceiveEntry' + itemID).find("#UDF4")[0].nodeName === "SELECT")
+                UDF4 = $('#NewReceiveEntry' + itemID).find("#UDF4 option:selected").text();
+            else
+                UDF4 = $('#NewReceiveEntry' + itemID).find('#UDF4').val();
+        }
+
+
+        if ($('#NewReceiveEntry' + itemID).find('#UDF5').length > 0) {
+            if ($('#NewReceiveEntry' + itemID).find("#UDF5")[0].nodeName === "SELECT")
+                UDF5 = $('#NewReceiveEntry' + itemID).find("#UDF5 option:selected").text();
+            else
+                UDF5 = $('#NewReceiveEntry' + itemID).find('#UDF5').val();
+        }
+
+        var arrObj = new Array();
+        var objROTDDTO = { "BinID": binID, "LotNumber": lotNumber, "SerialNumber": srNumber
+                            , "Expiration": expiredate, "Received": recvDate, "Cost": recvcost
+                            , "ItemGUID": itemGUID, "UDF1": UDF1, "UDF2": UDF2, "UDF3": UDF3
+                            , "UDF4": UDF4, "UDF5": UDF5
+        };
+        arrObj.push(objROTDDTO);
+        var objRODDTO = { "OrderNumber": orderNumber, "OrderGUID": orderGUID, "ItemGUID": itemGUID
+                        , "ReceiveBinID": binID, "ReceivedQuantity": recvQty, "RequestedQuantity": reqQty
+                           , "OrderRequiredDate": recvDate
+                        , "ReceivedItemDetail": arrObj
+        };
+
+        $.ajax({
+            "url": '@Url.Content("~/Receive/SaveNewReceiveWithoutOrder")'
+            , "type": "POST"
+            , "dataType": "json"
+            , "contentType": "application/json"
+            , "data": JSON.stringify(objRODDTO)
+            , "async": false
+            , "cache": false
+            , "success": function (response) {
+                alert(response.Massage);
+                $("#DivLoading").hide();
+                return false;
+            }
+            , "error": function (xhr) {
+                alert(Error);
+                $("#DivLoading").hide();
+                return false;
+            }
+        });
+    }
+</script>

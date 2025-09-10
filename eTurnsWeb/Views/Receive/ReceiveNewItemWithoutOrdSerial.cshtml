@@ -1,0 +1,300 @@
+@model ItemMasterDTO
+@{
+    bool isCost = false;
+    isCost = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.HideCostMarkUpSellPrice);
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+    bool isUpdate = false;
+    bool isInsert = false;
+    isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Receive, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Receive, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    eTurns.DAL.RegionSettingDAL objRegionSettingDAL = new eTurns.DAL.RegionSettingDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+}
+<div class="innerGrid" id="SRInnerGrid_@Model.ID" style="background: none repeat scroll 0 0 #F8F8F8; padding: 20px 10px 20px 10px;float:left">
+    <table class="display">
+        <tr>
+            <td>
+                <b>@eTurns.DTO.ResOrder.OrderNumber</b>
+            </td>
+            <td>
+                @if ((ViewBag.AutoNumber != null && ViewBag.AutoNumber.IsBlanketPO))
+                {
+                    @Html.DropDownList("ddlBlanketPO_" + Model.ID, new SelectList((IEnumerable<SupplierBlanketPODetailsDTO>)ViewBag.AutoNumber.BlanketPOs, "ID", "BlanketPO", (long)ViewBag.BlanketPOId), string.Empty, new { @class = "selectBox", @width = "93%" })
+                }
+                else
+                {
+                    @Html.TextBox("txtSROrderNumber_" + Model.ID, (string)ViewBag.OrderNumber, new { @class = "text-boxinner", @style = "width:100px;", maxlength = 22 })
+                }
+                <input type="hidden" id="hdnIsBlanketPO_@Model.ID" value="@Convert.ToString(ViewBag.AutoNumber.IsBlanketPO)" />
+                <input type="hidden" id="hdnordernumberforsort_@Model.ID" value="@ViewBag.OrderNumberForSort" />
+                <input type="hidden" id="hdnSROrderGUID_@Model.ID" value="" />
+                <input type="hidden" id="hdnSROrderDetailGUID_@Model.ID" value="" />
+                <input type="hidden" id="hdnSROrderDetailRecvQty_@Model.ID" value="" />
+                <input type="hidden" id="hdnIsEnforceReorderQty_@Model.ID" value="@Model.IsEnforceDefaultReorderQuantity.ToString()" />
+                <input type="hidden" id="hdnDefaultReorderQty_@Model.ID" value="@Model.DefaultReorderQuantity.ToString()" />
+                <input type="hidden" id="hdnIsAllowOrderCostuom_@Model.ID" value="@(Model.IsAllowOrderCostuom.ToString())" />
+
+            </td>
+            <td>
+                <b>@eTurns.DTO.ResOrder.RequestedQuantity</b>
+            </td>
+            <td>
+                @Html.TextBox("txtSRReqQty_" + Model.ID, "", new { @class = "text-boxinner text-boxQuantityFormatSR", @style = "width:80px;" })
+            </td>
+            <td>
+                <b>@eTurns.DTO.ResReceiveOrderDetails.PackSlipNumber</b>
+            </td>
+            <td>
+                @Html.TextBox("txtPackslip_" + Model.ID, "", new { @class = "text-boxinner", @style = "width:90px;", maxlength = 125 })
+            </td>
+
+            <td>
+                <b>@eTurns.DTO.ResReceiveOrderDetails.ShippingTrackNumber</b>
+            </td>
+            <td>
+                @Html.TextBox("txtShipTrack_" + Model.ID, "", new { @class = "text-boxinner", @style = "width:90px;", maxlength = 250 })
+            </td>
+
+            <td>
+                <b>@eTurns.DTO.ResOrder.ReceivedQuantity</b>
+            </td>
+            <td>
+                @Html.TextBox("txtSRRecvQty_" + Model.ID, "0", new { @class = "text-boxinner text-boxQuantityFormatSR", @onfocus = "this.blur();", @readOnly = "readOnly", @style = "width:80px;background:LightGray" })
+            </td>
+        </tr>
+    </table>
+    <br />
+    <table id="NewSRReceiveEntry@(Model.ID)" class="display">
+        <thead>
+            <tr>
+                <th>
+                    &nbsp;
+                </th>
+                <th>
+                    @eTurns.DTO.ResReceiveOrderDetails.SerialNumber
+                </th>
+                @if (Model.DateCodeTracking)
+                {
+                    <th>
+                        @eTurns.DTO.ResReceiveOrderDetails.ExpirationDate
+                    </th>
+                }
+                <th>
+                    @eTurns.DTO.ResReceiveOrderDetails.ReceiveBin
+                </th>
+                @if (isCost)
+                {
+                    <th>
+                        @eTurns.DTO.ResItemLocationDetails.Cost
+                    </th>
+                }
+                else
+                {
+                    <th>
+                    </th>
+                }
+                <th>
+                    @eTurns.DTO.ResItemLocationDetails.ReceivedDate
+                </th>
+                <th>
+                    @eTurns.DTO.ResOrder.Supplier
+                </th>
+                @Html.RenderColumnsHeaderRecieveInnerGrid("ReceivedOrderTransferDetail", typeof(eTurns.DTO.ResReceiveOrderDetails), "")
+            </tr>
+        </thead>
+        <tbody>
+            <tr id="innerSR_@(Model.ID)_0">
+                <td>
+                    @if (isInsert)
+                    {
+                        <input type="button" id="btnSRReceive_@(Model.ID)_0" onclick="javascript:return NewSRReceiveWithoutOrder('@Model.ID',this)" class="GridBtnStyle inLineBtn" value="@ResOrder.Receive" />
+                    } <input type="hidden" id="hdnSRIsConsign_@(Model.ID)_0" value="@Model.Consignment.ToString()" />
+                    <input type="hidden" id="hdnSRIsSerial_@(Model.ID)_0" value="@Model.SerialNumberTracking.ToString()" />
+                    <input type="hidden" id="hdnSRIsLot_@(Model.ID)_0" value="@Model.LotNumberTracking.ToString()" />
+                    <input type="hidden" id="hdnSRIsDateCode_@(Model.ID)_0" value="@Model.DateCodeTracking.ToString()" />
+                    <input type="hidden" id="hdnSRItemGuid_@(Model.ID)_0" value="@Model.GUID" />
+                    <input type="hidden" id="hdnSRItemType_@(Model.ID)_0" value="@Model.ItemType" />
+                    <input type="hidden" id="hdnSRCostBox_@(Model.ID)_0" value="@Model.Cost.GetValueOrDefault(0)" />
+                    <input type="hidden" id="hdnIsPackSlipNumberMandatory_@(Model.ID)_0" value="@Model.IsPackslipMandatoryAtReceive.ToString()" />
+
+                </td>
+                <td>
+                    @Html.TextBox("txtSRNumber_" + Model.ID + "_0", "", new { @class = "text-boxinner", @onblur = "return isDuplicateSR(this,'" + Model.ID.ToString() + "')", @style = "width:150px;", maxlength = "1024" })
+                </td>
+                @if (Model.DateCodeTracking)
+                {
+                    <td>
+                        @Html.TextBox("txtSRExpiration_" + Model.ID + "_0", "", new { @class = "text-boxinner myDatePicker", @style = "width:85px", @readOnly = "readOnly" })
+                    </td>
+                }
+                <td>
+                    @if (HasOnTheFlyEntryRight)
+                    {
+                        <span style='position:relative'>
+                            @Html.TextBoxFor(modelItem => modelItem.BinNumber, new { @id = "txtSRBin_" + Model.ID + "_0", @class = "text-boxinner DirectReciveSRAuto", @style = "width:130px;" })
+                            <a id="lnkShowAllOptions_@(Model.ID)_0" href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptions">
+                                <img src='/Content/images/arrow_down_black.png' alt='select' />
+                            </a>
+                            <input type="hidden" value="false" id="hdnIsLoadMoreLocations" />
+                        </span>
+                    }
+                    else
+                    {
+                        string slctID = Model.ID + "_" + "0";
+                        List<BinMasterDTO> lstBinMaster = new List<BinMasterDTO>();
+                        lstBinMaster.Add(new BinMasterDTO() { BinNumber = Model.BinNumber });
+                        @Html.DropDownList("slctBinNumber", new SelectList(lstBinMaster, "BinNumber", "BinNumber", Model.BinNumber), new { @id = "slctReceiveBinNumber_" + slctID, @class = "selectBox slctbin" })
+                        <input type="text" name="txtSRBin_@(slctID)" id="txtSRBin_@(slctID)" value="@Model.BinNumber" style="display:none;" />
+                    }
+
+                </td>
+                @if (isCost)
+                {
+                    <td>
+                        @if (Model.Consignment)
+                        {
+                            @Html.TextBoxFor(modelItem => Model.Cost, eTurnsWeb.Helper.SessionHelper.PriceFormat, new { @class = "text-boxinner numericinput disableBack", @id = "txtSRCostBox_" + Model.ID + "_0", @readonly = "readonly" })
+                        }
+                        else
+                        {
+                            @Html.TextBoxFor(modelItem => Model.Cost, eTurnsWeb.Helper.SessionHelper.PriceFormat, new { @class = "text-boxinner numericinput", @id = "txtSRCostBox_" + Model.ID + "_0" })
+                        }
+
+                    </td>
+                }
+                else
+                {
+                    <td>
+                        @Html.HiddenFor(t => t.Cost)
+                    </td>
+                }
+                <td>
+                    @*@Html.TextBox("txtSRReceived_" + Model.ID + "_0", eTurns.DAL.DateTimeUtility.DateTimeNow.ToString("MM/dd/yyyy"), new { @class = "text-boxinner myDatePicker", @style = "width:85px" })*@
+                    @Html.TextBox("txtSRReceived_" + Model.ID + "_0", objRegionSettingDAL.GetCurrentDatetimebyTimeZone(eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.UserID, eTurns.DTO.Resources.ResourceHelper.CurrentCult, eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture).ToString(eTurnsWeb.Helper.SessionHelper.RoomDateFormat, eTurnsWeb.Helper.SessionHelper.RoomCulture), new { @class = "text-boxinner myDatePicker", @style = "width:85px" })
+                </td>
+                <td>
+                    @Html.DropDownListFor(model => model.SupplierID, new SelectList(ViewBag.SupplierList, "ID", "SupplierName", Model.SupplierID), new { @id = "ddlSupplier_" + Model.ID, @class = "selectBox", @style = "width:120px", autofocus = "autofocus" })
+                    <input type="text" name="txtSupplier_@(Model.ID)" id="txtSupplier_@(Model.ID)" value="@Model.SupplierID" style="display:none;" />
+                </td>
+                @Html.RenderColumnsArrayReceivableObjectForDOM("ReceivedOrderTransferDetail", false, "_" + Model.ID + "_0")
+            </tr>
+        </tbody>
+    </table>
+</div>
+<script type="text/javascript">
+    $(document).ready(function () {
+
+         $("#ddlSupplier_@Model.ID").change(function () {
+            var selectedValue = $(this).val();
+            $("#txtSupplier_@Model.ID").val(selectedValue);
+        });
+
+        UDFfillEditableOptionsForGrid();
+        $('.ShowAllOptions').click(function () {
+            if ($(this).siblings('.DirectReciveSRAuto').attr("disabled") != "disabled") {
+                $(this).siblings('.DirectReciveSRAuto').trigger("focus");
+                $(this).siblings(".DirectReciveSRAuto").autocomplete("search", " ");
+            }
+        });
+
+        $(".text-boxPriceFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormat").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+        });
+        $(".text-boxQuantityFormatSR").priceFormat({
+            prefix: '',
+            thousandsSeparator: '',
+            centsLimit: 0
+        });
+
+        $('#txtSRReqQty_@(Model.ID)').focus();
+        $(".myDatePicker").datepicker({
+            dateFormat: '@eTurnsWeb.Helper.SessionHelper.RoomDateJSFormat', showButtonPanel: true,
+            changeMonth: true,
+            changeYear: true,
+            clearText: 'Clear', onClose: function () { this.focus(); }
+        });
+
+        $('#NewSRReceiveEntry' + '@Model.ID').on({
+            mouseover: function () {
+                var tr = $(this).parent().parent();
+                var itmGuid = '@Model.GUID';
+                var orderGuid = '@Guid.Empty';
+                getItemInventoryStagingLocation($(this), "", itmGuid, orderGuid);
+            },
+            focus: function () {
+                var tr = $(this).parent().parent();
+                var itmGuid = '@Model.GUID';
+                var orderGuid = '@Guid.Empty';
+                getItemInventoryStagingLocation($(this), "", itmGuid, orderGuid);
+            },
+            change: function () {
+                var slctid = "txtSRBin_" + '@Model.ID' + "_0";
+
+                $(this).parent().find("input[id='" + slctid + "']").val($(this).val());
+            }
+        }, "select.slctbin");
+
+        $('#NewSRReceiveEntry' + '@Model.ID').on('focus', "input.DirectReciveSRAuto", function (e) {
+
+            var ajaxURL = '/Receive/GetItemLocations';
+            var tr = $(this).parent().parent().parent();
+            var itmGuid = '@Model.GUID';
+            var orderGuid = '@Guid.Empty';
+            var hdnIsLoadMoreLocations = $(tr).find("#hdnIsLoadMoreLocations").val();
+
+            $(this).autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: ajaxURL,
+                        type: 'POST',
+                        data: JSON.stringify({ 'OrderGuid': orderGuid, 'ItemGuid': itmGuid, 'NameStartWith': request.term, 'IsLoadMoreLocations': hdnIsLoadMoreLocations }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function (data) {
+                            response($.map(data, function (Items) {
+                                return {
+                                    label: Items.Value,
+                                    value: Items.Key
+                                }
+                            }));
+
+                        },
+                        error: function (err) {
+                            $('#DivLoading').hide();
+                        }
+                    });
+                },
+                autoFocus: false,
+                minLength: 1,
+                select: function (event, ui) {
+                    if (ui.item.value == MoreLocation) {
+                        $(tr).find("#hdnIsLoadMoreLocations").val("true");
+                        $(this).trigger("focus");
+                        $(this).autocomplete("search", " ");
+                        return false;
+                    }
+                    else {
+                        $(this).val(ui.item.value);
+                    }
+                },
+                open: function () {
+                    $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+                    $('ul.ui-autocomplete').css('overflow-y', 'auto');
+                    $('ul.ui-autocomplete').css('max-height', '300px');
+                },
+                close: function () {
+                    $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+                },
+                change: function (event, ui) {
+                }
+            });
+        });
+    });
+
+</script>

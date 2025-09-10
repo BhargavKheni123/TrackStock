@@ -1,0 +1,433 @@
+﻿@model eTurns.DTO.OrderMasterDTO
+@{
+    GridHeaderSettings settings = new GridHeaderSettings() { dataViewType = DataViewType.None, DisplaySaveButton = false, DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = false, DisplayColumnSetupButton = false, DisplayContextMenu = false, DisplayPrintBlock = false, DisplayDeleteButton = false, DataTableName = "OrderLineItem" + Model.ID };
+}
+<div class="userListingWrapper">
+    <div class="userListBlock">
+        <div id="tab7" class="tabContener" style="width: 99.5%">
+            <div class="searchWrapper">
+                <div class="searchBlock">
+                    <span class="label">@eTurns.DTO.Resources.ResCommon.Search</span>
+                    <div class="searchinputB">
+                        <input type="text" class="searchinput" id="ReceiveItem_filter" />
+                        <a href="" class="xclose">
+                            <img src="~/Content/images/x.png" alt="X" id="ClearSearchReceive" /></a>
+                    </div>
+                </div>
+                <input type="button" id="btnDiv" value="Div" style="visibility: hidden" />
+            </div>
+            @Html.QuickListItemsGridTopHeader(settings, eTurnsWeb.Helper.SessionHelper.ModuleList.Orders)
+            <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+                float: left;">
+                <table id="RecieveOrderLineItem@(Model.ID)" class="display">
+                    <thead>
+                        <tr>
+                            <th>
+                            </th>
+                            <th>
+                            </th>
+                            <th>
+                                @eTurns.DTO.Resources.ResCommon.ID
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.ItemNumber
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.Bin
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.RequestedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.RequiredDate
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResOrder.ReceivedQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Description
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResUnitMaster.Unit
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResGLAccount.GLAccount
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.Cost
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResSupplierMaster.Supplier
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.OnOrderQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.InTransitquantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MinimumQuantity
+                            </th>
+                            <th>
+                                @eTurns.DTO.ResItemMaster.MaximumQuantity
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.OrderListItem != null && Model.OrderListItem.Count > 0)
+                        {
+                            foreach (var item in Model.OrderListItem)
+                            { 
+                            <tr id="tr_@item.ID">
+                                <td>
+                                    <a href="javascript:void(0);" id="aPlusMinus" onclick="return ShowHideInnerGrid(this,@item.ID);">
+                                        <img src="/Content/images/drildown_open.jpg" alt="">
+                                    </a>
+                                </td>
+                                <td>
+                                    <input id='btnInlineReceive' onclick='return SaveNewReceive(@item.ID);' type='button'
+                                        value='Receive' class='GridBtnStyle inLineBtn' />
+                                </td>
+                                <td>@item.ID
+                                </td>
+                                <td>@item.ItemDetail.ItemNumber
+                                    <input id="hdnID" type="hidden" value="@item.ID" />
+                                    <input id="hdnGUID" type="hidden" value="@item.GUID" />
+                                    <input id="hdnItemGUID" type="hidden" value="@item.ItemGUID" />
+                                    <input id="hdnOrderGUID" type="hidden" value="@item.OrderGUID" />
+                                    <input id="hdnBin" type="hidden" value="@item.Bin" />
+                                    <input id="hdnItemType" type="hidden" value="@item.ItemDetail.ItemType" />
+                                </td>
+                                <td>
+                                    @item.BinName
+                                </td>
+                                <td>
+                                    @item.RequestedQuantity
+                                </td>
+                                <td>
+                                    @item.RequiredDate
+                                </td>
+                                <td>
+                                    <span id="spnReceivedQty">@item.ReceivedQuantity</span>
+                                </td>
+                                <td>
+                                    @item.ItemDetail.Description
+                                </td>
+                                <td>
+                                    @item.ItemDetail.Unit
+                                </td>
+                                <td>
+                                    @item.ItemDetail.GLAccount
+                                </td>
+                                <td>
+                                    @item.ItemDetail.Cost
+                                </td>
+                                <td>
+                                    @item.ItemDetail.SupplierName
+                                </td>
+                                <td>
+                                    @item.ItemDetail.OnOrderQuantity
+                                </td>
+                                <td>
+                                    @item.ItemDetail.InTransitquantity
+                                </td>
+                                <td>
+                                    @item.ItemDetail.MinimumQuantity
+                                </td>
+                                <td>
+                                    @item.ItemDetail.MaximumQuantity
+                                </td>
+                            </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="LocationDetailsForItemReceive">
+</div>
+<script type="text/javascript">
+    var OrdID = '@Model.ID';
+    var OrdStatus = '@Model.OrderStatus';
+    var anOpen = [];
+    var ItemUniqueID;
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var oTableReceiveOrderLineItems;
+    var bIsReceiveFilter = false;
+
+    function ShowHideInnerGrid(ctrl, id) {
+
+        $('#DivLoading').show();
+
+        var tr = $('#tr_' + id);
+
+
+        var nTr = tr[0];
+
+        var i = $.inArray(nTr, anOpen);
+
+        var dtTable = $('#RecieveOrderLineItem' + OrdID).dataTable();
+
+        if (i === -1) {
+            $('img', ctrl).attr('src', sImageUrl + "drildown_close.jpg");
+            dtTable.fnOpen(nTr, fnFormatDetails(dtTable, nTr), '');
+            anOpen.push(nTr);
+        }
+        else {
+
+            $('img', ctrl).attr('src', sImageUrl + "drildown_open.jpg");
+            dtTable.fnClose(nTr);
+            anOpen.splice(i, 1);
+            //  dtTable.fnDraw();
+            $('#DivLoading').hide();
+        }
+    }
+
+    function fnFormatDetails(oTable, nTr) {
+        var oData = oTable.fnGetData(nTr);
+        var sOut = '';
+        var ItemGUID = $(nTr).find('#hdnItemGUID').val();
+        var GUId = $(nTr).find('#hdnGUID').val();
+        ItemUniqueGUID = ItemGUID;
+        $('#DivLoading').show();
+        $.ajax({
+            "url": '@Url.Content("~/Order/ItemRetrived")',
+            data: { 'ItemGUID': ItemGUID, 'ordDetailGUID': GUId },
+            "async": false,
+            cache: false,
+            "dataType": "text",
+            "success": function (json) {
+                sOut = json;
+                $('#DivLoading').hide();
+            },
+            error: function (response) {
+            }
+        });
+
+        return sOut;
+    }
+
+    function SaveNewReceive(id) {
+        $('#DivLoading').show();
+      
+        var tr = $('#tr_' + id);
+
+        $("#LocationDetailsForItemReceive").empty();
+        var ItemGUID = $(tr).find('#hdnItemGUID').val();
+        var itemType = $(tr).find('#hdnItemType').val();
+        var binID = $(tr).find('#hdnBin').val();
+        var ordDetailId = $(tr).find('#hdnGUID').val();
+        var idtype = ItemGUID + '#' + itemType + '#' + ordDetailId + '#' + binID;
+        var strData = { 'ItemID_ItemType': idtype };
+        $('#LocationDetailsForItemReceive').data("cdata", strData).dialog('open');
+
+        return false;
+    }
+    $(document).ready(function () {
+
+        $("#LocationDetailsForItemReceive").dialog({ autoOpen: false, modal: true, draggable: true, resizable: true, width: '82%', height: 710, title: 'Item Locations',
+            open: function () {
+                $('#DivLoading').show();
+                var strdata = $(this).data("cdata");
+                $.get('@Url.Content("~/Inventory/LocationDetails")', strdata, function (data) {
+                    $("#LocationDetailsForItemReceive").html(data);
+                    $('#DivLoading').hide();
+                });
+            },
+            close: function () {
+                CallThisFunctionFromModel('success');
+                $("#LocationDetailsForItemReceive").empty();
+            }
+        });
+
+        var ColumnObject = new Array();
+        ColumnObject.push({ "bSortable": false });
+        ColumnObject.push({ "bSortable": false });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": false });
+        ColumnObject.push({ "bSortable": false });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+        ColumnObject.push({ "bSortable": true });
+
+        var gaiSelected = [];
+        oTableReceiveOrderLineItems = $('#RecieveOrderLineItem' + OrdID).dataTable({
+            "bJQueryUI": true,
+            "bRetrieve": true,
+            "bDestroy": true,
+            "bScrollCollapse": true,
+            "sScrollX": "150%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[2, "desc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                if (!bIsReceiveFilter) {
+                    $.ajax({
+                        "url": '@Url.Content("~/Master/SaveGridState")',
+                        data: { Data: JSON.stringify(oData), ListName: 'ReceiveOrderLineItemList' },
+                        "async": true,
+                        "dataType": "json",
+                        "success": function (json) {
+                            if (json.jsonData != '')
+                                o = json;
+                        }
+                    });
+                }
+                bIsReceiveFilter = false;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    data: { ListName: 'ReceiveOrderLineItemList' },
+                    "async": true,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            }
+            , "aoColumns": ColumnObject
+        });
+
+        $('.DTTT_container').css('z-index', '-1');
+        $('#btnblock').css({ 'margin-right': '45px' });
+    });
+
+    $('#RecieveOrderLineItem' + OrdID).delegate(".myDatePicker", "focusin", function () {
+        $(this).datepicker({ dateFormat: 'm/d/yy' });
+    });
+
+    $('#RecieveOrderLineItem' + OrdID + ' tbody tr').die('touchstart click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#ClearSearchReceive').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    $('#RecieveOrderLineItem' + OrdID + ' tbody tr').live('touchstart click', function () {
+        $(this).toggleClass('row_selected');
+        return false;
+    });
+
+
+    $('#PageNumber1').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            $("#Gobtn1").click();
+            return false;
+        }
+    });
+
+    $("#Gobtn1").click(function () {
+        var pval = $('#PageNumber1').val();
+        if (pval == "" || pval.match(/[^0-9]/)) {
+            return;
+        }
+        if (pval == 0)
+            return;
+
+        $('#RecieveOrderLineItem' + OrdID).dataTable().fnPageChange(Number(pval - 1));
+        $('#PageNumber1').val('');
+    });
+
+
+
+
+    $(".searchBlock").on({
+        keyup: function (e) {
+
+            var code = (e.keyCode ? e.keyCode : e.which);
+            var index = $.inArray(code, NotAllowedCharCodes);
+            if (index >= 0) return false;
+
+            fnFilterReciveOrderLineItem();
+        },
+        keydown: function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                fnFilterReciveOrderLineItem();
+            }
+        },
+        paste: function (e) {
+            setTimeout(function () {
+                fnFilterReciveOrderLineItem();
+            }, 50);
+        },
+        drop: function (e) {
+            setTimeout(function () {
+                fnFilterReciveOrderLineItem();
+            }, 50);
+        }
+    }, "#ReceiveItem_filter");
+
+
+
+    $(".xclose #ClearSearchReceive").click(function () {
+        $("#ReceiveItem_filter").val('');
+        fnFilterReciveOrderLineItem();
+        $("#ReceiveItem_filter").focus();
+        return false;
+    });
+
+    /* global search function */
+    function fnFilterReciveOrderLineItem() {
+        //set filter only if more than 2 characters are pressed
+        if (typeof $("#ReceiveItem_filter") != 'undefined' && ($("#ReceiveItem_filter").val().length > 2 || $("#ReceiveItem_filter").val().length == 0)) {
+
+            bIsReceiveFilter = true;
+            var searchtext = $("#ReceiveItem_filter").val().replace(/'/g, "''");
+            $('#RecieveOrderLineItem' + OrdID).dataTable().fnFilter(
+                            searchtext,
+                            null,
+                            null,
+                            null
+                        );
+
+            $('#RecieveOrderLineItem' + OrdID + ' td').removeHighlight();
+
+            if (searchtext.length > 0)
+                $('#RecieveOrderLineItem' + OrdID + ' td').highlight($("#ReceiveItem_filter").val());
+        }
+    }
+
+    function UpdateReceiveQty(OrdDetailGUID) {
+        $.ajax({
+            'url': '@Url.Content("~/Order/GetReceivedQuantity")',
+            'data': { 'OrderDetailGUID': OrdDetailGUID },
+            "async": true,
+            'success': function (response) {
+                if (response.Status = "ok") {
+                    debugger;
+                    $('#tr_' + response.ReturnDTO.ID).find("#spnReceivedQty").text(response.ReturnDTO.ReceivedQuantity);
+                }
+            }
+        });
+    }
+</script>

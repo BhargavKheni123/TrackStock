@@ -1,0 +1,435 @@
+﻿@model IEnumerable<eTurns.DTO.ReceivedToolAssetOrderTransferDetailDTO>
+@{
+    bool isUpdate = false;
+    bool isInsert = false;
+    isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Receive, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+    isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Receive, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);    
+}
+<script type="text/javascript" src="@Url.Content("~/Scripts/DynemicDataTable.js")" ></script>
+<div class="innerGrid" style="background: none repeat scroll 0 0 #F8F8F8; padding: 10px 0 0 0px">
+    <table style="width: 880px;">
+        <tr>
+            <td class="BtnBlock" style="float: none; border: 1px solid #F8F8F8; height: 2px;">
+                <div class="innerHeadSec">
+                    <div style="position: absolute; left: 470px; top: -11px; width: 350px; z-index: 10;">
+                        <a href="javascript:void(null);" title="@ViewBag.OrderDetailGUID" id="btnDeleteRecords@(ViewBag.OrderDetailGUID)" style="float:right">
+                            <img src="~/Content/images/delete.png" alt="" />
+                        </a>
+                        <input type="button" id="InnerGridGobtn" class="go" value=@eTurns.DTO.Resources.ResGridHeader.Go />
+                        <input type="text" id="InnerGridPageNumber" class="inputNum" />
+                        <span class="label">@eTurns.DTO.Resources.ResGridHeader.GoToPage</span>
+                    </div>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding-top: 14px; padding-bottom: 35px; border: 1px solid #F8F8F8;">
+                <div class="userContentInnerGrid">
+                    <input type="hidden" value="@ViewBag.ToolGUID" id="hdnItemGuid" />
+                    <table id="ItemLocationTable@(ViewBag.OrderDetailGUID)" class="display">
+                        <thead>
+                            <tr>
+                               @* <th class="NotSortable">
+                                </th>*@
+                                <th>
+                                    @eTurns.DTO.ResLocation.Location
+                                </th>
+                               
+                                <th>@eTurns.DTO.ResItemLocationDetails.ReceivedDate
+                                </th>
+                                <th>@eTurns.DTO.ResToolMaster.Quantity
+                                </th>
+                                
+                                <th>@eTurns.DTO.ResToolAssetOrder.PackSlipNumber
+                                </th>
+                                
+                                <th>@eTurns.DTO.ResToolMaster.Cost
+                                </th>
+                                <th>@eTurns.DTO.ResItemLocationDetails.Created
+                                </th>
+                                <th>@eTurns.DTO.ResItemLocationDetails.Updated
+                                </th>
+                                <th>@eTurns.DTO.ResItemLocationDetails.CreatedBy
+                                </th>
+                                <th>@eTurns.DTO.ResItemLocationDetails.LastUpdatedBy
+                                </th>
+                                <th>
+                                    EDI Sent
+                                </th>
+                                <th>
+                                    Last EDI On
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.AddedFrom
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.EditedFrom
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                                </th>
+                                <th>
+                                    @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                                </th>
+                                @Html.RenderColumnsHeader("ReceivedToolAssetOrderTransferDetail", typeof(eTurns.DTO.ResReceiveOrderDetails), "")
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<div class="dialog" id="ReceivedOrderInnerGrid" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm</p>
+        <a href="JavaScript:void(0)" id="btnYesReceiveOrderInnerGrid" class="yes">
+            <img src="~/Content/images/yes.png" alt="@eTurns.DTO.Resources.ResCommon.Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes</a><a href="javascript:void(0)" class="no"
+                onclick="closeModal()">
+                <img src="~/Content/images/no.png" alt="@eTurns.DTO.Resources.ResCommon.No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo</a>
+    </div>
+</div>
+<div id="divEditReceive">
+</div>
+<script type="text/javascript">
+    $(document).ready(function () {
+
+        if ($("input#OrderStatusChar").val().toLowerCase().trim() == "c" || $("select#ddlOrderStatus").val() == "8")
+        {
+            $("div.innerHeadSec").find("a").hide();
+        }
+        else
+        {
+            $("div.innerHeadSec").find("a").show();
+        }
+        AllowDeletePopup = false;
+
+        var objColumns = new Array();
+
+//        objColumns.push({ mDataProp: null,"sDefaultContent": "", sClass: "read_only",
+//            fnRender: function (obj, val) {
+//                var str = "";
+//                if ('@(ViewBag.IsCloseItem)'=='False' && (obj.aData.IsEDISent == null || obj.aData.IsEDISent ==false ) && '@(isUpdate)'=="True") {
+//                    str = "<input type='button' onclick='javascript:return OpenEditReceive(this)' id='btnEditReceive' class='GridBtnStyle inLineBtn' value='Edit' /><input type='hidden' id='hdnGUID' value='" + obj.aData.GUID + "' />";
+//                }
+//                return str
+//            }
+//        });
+        objColumns.push({ mDataProp: "Location", sClass: "read_only" });
+       
+        objColumns.push({ mDataProp: "Received", sClass: "read_only", fnRender: function (obj, val) { return obj.aData.strReceivedDate } });
+        objColumns.push({ mDataProp: "Quantity", sClass: "read_only",
+            fnRender: function (obj, val) {
+                if (!isNaN(parseFloat(val)) && parseFloat(val) > 0)
+                    return "<span>" + FormatedCostQtyValues(val, 2) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 2) + "</span>";
+            }
+        });
+       
+        objColumns.push({ mDataProp: "PackSlipNumber", sClass: "read_only" });
+ 
+
+        objColumns.push({ mDataProp: "Cost", sClass: "read_only",
+            fnRender: function (obj, val) {
+                if (!isNaN(parseFloat(val)) && parseFloat(val) > 0)
+                    return "<span>" + FormatedCostQtyValues(val, 1) + "</span>";
+                else
+                    return "<span>" + FormatedCostQtyValues(0, 1) + "</span>";
+            }
+        });
+        objColumns.push({ mDataProp: "Created", sClass: "read_only", fnRender: function (obj, val) { return "<input type='hidden' name='hdnGUID' value='" + obj.aData.GUID + "' />" + obj.aData.CreatedDate; } });
+        objColumns.push({ mDataProp: "Updated", sClass: "read_only", fnRender: function (obj, val) { return obj.aData.UpdatedDate; } });
+        objColumns.push({ mDataProp: "CreatedByName", sClass: "read_only" });
+        objColumns.push({ mDataProp: "UpdatedByName", sClass: "read_only" });
+        objColumns.push({ mDataProp: "IsEDISent", sClass: "read_only", fnRender: function (obj, val) { return "<span id='spnIsEDISent'>" + GetBoolInFormat(obj, val) + "</span>"; } }),
+        objColumns.push({ mDataProp: "LastEDIDate", sClass: "read_only", fnRender: function (obj, val) { return GetDateInFullFormat(val); } });
+        objColumns.push({ mDataProp: "AddedFrom", sClass: "read_only" });
+        objColumns.push({ mDataProp: "EditedFrom", sClass: "read_only" });
+        objColumns.push({ mDataProp: "ReceivedOn", sClass: "read_only", fnRender: function (obj, val) { return obj.aData.ReceivedOnDate; } });
+        objColumns.push({ mDataProp: "ReceivedOnWeb", sClass: "read_only", fnRender: function (obj, val) { return obj.aData.ReceivedOnDateWeb; } });
+//        objColumns.push({ mDataProp: "ReceivedOnDate", sClass: "read_only" });
+//        objColumns.push({ mDataProp: "ReceivedOnDateWeb", sClass: "read_only" });
+        objColumns.push(@(Html.RenderColumnsArray("ReceivedToolAssetOrderTransferDetail", false, "")));
+
+        OrderDetailGUID = '@ViewBag.OrderDetailGUID'
+        PrepareItemLocationDataTableTool("ItemLocationTable", '@ViewBag.OrderDetailGUID', '@Url.Content("~/ToolAssetOrder/ReceivedItemLocationsListAjax")', 'ItemLocationList', objColumns);
+
+        if ($('#IsDeletedRecords').is(':checked') || $('#IsArchivedRecords').is(':checked') || $("body").hasClass('DTTT_Print')) {
+            $('#btnDeleteRecords@(ViewBag.OrderDetailGUID)').css({ 'display': 'none' });
+            $('#btnNewLocations@(ViewBag.OrderDetailGUID)').css({ 'display': 'none' });
+        }
+
+        setInterval(function () {
+            $('#ItemLocationTable' + '@(ViewBag.OrderDetailGUID)' + ' tbody tr').on('click', function (e) {
+                var td = $(this).find('#spnIsEDISent');
+                if ($.trim(td.text()).toLowerCase() === 'yes') {
+                    return false;
+                }
+            });
+
+        }, 1000);
+
+
+        $('#divEditReceive').dialog({
+            autoOpen: false,
+            modal: true,
+            draggable: true,
+            resizable: true,
+            width: '90%',
+            height: 220,
+            title: "Edit Received",
+            open: function () {
+                $('#DivLoading').show();
+                var receiveGUID = $(this).data("ReceivedGUID");
+                $.ajax({
+                    url: '@Url.Content("~/Receive/OpenEditReceiveDialog")',
+                    data: { 'ReceivedGUID': receiveGUID },
+                    type: 'Post',
+                    "async": false,
+                    "cache": false,
+                    "dataType": "text",
+                    success: function (result) {
+                        $('#DivLoading').hide();
+                        $('#divEditReceive').html(result)
+                    },
+                    error: function (xhr) {
+                        $('#DivLoading').hide();
+                    }
+
+                });
+            },
+            close: function () {
+                $(this).empty();
+                $('#divEditReceive').empty();
+                if ($(this).data("Success")) {
+                    $('#DivLoading').hide();
+                    $("#spanGlobalMessage").html("@ResCommon.MsgUpdatedSuccessfully");
+                     showNotificationDialog();
+                     UpdateReceiveQty('@ViewBag.OrderDetailGUID');
+                }
+            }
+        });
+    });
+
+    function OpenEditReceive(obj) {
+        var receivedGUID = $(obj).parent().find('#hdnGUID').val();
+        $('#divEditReceive').data({ "ReceivedGUID": receivedGUID }).dialog('open');
+        return false;
+    }
+
+    $("#btnDeleteRecords@(ViewBag.OrderDetailGUID)").on("click", function () {
+        var anSelectedLocation = fnGetSelected(oTableGlobalTABLE);
+        if (anSelectedLocation.length > 0) {
+            $('#ReceivedOrderInnerGrid').modal();
+        }
+    });
+
+    $("#btnYesReceiveOrderInnerGrid").click(function () {
+        $('#DivLoading').show();
+        var anSelectedLocation = fnGetSelected(oTableGlobalTABLE);
+        var OrdDtlGuid = '@ViewBag.OrderDetailGUID';
+        var guIdsToDelete = new Array();
+        var stringGUIDs = "";
+        for (var i = 0; i < anSelectedLocation.length; i++) {
+            var deletedguid = $(anSelectedLocation[i]).find("input[type='hidden'][name='hdnGUID']").val();
+            guIdsToDelete.push(deletedguid);
+            stringGUIDs = stringGUIDs + $(anSelectedLocation[i]).find("input[type='hidden'][name='hdnGUID']").val();
+        }
+        var itemGUID = $('#hdnItemGuid').val();
+
+        if (guIdsToDelete.length > 0) {
+            $.ajax({
+                'url': '@Url.Content("~/ToolAssetOrder/DeleteRecieveAndUpdateReceivedQty")',
+                'type': 'POST',
+                'data': { 'ToolGUID': itemGUID, 'ordDetailGUID': OrdDtlGuid, 'deleteIDs': stringGUIDs },
+                'async': false,
+                'cache': false,
+                'dataType': 'text',
+                'success': function (response) {
+                    closeModal();
+                   
+                    if (response == "ok") {
+                        $('#DivLoading').hide();
+                        $("#spanGlobalMessage").removeClass('WarningIcon errorIcon').addClass('succesIcon');
+                        $("#spanGlobalMessage").html("@ResCommon.RecordDeletedSuccessfully".replace("{0}","(" + guIdsToDelete.length + ")"));
+                        showNotificationDialog();
+                        UpdateReceiveQty('@ViewBag.OrderDetailGUID');
+                        return false;
+                    }
+                    else {
+                        $("#spanGlobalMessage").removeClass('WarningIcon succesIcon').addClass('errorIcon').text("Record(s) not deleted.");
+                        $('#DivLoading').hide();
+                        showNotificationDialog();
+                        return false;
+                    }
+
+                },
+                'error': function (err) {
+                    $('#DivLoading').hide();
+                }
+            });
+        }
+        else {
+            $('#DivLoading').hide();
+        }
+    });
+    function PrepareItemLocationDataTableTool(TableName, UniqueID, AjaxSourceMehtod, InnerPageName, ColumnObject) {
+        var ObjectTable = TableName + UniqueID;
+        oTableGlobalTABLE = $('#' + ObjectTable).dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "bAutoWidth": false,
+            "sScrollX": "100%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>',
+            //"aaSorting": [[1, "asc"]],
+            "aaSorting": [[2, "asc"]],
+            "oColReorder": {},
+            "bAutoWidth": false,
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "bServerSide": true,
+            "fnStateSaveParams": function (oSettings, oData) {
+                $.ajax({
+                    "url": "/Master/SaveGridState",
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: InnerPageName },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+
+                        o = json;
+                    }
+                });
+            },
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                $("td.RowNo:first", nRow).html(this.fnSettings()._iDisplayStart + iDisplayIndex + 1);
+                return nRow;
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": "/Master/LoadGridState",
+                    data: { ListName: InnerPageName },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "fnInitComplete": function (oSettings) {
+
+                SetUDFSelected(oSettings);
+
+            },
+            "sAjaxSource": AjaxSourceMehtod,
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+
+                aoData.push({ "name": "ToolGUID", "value": UniqueID });
+                aoData.push({ "name": "ToolID", "value": UniqueID });
+
+                if (OrderDetailGUID != null && OrderDetailGUID != undefined && OrderDetailGUID != NaN && OrderDetailGUID.toString().length > 0)
+                    aoData.push({ "name": "ToolAssetOrderDetailGUID", "value": OrderDetailGUID });
+
+                if (RequisitionDetailGuid != null && RequisitionDetailGuid != undefined && RequisitionDetailGuid != NaN && $.trim(RequisitionDetailGuid).length > 0)
+                    aoData.push({ "name": "RequisitionDetailGUID", "value": RequisitionDetailGuid });
+
+                if (WorkOrderGuid != null && WorkOrderGuid != undefined && WorkOrderGuid != NaN && $.trim(WorkOrderGuid).length > 0)
+                    aoData.push({ "name": "WorkOrderGUID", "value": WorkOrderGuid });
+
+                if (toolCheckoutGUID != null && toolCheckoutGUID != undefined && toolCheckoutGUID != NaN && $.trim(toolCheckoutGUID).length > 0)
+                    aoData.push({ "name": "ToolCheckoutGUID", "value": toolCheckoutGUID });
+
+                if (typeof (paramsMS) != undefined && paramsMS != undefined && paramsMS.length > 0 && paramsMS != null) {
+                    for (var u = 0; u < paramsMS.length; u++) {
+                        aoData.push({ "name": paramsMS[u].name, "value": paramsMS[u].value });
+                    }
+
+                }
+                /*////////////CODE FOR NARROW SEARCH IN CHILD GRID/////////////////////*/
+                if (TableName == "ToolChekinCheckoutTable") {
+                    //alert("In ToolChekinCheckoutTable");
+                    var sSearchInner = DoNarrowSearchInner();
+                    aoData.push({ "name": "sSearchInner", "value": sSearchInner });
+                }
+                /*////////////CODE FOR NARROW SEARCH IN CHILD GRID/////////////////////*/
+
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                if (oSettings.aaSorting.length != 0)
+                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "data": aoData,
+                    "success": fnCallback,
+                    beforeSend: function () {
+                        $('.dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('.dataTables_scroll').css({ "opacity": 1 });
+                        $(".text-boxPriceFormat").priceFormat({
+                            prefix: '',
+                            thousandsSeparator: '',
+                            centsLimit: parseInt($('#hdCostcentsLimit').val(), 10)
+                        });
+                        $(".text-boxQuantityFormat").priceFormat({
+                            prefix: '',
+                            thousandsSeparator: '',
+                            centsLimit: parseInt($('#hdQuantitycentsLimit').val(), 10)
+                        });
+                        if (gblActionName.toLowerCase() == 'receivelist') {
+                            $('#' + ObjectTable + '_wrapper .ColVis').css({ 'left': '780px' });
+                            UpdateReceiveQty(OrderDetailGUID, UniqueID)
+                        }
+                        if (RequisitionDetailGuid != null && RequisitionDetailGuid != undefined && RequisitionDetailGuid != NaN && $.trim(RequisitionDetailGuid).length > 0) {
+                            $('.dataTables_length').attr('style', 'left:0;top:-35px !important');
+                            $('.dataTables_paginate').attr('style', 'left: 145px;top:-25px !important');
+                            $('div.ColVis').remove();
+                        }
+                    }
+                })
+            },
+            "fnDrawCallback": function (settings) {
+                if (typeof (DrillDownBinId) != 'undefined') {
+                    if (DrillDownBinId != null && DrillDownBinId != undefined && DrillDownBinId.trim() != '') {
+                        var imgBinOpen = $('img[id="' + DrillDownBinId.toString() + '"');
+                        if (imgBinOpen != null && imgBinOpen != undefined && imgBinOpen.length > 0)
+                            imgBinOpen[0].click();
+                    }
+                    DrillDownBinId = '';
+                }
+            },
+            "aoColumns": ColumnObject
+        }).makeEditable();
+        //$('.DTTT_container').css('z-index', '-1');
+    }
+</script>

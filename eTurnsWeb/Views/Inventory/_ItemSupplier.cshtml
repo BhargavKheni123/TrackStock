@@ -1,0 +1,507 @@
+@model IList<eTurns.DTO.ItemSupplierDetailsDTO>
+@{
+    bool isSupplierPO = false;
+    bool IsForBOM = false;
+    Int64 Expiry = 0;
+
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+
+    RouteValueDictionary obj = ViewContext.Controller.ControllerContext.RouteData.Values;
+    string ControllerName = Convert.ToString(obj["controller"]);
+    string ActionName = Convert.ToString(obj["action"]);
+    if (ControllerName.ToLower() == "bom")
+    {
+        IsForBOM = true;
+    }
+
+    bool isBOMItem = false;
+    bool IsBorderStateEnterprises = (SiteSettingHelper.IsBorderStateURL == "1" && SiteSettingHelper.EnableBorderStateID.Split(',').Contains(eTurnsWeb.Helper.SessionHelper.EnterPriceID.ToString()));
+    if (Model != null && Model.Count > 0)
+    {
+        eTurns.DAL.ItemMasterDAL objDAL = new eTurns.DAL.ItemMasterDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+        ItemMasterDTO objlst;
+        objlst = objDAL.GetItemWithoutJoins(null, Model[0].ItemGUID);
+        var objItemDetails = objDAL.GetRecordByItemGUID(Model[0].ItemGUID.GetValueOrDefault(), eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID);
+        if (objlst != null)
+        {
+            if (objlst.ID != 0 && objlst.IsBOMItem == false && objlst.RefBomId != null && objlst.RefBomId > 0)//&& objlst.IsBOMItem != null
+            {
+                isBOMItem = true;
+            }
+            if (IsBorderStateEnterprises && objItemDetails != null && objItemDetails.SupplierName != "Border States")
+            {
+                isBOMItem = false;
+            }
+        }
+    }
+
+    List<SupplierMasterDTO> lstSupplier = (List<SupplierMasterDTO>)ViewBag.SupplierBag;
+    lstSupplier.Insert(0, new SupplierMasterDTO() { ID = 0, SupplierName = string.Empty });
+
+}
+<div id="divitemManucturer" style="width: 99.5%; min-height: 140px">
+    <div>
+        <div>
+            <div style="text-align: center; float: left; width: 80%;">
+                <span id="spanErrorMsg" style="color: Green;"></span>
+            </div>
+            <div>
+                @if (isBOMItem == false)
+                {
+                    <input type="button" value="@ResSupplierMaster.AddSupplier" class="CreateBtn" onclick="return AddNewItemSupplier();" />
+                }
+            </div>
+        </div>
+    </div>
+    <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+        float: left;">
+        <table id="ItemSupplier" class="display">
+            <thead>
+                <tr>
+                    <th>
+                        @eTurns.DTO.ResSupplierMaster.Supplier
+                </th>
+                <th>
+                    @eTurns.DTO.ResItemSupplierDetails.SupplierNumber
+            </th>
+            <th>
+                @eTurns.DTO.ResItemSupplierDetails.BlanketPOID
+        </th>
+        <th>
+            @eTurns.DTO.ResItemSupplierDetails.IsDefault
+    </th>
+    <th>
+    </th>
+</tr>
+</thead>
+<tbody>
+    @if (Model != null)
+    {
+        foreach (var item in Model)
+        {
+            <tr>
+                <td>
+                    @if (isBOMItem == true)
+                    {
+                        @*@Html.DropDownList("dlSupplier", new SelectList(ViewBag.SupplierBag, "ID", "SupplierName", item.SupplierID), "", new { @class = "selectBox" })*@
+                        @Html.TextBox("txtSupplier", item.SupplierName, new { @onchange = "FillSupplierBlanketPO(this);", @onblur = "FillSupplierBlanketPO(this);", @disabled = "disabled", @style = "width:93%;", @maxlength = "150", @class = "text-box autocompleteSup disableBack" })
+                        @Html.Hidden("SupplierID", item.SupplierID, new { @id = "SubSupplierID" })
+                    }
+                    else
+                    {
+                        if (HasOnTheFlyEntryRight)
+                        {
+                            <span style='position:relative'>
+                                @Html.TextBox("txtSupplier", item.SupplierName, new { @onchange = "FillSupplierBlanketPO(this);", @onblur = "FillSupplierBlanketPO(this);", @style = "width:93%;", @maxlength = "150", @class = "text-box autocompleteSup" ,onkeypress = "return NotAllowCharacter(event);", ondrop = "return false;" })
+                                @Html.Hidden("SupplierID", item.SupplierID, new { @id = "SubSupplierID" })
+                                <a id='lnkShowAllOptionsSup' href='javascript:void(0);' style='position:absolute; right:5px; top:0px;' class="ShowAllOptionsSup">
+                                    <img src='/Content/images/arrow_down_black.png' alt='select' />
+                                </a>
+                            </span>
+                        }
+                        else
+                        {
+                            <span style='position:relative'>
+                                @Html.Hidden("txtSupplier", item.SupplierName, new { @id = "txtSupplier" })
+                                @Html.DropDownListFor(modelItem => item.SupplierName, new SelectList(lstSupplier, "ID", "SupplierName", item.SupplierID), new { @onchange = "FillSupplierBlanketPO(this);", @id = "ddlSupplier_" + item.SupplierID.ToString(), @style = "width:93%;", @maxlength = "200", @class = "text-boxinner" })
+                                @Html.Hidden("SupplierID", item.SupplierID, new { @id = "SubSupplierID" })
+                            </span>
+                        }
+                    }
+                </td>
+                <td>
+                    @if (isBOMItem == true)
+                    {
+                        @Html.TextBox("txtSupplierNumber", item.SupplierNumber, new { @style = "width:100px;", @disabled = "disabled", @maxlength = "50", @autocomplete = "off", @class = "text-box disableBack" })
+                    }
+                    else
+                    {         @Html.TextBox("txtSupplierNumber", item.SupplierNumber, new { @style = "width:100px;", @maxlength = "50", @class = "text-box", @autocomplete = "off",onkeypress = "return NotAllowCharacter(event);", ondrop = "return false;", onblur = "return NotAllowedSpecialCharacters(this);" })
+                    }
+                </td>
+                <td>
+                    @if (item != null)
+                    {
+
+                        eTurns.DAL.SupplierBlanketPODetailsDAL objDAL = new eTurns.DAL.SupplierBlanketPODetailsDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+                        List<SupplierBlanketPODetailsDTO> objlst = new List<SupplierBlanketPODetailsDTO>();
+                        objlst = objDAL.GetBlanketPOBySupplierIDAndItemGUID(item.SupplierID, eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, item.ItemGUID).ToList();
+                        objlst = objlst.OrderBy(b => b.BlanketPO.Trim()).ToList();
+                        if (objlst.Count == 0)
+                        {
+                            objlst.Add(new SupplierBlanketPODetailsDTO());
+                            isSupplierPO = true;
+                            Expiry = 0;
+                        }
+                        else
+                        {
+                            isSupplierPO = false;
+                            if (objlst[0].ExpiryPO != 0)
+                            { Expiry = objlst[0].ExpiryPO; }
+                        }
+
+                        ViewBag.BlanketPOIDBag = objlst;
+
+                    }
+                    @if ((item.BlanketPOID > 0 || (ViewBag.BlanketPOIDBag != null && ViewBag.BlanketPOIDBag.Count > 0)) && isSupplierPO == false)
+                    {
+                        if (isBOMItem == true)
+                        {
+                            @Html.DropDownList("BlanketPOID", new SelectList(ViewBag.BlanketPOIDBag, "ID", "BlanketPO", item.BlanketPOID), "", new { @style = "display:block;width:150px;", @disabled = "disabled", @class = "selectBox disableBack" })
+                        }
+                        else
+                        { @Html.DropDownList("BlanketPOID", new SelectList(ViewBag.BlanketPOIDBag, "ID", "BlanketPO", item.BlanketPOID), "", new { @style = "display:block;width:150px;", @class = "selectBox" })
+                        }
+                    }
+                    else
+                    {
+                        if (isBOMItem == true)
+                        {
+                            @Html.DropDownList("BlanketPOID", new SelectList(ViewBag.BlanketPOIDBag, "ID", "BlanketPO"), "", new { @style = "display:none;width:150px;", @disabled = "disabled", @class = "selectBox disableBack" })
+                        }
+                        else
+                        {
+                            @Html.DropDownList("BlanketPOID", new SelectList(ViewBag.BlanketPOIDBag, "ID", "BlanketPO"), "", new { @style = "display:none;width:150px;", @class = "selectBox" }) }
+                    }
+                </td>
+                <td>
+                    @if (isBOMItem == true)
+                    {
+                        if (item.IsDefault == true)
+                        {
+                            @Html.CheckBox("IsDefault", true, new { @class = "check-box disableBack", @disabled = "disabled" })
+                        }
+                        else
+                        {
+                            @Html.CheckBox("IsDefault", false, new { @class = "check-box disableBack", @disabled = "disabled" })
+                        }
+                    }
+                    else
+                    {
+                        if (item.IsDefault == true)
+                        {
+                            @Html.CheckBox("IsDefault", true)
+                        }
+                        else
+                        {
+                            @Html.CheckBox("IsDefault", false)
+                        }
+                    }
+                </td>
+                <td>
+                    @*<a href="JavaScript:void{0}" onclick="return SavetoSeesionItemSupplier(this)"><img alt="Save" src="/Content/images/save.png"></a>*@
+                    @if (item.GUID != Guid.Empty)
+                    {
+                        if (isBOMItem == false)
+                        {
+                            <a href="JavaScript:void{0}" onclick="return DeletetoSeesionItemSupplierSingle(this)">
+                                <img alt="@ResCommon.Save" src="/Content/images/delete.png">
+                            </a>
+                        }
+                    }
+                    <input id="hdnID" type="hidden" value="@item.ID" />
+                    <input id="hdnGUID" type="hidden" value="@item.GUID" />
+                    <input id="hdnItemGUID" type="hidden" value="@item.ItemGUID" />
+                    <input id="hdnSessionSr" type="hidden" value="@item.SessionSr" />
+                    <input id="hdnExpiry" type="hidden" value="@Expiry" />
+                </td>
+            </tr>
+        }
+    }
+</tbody>
+</table>
+</div>
+</div>
+<div class="dialog" id="mdlQLYesNo" style="display: none;">
+    <div class="inner">
+        <p class="text">
+            @eTurns.DTO.Resources.ResMessage.DeleteConfirm
+        </p>
+        <a href="JavaScript:void{}" id="btnQLModelYesSP" class="yes">
+            <img src="~/Content/images/yes.png" alt="Yes" />
+            @eTurns.DTO.Resources.ResMessage.ConfirmYes
+        </a><a href="javascript:void(0)" class="no"
+               onclick="QLcloseModal()">
+            <img src="~/Content/images/no.png" alt="No" />@eTurns.DTO.Resources.ResMessage.ConfirmNo
+        </a>
+    </div>
+</div>
+<script type="text/javascript">
+    var oTableItemSupplier;
+    var deleteURL1 = "/Inventory/ItemSupplierDelete";
+    var NotAllowedCharCodes = [9, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+    var DTNameSup = 'ItemSupplier';
+    var bIsFilter = false;
+
+    $(".autocompleteSup").autocomplete({
+        source: function (request, response) {
+            var urlstring;
+            if ('@IsForBOM' == 'True') {
+                urlstring = "/BOM/GetSupplier";
+            }
+            else {
+                urlstring = "/Master/GetSupplier";
+            }
+            $.ajax({
+
+                url: urlstring,
+
+
+                contentType: 'application/json',
+                dataType: 'json',
+                data: {
+                    maxRows: 1000,
+                    name_startsWith: request.term
+                },
+                success: function (data) {
+                    response($.map(data, function (item) {
+                        return {
+                            label: item.SupplierName,
+                            value: item.SupplierName,
+                            selval: item.ID
+                        }
+                    }));
+                },
+                error: function (err) {
+                    alert(err);
+                }
+            });
+        },
+        autoFocus: false,
+        select: function (event, ui) {
+            $(this).next().val(ui.item.selval);
+        },
+        minLength: 0,
+        open: function () {
+            $(this).removeClass("ui-corner-all").addClass("ui-corner-top");
+
+            $(this).autocomplete('widget').css('z-index', 10005);
+        },
+        close: function () {
+            $(this).removeClass("ui-corner-top").addClass("ui-corner-all");
+        }
+    });
+
+    // Find New Supplier Or Not
+
+    function FindSupplier(txtsup) {
+        if ('@(HasOnTheFlyEntryRight)' == 'False') {
+            $(txtsup).next().val($(txtsup).val());
+            $(txtsup).siblings("#txtSupplier").val($(txtsup).children("option").filter(":selected").text());
+        }
+
+        if (parseInt($(txtsup).next().val()) > 0) {
+
+            var SupplierName;
+            if ('@(HasOnTheFlyEntryRight)' == 'False') {
+                var SupplierName = $(txtsup).children("option").filter(":selected").text();
+            }
+            else {
+                var SupplierName = $(txtsup).val();
+            }
+
+            $.ajax({
+                type: "GET",
+                url: "/Inventory/GetNewSupplier",
+                data: { "SupplierID": $(txtsup).next().val(), "SupplierName": SupplierName, IsForBOM: '@IsForBOM' },
+                dataType: "json",
+                success: function (response) {
+                    //                    var ddlBlanketPOID = $(txtsup).parent().parent().find("#BlanketPOID");
+                    //                    ddlBlanketPOID.empty();
+
+                    if (response.status == 'Ok') {
+                        FillSupplierBlanketPO1(txtsup);
+                    }
+                    else {
+
+                        //$(txtsup).next().val() = '';
+                        //    $(txtsup).val("");
+                        //    $(txtsup).focus();
+                        //    $(txtsup).parent().parent().find("#BlanketPOID").hide();
+                        //    $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+                        //    $("#spanGlobalMessage").text('User do not have permission to add new supplier');
+                        //   $('div#target').fadeToggle();
+                        //   $("div#target").delay(2000).fadeOut(200);
+                    }
+                },
+                error: function (XMLHttpRequest, textStatus) {
+                    alert(textStatus);
+                }
+            });
+        }
+        else {
+            // $(txtsup).parent().parent().find("#BlanketPOID").hide();
+        }
+    }
+
+    //check if supplier has blanketPO or not, if yes then populate dropdownlist
+    function FillSupplierBlanketPO(txtsup) {
+        var isSupplierInsert = '@(ViewBag.CanSupplierInsert)';
+        //alert(isSupplierInsert);
+        isSupplierInsert = false;
+        if (isSupplierInsert == false) {
+            FindSupplier(txtsup)
+        }
+    }
+
+    //check if supplier has blanketPO or not, if yes then populate dropdownlist
+    function FillSupplierBlanketPO1(txtsup) {
+        var SupplierName;
+        if ('@(HasOnTheFlyEntryRight)' == 'False') {
+            var SupplierName = $(txtsup).children("option").filter(":selected").text();
+        }
+        else {
+            var SupplierName = $(txtsup).val();
+        }
+
+        if (parseInt($(txtsup).next().val()) > 0) {
+            $.ajax({
+                type: "GET",
+                url: "/Inventory/GetSupplierBlanketPOItemGUID",
+                data: { "SupplierID": $(txtsup).next().val(), "SupplierName": SupplierName, IsForBOM: '@IsForBOM' },
+                dataType: "json",
+                success: function (response) {
+
+
+                    var ddlBlanketPOID = $(txtsup).parent().parent().parent().find("#BlanketPOID");
+
+                    ddlBlanketPOID.empty();
+
+                    if (response.status == 'Not Found') {
+                        $(txtsup).parent().parent().parent().find("#BlanketPOID").hide();
+                    }
+                    else {
+                        $(txtsup).parent().parent().parent().find("#BlanketPOID").show();
+
+                        ddlBlanketPOID.append(
+                                $('<option/>', {
+                                    value: '',
+                                    html: ''
+                                })
+                            );
+
+                        $.each(response.result, function () {
+                            ddlBlanketPOID.append(
+                                $('<option/>', {
+                                    value: this.ID,
+                                    html: this.BlanketPO
+                                })
+                            );
+                        });
+                    }
+                },
+                error: function (XMLHttpRequest, textStatus) {
+                    alert(textStatus);
+                }
+            });
+        }
+        else {
+            $(txtsup).parent().parent().parent().find("#BlanketPOID").hide();
+        }
+    }
+
+    $(document).ready(function () {
+        $('form').areYouSure();
+        //        $(".autocompleteSup").focus(function () {
+        //            $(this).autocomplete("search", $(this).val());
+        //        });
+
+        $('.ShowAllOptionsSup').click(function () {
+            $(this).siblings(".autocompleteSup").autocomplete("search", "");
+            $(this).siblings('.autocompleteSup').trigger("focus");
+        });
+
+        var gaiSelected = [];
+        oTableItemSupplier = $('#' + DTNameSup).dataTable({
+            "bPaginate": false,
+            "bLengthChange": false,
+            "bFilter": false,
+            "bSort": false,
+            "bInfo": false,
+            "bAutoWidth": false,
+            "bRetrieve": true,
+            "bDestroy": true
+        });
+        $('.DTTT_container').css('z-index', '-1');
+    });
+
+
+    $('#' + DTNameSup + ' tbody tr').die('tap click');
+    $('#deleteRows1').unbind("click");
+    $('#Gobtn1').unbind("click");
+    $('#clear_QLItem_filter').unbind("click");
+    $('#saveRows').die('click');
+    $('#PageNumber1').unbind("keydown");
+    $('#btnModelYesInnerGrid').die('click');
+
+    // To adjust the print block next to colvis button
+    $('#btnblock').css({ 'margin-right': '45px' });
+
+    //    $('#' + DTName + ' tbody tr').live('tap click', function () {
+    //        $(this).toggleClass('row_selected');
+    //        return false;
+    //    });
+
+    /* Add a click handler for the delete rows multiple rows */
+
+    $('#deleteRows1').click(function () {
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+        if ($("body").hasClass('DTTT_Print')) {
+            return false;
+        }
+        /* IF PRINT PREVIEW DONT SHOW CONTEXT MENU */
+
+
+        var anSelected = fnGetSelected(oTableProjectItems);
+        var stringIDs = "";
+        for (var i = 0; i <= anSelected.length - 1; i++) {
+            //anSelected[0].cells[0].innerHTML
+            stringIDs = stringIDs + $(anSelected[i]).find("#hdnID").val() + ",";
+        }
+        if (anSelected.length !== 0) {
+            $('#Inner-Grid-basic-modal-content').modal();
+            IsDeletePopupOpen = false;
+        }
+    });
+
+    //    $('#txtSupplierNumber').on('blur', function () {
+    //        var SuppDtlID = $(this).parent().parent().find('#hdnID').val();
+    //        if (!CheckSuppPartNumberAtRoomLeval($(this).val(), SuppDtlID)) {
+    //            $(this).css("background-color", "red");
+    //            $(this).select();
+    //            $(this).focus();
+    //            return false;
+    //        }
+    //        else {
+    //            $(this).css("background-color", "");
+
+    //        }
+    //        return true;
+    //    });
+
+
+    //    function CheckSuppPartNumberAtRoomLeval(SuppNumber, SuppDetailId) {
+    //        var returnResult = false;
+    //        $.ajax({
+    //            "url": '@Url.Content("~/Inventory/CheckSuppNumberRoomWise")',
+    //            data: { SuppNumber: SuppNumber, ID: SuppDetailId },
+    //            dataType: 'json',
+    //            type: 'POST',
+    //            async: false,
+    //            cache: false,
+    //            success: function (response) {
+    //                if (response.status == 'false') {
+    //                    returnResult = false;
+    //                }
+    //                else {
+    //                    returnResult = true;
+    //                }
+    //            },
+    //            error: function (response) {
+    //                $("#spanGlobalMessage").text(response);
+    //                returnResult = false;
+    //            }
+    //        });
+    //        return returnResult;
+    //    }
+
+</script>

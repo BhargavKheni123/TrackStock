@@ -1,0 +1,328 @@
+﻿@model ItemMasterDTO
+@{
+    ViewBag.Title = "AddLocationsFromGrid";
+    Guid ItemGUID = Guid.Parse(ViewBag.ItemGUID);
+    bool HasOnTheFlyEntryRight = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.OnTheFlyEntry);
+
+}
+<div id="divitemlocationAddGrid" style="width: 99.5%;">
+    <div>
+        <div style="text-align: center; float: left; width: 80%;">
+            <span id="spanErrorMsg" style="color: Green;"></span>
+        </div>
+        <div>
+            <div style="text-align: right; float: left; width: 75%;">
+                <span style="color: Red;">*</span>
+            </div>
+            <div style="text-align: center; bottom: auto; float: right; width: 10%; padding-bottom: 5px;">
+                <input type="button" value="@ResCommon.AddLocation" data-bind="click: $root.AddItemLocation"
+                    class="CreateBtn" />
+            </div>
+            <div style="text-align: center; bottom: auto; float: right; width: 10%; padding-bottom: 5px;">
+                <input type="button" value="@ResCommon.Save @ResCommon.Location" data-bind="click: $root.SaveItemLocations"
+                    class="CreateBtn" />
+            </div>
+        </div>
+    </div>
+    <div class="userContentInnerGrid" style="width: 99% !important; margin-left: 5px !important;
+        float: left;">
+        <table id="tableLocations" class="display">
+            <thead>
+                <tr>
+                    <th>
+                        @eTurns.DTO.ResItemManufacturerDetails.IsDefault
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResBin.BinNumber
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResBin.CriticalQuantity
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResBin.MinimumQuantity
+                    </th>
+                    <th>
+                        @eTurns.DTO.ResBin.MaximumQuantity
+                    </th>
+                    @*<th>
+                            @eTurns.DTO.ResBin.CustomerOwnedQuantity
+                        </th>
+                        <th>
+                            @eTurns.DTO.ResBin.ConsignedQuantity
+                        </th>*@
+                    <th>
+                        @eTurns.DTO.ResBin.eVMISensorID
+                    </th>
+                    <th>
+                    </th>
+                </tr>
+            </thead>
+            <tbody data-bind="foreach: ItemLocationDetails">
+                <tr data-bind="css: { even: $index()%2 != 0, odd: $index()%2 == 0 }">
+                    <td>
+                        <input type="checkbox" data-bind="checked:IsDefault,click: $root.chkClick" name="chkIsDefault" />
+                    </td>
+                    <td>
+                        @if (HasOnTheFlyEntryRight)
+                        {
+                            <input type="text" data-bind="value:BinNumber, valueUpdate:'blur',attr: { disabled: ID() > 0}" id="txtBinNumber"
+                                class="text-boxinner" />
+                        }
+                        else
+                        {
+                            <select class="selectBox" name="slctBinNumber" data-bind="options: availableLocations, optionsText: 'BinNumber',optionsValue:'BinNumber', value:BinNumber,attr: { disabled: ID() > 0}">
+                            </select>
+                        }
+                    </td>
+                    @if (Model.IsItemLevelMinMaxQtyRequired == false)
+                    {
+                        <td>
+                            <input type="text" data-bind="value:CriticalQuantity" id="txtCriticalQuantity" class="text-boxinner" />
+                        </td>
+                        <td>
+                            <input type="text" data-bind="value:MinimumQuantity" id="txtMinimumQuantity" class="text-boxinner" />
+                        </td>
+                        <td>
+                            <input type="text" data-bind="value:MaximumQuantity" id="txtMaximumQuantity" class="text-boxinner" />
+                        </td>
+                    }
+                    else
+                    {
+                        <td>
+                            <span data-bind="value:CriticalQuantity" id="spnCriticalQuantity" />
+                        </td>
+                        <td>
+                            <span data-bind="value:MinimumQuantity" id="spnMinimumQuantity" />
+                        </td>
+                        <td>
+                            <span data-bind="value:MaximumQuantity" id="spnMaximumQuantity" />
+                        </td>
+                    }
+                    @*<td>
+                            <span id="spnCustomerOwnedQuantity" data-bind="text:CustomerOwnedQuantity"></span>
+                        </td>
+                        <td>
+                            <span id="spnConsignedQuantity" data-bind="text:ConsignedQuantity"></span>
+                        </td>*@
+                    <td>
+                        <input type="text" data-bind="value:eVMISensorID" id="txteVMISensorID" class="text-boxinner" />
+                    </td>
+                    <td>
+                        <a href="JavaScript:void(0);" data-bind="click: $root.DeleteItemLocation">
+                            <img alt="@ResCommon.Save" src="/Content/images/delete.png">
+                        </a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<script type="text/javascript">
+    $(document).ready(function () {
+        fillItemLocations();
+
+        //        $("#divitemlocationAddGrid").on("change", "input[name='chkIsDefault']", function () {
+
+        //            if ($(this).prop("checked")) {
+        //                $("input[name='chkIsDefault']").prop("checked", false);
+        //                $(this).prop("checked", true);
+        //            }
+
+        //        });
+        $("#divitemlocationAddGrid").on({
+            mouseover: function () {
+                FillLocations($(this), "");
+            },
+            focus: function () {
+                FillLocations($(this), "");
+            },
+            change: function () {
+                $(this).parent().find("input[id='txtBinNumber']").val($(this).val());
+            }
+        }, "select[name='slctBinNumber']");
+    });
+
+
+    $("#divitemlocationAddGrid").on({
+        focus: function () {
+            SetAutoCompleteOpenOnFocusByRoomAndCompany($(this), '@Url.Action("GetAllLocationOfRoomByRoomAndCompany", "Master")', null, " ",@Model.Room, @Model.CompanyID);
+        }
+
+    }, "input[type='text'][id='txtBinNumber']");
+    function fillItemLocations() {
+        var viewModel = new ItemLocationViewModel();
+        GetItemLocations(viewModel);
+        try {
+            ko.applyBindings(viewModel, document.getElementById('divitemlocationAddGrid'));
+        }
+        catch (e) {
+
+        }
+    }
+
+
+
+    function ItemLocationViewModel() {
+        var self = this;
+        self.ItemLocationDetails = ko.observableArray([]);
+        self.AddItemLocation = function () {
+            self.ItemLocationDetails.push(new ItemLocationDetail(0, guidjs(), "", "", "", "", "", "", "", "", false));
+        };
+        self.SaveItemLocations = function () {
+            //alert(ko.toJSON(self.ItemLocationDetails));
+            if (ValidateItemLocations(self)) {
+                SaveItemLocations(self);
+            }
+            else {
+                //Failure message here.
+                _notification.showWarning('@ResItemMaster.BinnumberBlankValidation');
+            }
+
+        };
+
+        self.chkClick = function (Itemlocation) {
+            if (Itemlocation.IsDefault() === true) {
+                ko.utils.arrayForEach(self.ItemLocationDetails(), function (item) {
+                    item.IsDefault(false);
+                });
+                Itemlocation.IsDefault(true);
+            }
+            return true;
+            
+        };
+
+        self.DeleteItemLocation = function (Itemlocation) {
+            if (Itemlocation.ID() > 0) {
+                $.ajax({
+                    url: '@Url.Content("~/Inventory/CheckifanyCartEntryExist")',
+                    data: { 'ITEMGUID': '@Model.GUID', 'BinID': Itemlocation.ID() },
+                    dataType: 'json',
+                    type: 'POST',
+                    async: false,
+                    cache: false,
+                    success: function (response) {
+                        if (response.status == 'referencecount') {
+                            $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
+                            $("#spanGlobalMessage").html('@ResLocation.ValidateLocationDelete');
+                            $('div#target').fadeToggle();
+                            $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+                        }
+                        else if (response.status == 'ok') {
+                            self.ItemLocationDetails.remove(Itemlocation);
+                        }
+                    }
+                });
+            }
+            else {
+                self.ItemLocationDetails.remove(Itemlocation);
+            }
+
+        };
+
+    }
+
+    function ItemLocationDetail(ID, GUID, BinNumber, CriticalQuantity, MinimumQuantity, MaximumQuantity, CustomerOwnedQuantity, ConsignedQuantity, SuggestedOrderQuantity, eVMISensorID, IsDefault) {
+        var arrbins = new Array();
+        arrbins.push({ BinNumber: BinNumber });
+        var self = this;
+        self.ID = ko.observable(ID);
+        self.GUID = ko.observable(GUID);
+        self.BinNumber = ko.observable(BinNumber).extend({ required: true });
+        self.CriticalQuantity = ko.observable(CriticalQuantity);
+        self.MinimumQuantity = ko.observable(MinimumQuantity);
+        self.MaximumQuantity = ko.observable(MaximumQuantity);
+        self.CustomerOwnedQuantity = ko.observable(CustomerOwnedQuantity);
+        self.ConsignedQuantity = ko.observable(ConsignedQuantity);
+        self.SuggestedOrderQuantity = ko.observable(SuggestedOrderQuantity);
+        self.eVMISensorID = ko.observable(eVMISensorID);
+        self.IsDefault = ko.observable(IsDefault);
+        self.availableLocations = ko.observable(arrbins);
+    }
+
+    function GetItemLocations(viewModel) {
+        $.ajax({
+            "url": '@Url.Action("GetItemBinsByRoomAndCompany", "Inventory")',
+            "data": { ItemGUID: '@ItemGUID' },
+            "type": "POST",
+            "async": false,
+            "cache": false,
+            "dataType": "json",
+            "success": function (response) {
+                //viewModel.ItemLocationDetails = ko.mapping.fromJS(response);
+                //viewModel.ItemLocationDetails = [];
+                viewModel.ItemLocationDetails.removeAll();
+                $(response).each(function (indx, obj) {
+                    viewModel.ItemLocationDetails.push(new ItemLocationDetail(obj.ID, obj.GUID, obj.BinNumber, obj.CriticalQuantity, obj.MinimumQuantity, obj.MaximumQuantity, obj.CustomerOwnedQuantity, obj.ConsignedQuantity, obj.SuggestedOrderQuantity, obj.eVMISensorID, obj.IsDefault));
+                });
+                $('#DivLoading').hide();
+            },
+            "error": function (response) {
+                
+
+            }
+        });
+    }
+    function SaveItemLocations(viewModel) {
+        var jsonarr = JSON.parse(ko.toJSON(viewModel.ItemLocationDetails));
+        var arrtosend = new Array();
+        $(jsonarr).each(function (indx, obj) {
+            arrtosend.push({ ID: obj.ID, GUID: obj.GUID, BinNumber: obj.BinNumber, CriticalQuantity: obj.CriticalQuantity, MinimumQuantity: obj.MinimumQuantity, MaximumQuantity: obj.MaximumQuantity, eVMISensorID: obj.eVMISensorID, IsDefault: obj.IsDefault, ItemGUID: '@ItemGUID' });
+        });
+
+        $.ajax({
+            "url": '@Url.Action("SaveItemLocations", "Inventory")',
+            "data": "{ 'lstBinReplanish': " + ko.toJSON(viewModel.ItemLocationDetails) + ", 'ItemGUID': '@ItemGUID' }",
+            "contentType": "application/json; charset=utf-8",
+            "type": "POST",
+            "async": false,
+            "cache": false,
+            "dataType": "json",
+            "traditional": true,
+            "success": function (response) {
+                //GetItemLocations(viewModel);
+                $('#BinWiseSummaryDetail@(Model.GUID)').dialog('close');
+                $('#DivLoading').hide();
+            },
+            "error": function (response) {
+                
+
+            }
+        });
+    }
+    function guidjs() {
+        function _p8(s) {
+            var p = (Math.random().toString(16) + "000000000").substr(2, 8);
+            return s ? "-" + p.substr(0, 4) + "-" + p.substr(4, 4) : p;
+        }
+        return _p8() + _p8(true) + _p8(true) + _p8();
+    }
+
+    function encode_utf8(s) {
+        return unescape(encodeURIComponent(s));
+    }
+
+    function decode_utf8(s) {
+        return decodeURIComponent(escape(s));
+    }
+
+    function ValidateItemLocations(viewModel) {
+        var retval = true;
+        var totalselected = 0;
+        ko.utils.arrayForEach(viewModel.ItemLocationDetails(), function (item) {
+
+            if (item.BinNumber() == null || item.BinNumber() == "") {
+                retval = false
+                return;
+            }
+            if (item.IsDefault() == true) {
+                totalselected = totalselected + 1;
+            }
+        });
+        if (totalselected != 1) {
+            retval = false;
+        }
+        return retval;
+    }
+
+
+</script>

@@ -1,0 +1,200 @@
+﻿@model eTurns.DTO.LocationMasterDTO
+@{
+    Layout = "~/Views/Shared/_PopupMaster.cshtml";
+}
+
+    @{  
+        bool isUpdate;
+        bool isInsert;
+        if (ViewBag.ViewOnly == true)
+        {
+            isUpdate = false;
+            isInsert = false;
+        }
+        else
+        {
+            isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.LocationMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+            isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.LocationMaster, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+        }
+    }
+    @using (Ajax.BeginForm("LocationSave", "Master", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onLocationSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmLocation" }))
+    {
+        @Html.AntiForgeryToken()
+        <div class="userHead">
+        @Html.ValidationSummary(true)
+        
+        @if (Model.ID != 0)
+        {        
+        <div class="infoBlock">
+            <ul>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.RoomName)
+                    </label>
+                    : <span>@(Model.RoomName)</span></li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.Created)
+                    </label>
+                    : <span>@(Model.CreatedDate)</span></li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.CreatedByName)
+                    </label>
+                    : <span>@(Model.CreatedByName)</span></li>
+                <li>
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.LastUpdated)
+                    </label>
+                    : <span>@(Model.UpdatedDate)</span></li>
+                <li style="border: none">
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.UpdatedByName)
+                    </label>
+                    : <span>@(Model.UpdatedByName)</span></li>
+                                    <li style="border: none">
+                    <label for="RoomName">
+                        @Html.LabelFor(model => model.ReceivedOn)
+                    </label>
+                    : <span>@(Model.ReceivedOnDate)</span></li>
+            </ul>
+        </div>
+        } 
+        
+        <div class="editorForm">
+            <ul>
+                <li>
+                    <div class="editor-label">
+                        @Html.LabelFor(model => model.Location)<em> *</em>
+                    </div>
+                    <div class="editor-field">
+                        @Html.TextBoxFor(model => model.Location, new { id = "LocationNew", @class = "text-box", maxlength = 128 })
+                        <span class="ErrorMessage">@Html.ValidationMessageFor(model => model.Location)</span>
+                        @Html.HiddenFor(model => model.ID, new { id = "hiddenLocationID" })
+                        @Html.HiddenFor(model => model.GUID)
+                        @Html.HiddenFor(model => model.Created)
+                        @Html.HiddenFor(model => model.LastUpdated)
+                        @Html.HiddenFor(model => model.CreatedBy)
+                        @Html.HiddenFor(model => model.LastUpdatedBy)
+                        @Html.HiddenFor(model => model.CompanyID)
+                        @Html.HiddenFor(model => model.Room)
+                        @Html.HiddenFor(model => model.RoomName)
+                        @Html.HiddenFor(model => model.CreatedByName)
+                        @Html.HiddenFor(model => model.UpdatedByName)
+                        @Html.HiddenFor(model => model.IsDeleted)
+                        @Html.HiddenFor(model => model.IsArchived)
+                        @Html.HiddenFor(model => model.IsOnlyFromItemUI)
+                    </div>
+                </li>
+                @Html.Partial("UDFLayout", new eTurns.DTO.ResLocation())
+                <li>
+                    <div class="editor-label">
+                        &nbsp;
+                    </div>
+                    <div class="BtnBlockform">
+                        <input type="button" value="@eTurns.DTO.Resources.ResCommon.Cancel" id="btnLocationCancel" class="CreateBtn" />
+                        @if (isInsert == true && Model.ID == 0)
+                        {                            
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />                            
+                        }
+                        else if (isUpdate == true)
+                        {
+                            
+                            <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                        }
+                        else if (isUpdate == false && isInsert == false)
+                        {                             
+                            <script>
+                                //This is the case when archived or deleted record is being viewed..
+                                disableControls('frmLocation');
+                                $('#btnLocationCancel').removeAttr('disabled');
+                            </script>
+                        }
+                    </div>
+                </li>
+            </ul>
+        </div>
+    
+</div>
+    }
+@Html.Partial("_RequiredMessages")
+<script type="text/javascript">
+    $("form").submit(function (e) {
+        $.validator.unobtrusive.parse("#frmLocation");
+        if ($(this).valid()) {
+            rememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+        }
+        e.preventDefault();
+        $('#NarroSearchClear').click();
+    });    
+</script>
+<script language="javascript" type="text/javascript">
+
+    function onLocationSuccess(response) {
+        IsRefreshGrid = true;
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idLocationValue = $("#hiddenLocationID").val();
+
+        if (response.Status == "fail") {
+
+            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+            $("#LocationNew").val("");
+            $("#LocationNew").focus();
+        }
+        else if (idLocationValue == 0) {
+            //$("#LocationNew").val("");
+            $("#LocationNew").focus();
+            if (response.Status == "duplicate")
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+            else {
+                if ($('#NewMasterPopUP') != undefined && $('#NewMasterPopUP').length > 0) {
+                    $('#NewMasterPopUP').data("IDVal", response.NewIDForPopUp + '~' + $("#LocationNew").val()).dialog('close');
+                }
+                else {
+                    clearControls('frmLocation');
+                    setDefaultUDFValues($("#hdnPageName").val(), '@Model.ID');
+                }
+            }
+        }
+        else if (idLocationValue > 0) {
+            if (response.Status == "duplicate") {
+                $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                $("#LocationNew").val("");
+                $("#LocationNew").focus();
+            }
+            else
+                SwitchTextTab(0, 'LocationCreate', 'frmLocation');
+        }
+    }
+    function onFailure(message) {
+
+        $("#spanGlobalMessage").html(message.statusText);
+        //$('div#target').fadeToggle();
+        //$("div#target").delay(2000).fadeOut(200);
+        showNotificationDialog();
+        $("#LocationNew").focus();
+    }
+
+    $(document).ready(function () {
+        $('form').areYouSure();
+        $('#btnLocationCancel').click(function (e) {
+            //            if (IsRefreshGrid)
+            //                $('#NarroSearchClear').click();
+            if ($('#NewMasterPopUP') != undefined && $('#NewMasterPopUP').length > 0)
+                $('#NewMasterPopUP').dialog('close');
+            else {
+                SwitchTextTab(0, 'LocationCreate', 'frmLocation');
+                if (oTable !== undefined && oTable != null) {
+                    oTable.fnDraw();
+                }
+            }
+            $('#NarroSearchClear').click();
+        });
+        checkRememberUDFValues($("#hdnPageName").val(), '@Model.ID');
+    });
+    _Common.addRequiredSign();
+</script>

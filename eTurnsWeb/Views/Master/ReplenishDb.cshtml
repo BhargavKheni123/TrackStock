@@ -1,0 +1,2182 @@
+﻿@{
+    var Ord_settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DataTableName = "myOrderDataTable", ListViewhref = "", PictureViewhref = "", DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "DashboardOrderDataTable", DisplayDeleteButton = false, DisplayGoToPage = false, ShowReorder = true, ReorderByDataTableName = true, ExportModuleName = "OrderMasterList", ExportDashboardFromReportFile = true };
+    var ItemOrd_settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DataTableName = "myItemOrderDataTable", ListViewhref = "", PictureViewhref = "", DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = false, DisplayColumnSetupButton = false, ColumnSetupFor = "DashboardItemOrderDataTable", DisplayDeleteButton = false, DisplayGoToPage = false, ShowReorder = false, ReorderByDataTableName = true, ExportModuleName = "ItemMasterList", ExportDashboardFromReportFile = false };
+    //var Rec_settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DataTableName = "myReceiveDataTable", ListViewhref = "", PictureViewhref = "", DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "DashboardReceiveDataTable", DisplayDeleteButton = false, DisplayGoToPage = false, ShowReorder = true, ReorderByDataTableName = true, ExportModuleName = "Received Items", ExportDashboardFromReportFile = true };
+    var Rec_settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DataTableName = "myReceiveDataTable", ListViewhref = "", PictureViewhref = "", DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "DashboardReceiveDataTable", DisplayDeleteButton = false, DisplayGoToPage = false, ShowReorder = true, ReorderByDataTableName = true, ExportModuleName = "Receivable Items", ExportDashboardFromReportFile = true };
+    var Trans_settings = new GridHeaderSettings() { dataViewType = DataViewType.None, ShowSelectAll = true, DataTableName = "myTransferDataTable", ListViewhref = "", PictureViewhref = "", DisplayUDFButton = false, UDFSetupFor = "", DisplaySettings = true, DisplayColumnSetupButton = true, ColumnSetupFor = "DashboardTransferDataTable", DisplayDeleteButton = false, DisplayGoToPage = false, ShowReorder = true, ReorderByDataTableName = true, ExportModuleName = "TransferMasterList", ExportDashboardFromReportFile = true };
+    string title = ResDashboard.Replenish;
+    Session["IsInsert"] = "";
+    string OrderChartLoadUrl = Url.Action("LoadChart", "OrderChart");
+    string TransferChartLoadUrl = Url.Action("LoadChart", "TransferChart");
+    var objOrderCount = new eTurnsWeb.Controllers.InventoryDashboardController();
+
+    eTurns.DAL.CommonDAL objCommon = new eTurns.DAL.CommonDAL(eTurnsWeb.Helper.SessionHelper.EnterPriseDBName);
+    List<RedCountDTO> lstRedCount = objCommon.GetRedCountByModuleType("Replenish", eTurnsWeb.Helper.SessionHelper.RoomID, eTurnsWeb.Helper.SessionHelper.CompanyID, eTurnsWeb.Helper.SessionHelper.UserSupplierIds, eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.AllowOrderToConsignedItem));
+    bool IsOrderView = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Orders, eTurnsWeb.Helper.SessionHelper.PermissionType.View);
+    bool IsTransferView = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Transfer, eTurnsWeb.Helper.SessionHelper.PermissionType.View);
+
+    List<RedCountDTO> lstRedCountOrder = lstRedCount.Where(x => x.ModuleName == "Order").ToList();
+    List<RedCountDTO> lstReqRedCountTrsfr = lstRedCount.Where(x => x.ModuleName == "Transfer").ToList();
+    List<RedCountDTO> lstRedCountReceive = lstRedCount.Where(x => x.ModuleName == "Receive").ToList();
+
+    bool PreventTransmittedOrdersInRedCount = eTurnsWeb.Helper.SessionHelper.GetAdminPermission(eTurnsWeb.Helper.SessionHelper.ModuleList.PreventTransmittedOrdersFromDisplayingInRedCount);
+    if (PreventTransmittedOrdersInRedCount)
+    {
+        lstRedCountOrder = lstRedCountOrder.Where(x => (x.Status == "UnSubmitted" || x.Status == "ToBeApproved")).ToList();
+        lstRedCountReceive = new List<RedCountDTO>();
+    }
+
+    Int32 isNotSubmitted = 0;
+    Int32 isNotApproved = 0;
+    Int32 isNotReceived = 0;
+    Int32 IsReceivable = 0;
+
+    Int32 isTransNotSubmitted = 0; // UnSubmitted
+    Int32 isTransNotApproved = 0;// Submitted
+    Int32 isTransNotReceived = 0;//TransmittedPastDue
+
+    Int64 intOrdBottomSpend = 0;
+    Int64 intOrdTopSpend = 0;
+
+
+    if (lstRedCountOrder != null && lstRedCountOrder.Count > 0)
+    {
+        if (lstRedCountOrder.Any(t => t.Status == "UnSubmitted"))
+        {
+            isNotSubmitted = lstRedCountOrder.Where(x => x.Status == "UnSubmitted").First().RecCircleCount;
+        }
+        if (lstRedCountOrder.Any(t => t.Status == "ToBeApproved"))
+        {
+            isNotApproved = lstRedCountOrder.Where(x => x.Status == "ToBeApproved").First().RecCircleCount;
+        }
+        if (lstRedCountOrder.Any(t => t.Status == "TransmittedInCompletePastDue"))
+        {
+            isNotReceived = lstRedCountOrder.Where(x => x.Status == "TransmittedInCompletePastDue").First().RecCircleCount;
+        }
+    }
+
+    if (lstRedCountReceive != null && lstRedCountReceive.Count > 0)
+    {
+        if (lstRedCountReceive.Any(t => t.Status == "InComplete"))
+        {
+            IsReceivable = lstRedCountReceive.Where(x => x.Status == "InComplete").First().RecCircleCount;
+        }
+    }
+
+    if (lstReqRedCountTrsfr != null && lstReqRedCountTrsfr.Count > 0)
+    {
+        if (lstReqRedCountTrsfr.Any(t => t.Status.ToUpper() == "UNSUBMITTED"))
+        {
+            isTransNotSubmitted = lstReqRedCountTrsfr.Where(x => x.Status.ToUpper() == "UNSUBMITTED").First().RecCircleCount;
+        }
+        if (lstReqRedCountTrsfr.Any(t => t.Status.ToUpper() == "TOBEAPPROVED"))
+        {
+            isTransNotApproved = lstReqRedCountTrsfr.Where(x => x.Status.ToUpper() == "TOBEAPPROVED").First().RecCircleCount;
+        }
+        if (lstReqRedCountTrsfr.Any(t => t.Status.ToUpper() == "RECEIVE"))
+        {
+            isTransNotReceived = lstReqRedCountTrsfr.Where(x => x.Status.ToUpper() == "RECEIVE").First().RecCircleCount;
+        }
+
+    }
+
+    Int64 RepBillingRoomType = eTurnsWeb.Helper.SessionHelper.BillingRoomType;
+    int iForOrderRedCount = isNotSubmitted +  isNotApproved;
+    int iForTransferRedCount = isTransNotSubmitted + isTransNotReceived + isTransNotApproved;
+
+}
+<div id="Replenish" class="portlet ui-widget-content ui-helper-clearfix ui-corner-all">
+    <div class="portlet-header ui-widget-header ui-corner-top">
+        <span class="forcolor">@title</span><a href="#" class="closeEl ui-icon ui-icon-triangle-1-n"></a>
+    </div>
+    <div class="portlet-content">
+        <div id="dvReplenish">
+            <div style="float: left; width: 100%;">
+                <div style="float: left; width: 100%;">
+                    <div id="dvmainReplanish" class="Lnavd">
+                        <ul>
+                            @if (IsOrderView)
+                            {
+                                <li class="imgclassd">
+                                    <a id="lnkOrder" title="Order" onclick="BindOrderStatusGrid('lnkOrder','Order')"
+                                       class="lia">@eTurns.DTO.ResDashboard.TabOrderReplenish</a>@if (iForOrderRedCount != 0)
+                                       { <span>@iForOrderRedCount</span>}
+                                </li>
+                            }
+                            @if (IsTransferView)
+                            {
+                                <li class="imgclassd">
+                                    <a id="lnkTransfer" title="Transfer" onclick="BindTransferStatusGrid('lnkTransfer', 'Transfer')"
+                                       class="lia">@eTurns.DTO.ResDashboard.TabTransferReplenish</a>@if (iForTransferRedCount != 0)
+                                       { <span>@iForTransferRedCount</span>}
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                    <div id="divMainOrderTab" style="float: left; width: 100%;">
+                        <div id="divOrderTab" class="Lnavd" style="float: left; width: 80%; padding-top: 10px;">
+                            <ul>
+                                @if (RepBillingRoomType != 4)
+                                {
+                                    <li class="imgclassd">
+                                        <a id="lnkordernotsubmitted" title="Unsubmitted" onclick="BindOrderStatusGrid('lnkordernotsubmitted','Unsubmitted')"
+                                           class="lia">@ResDashboard.SubTabOrderTobeSubmitted</a>@if (isNotSubmitted != 0)
+                                           { <span>@isNotSubmitted</span>}
+                                    </li>
+                                    <li class="imgclassd">
+                                        <a id="lnkordernotapproved" title="Submitted" onclick="BindOrderStatusGrid('lnkordernotapproved','Submitted')"
+                                           class="lia">@ResDashboard.SubTabOrderTobeApproved</a>@if (isNotApproved != 0)
+                                           { <span>@isNotApproved</span>}
+                                    </li>
+                                    <li class="imgclassd">
+                                        <a id="lnkordernotreceived" title="Approved" onclick="BindOrderStatusGrid('lnkordernotreceived','Approved')"
+                                           class="lia">@ResDashboard.SubTabOrderIncompletereceivePastdue</a>@if (isNotReceived != 0)
+                                           { <span>@isNotReceived</span>}
+                                    </li>
+                                    <li class="imgclassd">
+                                        <a id="lnkitemreceivable" title="Receivable" onclick="BindOrderStatusGrid('lnkitemreceivable','Receivable')"
+                                           class="lia">Receive</a>@if (IsReceivable != 0)
+                                           { <span>@IsReceivable</span>}
+                                    </li>
+                                }
+
+                                <li class="imgclassd">
+                                    <a id="lnkordbottomspend" title="Bottom Spend" onclick="BindOrderStatusGrid('lnkordbottomspend', 'BottomSpend')"
+                                       class="lia">@ResDashboard.SubTabOrderBottomSpend</a>@if (intOrdBottomSpend != 0)
+                                       {<span>@intOrdBottomSpend</span>}
+                                </li>
+                                <li class="imgclassd">
+                                    <a id="lnkordtopspend" title="Top Spend" onclick="BindOrderStatusGrid('lnkordtopspend', 'TopSpend')"
+                                       class="lia">@ResDashboard.SubTabOrderTopSpend</a>@if (intOrdTopSpend != 0)
+                                       {<span>@intOrdTopSpend</span>}
+                                </li>
+
+                            </ul>
+                        </div>
+                        <div class="viewBlock gridchartclass">
+                            <span class="label">View:</span> <a class="view" href="javascript:void(0);" onclick="ShowHideOrderDiv('Chart');">
+                                <img alt="" id="imgOChart" src="/content/images/chart-view-active.png">
+                            </a>
+                            <a class="view clsLoadGraph" href="javascript:void(0);" onclick="ShowHideOrderDiv('Grid');">
+                                <img alt="" id="imgOGrid" src="/content/images/list-view-inactive.png">
+                            </a>
+                        </div>
+                        <div style="float: left; padding-top: 4px; display: none;">
+                            <ul>
+                                <li style="border-right: none; float: left; padding-right: 5px;">
+                                    <label style="float: left; padding: 1.3% 2px;">
+                                        @Html.Label("Order date range")
+                                    </label>
+                                    @Html.TextBox("txtOrderFromDate", "1/1/" + eTurns.DAL.DateTimeUtility.DateTimeNow.Year, new { @class = "importtext-box", id = "txtOrderFromDate", @readonly = "readonly", @style = "width:70px;background:white", maxlength = 128 })
+                                </li>
+                                <li style="border-right: none; float: left; padding-right: 5px;">
+                                    <label style="float: left; padding: 1.3% 2px;">
+                                        @Html.Label("To")
+                                    </label>
+                                    @Html.TextBox("txtOrderToDate", eTurns.DAL.DateTimeUtility.DateTimeNow.ToString("MM/dd/yyyy"), new { @class = "importtext-box", id = "txtOrderToDate", @readonly = "readonly", @style = "width:70px;background:white", maxlength = 128 })
+                                    @Html.Hidden("hdnstatusOrderRep", new { id = "hdnstatusOrderRep" })
+                                    @Html.Hidden("hdnreplenishCurrentView", "Chart", new { id = "hdnreplenishCurrentView" })
+                                </li>
+                                <li style="border-right: none; float: left; padding-right: 5px;">
+                                    <div class="BtnBlockform" style="margin: 0 0 0 5px;">
+                                        <input type="button" value="GO" id="btnOrdergo" name="btnOrdergo" class="CreateBtn"
+                                               style="float: left;" />
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        <div id="Otab" class="tabContener">
+                            <div id="dvOrderGrid" class="userContent" style="float: left; width: 100%;">
+                                <div id="divCartOrderTab" class="Lnavd" style="float: left; width: 98%; padding-top: 10px;">
+                                    <div style="float:left; width:38%">
+                                        <span style="float:left">Supplier:&nbsp;</span><select id="ddlReplanishOrderGridSupplier"></select>
+                                    </div>
+                                    <div id="myOrderDataTableSettings">
+                                        @Html.GridTopHeader(Ord_settings, eTurnsWeb.Helper.SessionHelper.ModuleList.DashboardOrderDataTable)
+                                    </div>
+                                    <div id="myItemOrderDataTableSettings">
+                                        @Html.GridTopHeader(ItemOrd_settings, eTurnsWeb.Helper.SessionHelper.ModuleList.DashboardItemOrderDataTable)
+                                    </div>
+                                    <div id="myReceiveDataTableSettings">
+                                        @Html.GridTopHeader(Rec_settings, eTurnsWeb.Helper.SessionHelper.ModuleList.DashboardReceiveDataTable)
+                                    </div>
+                                </div>
+                                <div class="searchWrapper">
+                                    <div class="searchBlock">
+                                        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                                        <div class="searchinputB">
+                                            <input type="text" class="searchinput" id="global_filterDashOrder" />
+                                            <a href="javascript:void(0);" class="xclose">
+                                                <img src="~/Content/images/x.png" alt="X" id="clear_global_filterDashOrder" />
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="userHead" style="height: 30px;">
+                                </div>
+
+                                <div id="divOrderDataTable">
+                                    <table id="myOrderDataTable" class="display" style="width: 561px; overflow: auto;">
+                                        <thead>
+                                            <tr>
+                                                <th>
+                                                    @ResDashboard.OrderNumber
+                                                </th>
+                                                <th>
+                                                    @ResDashboard.OrderSupplier
+                                                </th>
+                                                <th>
+                                                    @ResDashboard.OrderStagingName
+                                                </th>
+                                                <th>
+                                                    @ResDashboard.OrderRequireDate
+                                                </th>
+                                                <th>
+                                                    @ResDashboard.OrderReleaseNumber
+                                                </th>
+                                                <th>
+                                                    @ResDashboard.OrderNoOfLineItem
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.ID
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.ShippingMethod
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.Comment
+                                                </th>
+                                                <th class="NotHide">
+                                                    @eTurns.DTO.ResOrder.OrderStatus
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.OrderCost
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.Customer
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.PackSlipNumber
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.ShippingTrackNumber
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.ChangeOrderRevisionNo
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.CreatedOn
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.CreatedBy
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.RoomName
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.IsDeleted
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.IsArchived
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.ShippingVendor
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.AddedFrom
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.EditedFrom
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.SupplierAccountDetail
+                                                </th>
+                                                @Html.RenderColumnsHeader("OrderMaster", typeof(eTurns.DTO.ResOrder))
+                                                @*Order Number, Supplier, Staging Name, Required Date, Release Number*@
+                                            </tr>
+                                        </thead>
+                                    </table>
+                                </div>
+                                <div id="divReceiveDataTable">
+                                    <table id="myReceiveDataTable" class="display" style="width: 561px; overflow: auto;">
+                                        <thead>
+                                            <tr>
+                                                <th>
+                                                    @eTurns.DTO.ResReceiveOrderDetails.ItemNumber
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.OrderNumber
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.ReleaseNumber
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.RequestedQuantity
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.ApprovedQuantity
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.ReceivedQuantity
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.QuantityToReceive
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResReceiveOrderDetails.ReceiveBin
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.RequiredDate
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.OrderStatus
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResReceiveOrderDetails.Description
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.Cost
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.Supplier
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.SupplierPartNo
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.ManufacturerName
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.ManufacturerNumber
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.SerialNumberTracking
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.LotNumberTracking
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.DateCodeTracking
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.IsTransfer
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.IsPurchase
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResUnitMaster.Unit
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.InTransitquantity
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.PackSlipNumber
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.ASNNumber
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.ShippingTrackNumber
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResOrder.StagingName
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.CreatedBy
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.LastUpdatedBy
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.CreatedOn
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.AddedFrom
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.EditedFrom
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResCostUOMMaster.CostUOM
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.OnHandQuantity
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.MinimumQuantity
+                                                </th>
+                                                <th>
+                                                    @eTurns.DTO.ResItemMaster.MaximumQuantity
+                                                </th>
+                                                @Html.RenderColumnsHeader("ItemMaster", typeof(eTurns.DTO.ResItemMaster), "Item")
+                                            </tr>
+                                        </thead>
+                                    </table>
+                                </div>
+                                <div id="divItemOrderDataTable">
+                                    <table id="myItemOrderDataTable" class="display" style="width: 561px; overflow: auto;">
+                                        <thead>
+                                            <tr>
+                                                <th>
+                                                    Item Number
+                                                </th>
+                                                <th>
+                                                    Supplier
+                                                </th>
+                                                <th>
+                                                    Order Cost
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                    </table>
+                                </div>
+                            </div>
+                            <div id="dvOrderChart" style="float: left; width: 100%;">
+                                Order Chart
+                            </div>
+                        </div>
+                    </div>
+                    <div id="divMainTransferTab" style="float: left; width: 100%;">
+                        <div id="divTransferTab" class="Lnavd" style="float: left; width: 80%; padding-top: 10px;">
+                            <ul>
+                                <li class="imgclassd">
+                                    <a id="lnkTransfernotsubmitted" title="Unsubmitted" onclick="BindTransferStatusGrid('lnkTransfernotsubmitted','Unsubmitted')"
+                                       class="lia">@ResDashboard.SubTabTransferTobeSubmitted</a>@if (isTransNotSubmitted != 0)
+                                       { <span>@isTransNotSubmitted</span>}
+                                </li>
+                                <li class="imgclassd">
+                                    <a id="lnkTransfernotapproved" title="Submitted" onclick="BindTransferStatusGrid('lnkTransfernotapproved', 'ToBeApproved')"
+                                       class="lia">@ResDashboard.SubTabTransferTobeApproved</a>@if (isTransNotApproved != 0)
+                                       { <span>@isTransNotApproved</span>}
+                                </li>
+                                <li class="imgclassd">
+                                    <a id="lnkTransfernotreceived" title="Approved" onclick="BindTransferStatusGrid('lnkTransfernotreceived', 'Receive')"
+                                       class="lia">@ResDashboard.SubTabTransferIncompletereceivePastdue</a>@if (isTransNotReceived != 0)
+                                       { <span>@isTransNotReceived</span>}
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="viewBlock gridchartclass">
+                            <span class="label">View:</span> <a class="view" href="javascript:void(0);" onclick="ShowHideTransferDiv('Chart');">
+                                <img alt="" id="imgTChart" src="/content/images/chart-view-active.png">
+                            </a>
+                            <a class="view clsLoadTGraph" href="javascript:void(0);" onclick="ShowHideTransferDiv('Grid');">
+                                <img alt="" id="imgTGrid" src="/content/images/list-view-inactive.png">
+                            </a>
+                        </div>
+                        <div style="float: left; padding-top: 4px; display: none;">
+                            <ul>
+                                <li style="border-right: none; float: left; padding-right: 5px;">
+                                    <label style="float: left; padding: 1.3% 2px;">
+                                        @Html.Label("Order date range")
+                                    </label>
+                                    @Html.TextBox("txtTransferFromDate", "1/1/" + eTurns.DAL.DateTimeUtility.DateTimeNow.Year, new { @class = "importtext-box", id = "txtTransferFromDate", @readonly = "readonly", @style = "width:70px;background:white", maxlength = 128 })
+                                </li>
+                                <li style="border-right: none; float: left; padding-right: 5px;">
+                                    <label style="float: left; padding: 1.3% 2px;">
+                                        @Html.Label("To")
+                                    </label>
+                                    @Html.TextBox("txtTransferToDate", eTurns.DAL.DateTimeUtility.DateTimeNow.ToString("MM/dd/yyyy"), new { @class = "importtext-box", id = "txtTransferToDate", @readonly = "readonly", @style = "width:70px;background:white", maxlength = 128 })
+                                    @Html.Hidden("hdnstatusTransfer", new { id = "hdnstatusTransfer" })
+                                    @Html.Hidden("hdnTransCurrentView", "Chart", new { id = "hdnTransCurrentView" })
+                                </li>
+                                <li style="border-right: none; float: left; padding-right: 5px;">
+                                    <div class="BtnBlockform" style="margin: 0 0 0 5px;">
+                                        <input type="button" value="GO" id="btnTransfergo" name="btnTransfergo" class="CreateBtn"
+                                               style="float: left;" />
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        <div id="Ttab" class="tabContener">
+                            <div id="dvTransferGrid" class="userContent" style="float: left; width: 100%;">
+                                <div id="divCartOrderTab" class="Lnavd" style="float: left; width: 98%; padding-top: 10px;">
+                                    @Html.GridTopHeader(Trans_settings, eTurnsWeb.Helper.SessionHelper.ModuleList.DashboardTransferDataTable)
+                                </div>
+                                <div class="searchWrapper">
+                                    <div class="searchBlock">
+                                        <span class="label">@eTurns.DTO.Resources.ResCommon.Search </span>
+                                        <div class="searchinputB">
+                                            <input type="text" class="searchinput" id="global_filterDashTransfer" />
+                                            <a href="javascript:void(0);" class="xclose">
+                                                <img src="~/Content/images/x.png" alt="X" id="clear_global_filterDashTransfer" />
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="userHead" style="height: 30px;">
+                                </div>
+                                <table id="myTransferDataTable" class="display" style="width: 561px; overflow: auto;">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                @ResDashboard.TransferNumber
+                                            </th>
+                                            <th>
+                                                @ResDashboard.TransferStagingName
+                                            </th>
+                                            <th>
+                                                @ResDashboard.TransferRequireDate
+                                            </th>
+                                            <th>
+                                                @ResDashboard.TransferReplinishRoom
+                                            </th>
+                                            <th>
+                                                @ResDashboard.TransferNoOfLineItems
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.Resources.ResCommon.ID
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.ResTransfer.RequestedRoom
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.ResTransfer.Comment
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.ResTransfer.RequestType
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.ResTransfer.TransferStatus
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.ResOrder.RejectedReason
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.Resources.ResCommon.CreatedOn
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.Resources.ResCommon.UpdatedOn
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.Resources.ResCommon.CreatedBy
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.Resources.ResCommon.UpdatedBy
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.Resources.ResCommon.RoomName
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.Resources.ResCommon.AddedFrom
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.Resources.ResCommon.EditedFrom
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.Resources.ResCommon.ReceivedOnDate
+                                            </th>
+                                            <th>
+                                                @eTurns.DTO.Resources.ResCommon.ReceivedOnWebDate
+                                            </th>
+                                            @Html.RenderColumnsHeader("TransferMaster", typeof(eTurns.DTO.ResTransfer))
+                                        </tr>
+                                    </thead>
+                                </table>
+                            </div>
+                            <div id="dvTransferChart" style="float: left; width: 100%;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script language="javascript" type="text/javascript">
+    var oTableOrder;
+    var oTableItemOrder;
+    var oTransferTable;
+    var oTableReceive;
+    var AllowDeletePopup = true;
+    var GlogalReplanishSupplierValue = '';
+    var objColumnsMyOrderDataTable = {}
+    var objColumnsMyReceiveDataTable = {}
+    var objColumnsMyTransferDataTable = {}
+    var objColumnsMyItemOrderDataTable = {}
+
+    $(document).ready(function () {
+        objColumnsMyOrderDataTable = GetGridHeaderColumnsObject('myOrderDataTable');
+        objColumnsMyReceiveDataTable = GetGridHeaderColumnsObject('myReceiveDataTable');
+        objColumnsMyTransferDataTable = GetGridHeaderColumnsObject('myTransferDataTable');
+        objColumnsMyItemOrderDataTable = GetGridHeaderColumnsObject('myItemOrderDataTable');
+
+        $("#divMainOrderTab").show();
+        $("#divMainTransferTab").hide();
+        $("#dvOrderGrid").hide();
+        $("#dvOrderChart").show();
+        $("#dvTransferGrid").hide();
+        $("#dvTransferChart").show();
+        $('#txtOrderFromDate').blur(function () { }).datepicker({ dateFormat: 'm/d/yy' });
+        $('#txtOrderToDate').blur(function () { }).datepicker({ dateFormat: 'm/d/yy' });
+        $('#txtTransferFromDate').blur(function () { }).datepicker({ dateFormat: 'm/d/yy' });
+        $('#txtTransferToDate').blur(function () { }).datepicker({ dateFormat: 'm/d/yy' });
+        $("#global_filterDashOrder").val("");
+        $("#global_filterDashTransfer").val("");
+        $("#lnkOrder").removeClass("lava");
+        $("#lnkOrder").addClass("liahover");
+
+        if ('@IsOrderView' != "False")
+        {
+            if ('@RepBillingRoomType' != '4') {
+                $("#lnkordernotsubmitted").removeClass("lava");
+                $("#lnkordernotsubmitted").addClass("liahover");
+                $("#hdnstatusOrderRep").val("Unsubmitted"); // Not Approved
+                $('#dvOrderChart').empty();
+                $('#dvOrderChart').load('@OrderChartLoadUrl' + "?ChartType=" + encodeURIComponent($("#hdnstatusOrderRep").val()), function () { });
+            }
+            else {
+                $("#lnkordbottomspend").removeClass("lava");
+                $("#lnkordbottomspend").addClass("liahover");
+                $("#hdnstatusOrderRep").val("BottomSpend"); // Not Approved
+                $('#dvOrderChart').empty();
+                $('#dvOrderChart').load('@OrderChartLoadUrl' + "?ChartType=" + encodeURIComponent($("#hdnstatusOrderRep").val()), function () { });
+            }
+        }
+
+        $("#divReceiveDataTable").hide();
+
+        //GenerateOrderGrid();
+        //GenerateItemOrderGrid();
+        //GenerateReceivableGrid();
+
+        $('.DTTT_container').css('z-index', '-1');
+        //        fnFilterOrderList('');
+
+        $("#lnkTransfer").removeClass("liahover");
+        $("#lnkTransfer").addClass("lava");
+        $("#lnkTransfernotsubmitted").removeClass("lava");
+        $("#lnkTransfernotsubmitted").addClass("liahover");
+        $("#hdnstatusTransfer").val("Unsubmitted");
+
+        //        $('#dvTransferChart').empty();
+        //        $('#dvTransferChart').load('@TransferChartLoadUrl' + "?ChartType=" + encodeURIComponent($("#hdnstatusTransfer").val()), function () { });
+        if (('@IsOrderView' == "False") && ('@IsTransferView' == "True")) {
+            setTimeout(function () {
+                BindTransferStatusGrid('lnkTransfer', 'Transfer'); $("a#lnkTransfer").addClass("liahover");
+            }, 1000);
+        }
+        _Common.setGloblaSearch('global_filterDashOrder', 'myItemOrderDataTable');
+    });
+
+    function ShowHideOrderDiv(str) {
+        if (str == 'Grid') {
+            $("#global_filterDashOrder").val("");
+            $('#dvOrderGrid').find('[id^="global_filter"]')[0].value = "";
+            $('#myItemOrderDataTable').dataTable().fnFilter('', null, null, null)
+            @*if ('@RepBillingRoomType' != '4' && ($("#hdnstatusOrderRep").val() != "TopSpend" && $("#hdnstatusOrderRep").val() != "BottomSpend")) {
+                $('#myOrderDataTable').dataTable().fnFilter('', null, null, null)
+            }
+            else {
+                $('#myItemOrderDataTable').dataTable().fnFilter('', null, null, null)
+            }*@
+        }
+
+        DestroyMultiSelect('ddlReplanishOrderChartSupplier');
+        DestroyMultiSelect('ddlReplanishOrderGridSupplier');
+
+        $("#hdnreplenishCurrentView").val(str);
+        if (str == 'Grid') {
+            $("#dvOrderGrid").show();
+            $("#dvOrderChart").hide();
+            ChangeImgSRC('Grid', 'imgOGrid', 'imgOChart');
+            //            oTableOrder.fnDraw();
+            if ('@RepBillingRoomType' != '4' && ($("#hdnstatusOrderRep").val() != "TopSpend" && $("#hdnstatusOrderRep").val() != "BottomSpend")) {
+                FilterOrderOrReceiveGrid();
+            }
+            else {
+                FilterItemOrderGrid();                               
+            }
+        }
+        else {
+            $("#dvOrderGrid").hide();
+            $("#dvOrderChart").show();
+            ChangeImgSRC('Chart', 'imgOGrid', 'imgOChart');
+            $('#dvOrderChart').empty();
+            $('#dvOrderChart').load('@OrderChartLoadUrl' + "?ChartType=" + encodeURIComponent($("#hdnstatusOrderRep").val()) + '&SelectedSupplier=' + GlogalReplanishSupplierValue, function () { });
+        }
+    }
+
+    function AddRemoveOrderCSS() {
+        $("#divOrderTab.Lnavd > ul > li").each(function () {
+            $(this).find('a').addClass("lava");
+            $(this).find('a').removeClass("liahover");
+        });
+    }
+
+    function BindItemOrderGrid(id, str, SelectedSupplier) {
+        $("#hdnstatusOrderRep").val(str);
+        $('#dvOrderGrid').find('[id^="global_filter"]')[0].value = "";
+        //$('#myItemOrderDataTable').dataTable().fnFilter('', null, null, null);
+
+        if (SelectedSupplier == null || SelectedSupplier == undefined) {
+            SelectedSupplier = '';
+            GlogalReplanishSupplierValue = '';
+        }
+
+        DestroyMultiSelect('ddlReplanishOrderChartSupplier');
+        DestroyMultiSelect('ddlReplanishOrderGridSupplier');
+        AddRemoveOrderCSS();
+        $("#" + id).removeClass("lava");
+        $("#" + id).addClass("liahover");
+
+        if ($("#hdnreplenishCurrentView").val() == "Grid") {
+            $("#global_filterDashOrder").val("");
+            $("#global_filterDashOrder").change();
+            FilterItemOrderGrid();
+        }
+        else {
+            $('#dvOrderChart').empty();
+            $('#dvOrderChart').load("@OrderChartLoadUrl" + "?ChartType=" + encodeURIComponent($("#hdnstatusOrderRep").val()) + "&SelectedSupplier=" + GlogalReplanishSupplierValue, function () { });
+        }
+    }
+
+    function BindOrderStatusGrid(id, str, SelectedSupplier) {
+        if (str == "Order") {
+            if ('@RepBillingRoomType' == '4') {
+                str = "BottomSpend";
+            }
+        }
+
+        $("#hdnstatusOrderRep").val(str);
+        if (str == "BottomSpend" || str == "TopSpend") {
+            //BindItemOrderGrid(id, str, SelectedSupplier);
+
+            if (SelectedSupplier == null || SelectedSupplier == undefined) {
+                SelectedSupplier = '';
+                GlogalReplanishSupplierValue = '';
+            }
+
+            DestroyMultiSelect('ddlReplanishOrderChartSupplier');
+            DestroyMultiSelect('ddlReplanishOrderGridSupplier');
+
+            AddRemoveOrderCSS();
+            $("#" + id).removeClass("lava");
+            $("#" + id).addClass("liahover");
+
+
+            if (id == "lnkOrder")//,'Order
+            {
+                $("#lnkTransfer").addClass("lava");
+                $("#lnkTransfer").removeClass("liahover");
+                $("#divMainOrderTab").show();
+                $("#divMainTransferTab").hide();
+                $("#lnkordbottomspend").removeClass("lava");
+                $("#lnkordbottomspend").addClass("liahover");
+                $("#hdnstatusOrderRep").val("BottomSpend");
+               // ShowHideOrderDiv('Chart');
+            }
+            else {
+                if ($("#hdnreplenishCurrentView").val() == "Grid") {
+                    $("#global_filterDashOrder").val("");
+                    $("#global_filterDashOrder").change();
+                    FilterItemOrderGrid();
+                }
+                else {
+                    $('#dvOrderChart').empty();
+                    $('#dvOrderChart').load("@OrderChartLoadUrl" + "?ChartType=" + encodeURIComponent($("#hdnstatusOrderRep").val()) + "&SelectedSupplier=" + GlogalReplanishSupplierValue, function () { });
+                }
+            }
+        }
+        else {
+            $('#dvOrderGrid').find('[id^="global_filter"]')[0].value = "";
+            //$('#myOrderDataTable').dataTable().fnFilter('', null, null, null);
+
+            if (SelectedSupplier == null || SelectedSupplier == undefined) {
+                SelectedSupplier = '';
+                GlogalReplanishSupplierValue = '';
+            }
+
+            DestroyMultiSelect('ddlReplanishOrderChartSupplier');
+            DestroyMultiSelect('ddlReplanishOrderGridSupplier');
+
+            AddRemoveOrderCSS();
+            $("#" + id).removeClass("lava");
+            $("#" + id).addClass("liahover");
+            if (id == "lnkOrder")//,'Order
+            {
+                $("#lnkTransfer").addClass("lava");
+                $("#lnkTransfer").removeClass("liahover");
+                $("#divMainOrderTab").show();
+                $("#divMainTransferTab").hide();
+                $("#lnkordernotsubmitted").removeClass("lava");
+                $("#lnkordernotsubmitted").addClass("liahover");
+                $("#hdnstatusOrderRep").val("Unsubmitted");
+                ShowHideOrderDiv('Chart');
+            }
+            else {
+                if ($("#hdnreplenishCurrentView").val() == "Grid") {
+                    $("#global_filterDashOrder").val("");
+                    $("#global_filterDashOrder").change();
+                    FilterOrderOrReceiveGrid();
+                }
+                else {
+                    $('#dvOrderChart').empty();
+                    $('#dvOrderChart').load("@OrderChartLoadUrl" + "?ChartType=" + encodeURIComponent($("#hdnstatusOrderRep").val()) + "&SelectedSupplier=" + GlogalReplanishSupplierValue, function () { });
+                    //            $('#dvOrderChart').load('/OrderChart/LoadChart', function () { });
+                }
+                //        $("#global_filterDashOrder").val("");
+                //        $("#global_filterDashOrder").change();
+                //        fnFilterOrderList('');
+
+                //        $('#dvOrderChart').empty();
+                //        $('#dvOrderChart').load('/OrderChart/LoadChart', function () { });
+            }
+        }
+    }
+
+    function ShowHideTransferDiv(str) {
+
+        DestroyMultiSelect('ddlReplanishOrderChartSupplier');
+        DestroyMultiSelect('ddlReplanishOrderGridSupplier');
+
+        $("#hdnTransCurrentView").val(str);
+
+        if (str == 'Grid') {
+            $("#global_filterDashTransfer").val("");
+            $("#dvTransferGrid").show();
+            $("#dvTransferChart").hide();
+            ChangeImgSRC('Grid', 'imgTGrid', 'imgTChart');
+
+            if (oTransferTable === undefined || oTransferTable == null || dashboardReorder == true)
+            {
+                dashboardReorder = false;
+                GenerateTransferGrid();
+            }
+            else {
+                oTransferTable.fnDraw();
+            }
+        }
+        else {
+            $("#dvTransferGrid").hide();
+            $("#dvTransferChart").show();
+            ChangeImgSRC('Chart', 'imgTGrid', 'imgTChart');
+            $('#dvTransferChart').empty();
+            $('#dvTransferChart').load('@TransferChartLoadUrl' + "?ChartType=" + encodeURIComponent($("#hdnstatusTransfer").val()) + '&SelectedSupplier=' + GlogalReplanishSupplierValue, function () { });
+        }
+    }
+
+    function AddRemoveTransferCSS() {
+        $("#divTransferTab.Lnavd > ul > li").each(function () {
+            $(this).find('a').addClass("lava");
+            $(this).find('a').removeClass("liahover");
+        });
+    }
+
+    function BindTransferStatusGrid(id, str, SelectedSupplier) {
+        
+        $('#dvOrderGrid').find('[id^="global_filter"]')[0].value = "";
+        //$('#myTransferDataTable').dataTable().fnFilter('', null, null, null);
+
+        if (SelectedSupplier == null || SelectedSupplier == undefined) {
+            SelectedSupplier = '';
+            GlogalReplanishSupplierValue = '';
+        }
+
+        DestroyMultiSelect('ddlReplanishOrderChartSupplier');
+        DestroyMultiSelect('ddlReplanishOrderGridSupplier');
+
+        AddRemoveTransferCSS();
+        //alert(id);
+        $("#" + id).removeClass("lava");
+        $("#" + id).addClass("liahover");
+        if (id == "lnkTransfer")//,'Order
+        {
+            $("#lnkOrder").addClass("lava");
+            $("#lnkOrder").removeClass("liahover");
+            $("#divMainTransferTab").show();
+            $("#divMainOrderTab").hide();
+            $("#lnkTransfernotsubmitted").removeClass("lava");
+            $("#lnkTransfernotsubmitted").addClass("liahover");
+            $("#hdnstatusTransfer").val("Unsubmitted");
+            ShowHideTransferDiv('Chart');
+        }
+        else {
+            $("#hdnstatusTransfer").val(str);
+            if ($("#hdnTransCurrentView").val() == "Grid") {
+                $("#global_filterDashTransfer").val("");
+                $("#global_filterDashTransfer").change();
+
+                if (oTransferTable === undefined || oTransferTable == null || dashboardReorder == true) {
+                    GenerateTransferGrid();
+                    dashboardReorder = false;
+                }
+                else {
+                    fnFilterTransferListReplenish('');
+                    $('.DTTT_container').css('z-index', '-1');
+                }
+            }
+            else {
+
+                $('#dvTransferChart').empty();
+                $('#dvTransferChart').load('@TransferChartLoadUrl' + "?ChartType=" + encodeURIComponent($("#hdnstatusTransfer").val()) + '&SelectedSupplier=' + GlogalReplanishSupplierValue, function () { });
+                //            $('#dvOrderChart').load('/OrderChart/LoadChart', function () { });
+            }
+        }
+    }
+
+    $('#btnOrdergo').click(function () {
+        if ($("#lnkOrder").hasClass("liahover")) {
+            $("#divOrderTab.Lnavd > ul > li").each(function () {
+                if ($(this).find('a').hasClass('liahover')) {
+                    var lnk = $(this).find('a')[0];
+                    var clickedid = lnk.id;
+                    var clickedTitle = $(lnk).attr("title");
+                    BindOrderStatusGrid(clickedid, clickedTitle);
+                }
+            });
+        }
+
+    });
+
+    $('#btnTransfergo').click(function () {
+
+        if ($("#lnkTransfer").hasClass("liahover")) {
+            $("#divTransferTab.Lnavd > ul > li").each(function () {
+                if ($(this).find('a').hasClass('liahover')) {
+                    var lnk = $(this).find('a')[0];
+                    var clickedid = lnk.id;
+                    var clickedTitle = $(lnk).attr("title");
+                    BindTransferStatusGrid(clickedid, clickedTitle);
+                }
+            });
+        }
+    });
+
+    /* Global filter JS */
+    var timeoutsc1;
+
+    $('#global_filterDashOrder').bind('propertychange input', function () {
+        clearTimeout(timeoutsc1);
+        timeoutsc1 = setTimeout(function () {
+            if ('@RepBillingRoomType' != '4' && ($("#hdnstatusOrderRep").val() != "TopSpend" && $("#hdnstatusOrderRep").val() != "BottomSpend")) {
+                fnFilterOrderGlobal();
+            }
+            else {
+                fnFilterItemOrderGlobal();
+            }
+        }, 200);
+    });
+
+    $("#global_filterDashOrder").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            var searchtext = $("#global_filterDashOrder").val().replace(/'/g, "''");
+            if ('@RepBillingRoomType' != '4' && ($("#hdnstatusOrderRep").val() != "TopSpend" && $("#hdnstatusOrderRep").val() != "BottomSpend")) {
+                fnFilterOrderList(searchtext);
+            }
+            else {
+                fnFilterItemOrderList(searchtext);
+            }
+            return false;
+        }
+        return true;
+    });
+
+    function fnFilterItemOrderList(searchtext) {
+        var appendedText = GetCurrentSelectedTab();
+        $("#divItemOrderDataTable").show();
+        $("#myItemOrderDataTableSettings").show();
+        $("#divOrderDataTable").hide();
+        $("#divReceiveDataTable").hide();
+        $("#myOrderDataTableSettings").hide();
+        $("#myReceiveDataTableSettings").hide();
+
+        if (appendedText.length > 0) {
+            searchtext = searchtext;
+        }
+
+        $('#myItemOrderDataTable').dataTable().fnFilter(searchtext, null, null, null);
+        $('#myItemOrderDataTable' + ' td').removeHighlight();
+
+        if (searchtext.length > 0)
+            $('#myItemOrderDataTable' + ' td').highlight(searchtext);
+    }
+
+    function fnFilterOrderList(searchtext) {
+        var appendedText = GetCurrentSelectedTab();
+
+        if (appendedText == "Receive") {
+            searchtext = searchtext;
+            $("#divItemOrderDataTable").hide();
+            $("#divOrderDataTable").hide();
+            $("#divReceiveDataTable").show();
+            $("#myItemOrderDataTableSettings").hide();
+            $("#myOrderDataTableSettings").hide();
+            $("#myReceiveDataTableSettings").show();
+            $('#myReceiveDataTable').dataTable().fnFilter(searchtext, null, null, null);
+            $('#myReceiveDataTable' + ' td').removeHighlight();
+            if (searchtext.length > 0)
+                $('#myReceiveDataTable' + ' td').highlight(searchtext);
+        }
+        else {
+            $("#divOrderDataTable").show();
+            $("#divReceiveDataTable").hide();
+            $("#divItemOrderDataTable").hide();
+            $("#myOrderDataTableSettings").show();
+            $("#myReceiveDataTableSettings").hide();
+            $("#myItemOrderDataTableSettings").hide();
+
+            if (appendedText.length > 0) {
+                searchtext = searchtext + "[^]" + appendedText;
+            }
+
+            $('#myOrderDataTable').dataTable().fnFilter(searchtext, null, null, null);
+            $('#myOrderDataTable' + ' td').removeHighlight();
+            if (searchtext.length > 0)
+                $('#myOrderDataTable' + ' td').highlight(searchtext);
+        }
+    }
+
+    function GetCurrentSelectedTab() {
+        var tabid = $("#hdnstatusOrderRep").val();
+        if (tabid == 'Unsubmitted') {
+            return "@((int)OrderStatus.UnSubmitted)";
+        }
+        else if (tabid == 'Submitted') {
+            return "@((int)OrderStatus.Submitted)";
+        }
+        else if (tabid == 'Approved') {
+            return "@((int)OrderStatus.TransmittedInCompletePastDue)";
+        }
+        else if (tabid == 'Receivable') {
+            return "Receive";
+        }
+        else if (tabid == 'BottomSpend') {
+            return "BottomSpend";
+        }
+        else if (tabid == 'TopSpend') {
+            return "TopSpend";
+        }
+        else {
+            return "";
+        }
+    }
+
+    function fnFilterOrderGlobal() {
+        if (typeof $("#global_filterDashOrder") != 'undefined' && ($("#global_filterDashOrder").val().length > 2 || $("#global_filterDashOrder").val().length == 0)) {
+            var searchtext = $("#global_filterDashOrder").val().replace(/'/g, "''");
+            fnFilterOrderList(searchtext);
+        }
+        else {
+            $('#myOrderDataTable td').removeHighlight();
+            $('#myOrderDataTable td').highlight($("#global_filterDashOrder").val());
+
+            $('#myReceiveDataTable td').removeHighlight();
+            $('#myReceiveDataTable td').highlight($("#global_filterDashOrder").val());
+        }
+    }
+
+    function fnFilterItemOrderGlobal() {
+        if (typeof $("#global_filterDashOrder") != 'undefined' && ($("#global_filterDashOrder").val().length > 2 || $("#global_filterDashOrder").val().length == 0)) {
+            var searchtext = $("#global_filterDashOrder").val().replace(/'/g, "''");
+            fnFilterItemOrderList(searchtext);
+        }
+        else {
+            $('#myItemOrderDataTable td').removeHighlight();
+            $('#myItemOrderDataTable td').highlight($("#global_filterDashOrder").val());
+        }
+    }
+
+    $("#clear_global_filterDashOrder").click(function () {
+        if ($("#global_filterDashOrder").val().length > 0) {
+            $("#global_filterDashOrder").val("");
+            $("#global_filterDashOrder").change();
+        }
+        return false;
+    });
+
+    /* Global filter JS */
+    var timeoutsc2;
+
+    $('#global_filterDashTransfer').bind('textchange', function () {
+        clearTimeout(timeoutsc2);
+        timeoutsc2 = setTimeout(function () {
+            fnFilterTransferGlobal();
+        }, 200);
+    });
+
+    $("#global_filterDashTransfer").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            var searchtext = $("#global_filterDashTransfer").val().replace(/'/g, "''");
+            fnFilterTransferListReplenish(searchtext);
+            return false;
+        }
+        return true;
+    });
+
+    function fnFilterTransferListReplenish(searchtext) {
+        var appendedText = GetCurrentSelectedTabTransfer();
+        var searchtext1 = searchtext;
+        if (appendedText.length > 0) {
+            searchtext1 += "[^]" + appendedText;
+        }
+
+        $('#myTransferDataTable').dataTable().fnFilter(searchtext1, null, null, null);
+
+        $('#myTransferDataTable' + ' td').removeHighlight();
+        if (searchtext.length > 0) {
+            $('#myTransferDataTable' + ' td').highlight(searchtext);
+        }
+    }
+
+    function GetCurrentSelectedTabTransfer() {
+        var tabid = $("#hdnstatusTransfer").val();
+        if (tabid == 'Unsubmitted') {
+            return "@((int)TransferStatus.UnSubmitted)";
+        }
+        else if (tabid == 'Submitted') {
+            return "@((int)TransferStatus.Submitted)";
+        }
+        else if (tabid == 'Approved') {
+            return "@((int)TransferStatus.TransmittedPastDue)";
+        }
+        else {
+            return "";
+        }
+    }
+
+    function fnFilterTransferGlobal() {
+        if (typeof $("#global_filterDashTransfer") != 'undefined' && ($("#global_filterDashTransfer").val().length > 2 || $("#global_filterDashTransfer").val().length == 0)) {
+            var searchtext = $("#global_filterDashTransfer").val().replace(/'/g, "''");
+            fnFilterTransferListReplenish(searchtext);
+        }
+        else {
+            $('#myTransferDataTable td').removeHighlight();
+            $('#myTransferDataTable td').highlight($("#global_filterDashTransfer").val());
+        }
+    }
+
+    $("#clear_global_filterDashTransfer").click(function () {
+        if ($("#global_filterDashTransfer").val().length > 0) {
+            $("#global_filterDashTransfer").val("");
+            $("#global_filterDashTransfer").change();
+        }
+        return false;
+    });
+
+    /* Global filter JS */
+    function GenerateItemOrderGrid() {
+        var spend = $("#hdnstatusOrderRep").val();
+        var orderbytype = 'desc';
+
+        if (spend == "Bottom") {
+            orderbytype = 'asc';
+        }
+
+        oTableItemOrder = $('#myItemOrderDataTable').dataTable({
+            "bJQueryUI": true,
+            "aaSorting": [[2, 'desc']],
+            "bScrollCollapse": true,
+            "bAutoWidth": false,
+            //"sScrollX": "150%",
+            "sScrollX": "100%",
+            "sDom": 'R<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bDestroy": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData) {
+                if ($(aData.IsDeleted).text() == 'Yes' && $(aData.IsArchived).text() == 'Yes')
+                    nRow.className = "GridDeleatedArchivedRow";
+                else if ($(aData.IsDeleted).text() == 'Yes')
+                    nRow.className = "GridDeletedRow";
+                else if ($(aData.IsArchived).text() == 'Yes')
+                    nRow.className = "GridArchivedRow";
+
+
+                return nRow;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Action("ItemOrderMasterListAjax", "InventoryDashboard")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                //PostCount = PostCount + 1;
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+
+                if (oSettings.aaSorting.length != 0)
+                    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                else {
+                    aoData.push({ "name": "SortingField", "value": "0" });
+                }
+
+                aoData.push({ "name": "SelectedSupplier", "value": GlogalReplanishSupplierValue });
+                aoData.push({ "name": "SpendType", "value": $("#hdnstatusOrderRep").val() });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": function (json) {
+                        fnCallback(json);
+                        setTimeout(function () {
+                            //var SearchTerm = (json.SearchTerm == null || json.SearchTerm == undefined ? '' : json.SearchTerm.substring(0, json.SearchTerm.indexOf('[^]')));
+                            var SearchTerm = (json.SearchTerm == null || json.SearchTerm == undefined ? '' : json.SearchTerm);
+                            if (SearchTerm.trim() == '' && json.StartIndex == 0) {
+                                //------------------------------------------------------------------------------------------------
+                                //
+                                var SelectedSupplier = json.SelectedSupplier;
+                                if (SelectedSupplier != null || SelectedSupplier != undefined || SelectedSupplier.trim() != '')
+                                    SelectedSupplier = GlogalReplanishSupplierValue;
+
+                                BindMultiSelect("ddlReplanishOrderGridSupplier", json.SupplierOptions, SelectedSupplier, '')
+                                $("#ddlReplanishOrderGridSupplier").multiselect().bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+                                    GlogalReplanishSupplierValue = GetMultiselectSelectedValue('ddlReplanishOrderGridSupplier');
+                                    oTableItemOrder.fnDraw();
+                                });
+                            }
+                        }, 500);
+                    },
+                    beforeSend: function () {
+                        removeHighlight2('myItemOrderDataTable');
+                        $('#myItemOrderDataTable_wrapper .dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('#myItemOrderDataTable_wrapper .dataTables_scroll').css({ "opacity": 1 });
+                        if ($("#global_filterDashOrder").val() != '') {
+                            $('#myItemOrderDataTable td').highlight($("#global_filterDashOrder").val());
+                        }
+
+                        $('#myItemOrderDataTable tbody tr').unbind("click");
+                        $('#myItemOrderDataTable tbody tr').click(function (e) {
+                            DataTableTRClickToSelect(this, e);
+                        });
+
+                        CallShowHideData();
+
+                    }
+                });
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+                //GenerateTransferGrid();
+            },
+            "aoColumns": [
+                                {
+                                "mDataProp": "ItemNumber",
+                                "sClass": "read_only",
+                                "sDefaultContent": '',
+                                "bSortable": true,
+                                "bSearchable": false,
+                                "fnRender": function (obj) {
+                                    return "<a id='aEditLink' onclick='return OpenItemOrderEdit(&quot;" + obj.aData.ItemGUID + "&quot;)' href='JavaScript:void(0);'>" + obj.aData.ItemNumber + "</a>" +
+                                           "<input type='hidden' id='hdnExportId' value='" + obj.aData.ItemGUID + "' />";
+                                }
+                            },
+                            {
+                                "mDataProp": "SupplierName", "sClass": "read_only",
+                                "bSortable": true,
+                                "bSearchable": false
+                            },
+                            {
+                                "mDataProp": "OrderCost", "sClass": "read_only",
+                                "bSortable": true,
+                                "bSearchable": false,
+                                "fnRender": function (obj, val) {
+                                    if (obj.aData.OrderCost != null && obj.aData.OrderCost != NaN)
+                                        return FormatedCostQtyValues(obj.aData.OrderCost, 1);
+                                    else
+                                        return FormatedCostQtyValues(0, 1);
+                                }
+                            }
+            ]
+        });
+        $('.DTTT_container').css('z-index', '-1');
+    }
+
+    function GenerateOrderGrid() {
+        oTableOrder = $('#myOrderDataTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "bAutoWidth": false,
+            //"sScrollX": "150%",
+            "sScrollX": "100%",
+            "sDom": 'R<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[1, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bDestroy": true,
+            "bStateSave": true,
+            //"bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData) {
+                if ($(aData.IsDeleted).text() == 'Yes' && $(aData.IsArchived).text() == 'Yes')
+                    nRow.className = "GridDeleatedArchivedRow";
+                else if ($(aData.IsDeleted).text() == 'Yes')
+                    nRow.className = "GridDeletedRow";
+                else if ($(aData.IsArchived).text() == 'Yes')
+                    nRow.className = "GridArchivedRow";
+
+
+                return nRow;
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                //if (PostCount > 1) {
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'DashboardOrderDataTable' },
+                    "async": false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        o = json;
+                    }
+                });
+                //}
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'DashboardOrderDataTable' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Action("OrderMasterListAjax", "InventoryDashboard")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                //PostCount = PostCount + 1;
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                //if (oSettings.aaSorting.length != 0)
+                //    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                //else
+                //    aoData.push({ "name": "SortingField", "value": "0" });
+
+                if (oSettings.aaSorting.length != 0) {
+                    var sortValue = "";
+                    for (var k = 0; k <= oSettings.aaSorting.length - 1; k++) {
+                        if (sortValue.length > 0)
+                            sortValue += ", "
+                        sortValue += arrCols[oSettings.aaSorting[k][0]] + ' ' + oSettings.aaSorting[k][1];
+
+                    }
+                    aoData.push({ "name": "SortingField", "value": sortValue });
+                }
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+                aoData.push({ "name": "FromDate", "value": $('#txtOrderFromDate').val() });
+                aoData.push({ "name": "ToDate", "value": $('#txtOrderToDate').val() });
+                aoData.push({ "name": "OrderStatus", "value": $("#hdnstatusOrderRep").val() });
+                aoData.push({ "name": "SelectedSupplier", "value": GlogalReplanishSupplierValue });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": function (json) {
+                        fnCallback(json);
+                        setTimeout(function () {
+                            var SearchTerm = (json.SearchTerm == null || json.SearchTerm == undefined ? '' : json.SearchTerm.substring(0, json.SearchTerm.indexOf('[^]')));
+                            if (SearchTerm.trim() == '' && json.StartIndex == 0) {
+                                //------------------------------------------------------------------------------------------------
+                                //
+                                var SelectedSupplier = json.SelectedSupplier;
+                                if (SelectedSupplier != null || SelectedSupplier != undefined || SelectedSupplier.trim() != '')
+                                    SelectedSupplier = GlogalReplanishSupplierValue;
+
+                                BindMultiSelect("ddlReplanishOrderGridSupplier", json.SupplierOptions, SelectedSupplier, '')
+                                $("#ddlReplanishOrderGridSupplier").multiselect().bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+                                    GlogalReplanishSupplierValue = GetMultiselectSelectedValue('ddlReplanishOrderGridSupplier');
+                                    oTableOrder.fnDraw();
+                                });
+                            }
+                        }, 500);
+                    },
+                    beforeSend: function () {
+                        //$('#myOrderDataTable td').removeHighlight();
+                        removeHighlight2('myOrderDataTable');
+                        $('#myOrderDataTable_wrapper .dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {                        
+                        $('#myOrderDataTable_wrapper .dataTables_scroll').css({ "opacity": 1 });
+                        if ($("#global_filterDashOrder").val() != '') {
+                            $('#myOrderDataTable td').highlight($("#global_filterDashOrder").val());
+                        }
+
+                        $('#myOrderDataTable tbody tr').unbind("click");
+                        $('#myOrderDataTable tbody tr').click(function (e) {
+                            DataTableTRClickToSelect(this, e);
+                        });
+
+                        CallShowHideData();
+                        //                            if ($("#txtOrderFilter").val() != '') {
+                        //                                $('#myOrderDataTable td').highlight($("#txtOrderFilter").val());
+                        //                            }
+                    }
+                });
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+                //GenerateTransferGrid();
+            },
+            "aoColumns": [
+			                {
+			                    "mDataProp": "OrderNumber",
+			                    "sClass": "read_only",
+			                    "sDefaultContent": '',
+			                    "bSortable": true,
+			                    "bSearchable": false,
+			                    "fnRender": function (obj) {
+			                        return "<a id='aEditLink' onclick='return OpenOrderEdit(&quot;" + obj.aData.ID + "&quot;)' href='JavaScript:void(0);'>" + obj.aData.OrderNumber + "</a>" +
+			                               "<input type='hidden' id='hdnExportId' value='" + obj.aData.ID + "' />";
+			                    }
+			                },
+                            { "mDataProp": "SupplierName", "sClass": "read_only" },
+                            { "mDataProp": "StagingName", "sClass": "read_only" },
+                            { "mDataProp": "RequiredDate", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.RequiredDateStr; } },
+			                { "mDataProp": "ReleaseNumber", "sClass": "read_only" },
+                            {
+                                "mDataProp": "NoOfLineItems", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    if (obj.aData.NoOfLineItems != null && obj.aData.NoOfLineItems != NaN)
+                                        return FormatedCostQtyValues(obj.aData.NoOfLineItems, 2);
+                                    else
+                                        return FormatedCostQtyValues(0, 2);
+                                }
+                            },
+                            { "mDataProp": "ID", "sClass": "read_only" },
+                            { "mDataProp": "ShipViaName", "sClass": "read_only" },
+                            { "mDataProp": "Comment", "sClass": "read_only" },
+                            { "mDataProp": "OrderStatusChar", "sClass": "read_only" },
+                            {
+                                "mDataProp": "OrderCost", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    if (obj.aData.OrderCost != null && obj.aData.OrderCost != NaN)
+                                        return FormatedCostQtyValues(obj.aData.OrderCost, 1);
+                                    else
+                                        return FormatedCostQtyValues(0, 1);
+                                }
+                            },
+                            { "mDataProp": "CustomerName", "sClass": "read_only" },
+                            { "mDataProp": "PackSlipNumber", "sClass": "read_only" },
+                            { "mDataProp": "ShippingTrackNumber", "sClass": "read_only" },
+                            { "mDataProp": "ChangeOrderRevisionNo", "sClass": "read_only" },
+                            { "mDataProp": "Created", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.CreatedDate; } },
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                            { "mDataProp": "LastUpdated", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.UpdatedDate; } },
+                            { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                            { "mDataProp": "RoomName", "sClass": "read_only" },
+                            { "mDataProp": "IsDeleted", "sClass": "read_only" },
+                            { "mDataProp": "IsArchived", "sClass": "read_only" },
+                            { "mDataProp": "ShippingVendorName", "sClass": "read_only" },
+                            { "mDataProp": "AddedFrom", "sClass": "read_only" },
+                            { "mDataProp": "EditedFrom", "sClass": "read_only" },
+                            {
+                                "mDataProp": "ReceivedOn", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.ReceivedOnDate;
+                                }
+                            },
+                            {
+                                "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.ReceivedOnDateWeb;
+                                }
+                            },
+                            { "mDataProp": "SupplierAccountNumberName", "sClass": "read_only" }
+                            @Html.RenderColumnsArray("OrderMaster")            
+            ]
+        });
+        $('.DTTT_container').css('z-index', '-1');
+
+    }
+
+    function OpenItemOrderEdit(itemGuid) {
+        var url = '@Url.Action("ItemMasterList", "Inventory")';
+        url = url + '?fromdashboard=' + 'yes' + '&ItemGUID=' + itemGuid;
+        window.location.href = url;
+        return false;
+    }
+
+    function OpenOrderEdit(id) {
+        var url = '@Url.Action("OrderList", "Order")';
+        url = url + '?fromdashboard=' + 'yes' + '&OrderID=' + id;
+        window.location.href = url;
+        return false;
+    }
+
+    function OpenRecevable(itemnumber) {
+        var url = '@Url.Action("ReceiveList", "Receive")';
+        url = url + '?fromdashboard=yes&incomplete=yes&itemnumber=' + itemnumber;
+        window.location.href = url;
+        return false;
+    }
+
+    function GenerateTransferGrid() {
+
+        oTransferTable = $('#myTransferDataTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "bAutoWidth": false,
+            //"sScrollX": "150%",
+            "sScrollX": "100%",
+            "sDom": 'R<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[1, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bStateSave": true,
+            "bDestroy": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData) {
+                if (aData.IsDeleted == true && aData.IsArchived == true)
+                    nRow.className = "GridDeleatedArchivedRow";
+                else if (aData.IsDeleted == true)
+                    nRow.className = "GridDeletedRow";
+                else if (aData.IsArchived == true)
+                    nRow.className = "GridArchivedRow";
+
+                return nRow;
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                //if (PostCount > 1) {
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'DashboardTransferDataTable' },
+                    "async": false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        o = json;
+                    }
+                });
+                //}
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'DashboardTransferDataTable' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Action("TransferListAjax", "InventoryDashboard")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+                //if (oSettings.aaSorting.length != 0)
+                //    aoData.push({ "name": "SortingField", "value": oSettings.aaSorting[0][3] });
+                //else
+                //    aoData.push({ "name": "SortingField", "value": "0" });
+
+                if (oSettings.aaSorting.length != 0) {
+                    var sortValue = "";
+                    for (var k = 0; k <= oSettings.aaSorting.length - 1; k++) {
+                        if (sortValue.length > 0)
+                            sortValue += ", "
+                        sortValue += arrCols[oSettings.aaSorting[k][0]] + ' ' + oSettings.aaSorting[k][1];
+
+                    }
+                    aoData.push({ "name": "SortingField", "value": sortValue });
+                }
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "IsArchived", "value": $('#IsArchivedRecords').is(':checked') });
+                aoData.push({ "name": "IsDeleted", "value": $('#IsDeletedRecords').is(':checked') });
+                aoData.push({ "name": "FromDate", "value": $('#txtTransferFromDate').val() });
+                aoData.push({ "name": "ToDate", "value": $('#txtTransferToDate').val() });
+                aoData.push({ "name": "TransferStatus", "value": $("#hdnstatusTransfer").val() });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": function (json) {
+                        fnCallback(json);
+                    },
+                    beforeSend: function () {
+                        $('#myTransferDataTable td').removeHighlight();
+                        $('#myTransferDataTable_wrapper .dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('#myTransferDataTable_wrapper .dataTables_scroll').css({ "opacity": 1 });
+                        if ($("#global_filterDashTransfer").val() != '') {
+                            $('#myOrderDataTable td').highlight($("#global_filterDashTransfer").val());
+                        }
+
+                        $('#myTransferDataTable tbody tr').unbind("click");
+                        $('#myTransferDataTable tbody tr').click(function (e) {
+                            DataTableTRClickToSelect(this, e);
+                        });
+
+                        CallShowHideData();
+
+                    }
+                });
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+            },
+            "aoColumns": [
+			                {
+			                    "mDataProp": "TransferNumber",
+			                    "sClass": "read_only",
+			                    "sDefaultContent": '',
+			                    "bSortable": true,
+			                    "bSearchable": false,
+			                    "fnRender": function (obj) {
+                                    return "<a id='aEditLink' onclick='return OpenTransferEdit(&quot;" + obj.aData.ID + "&quot;,&quot;" + obj.aData.RequestType + "&quot;,&quot;" + obj.aData.TransferStatus + " &quot;)' href='JavaScript:void(0);'>" + obj.aData.TransferNumber + "</a>" +
+			                               "<input type='hidden' id='hdnExportId' value='" + obj.aData.GUID.toString() + "' />";
+
+			                    }
+			                },
+
+			                { "mDataProp": "StagingName", "sClass": "read_only" },
+                            { "mDataProp": "RequiredDateString", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.RequiredDateString; } },
+                            { "mDataProp": "ReplenishingRoomName", "sClass": "read_only" },
+                            {
+                                "mDataProp": "NoOfItems", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    if (obj.aData.NoOfItems != null && obj.aData.NoOfItems != NaN)
+                                        return FormatedCostQtyValues(obj.aData.NoOfItems, 2);
+                                    else
+                                        return FormatedCostQtyValues(0, 2);
+                                }
+                            },
+                            { "mDataProp": "ID", "sClass": "read_only" },
+                            { "mDataProp": "RequestingRoomName", "sClass": "read_only" },
+                            { "mDataProp": "Comment", "sClass": "read_only" },
+                            { "mDataProp": "RequestTypeName", "sClass": "read_only" },
+                            { "mDataProp": "TransferStatusName", "sClass": "read_only" },
+                            { "mDataProp": "RejectionReason", "sClass": "read_only" },
+                            { "mDataProp": "Created", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.CreatedDate; } },
+                            { "mDataProp": "Updated", "sClass": "read_only", "fnRender": function (obj, val) { return obj.aData.UpdatedDate; } },
+                            { "mDataProp": "CreatedByName", "sClass": "read_only" },
+                            { "mDataProp": "UpdatedByName", "sClass": "read_only" },
+                            { "mDataProp": "RoomName", "sClass": "read_only" },
+                            { "mDataProp": "AddedFrom", "sClass": "read_only" },
+                            { "mDataProp": "EditedFrom", "sClass": "read_only" },
+                            {
+                                "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.ReceivedOnWebDate;
+                                }
+                            },
+                            {
+                                "mDataProp": "ReceivedOn", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.ReceivedOnDate;
+                                }
+                            }
+                            @Html.RenderColumnsArray("TransferMaster")
+
+            ]
+        });
+        $('.DTTT_container').css('z-index', '-1');
+    }
+
+    function OpenTransferEdit(id, requestType, transferStatus) {
+        var url = '@Url.Action("TransferList", "Transfer")';
+        url = url + '?fromdashboard=' + 'yes' + '&TransferID=' + id + '&RequestType=' + requestType + '&Status=' + transferStatus;
+        window.location.href = url;
+        return false;
+    }
+
+
+    function GenerateReceivableGrid() {
+
+        oTableReceive = $('#myReceiveDataTable').dataTable({
+            "bJQueryUI": true,
+            "bScrollCollapse": true,
+            "bAutoWidth": false,
+            "sScrollX": "100%",
+            "sDom": 'RC<"top"lp<"clear">>rt<"bottom"i<"clear">>T',
+            "oColVis": {},
+            "aaSorting": [[1, "asc"]],
+            "oColReorder": {},
+            "sPaginationType": "full_numbers",
+            "bProcessing": true,
+            "bDestroy": true,
+            "bStateSave": true,
+            "oLanguage": {
+                "sLengthMenu": '@eTurns.DTO.Resources.ResGridHeader.Show' + ' _MENU_ ' + '@eTurns.DTO.Resources.ResGridHeader.Records',
+                "sEmptyTable": '@eTurns.DTO.Resources.ResMessage.NoDataAvailableInTable',
+                "sInfo": '@eTurns.DTO.Resources.ResMessage.ShowingNoOfEntries',
+                "sInfoEmpty": '@eTurns.DTO.Resources.ResMessage.ShowingZeroEntries'
+            },
+            "fnRowCallback": function (nRow, aData) {
+                if (aData.IsDeleted == true && aData.IsArchived == true)
+                    nRow.className = "GridDeleatedArchivedRow";
+                else if (aData.IsDeleted == true)
+                    nRow.className = "GridDeletedRow";
+                else if (aData.IsArchived == true)
+                    nRow.className = "GridArchivedRow";
+                else if (aData.IsCloseItem == true)
+                    $(nRow).css('background-color', '#d3d3d3');
+                return nRow;
+            },
+            "fnStateSaveParams": function (oSettings, oData) {
+                oData.oSearch.sSearch = "";
+                //if (PostCount > 1) {
+                $.ajax({
+                    "url": '@Url.Content("~/Master/SaveGridState")',
+                    "type": "POST",
+                    data: { Data: JSON.stringify(oData), ListName: 'DashboardReceiveDataTable' },
+                    "async": false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        o = json;
+                    }
+                });
+                //}
+            },
+            "fnStateLoad": function (oSettings) {
+                var o;
+                $.ajax({
+                    "url": '@Url.Content("~/Master/LoadGridState")',
+                    "type": "POST",
+                    data: { ListName: 'DashboardReceiveDataTable' },
+                    "async": false,
+                    cache: false,
+                    "dataType": "json",
+                    "success": function (json) {
+                        if (json.jsonData != '')
+                            o = JSON.parse(json.jsonData);
+                    }
+                });
+                return o;
+            },
+            "bServerSide": true,
+            "sAjaxSource": '@Url.Content("~/Receive/ReceiveListAjax")',
+            "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+                var arrCols = new Array();
+                var objCols = this.fnSettings().aoColumns;
+                for (var i = 0; i <= objCols.length - 1; i++) {
+                    arrCols.push(objCols[i].mDataProp);
+                }
+                for (var j = 0; j <= aoData.length - 1; j++) {
+                    if (aoData[j].name == "sColumns") {
+                        aoData[j].value = arrCols.join("|");
+                        break;
+                    }
+                }
+
+                var ordStatus = "4,5,6,7";
+
+                aoData.push({ "name": "OrderStatusIn", "value": ordStatus });
+
+                if (oSettings.aaSorting.length != 0) {
+                    var sortValue = "";
+                    for (var k = 0; k <= oSettings.aaSorting.length - 1; k++) {
+                        if (sortValue.length > 0)
+                            sortValue += ", "
+                        sortValue += arrCols[oSettings.aaSorting[k][0]] + ' ' + oSettings.aaSorting[k][1];
+
+                    }
+                    aoData.push({ "name": "SortingField", "value": sortValue });
+                }
+                else
+                    aoData.push({ "name": "SortingField", "value": "0" });
+
+                aoData.push({ "name": "SelectedSupplier", "value": GlogalReplanishSupplierValue });
+
+                oSettings.jqXHR = $.ajax({
+                    "dataType": 'json',
+                    "type": "POST",
+                    "url": sSource,
+                    cache: false,
+                    "data": aoData,
+					"headers": { "__RequestVerificationToken": $("input[name='__RequestVerificationToken'][type='hidden']").val() },
+                    "success": function (json) {
+                        fnCallback(json);
+                        setTimeout(function () {
+                            //var SearchTerm = (json.SearchTerm == null || json.SearchTerm == undefined ? '' : json.SearchTerm.substring(0, json.SearchTerm.indexOf('[^]')));
+                            var SearchTerm = (json.SearchTerm == null || json.SearchTerm == undefined ? '' : json.SearchTerm);
+                            if (SearchTerm.trim() == '' && json.StartIndex == 0) {
+                                var SelectedSupplier = json.SelectedSupplier;
+                                if (SelectedSupplier != null || SelectedSupplier != undefined || SelectedSupplier.trim() != '')
+                                    SelectedSupplier = GlogalReplanishSupplierValue;
+
+                                BindMultiSelect("ddlReplanishOrderGridSupplier", json.SupplierOptions, SelectedSupplier, '')
+                                $("#ddlReplanishOrderGridSupplier").multiselect().bind("multiselectclick multiselectcheckall multiselectuncheckall", function (event, ui) {
+                                    GlogalReplanishSupplierValue = GetMultiselectSelectedValue('ddlReplanishOrderGridSupplier');
+                                    oTableReceive.fnDraw();
+                                });
+                            }
+                        }, 500);
+                    },
+                    beforeSend: function () {
+                        $('#myReceiveDataTable td').removeHighlight();
+                        $('#myReceiveDataTable_wrapper .dataTables_scroll').css({ "opacity": 0.2 });
+                    },
+                    complete: function () {
+                        $('#myReceiveDataTable_wrapper .dataTables_scroll').css({ "opacity": 1 });
+                        if ($("#global_filterDashOrder").val() != '') {
+                            $('#myReceiveDataTable td').highlight($("#global_filterDashOrder").val());
+                        }
+
+                        $('#myReceiveDataTable tbody tr').unbind("click");
+                        $('#myReceiveDataTable tbody tr').click(function (e) {
+                            DataTableTRClickToSelect(this, e);
+                        });
+                    }
+                })
+            },
+            "fnInitComplete": function () {
+                $('.ColVis').detach().appendTo(".setting-arrow");
+            },
+            "aoColumns": [
+                        {
+                            "mDataProp": "ItemNumber",
+                            "sClass": "read_only NotHide",
+                            "sDefaultContent": '',
+                            "bSortable": true,
+                            "bSearchable": false,
+                            "fnRender": function (obj) {
+                                return "<a id='aEditLink' onclick='return OpenRecevable(&quot;" + obj.aData.ItemNumber + "&quot;)' href='JavaScript:void(0);'>" + obj.aData.ItemNumber + "</a>" +
+			                           "<input type='hidden' id='hdnExportId' value='" + obj.aData.ItemGUID.toString() + "' />";
+                            }
+                        },
+                        { "mDataProp": "OrderNumber", "sClass": "read_only" },
+                        { "mDataProp": "OrderReleaseNumber", "sClass": "read_only" },
+                        {
+                            "mDataProp": "RequestedQuantity", "sClass": "read_only numericalign", "fnRender": function (obj, val) {
+                                if (!isNaN(parseFloat(val))) {
+                                    return FormatedCostQtyValues(val, 2);
+                                }
+                                else {
+                                    return FormatedCostQtyValues(0, 2);
+                                }
+                            }
+                        },
+                        {
+                            "mDataProp": "ApprovedQuantity", "sClass": "read_only numericalign", "fnRender": function (obj, val) {
+                                if (!isNaN(parseFloat(val))) {
+                                    return FormatedCostQtyValues(val, 2);
+                                }
+                                else {
+                                    return FormatedCostQtyValues(0, 2);
+                                }
+                            }
+                        },
+                        {
+                            "mDataProp": "ReceivedQuantity", "sClass": "read_only numericalign NotHide", "fnRender": function (obj, val) {
+                                if (!isNaN(parseFloat(val))) {
+                                    return FormatedCostQtyValues(val, 2);
+                                }
+                                else {
+                                    return FormatedCostQtyValues(0, 2);
+                                }
+                            }
+                        },
+                         {
+                             "mDataProp": "QuantityToReceive",
+                             "sDefaultContent": '', "sClass": "read_only NotHide",
+                             "fnRender": function (obj, val) {
+
+                                 if (obj.aData.OrderStatus == '8' || obj.aData.SerialNumberTracking || obj.aData.LotNumberTracking || obj.aData.DateCodeTracking) {
+                                     return "";
+                                 }
+                                 else {
+                                     var apprQty = 0;
+                                     var recvedQty = 0;
+                                     apprQty = FormatedCostQtyValues(parseFloat(obj.aData.ApprovedQuantity.toString()), 2);
+                                     recvedQty = FormatedCostQtyValues(parseFloat(obj.aData.ReceivedQuantity.toString()), 2);
+
+                                     if (isNaN(apprQty)) {
+                                         apprQty = 0;
+                                     }
+                                     if (isNaN(recvedQty)) {
+                                         recvedQty = 0;
+                                     }
+
+                                     var QtyToRecv = (apprQty - recvedQty);
+
+                                     if (isNaN(parseFloat(QtyToRecv)) && parseFloat(QtyToRecv) <= 0) {
+                                         QtyToRecv = 0;
+                                     }
+
+
+                                     if (obj.aData.SerialNumberTracking) {
+                                         QtyToRecv = QtyToRecv.toString();
+                                     }
+                                     else {
+                                         QtyToRecv = QtyToRecv.toString();
+                                     }
+                                     if (QtyToRecv <= 0 || obj.aData.IsCloseItem)
+                                         QtyToRecv = 0;
+
+                                     return FormatedCostQtyValues(QtyToRecv, 2);
+                                 }
+                             }
+                         },
+                            { "mDataProp": "ReceiveBinName", "sClass": "read_only" },
+                            {
+                                "mDataProp": "OrderDetailRequiredDate", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.strReqDtlDate;
+                                }
+                            },
+                            { "mDataProp": "OrderStatusChar", "sClass": "read_only" },
+                            { "mDataProp": "ItemDescription", "sClass": "read_only" },
+                            {
+                                "mDataProp": "ItemCost", "sClass": "read_only numericalign", "fnRender": function (obj, val) {
+                                    if (!isNaN(parseFloat(val))) {
+                                        return FormatedCostQtyValues(val, 1);
+                                    }
+                                    else {
+                                        return FormatedCostQtyValues(0, 1);
+                                    }
+                                }
+                            },
+                            { "mDataProp": "OrderSupplierName", "sClass": "read_only" },
+                            { "mDataProp": "SupplierPartNumber", "sClass": "read_only" },
+                            { "mDataProp": "Manufacturer", "sClass": "read_only" },
+                            { "mDataProp": "ManufacturerNumber", "sClass": "read_only" },
+                            {
+                                "mDataProp": "SerialNumberTracking", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "LotNumberTracking", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "DateCodeTracking", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "IsTransfer", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            {
+                                "mDataProp": "IsPurchase", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    return GetBoolInFormat(obj, val);
+                                }
+                            },
+                            { "mDataProp": "UnitName", "sClass": "read_only" },
+                            { "mDataProp": "InTransitQuantity", "sClass": "read_only" },
+                            { "mDataProp": "PackSlipNumber", "sClass": "read_only" },
+                            { "mDataProp": "ASNNumber", "sClass": "read_only" },
+                            { "mDataProp": "ShippingTrackNumber", "sClass": "read_only" },
+                            { "mDataProp": "StagingName", "sClass": "read_only" },
+                            { "mDataProp": "OrderCreatedByName", "sClass": "read_only" },
+                            { "mDataProp": "OrderUpdatedByName", "sClass": "read_only" },
+                            {
+                                "mDataProp": "OrderCreated", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.CreatedDate;
+                                }
+                            },
+                            {
+                                "mDataProp": "OrderLastUpdated", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.UpdatedDate;
+                                }
+                            },
+                            { "mDataProp": "AddedFrom", "sClass": "read_only" },
+                            { "mDataProp": "EditedFrom", "sClass": "read_only" },
+                            {
+                                "mDataProp": "ReceivedOn", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.ReceivedOnDate;
+                                }
+                            },
+                            {
+                                "mDataProp": "ReceivedOnWeb", "sClass": "read_only",
+                                "fnRender": function (obj, val) {
+                                    return obj.aData.ReceivedOnDateWeb;
+                                }
+                            },
+                            { "mDataProp": "CostUOM", "sClass": "read_only" },
+                            {
+                                "mDataProp": "OnHandQuantity", "sClass": "read_only", "fnRender": function (obj, val) {
+                                    if (!isNaN(parseFloat(val))) {
+                                        return FormatedCostQtyValues(val, 2);
+                                    }
+                                    else {
+                                        return FormatedCostQtyValues(0, 2);
+                                    }
+                                }
+                            },
+                            {
+                                "mDataProp": "ItemMinimumQuantity", "sClass": "read_only numericalign", "fnRender": function (obj, val) {
+                                    if (val == "-1") {
+                                        return "<span>" + 'N/A' + "</span>";
+                                    }
+                                    else {
+                                        if (!isNaN(parseFloat(val))) {
+                                            return FormatedCostQtyValues(val, 2);
+                                        }
+                                        else {
+                                            return FormatedCostQtyValues(0, 2);
+                                        }
+                                    }
+                                }
+                            },
+                             {
+                                 "mDataProp": "ItemMaximumQuantity", "sClass": "read_only numericalign", "fnRender": function (obj, val) {
+                                     if (val == "-1") {
+                                         return "<span>" + 'N/A' + "</span>";
+                                     }
+                                     else {
+                                         if (!isNaN(parseFloat(val))) {
+                                             return FormatedCostQtyValues(val, 2);
+                                         }
+                                         else {
+                                             return FormatedCostQtyValues(0, 2);
+                                         }
+                                     }
+                                 }
+                             }
+                            @(Html.RenderColumnsArray("ItemMaster", true, "Item"))
+            ]
+        });
+        $('.DTTT_container').css('z-index', '-1');
+    }
+
+    function FilterOrderOrReceiveGrid()
+    {
+        var appendedText = GetCurrentSelectedTab();
+
+        if (appendedText == "Receive")
+        {
+            if (oTableReceive === undefined || oTableReceive == null || dashboardReorder == true)
+            {
+                dashboardReorder = false;
+                GenerateReceivableGrid();
+                $("#divItemOrderDataTable,#divOrderDataTable,#myItemOrderDataTableSettings,#myOrderDataTableSettings").hide();
+                $("#divReceiveDataTable,#myReceiveDataTableSettings").show();                
+            }
+            else
+            {
+                fnFilterOrderList('');
+            }
+        }
+        else
+        {
+            if (oTableOrder === undefined || oTableOrder == null || dashboardReorder == true)
+            {
+                dashboardReorder = false;
+                GenerateOrderGrid();
+                $("#divOrderDataTable,#myOrderDataTableSettings").show();
+                $("#divReceiveDataTable,#myReceiveDataTableSettings,#myItemOrderDataTableSettings,#divItemOrderDataTable").hide();                
+            }           
+            else
+            {
+                    fnFilterOrderList('');
+            }
+        }
+    }
+
+    function FilterItemOrderGrid()
+    {
+        if (oTableItemOrder === undefined || oTableItemOrder == null || dashboardReorder == true)
+        {
+            dashboardReorder = false;
+            GenerateItemOrderGrid();
+            $("#divItemOrderDataTable,#myItemOrderDataTableSettings").show();            
+            $("#divOrderDataTable,#divReceiveDataTable,#myOrderDataTableSettings,#myReceiveDataTableSettings").hide();            
+        }
+        else
+        {
+            fnFilterItemOrderList('');
+        }
+    }
+
+</script>

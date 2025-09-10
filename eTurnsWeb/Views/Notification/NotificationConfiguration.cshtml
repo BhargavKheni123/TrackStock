@@ -1,0 +1,232 @@
+﻿@model eTurns.DTO.NotificationDTO
+@{
+    
+    EmailTemplateDetailDTO objEmailDtl = new EmailTemplateDetailDTO();
+    if (objEmailDtl == null)
+    {
+        objEmailDtl = new EmailTemplateDetailDTO();
+    }
+    List<ReportBuilderDTO> lstReportBuilderDTO = ViewBag.lstReportList;
+    IEnumerable<SupplierMasterDTO> lstSuppliers = ViewBag.Suppliers;
+    bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Notifications, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
+    bool isUpdate = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Notifications, eTurnsWeb.Helper.SessionHelper.PermissionType.Update);
+
+}
+<script language="javascript" type="text/javascript">
+    var IsRefreshGrid = false;
+    var IsDeletePopupOpen = false;
+    var AllowDeletePopup = true;
+</script>
+<style>
+    #cke_contents_txtTemplate
+    {
+        height: 400px !important;
+    }
+</style>
+<div class="userHead">
+    @*@using (Ajax.BeginForm("NotificationSave", "Notification", new AjaxOptions { HttpMethod = "Post", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmNotificationConfigReport" }))*@
+    @using (Ajax.BeginForm("NotificationSave", "Notification", new AjaxOptions { HttpMethod = "Post", OnBegin = "OnBegin", OnSuccess = "onSuccess", InsertionMode = InsertionMode.Replace, OnFailure = "onFailure" }, new { @id = "frmNotificationConfigReport" }))
+    {
+        @Html.AntiForgeryToken()
+        @Html.ValidationSummary(true)
+        <div class="mainForm">
+            <div class="editorForm" style="width: 25%;">
+                <ul>
+                    <li>
+                        @Html.DropDownListFor(model => model.Reports, new SelectList(lstReportBuilderDTO, "ID", "ReportName"), new { @style = "width: 100%; height: 780px;", @class = "selectBox", @size = 100, @multiple = "multiple", @Name = "drpReports" })
+                        @Html.HiddenFor(model => model.Reports)
+                    </li>
+                </ul>
+            </div>
+            <div class="editorForm padRightNone" style="width: 60%;">
+                <ul>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.ScheduleName)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.ScheduleName, new { @class = "text-box" })
+                            @Html.ValidationMessageFor(model => model.ScheduleName)
+                        </div>
+                    </li>
+                    <li>
+                        @Html.Partial("SchedulerInfo", Model.SchedulerParams)
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.Suppliers)
+                        </div>
+                        <div class="editor-field">
+                            <div style="width: 34%; float: left;">
+                                @Html.DropDownListFor(model => model.Suppliers, new SelectList(lstSuppliers, "ID", "SupplierName"), new { @class = "selectBox", @multiple = "multiple", @size = 10, @Name = "drpSuppliers" })
+                                @Html.HiddenFor(model => model.Suppliers)
+                            </div>
+                            @Html.ValidationMessageFor(model => model.Suppliers)
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.AttachmentTypes)
+                        </div>
+                        <div class="editor-field">
+                            <input type="checkbox" name="chkAttachmentTypes" id="chkPDF" value="1" />
+                            PDF
+                            <input type="checkbox" name="chkAttachmentTypes" id="chkExcell" value="2" />
+                            Excell Sheet
+                            @Html.HiddenFor(model => model.AttachmentTypes)
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.CultureCode)
+                        </div>
+                        <div class="editor-field">
+                            @Html.DropDownListFor(model => model.CultureCode, (List<SelectListItem>)ViewBag.DDLanguage, new { @class = "selectBox" })
+                            @Html.ValidationMessageFor(model => model.CultureCode)
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.EmailAddress)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextAreaFor(model => model.EmailAddress, new { @class = "text-box" })
+                            @Html.ValidationMessageFor(model => model.EmailAddress)
+                        </div>
+                    </li>
+                    <li>
+                        <div class="editor-label">
+                            @Html.LabelFor(model => model.EmailSubject)
+                        </div>
+                        <div class="editor-field">
+                            @Html.TextBoxFor(model => model.EmailSubject, new { @class = "text-box" })
+                            @Html.ValidationMessageFor(model => model.EmailSubject)
+                        </div>
+                    </li>
+                    <li>
+                        <div style="width: 100%; float: left;">
+                            <textarea class="ckeditor" id="txtTemplate"></textarea>
+                        </div>
+                        @Html.HiddenFor(model => model.EmailTemplateDetails)
+                    </li>
+                </ul>
+            </div>
+            <div class="editorForm" style="width: 75%">
+                <ul>
+                    <li>
+                        <div class="editor-label">
+                            &nbsp;
+                        </div>
+                        <div class="BtnBlockform">
+                            @if ((Model.ID <= 0 && isInsert) || (Model.ID > 0 && isUpdate))
+                            {
+                                <input type="submit" value="@eTurns.DTO.Resources.ResCommon.Save" id="btnSave" class="CreateBtn" />
+                            }
+                            @Html.HiddenFor(model => model.ID)
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    }
+</div>
+<script type="text/javascript">
+    $(document).ready(function () {
+        if (typeof (arrEmailTemplateDtl) !== "undefined") {
+
+            arrEmailTemplateDtl = new Array();
+        }
+        AttachCkEditor();
+        $('#CultureCode').data('prevVal', $('#CultureCode').val());
+        $("#btnSave").click(function () {
+            if (typeof (arrEmailTemplateDtl) !== "undefined") {
+                arrEmailTemplateDtl = jQuery.grep(arrEmailTemplateDtl, function (arritm, i) {
+                    return (arritm.CultureCode != $('#CultureCode').val());
+                });
+                arrEmailTemplateDtl.push({ CultureCode: $('#CultureCode').val(), MailSubject: $("#EmailSubject").val(), MailBodyText: escape(CKEDITOR.instances.txtTemplate.getData()) });
+                $("#EmailTemplateDetails").val(JSON.stringify(arrEmailTemplateDtl));
+            }
+        });
+
+        $("#frmNotificationConfigAlert").submit(function (e) {
+            $.validator.unobtrusive.parse("#frmNotificationConfigAlert");
+            e.preventDefault();
+        });
+    });
+
+    function AttachCkEditor() {
+        if (!CKEDITOR.instances['txtTemplate']) {
+            CKEDITOR.replace('txtTemplate');
+        }
+        else {
+            ReBindCKEditor();
+        }
+    }
+
+    function ReBindCKEditor() {
+        try {
+            var editor = CKEDITOR.instances['txtTemplate'];
+            if (editor) {
+                editor.destroy(true);
+            }
+        }
+        catch (e) { }
+        CKEDITOR.replace('txtTemplate');
+    }
+
+    function onSuccess(response) {
+
+        var retstat;
+        IsRefreshGrid = true;
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#spanGlobalMessage").html(response.Message);
+        $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
+        var idValue = $("#ID").val();
+        if (idValue < 1 || idValue == "") {
+            retstat = response.Status;
+            switch (retstat) {
+                case "fail":
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    break;
+                case "duplicate":
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    break;
+                case "ok":
+                    if (oTable !== undefined && oTable != null) {
+                        oTable.fnDraw();
+                    }
+
+
+                    break;
+            }
+        }
+        else if (idValue > 0) {
+            retstat = response.Status;
+            switch (retstat) {
+                case "fail":
+                    $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
+                    break;
+                case "duplicate":
+                    $("#spanGlobalMessage").removeClass('errorIcon succesIcon').addClass('WarningIcon');
+                    break;
+                case "ok":
+                    if (oTable !== undefined && oTable != null) {
+                        oTable.fnDraw();
+                    }
+                    break;
+            }
+        }
+    }
+    function onFailure(message) {
+        $("#spanGlobalMessage").html(message.statusText);
+        $('div#target').fadeToggle();
+        $("div#target").delay(DelayTime).fadeOut(FadeOutTime);
+        $("#txtStagingName").focus();
+    }
+
+    function OnBegin() {
+        return true;
+    }
+
+</script>
