@@ -516,7 +516,7 @@ namespace eTurnsWeb.Controllers
                     IsOnlyFromUI = true,
                     IsEDIOrder = false,
                     IsOrderReleaseNumberEditable = defaultSupplierDTO != null ? defaultSupplierDTO.IsOrderReleaseNumberEditable : false,
-                    ResponseData = string.Empty
+                    //ResponseData = string.Empty
                 };
 
                 //Set as Default First Active Blanket po 
