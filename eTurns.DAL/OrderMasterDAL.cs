@@ -796,6 +796,7 @@ namespace eTurns.DAL
                 lstSQLPara.Add(new SqlParameter("@Comment", DBNullValueorStringIfNotNull(objDTO.Comment)));
                 lstSQLPara.Add(new SqlParameter("@PackSlipNumber", DBNullValueorStringIfNotNull(objDTO.PackSlipNumber)));
                 lstSQLPara.Add(new SqlParameter("@ShippingTrackNumber", DBNullValueorStringIfNotNull(objDTO.ShippingTrackNumber)));
+                lstSQLPara.Add(new SqlParameter("@ResponseData", DBNullValueorStringIfNotNull(objDTO.ResponseData)));
                 lstSQLPara.Add(new SqlParameter("@UDF1", DBNullValueorStringIfNotNull(objDTO.UDF1)));
                 lstSQLPara.Add(new SqlParameter("@UDF2", DBNullValueorStringIfNotNull(objDTO.UDF2)));
                 lstSQLPara.Add(new SqlParameter("@UDF3", DBNullValueorStringIfNotNull(objDTO.UDF3)));
@@ -862,7 +863,7 @@ namespace eTurns.DAL
                 lstSQLPara.Add(new SqlParameter("@SalesOrder", DBNullValueorStringIfNotNull(objDTO.SalesOrder)));
                 using (var context = new eTurnsEntities(base.DataBaseEntityConnectionString))
                 {
-                    objDTO = context.Database.SqlQuery<OrderMasterDTO>("EXEC [Ord_InsertOrderMaster] @OrderNumber,@SalesOrderNumber,@ReleaseNumber,@Supplier,@CreatedBy,@Room,@CompanyID,@OrderStatus,@StagingID,@CustomerID,@ShipVia,@OrderType,@ShippingVendor,@RequiredDate,@OrderDate,@Comment,@PackSlipNumber,@ShippingTrackNumber,@UDF1,@UDF2,@UDF3,@UDF4,@UDF5,@CustomerAddress,@AccountNumber,@BlanketOrderNumberID ,@WhatWhereAction,@OrderNumber_ForSorting,@MaterialStagingGUID,@CustomerGUID,@ReceivedOn,@ReceivedOnWeb,@AddedFrom,@EditedFrom,@IsEDIOrder,@OrderGuid,@SupplierAccountGuid,@RequesterID,@ApproverID,@SalesOrder", lstSQLPara.ToArray()).FirstOrDefault();
+                    objDTO = context.Database.SqlQuery<OrderMasterDTO>("EXEC [Ord_InsertOrderMaster] @OrderNumber,@SalesOrderNumber,@ReleaseNumber,@Supplier,@CreatedBy,@Room,@CompanyID,@OrderStatus,@StagingID,@CustomerID,@ShipVia,@OrderType,@ShippingVendor,@RequiredDate,@OrderDate,@Comment,@PackSlipNumber,@ShippingTrackNumber,@UDF1,@UDF2,@UDF3,@UDF4,@UDF5,@CustomerAddress,@AccountNumber,@BlanketOrderNumberID ,@WhatWhereAction,@OrderNumber_ForSorting,@MaterialStagingGUID,@CustomerGUID,@ReceivedOn,@ReceivedOnWeb,@AddedFrom,@EditedFrom,@IsEDIOrder,@OrderGuid,@SupplierAccountGuid,@RequesterID,@ApproverID,@SalesOrder,@ResponseData", lstSQLPara.ToArray()).FirstOrDefault();
                 }
 
                 objAutoSeqDAL = new AutoSequenceDAL(base.DataBaseName);
@@ -910,6 +911,7 @@ namespace eTurns.DAL
                 lstSQLPara.Add(new SqlParameter("@Comment", DBNullValueorStringIfNotNull(objDTO.Comment)));
                 lstSQLPara.Add(new SqlParameter("@PackSlipNumber", DBNullValueorStringIfNotNull(objDTO.PackSlipNumber)));
                 lstSQLPara.Add(new SqlParameter("@ShippingTrackNumber", DBNullValueorStringIfNotNull(objDTO.ShippingTrackNumber)));
+                lstSQLPara.Add(new SqlParameter("@ResponseData", DBNullValueorStringIfNotNull(objDTO.ResponseData)));
                 lstSQLPara.Add(new SqlParameter("@UDF1", DBNullValueorStringIfNotNull(objDTO.UDF1)));
                 lstSQLPara.Add(new SqlParameter("@UDF2", DBNullValueorStringIfNotNull(objDTO.UDF2)));
                 lstSQLPara.Add(new SqlParameter("@UDF3", DBNullValueorStringIfNotNull(objDTO.UDF3)));
@@ -967,7 +969,7 @@ namespace eTurns.DAL
                     lstSQLPara.Add(new SqlParameter("@ApproverID", DBNull.Value));
                 lstSQLPara.Add(new SqlParameter("@SalesOrder", DBNullValueorStringIfNotNull(objDTO.SalesOrder)));
 
-                //objDTO = context.Database.SqlQuery<OrderMasterDTO>("EXEC [Ord_UpdateOrderMaster] @ID,@GUID,@Supplier,@LastUpdatedBy,@Room,@CompanyID,@OrderStatus,@StagingID,@CustomerID,@ShipVia,@ShippingVendor,@RequiredDate,@OrderDate,@Comment,@PackSlipNumber,@ShippingTrackNumber,@UDF1,@UDF2,@UDF3,@UDF4,@UDF5,@CustomerAddress,@AccountNumber,@OrderCost,@NoOfLineItems,@ChangeOrderRevisionNo,@RejectionReason,@BlanketOrderNumberID,@ReleaseNumber,@OrderNumber,@WhatWhereAction,@SalesOrderNumber,@MaterialStagingGUID,@CustomerGUID,@ReceivedOn,@EditedFrom,@IsEDIOrder,@SupplierAccountGuid,@OrderPrice,@RequesterID,@ApproverID,@SalesOrder", lstSQLPara.ToArray()).FirstOrDefault();
+                //objDTO = context.Database.SqlQuery<OrderMasterDTO>("EXEC [Ord_UpdateOrderMaster] @ID,@GUID,@Supplier,@LastUpdatedBy,@Room,@CompanyID,@OrderStatus,@StagingID,@CustomerID,@ShipVia,@ShippingVendor,@RequiredDate,@OrderDate,@Comment,@PackSlipNumber,@ShippingTrackNumber,@UDF1,@UDF2,@UDF3,@UDF4,@UDF5,@CustomerAddress,@AccountNumber,@OrderCost,@NoOfLineItems,@ChangeOrderRevisionNo,@RejectionReason,@BlanketOrderNumberID,@ReleaseNumber,@OrderNumber,@WhatWhereAction,@SalesOrderNumber,@MaterialStagingGUID,@CustomerGUID,@ReceivedOn,@EditedFrom,@IsEDIOrder,@SupplierAccountGuid,@OrderPrice,@RequesterID,@ApproverID,@SalesOrder,@ResponseData", lstSQLPara.ToArray()).FirstOrDefault();
                 var sqlparams = lstSQLPara.ToArray();
                 string strCommand = "EXEC [Ord_UpdateOrderMaster] @ID,@GUID,@Supplier,@LastUpdatedBy,@Room,@CompanyID,@OrderStatus,@StagingID,@CustomerID,@ShipVia,@ShippingVendor,@RequiredDate,@OrderDate,@Comment,@PackSlipNumber,@ShippingTrackNumber,@UDF1,@UDF2,@UDF3,@UDF4,@UDF5,@CustomerAddress,@AccountNumber,@OrderCost,@NoOfLineItems,@ChangeOrderRevisionNo,@RejectionReason,@BlanketOrderNumberID,@ReleaseNumber,@OrderNumber,@WhatWhereAction,@SalesOrderNumber,@MaterialStagingGUID,@CustomerGUID,@ReceivedOn,@EditedFrom,@IsEDIOrder,@SupplierAccountGuid,@OrderPrice,@RequesterID,@ApproverID,@SalesOrder";
                 context.Database.ExecuteSqlCommand(strCommand, sqlparams);
