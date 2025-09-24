@@ -515,7 +515,8 @@ namespace eTurnsWeb.Controllers
                     OrderNumber_ForSorting = objAutoNumber != null ? objAutoNumber.OrderNumberForSorting : orderNumber.ToString().PadLeft(11, '0'),
                     IsOnlyFromUI = true,
                     IsEDIOrder = false,
-                    IsOrderReleaseNumberEditable = defaultSupplierDTO != null ? defaultSupplierDTO.IsOrderReleaseNumberEditable : false
+                    IsOrderReleaseNumberEditable = defaultSupplierDTO != null ? defaultSupplierDTO.IsOrderReleaseNumberEditable : false,
+                    ResponseData = string.Empty
                 };
 
                 //Set as Default First Active Blanket po 
@@ -9357,6 +9358,8 @@ namespace eTurnsWeb.Controllers
 
             return SupplierAprove;
         }
+
+
 
         #region expand inner grid for return order
 

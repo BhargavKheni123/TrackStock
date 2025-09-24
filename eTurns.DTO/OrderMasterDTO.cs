@@ -357,6 +357,10 @@ namespace eTurns.DTO
         [Display(Name = "SupplierAccountDetail", ResourceType = typeof(ResOrder))]
         public Nullable<Guid> SupplierAccountGuid { get; set; }
 
+        [Display(Name = "Response Data")]
+        public string ResponseData { get; set; }
+
+
         private string _changeOrderCreated;
         public string ChangeOrderCreatedDate
         {
@@ -1047,8 +1051,15 @@ namespace eTurns.DTO
             }
         }
 
-         
-         public static string SupplierAccountGuid
+        public static string ResponseData
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("ResponseData", resourceFileName);
+            }
+        }
+
+        public static string SupplierAccountGuid
         {
             get
             {
