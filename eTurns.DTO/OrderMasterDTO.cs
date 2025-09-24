@@ -357,7 +357,7 @@ namespace eTurns.DTO
         [Display(Name = "SupplierAccountDetail", ResourceType = typeof(ResOrder))]
         public Nullable<Guid> SupplierAccountGuid { get; set; }
 
-        [Display(Name = "Response Data")]
+        [Display(Name = "ResponseData", ResourceType = typeof(ResOrder))]
         public string ResponseData { get; set; }
 
 
