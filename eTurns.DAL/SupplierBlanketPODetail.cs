@@ -23,6 +23,7 @@ namespace eTurns.DAL
         public long ID { get; set; }
         public long SupplierID { get; set; }
         public string BlanketPO { get; set; }
+        public string Description { get; set; }
         public Nullable<System.DateTime> StartDate { get; set; }
         public Nullable<System.DateTime> Enddate { get; set; }
         public System.Guid GUID { get; set; }

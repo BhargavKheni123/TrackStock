@@ -17,12 +17,17 @@ namespace eTurns.DTO
         [Required(ErrorMessageResourceName = "Required", ErrorMessageResourceType = typeof(ResMessage))]
         public System.Int64 SupplierID { get; set; }
 
+        //Description
+        [Display(Name = "Description", ResourceType = typeof(ResSupplierBlanketPODetails))]
+        [Required(ErrorMessageResourceName = "Required", ErrorMessageResourceType = typeof(ResMessage))]
+        public string Description { get; set; }
+
         //BlanketPO
         [Display(Name = "BlanketPO", ResourceType = typeof(ResSupplierBlanketPODetails))]
         [StringLength(22, ErrorMessageResourceName = "MaxLength", ErrorMessageResourceType = typeof(ResMessage))]
         [AllowHtml]
         public System.String BlanketPO { get; set; }
-
+        
         //StartDate
         [Display(Name = "StartDate", ResourceType = typeof(ResSupplierBlanketPODetails))]
         public Nullable<System.DateTime> StartDate { get; set; }
@@ -336,6 +341,13 @@ namespace eTurns.DTO
                 return ResourceRead.GetResourceValue("BlanketPO", ResourceFileName);
             }
         }
+        public static string Description
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("Description", ResourceFileName);
+            }
+        }
 
         /// <summary>
         ///   Looks up a localized string similar to StartDate.
@@ -552,6 +564,15 @@ namespace eTurns.DTO
             }
         }
 
+        public static string MsgDescriptionValidation
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("MsgDescriptionValidation", ResourceFileName);
+            }
+        }
+
+        public static string DescriptionRequiredValidation { get { return ResourceRead.GetResourceValue("MsgDescriptionValidation", ResourceFileName); } }
         public static string AddBlanketPO { get { return ResourceRead.GetResourceValue("AddBlanketPO", ResourceFileName); } }
     }
 }

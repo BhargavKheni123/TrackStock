@@ -2216,7 +2216,8 @@ namespace eTurns.DAL
                                                                    EditedFrom = u.EditedFrom,
                                                                    ReceivedOn = u.ReceivedOn,
                                                                    ReceivedOnWeb = u.ReceivedOnWeb,
-                                                                   TotalRecords = u.TotalRecords
+                                                                   TotalRecords = u.TotalRecords,
+                                                                   ResponseData = u.ResponseData
                                                                }).AsParallel().Skip(StartRowIndex).Take(MaxRows).ToList();
 
                         TotalCount = 0;

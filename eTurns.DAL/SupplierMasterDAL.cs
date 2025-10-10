@@ -1732,6 +1732,7 @@ namespace eTurns.DAL
                                                                         ID = A.ID,
                                                                         SupplierID = A.SupplierID,
                                                                         BlanketPO = A.BlanketPO,
+                                                                        Description = A.Description,
                                                                         StartDate = A.StartDate,
                                                                         Enddate = A.Enddate,
                                                                         MaxLimit = A.MaxLimit,

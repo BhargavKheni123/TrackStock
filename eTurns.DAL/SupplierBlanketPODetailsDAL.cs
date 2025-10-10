@@ -68,6 +68,7 @@ namespace eTurns.DAL
 
                 obj.Enddate = objDTO.Enddate;
                 obj.BlanketPO = objDTO.BlanketPO;
+                obj.Description = objDTO.Description;
                 obj.GUID = Guid.NewGuid();
                 obj.Created = DateTimeUtility.DateTimeNow;
                 obj.Updated = DateTimeUtility.DateTimeNow;
@@ -106,6 +107,7 @@ namespace eTurns.DAL
                 if (obj != null)
                 {
                     obj.BlanketPO = objDTO.BlanketPO;
+                    obj.Description = objDTO.Description;
                     obj.StartDate = objDTO.StartDate;
                     obj.Enddate = objDTO.Enddate;
                     obj.MaxLimit = objDTO.MaxLimit;
