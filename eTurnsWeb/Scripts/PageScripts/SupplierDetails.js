@@ -550,18 +550,18 @@ function CheckDateSupplierBlanketPO() {
                 }
             }
 
-
+           
             if ((TempSupplierBlanketPO[k].cells[1].childNodes[1].value != '') && (TempSupplierBlanketPO[k].cells[2].childNodes[1].value != '')) {
-                var startdate = TempSupplierBlanketPO[k].cells[1].childNodes[1].value;
-                var enddate = TempSupplierBlanketPO[k].cells[2].childNodes[1].value;
+                var startdate = TempSupplierBlanketPO[k].cells[2].childNodes[1].value;
+                var enddate = TempSupplierBlanketPO[k].cells[3].childNodes[1].value;
 
                 var begD = $.datepicker.parseDate(RoomDateJSFormat, startdate);
                 var endD = $.datepicker.parseDate(RoomDateJSFormat, enddate);
 
                 if (begD > endD) {
 
-                    TempSupplierBlanketPO[k].cells[2].childNodes[1].value = "";
-                    TempSupplierBlanketPO[k].cells[2].childNodes[1].focus();
+                    TempSupplierBlanketPO[k].cells[3].childNodes[1].value = "";
+                    TempSupplierBlanketPO[k].cells[3].childNodes[1].focus();
 
                     $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
                     $("#spanGlobalMessage").html(EndDateShouldGreaterThanStartDateValidation);
@@ -577,7 +577,7 @@ function CheckDateSupplierBlanketPO() {
 
                     if (begT > endT) {
                         TempSupplierBlanketPO[k].cells[2].childNodes[1].value = "";
-                        TempSupplierBlanketPO[k].cells[2].childNodes[1].focus();
+                        TempSupplierBlanketPO[k].cells[3].childNodes[1].focus();
                         $("#spanGlobalMessage").removeClass('errorIcon WarningIcon').addClass('succesIcon');
                         $("#spanGlobalMessage").html(MsgEndDateValidation);
                         $('div#target').fadeToggle();

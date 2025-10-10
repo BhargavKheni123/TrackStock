@@ -1156,7 +1156,7 @@ namespace eTurns.DTO
             {
                 return ResourceRead.GetResourceValue("MsgBlanketPOValidation", resourceFile);
             }
-        }
+        }   
         public static string MsgDuplicatePOBlanket
         {
             get

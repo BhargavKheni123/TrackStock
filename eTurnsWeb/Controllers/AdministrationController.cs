@@ -10776,7 +10776,7 @@ namespace eTurnsWeb.Controllers
         /// <returns></returns>
         /// 
         [ValidateAntiForgeryToken]
-        public JsonResult SupplierSave(SupplierMasterDTO objDTO, SchedulerDTO SupplierScheduleDTO, QuoteSchedulerDTO QuoteSupplierScheduleDTO, PullSchedulerDTO PullSupplierScheduleDTO)
+        public JsonResult SupplierSave(SupplierMasterDTO objDTO, SchedulerDTO SupplierScheduleDTO, QuoteSchedulerDTO QuoteSupplierScheduleDTO, PullSchedulerDTO PullSupplierScheduleDTO, SupplierBlanketPODetailsDTO SupplierBlanketPODetailsDTO)
         {
             string message = "";
             string status = "";
@@ -10811,7 +10811,7 @@ namespace eTurnsWeb.Controllers
                     }
                 }
             }
-
+            
             long NextNr = 0;
             string ErrMessage = "";
             //-------------------------------------------------------------
@@ -11017,6 +11017,14 @@ namespace eTurnsWeb.Controllers
 
                                 foreach (var itembr in lstSupplierBPOs)
                                 {
+
+                                    if (string.IsNullOrWhiteSpace(itembr.Description))
+                                    {
+                                        message = string.Format(ResMessage.Required, "Description");
+                                        status = "fail";
+                                        return Json(new { Message = message, Status = status }, JsonRequestBehavior.AllowGet);
+                                    }
+
                                     itembr.SupplierID = ReturnVal;
                                     SupplierBlanketPODetailsDAL objSupplierBlanketPODetailsDAL = new SupplierBlanketPODetailsDAL(SessionHelper.EnterPriseDBName);
                                     if (itembr.ID > 0)
@@ -11181,10 +11189,10 @@ namespace eTurnsWeb.Controllers
                 {
                     message = string.Format(ResMessage.DuplicateMessage, ResSupplierMaster.Supplier, objDTO.SupplierName);  //"SupplierName \"" + objDTO.SupplierName + "\" already exist! Try with Another!";
                     status = "duplicate";
-                }
+                }                
                 else
                 {
-                    string strOK1 = objCDAL.DuplicateCheck(objDTO.SupplierColor, "edit", objDTO.ID, "SupplierMaster", "SupplierColor", RoomId, SessionHelper.CompanyID);
+                    string strOK1= objCDAL.DuplicateCheck(objDTO.SupplierColor, "edit", objDTO.ID, "SupplierMaster", "SupplierColor", RoomId, SessionHelper.CompanyID);
                     if (strOK1 == "duplicate")
                     {
                         message = string.Format(ResMessage.DuplicateMessage, ResSupplierMaster.SupplierColor, objDTO.SupplierColor);  // "Category \"" + objDTO.Category + "\" already exist! Try with Another!";
@@ -11258,6 +11266,13 @@ namespace eTurnsWeb.Controllers
 
                                 foreach (var itembr in lstSupplierBPOs)
                                 {
+                                    if (string.IsNullOrWhiteSpace(itembr.Description))
+                                    {
+                                        message = string.Format(ResMessage.Required, "Description");
+                                        status = "fail";
+                                        return Json(new { Message = message, Status = status }, JsonRequestBehavior.AllowGet);
+                                    }
+
                                     SupplierBlanketPODetailsDAL objSupplierBlanketPODetailsDAL = new SupplierBlanketPODetailsDAL(SessionHelper.EnterPriseDBName);
                                     if (itembr.ID > 0)
                                     {
@@ -11312,6 +11327,7 @@ namespace eTurnsWeb.Controllers
                                     {
                                         if (itembr.BlanketPO != null)
                                             itembr.BlanketPO = itembr.BlanketPO.Length > 22 ? itembr.BlanketPO.Substring(0, 22) : itembr.BlanketPO;
+                                        itembr.Description = objDTO.Description;
                                         itembr.AddedFrom = "Web";
                                         itembr.ReceivedOnWeb = DateTimeUtility.DateTimeNow;
                                         itembr.EditedFrom = "Web";
