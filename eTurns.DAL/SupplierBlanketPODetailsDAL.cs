@@ -89,6 +89,7 @@ namespace eTurns.DAL
                 //obj.OrderedQty = objDTO.OrderedQty;
                 obj.TotalOrder = objDTO.TotalOrder;
                 obj.OrderUsed = objDTO.OrderUsed;
+                obj.Description = objDTO.Description;
                 context.SupplierBlanketPODetails.Add(obj);
                 context.SaveChanges();
                 objDTO.ID = obj.ID;
@@ -121,6 +122,7 @@ namespace eTurns.DAL
                     obj.IsNotExceedQty = objDTO.IsNotExceedQty;
                     obj.OrderUsed = objDTO.OrderUsed;
                     obj.TotalOrder = objDTO.TotalOrder;
+                    obj.Description = objDTO.Description;
                     context.SaveChanges();
                 }
                 return true;

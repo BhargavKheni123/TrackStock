@@ -1195,7 +1195,7 @@ function CheckBeforeSave() {
         if (Temprows1 != null && Temprows1.length > 0) {
             for (var i = 0; i < Temprows1.length; i++) {
                 if (!(Temprows1[i].cells[0].getElementsByTagName('input')[0].value == '' && Temprows1[i].cells[1].getElementsByTagName('input')[0].value == '')) {
-                    if (Temprows1[i].cells[3].getElementsByTagName('input')[0].checked) {
+                    if (Temprows1[i].cells[4].getElementsByTagName('input')[0].checked) {
                         iCountManuDefault += 1;
                     }
                     if (Temprows1[i].cells[1].getElementsByTagName('input')[0].value == '') {

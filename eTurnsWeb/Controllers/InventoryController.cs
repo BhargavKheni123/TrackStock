@@ -11043,7 +11043,7 @@ namespace eTurnsWeb.Controllers
         }
 
 
-        public ActionResult GetSupplierBlanketPOItemGUID(Int64 SupplierID, string SupplierName, bool IsForBOM)
+        public ActionResult GetSupplierBlanketPOItemGUID(Int64 SupplierID, string SupplierName, bool IsForBOM, long POID = 0)
         {
             SupplierMasterDAL objSupDal = new SupplierMasterDAL(SessionHelper.EnterPriseDBName);
             SupplierMasterDTO objDTO = objSupDal.GetSupplierByNamePlain(SessionHelper.RoomID, SessionHelper.CompanyID, IsForBOM, SupplierName.Trim());
@@ -11054,14 +11054,21 @@ namespace eTurnsWeb.Controllers
             }
 
             SupplierBlanketPODetailsDAL objDAL = new SupplierBlanketPODetailsDAL(SessionHelper.EnterPriseDBName);
-            List<SupplierBlanketPODetailsDTO> result = objDAL.GetBlanketPOBySupplierIDAndItemGUID(SupplierID, SessionHelper.RoomID, SessionHelper.CompanyID, ItemGUID: Guid.Empty).ToList();
+            List<SupplierBlanketPODetailsDTO> result = objDAL
+                .GetBlanketPOBySupplierIDAndItemGUID(SupplierID, SessionHelper.RoomID, SessionHelper.CompanyID, ItemGUID: Guid.Empty)
+                .ToList();
+
             result = result.OrderBy(x => x.BlanketPO.Trim()).ToList();
-            if (result == null || result.Count == 0)
+
+            string Description = string.Empty;
+            if (POID > 0)
             {
-                return Json(new { status = "Not Found" }, JsonRequestBehavior.AllowGet);
+                var poItem = result.FirstOrDefault(x => x.ID == POID);
+                if (poItem != null)
+                    Description = poItem.Description;
             }
 
-            return Json(new { status = "Found", result }, JsonRequestBehavior.AllowGet);
+            return Json(new { status = "Found", result, Description }, JsonRequestBehavior.AllowGet);
         }
         public ActionResult GetNewSupplier(Int64 SupplierID, string SupplierName, bool IsForBOM)
         {

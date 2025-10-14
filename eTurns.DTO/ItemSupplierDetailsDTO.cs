@@ -85,6 +85,8 @@ namespace eTurns.DTO
         [Display(Name = "BlanketPOID", ResourceType = typeof(ResItemSupplierDetails))]
         public Nullable<System.Int64> BlanketPOID { get; set; }
 
+        [Display(Name = "Description", ResourceType = typeof(ResItemSupplierDetails))]
+        public Nullable<System.Int64> Description { get; set; }
         public string BlanketPO { get; set; }
 
         public DateTime? StartDate { get; set; }
@@ -448,6 +450,13 @@ namespace eTurns.DTO
             get
             {
                 return ResourceRead.GetResourceValue("BlanketPOID", ResourceFileName);
+            }
+        }
+        public static string Description
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("Description", ResourceFileName);
             }
         }
 

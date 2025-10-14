@@ -200,7 +200,7 @@ namespace eTurns.DTO
         public Nullable<Double> TotalOrder { get; set; }
 
         public string OrderRemainCost { get; set; }
-
+      
     }
 
     public class ResSupplierBlanketPODetails
