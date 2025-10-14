@@ -127,11 +127,11 @@ function AddRowLotExpPreRcv (objthis)
 
     var lsttrNew = $('#tblPreReceiveHeader tbody tr:last');
 
-    lsttrNew.find('td').each(function () {
+    lsttrNew.find('td').each(function () { 
         $(this).find("input.txtLotNumber").val('')
         $(this).find("input.txtExpiration").val('')
         $(this).find("input.txtQuantity").val('0')
-        $(this).find("input.txtReceivedCost").val('0')
+        //$(this).find("input.txtReceivedCost").val('0')
         $(this).find("input.txtPackslip").val('')
         $(this).find("input.UDF3").val('');
         $(this).find("input.UDF1").val('');

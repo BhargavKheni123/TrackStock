@@ -59,10 +59,6 @@ eTurnsApp.controller("SupplierDetailsController", ['$scope', '$http', '$compile'
         AddnewBPO(true, true);
     };
 
-    //$scope.AddNewDes = function () {
-    //    AddNewDes(true, true);
-    //};
-
     $scope.DeleteSBPO = function (item) {
         var index = $scope.SupplierBPO.indexOf(item);
         $scope.SupplierBPO[index].IsDeleted = true;
@@ -100,13 +96,13 @@ eTurnsApp.controller("SupplierDetailsController", ['$scope', '$http', '$compile'
     $scope.$watch('SupplierACS', function () {
         $scope.SupplierAccountDirty = 1;
     }, true);
-
+    
     function AddnewBPO(add, validate) {
         var val = 0;
         var arrinvalidrows = $scope.SupplierBPO.filter(function (obj) {
             val = $.trim(obj.BlanketPO);
             return $.trim(obj.BlanketPO) === "" && obj.IsDeleted == false
-        });
+        });          
         var result = _.groupBy(_.filter($scope.SupplierBPO, function (obj) { return obj.IsDeleted == false }), function (obj) { return $.trim(obj.BlanketPO) });
         if (_.values(result).length == _.values(_.filter($scope.SupplierBPO, function (obj) { return obj.IsDeleted == false })).length) {
             if (arrinvalidrows.length == 0) {
@@ -140,45 +136,7 @@ eTurnsApp.controller("SupplierDetailsController", ['$scope', '$http', '$compile'
 
     }
 
-    //function AddNewDes(add, validate) {
-    //    var val = 0;
-    //    var arrinvalidrows = $scope.SupplierBPO.filter(function (obj) {
-    //        val = $.trim(obj.Description);
-    //        return $.trim(obj.Description) === "" && obj.IsDeleted == false
-    //    });
-    //    var result = _.groupBy(_.filter($scope.SupplierBPO, function (obj) { return obj.IsDeleted == false }), function (obj) { return $.trim(obj.Description) });
-    //    debugger;
-    //    if (_.values(result).length == _.values(_.filter($scope.SupplierBPO, function (obj) { return obj.IsDeleted == false })).length) {
-    //        if (arrinvalidrows.length == 0) {
-    //            if (add && validate) {
-    //                $scope.SupplierBPO.push({ ID: 0, SupplierID: Description, ValidStartDate: '', ValidEndDate: '', GUID: '', MaxLimit: '', IsNotExceed: false, MaxLimitQty: '', IsNotExceedQty: false, PulledQty: 0, OrderedQty: 0, OrderedUseCost: 0, OrderRemainCost: NotApplicable, IsDeleted: false, OrderUsed: 0, TotalOrder: 0 });
-    //                var oTable = $('#SupplierBlanketPODetails').dataTable();
-    //                oTable.fnAddData(['', SupplierID, '', '', '', '', '', false, '', false, 0, 0, false], true);
-    //                oTable.fnDraw();
-    //                return true;
-    //            }
-    //            else {
-    //                return true;
-    //            }
-    //        }
-    //        else {
-    //            //eTurnsHelper.ShowMessageNotification(MsgDescriptionValidation, 4);
-    //            showNotificationDialog();
-    //            $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
-    //            $("#spanGlobalMessage").html(MsgDescriptionValidation);
-    //            return false;
-
-    //        }
-    //    }
-
-    //    else {
-    //        //eTurnsHelper.ShowMessageNotification(MsgDescriptionValidation, 4);
-    //        showNotificationDialog();
-    //        $("#spanGlobalMessage").removeClass('succesIcon WarningIcon').addClass('errorIcon');
-    //        $("#spanGlobalMessage").html(MsgDescriptionValidation);
-    //        return false;
-    //    }
-    //}
+  
     function AddNewAccount(add, validate) {
         
         var arrinvalidrows = $scope.SupplierACS.filter(function (obj) {
@@ -306,19 +264,7 @@ eTurnsApp.controller("SupplierDetailsController", ['$scope', '$http', '$compile'
         }
         else {
             $event.preventDefault();
-        }
-
-        //if (AddNewDes(false, true)) {
-        //    if (AddNewAccount(false, true)) {
-        //        return true;
-        //    }
-        //    else {
-        //        $event.preventDefault();
-        //    }
-        //}
-        //else {
-        //    $event.preventDefault();
-        //}
+        }        
     }
 
 } ]);
