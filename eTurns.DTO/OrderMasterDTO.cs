@@ -465,6 +465,7 @@ namespace eTurns.DTO
         public bool IsValid { get; set; } = true;
         public string Message { get; set; }
         public string Status { get; set; }
+        public string CartComment { get; set; }
     }
 
     public class UnFulFilledOrderMasterDTO

@@ -409,6 +409,7 @@ namespace eTurns.DTO
         public bool IsQuoteReleaseNumberEditable { get; set; }
         public string QuoteQuantityString { get; set; }
         public string SelectedSuppliers { get; set; }
+        public string CartComment { get; set; }
         #endregion
     }
 

@@ -125,6 +125,8 @@ namespace eTurns.DTO.LabelPrinting
         public string UpdatedDate { get; set; }
 
         public int TotalRecords { get; set; }
+        public bool IsSetLabelForAllRoom { get; set; }
+
     }
 
 }

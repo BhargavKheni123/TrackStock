@@ -818,6 +818,13 @@ namespace eTurns.DTO.LabelPrinting
                 return ResourceRead.GetResourceValue("CopySuccessfully", resourceCulture);
             }
         }
+        public static string IsSetLabelForAllRoom
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("IsSetLabelForAllRoom", resourceCulture);
+            }
+        }
         public static string CopyLabelTemplate { get { return ResourceRead.GetResourceValue("CopyLabelTemplate", resourceCulture); } }
         
         public static string NoRecordSelected { get { return ResourceRead.GetResourceValue("NoRecordSelected", resourceCulture); } }

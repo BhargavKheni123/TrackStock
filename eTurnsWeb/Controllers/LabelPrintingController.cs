@@ -483,7 +483,7 @@ namespace eTurnsWeb.Controllers
                         objTemplateDto.ID = objDetailDAL.Insert(objTemplateDto);
                         if (objTemplateDto.IsSelectedInModuleConfig)
                         {
-                            objDetailDAL.SetAsDefaultTemplateForModule(objTemplateDto.ID, SessionHelper.CompanyID, SessionHelper.UserID, objTemplateDto.ModuleID, SessionHelper.RoomID);
+                            objDetailDAL.SetAsDefaultTemplateForModule(objTemplateDto.ID, SessionHelper.CompanyID, SessionHelper.UserID, objTemplateDto.ModuleID, SessionHelper.RoomID, false);
                         }
                         eTurns.DAL.CacheHelper<IEnumerable<LabelFieldModuleTemplateDetailDTO>>.InvalidateCache();
                         return Json(new { Message = ResMessage.SaveMessage, Status = "ok", DTO = objTemplateDto }, JsonRequestBehavior.AllowGet);
@@ -553,7 +553,7 @@ namespace eTurnsWeb.Controllers
 
                 if (frmColl.IsSelectedInModuleConfig)
                 {
-                    objDetailDAL.SetAsDefaultTemplateForModule(frmColl.ID, SessionHelper.CompanyID, SessionHelper.UserID, frmColl.ModuleID, SessionHelper.RoomID);
+                    objDetailDAL.SetAsDefaultTemplateForModule(frmColl.ID, SessionHelper.CompanyID, SessionHelper.UserID, frmColl.ModuleID, SessionHelper.RoomID, false);
                 }
                 else
                 {
@@ -567,7 +567,7 @@ namespace eTurnsWeb.Controllers
                         List<LabelFieldModuleTemplateDetailDTO> lstFMTDetails = objDAL.GetAllLabelFieldModuleTemplateDetail(SessionHelper.CompanyID, SessionHelper.RoomID, frmColl.ModuleID, false, false, string.Empty).OrderBy(x => x.Name).ToList();
                         Int64 templateID = objDAL.GetDefaultTemplateIDByModule(frmColl.ModuleID, SessionHelper.CompanyID, SessionHelper.RoomID);
                         if (templateID > 0)
-                            objDetailDAL.SetAsDefaultTemplateForModule(templateID, SessionHelper.CompanyID, SessionHelper.UserID, frmColl.ModuleID, SessionHelper.RoomID);
+                            objDetailDAL.SetAsDefaultTemplateForModule(templateID, SessionHelper.CompanyID, SessionHelper.UserID, frmColl.ModuleID, SessionHelper.RoomID, false);
                     }
 
                 }
@@ -821,7 +821,8 @@ namespace eTurnsWeb.Controllers
 
                     if (FMTDetailID > 0)
                     {
-                        objLabelFieldModuleTemplateDetailDAL.SetAsDefaultTemplateForModule(FMTDetailID, SessionHelper.CompanyID, SessionHelper.UserID, item.ID, SessionHelper.RoomID);
+                        bool isSetForAll = frm["chkDefaultTemplate_" + item.ID] != null;
+                        objLabelFieldModuleTemplateDetailDAL.SetAsDefaultTemplateForModule(FMTDetailID, SessionHelper.CompanyID, SessionHelper.UserID, item.ID, SessionHelper.RoomID, isSetForAll);
                     }
                     else
                     {

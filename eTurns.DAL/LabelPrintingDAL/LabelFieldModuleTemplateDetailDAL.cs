@@ -871,19 +871,20 @@ namespace eTurns.DAL.LabelPrintingDAL
             return rowAffected;
 
         }
-        public int SetAsDefaultTemplateForModule(Int64 TemplateDetailID, Int64 CompanyID, Int64 UserID, Int64 ModuleID, Int64 RoomID)
+        public int SetAsDefaultTemplateForModule(Int64 TemplateDetailID, Int64 CompanyID, Int64 UserID, Int64 ModuleID, Int64 RoomID, bool IsSetLabelForAllRoom)
         {
             int rowAffects = 0;
             using (var context = new eTurnsEntities(base.DataBaseEntityConnectionString))
             {
                 var params1 = new SqlParameter[] { new SqlParameter("@CompanyID", CompanyID),
-                                                   new SqlParameter("@RoomID", RoomID),
-                                                   new SqlParameter("@UserID", UserID),
-                                                   new SqlParameter("@TemplateDetailID", TemplateDetailID),
-                                                   new SqlParameter("@ModuleID", ModuleID)
-                                                 };
+            new SqlParameter("@RoomID", RoomID),
+            new SqlParameter("@UserID", UserID),
+            new SqlParameter("@TemplateDetailID", TemplateDetailID),
+            new SqlParameter("@ModuleID", ModuleID),
+            new SqlParameter("@IsSetLabelForAllRoom", IsSetLabelForAllRoom)
+                };
 
-                rowAffects = context.Database.SqlQuery<int>("EXEC [SetAsDefaultTemplateForModule] @CompanyID,@RoomID,@UserID,@TemplateDetailID,@ModuleID", params1).FirstOrDefault();
+                rowAffects = context.Database.SqlQuery<int>("EXEC [SetAsDefaultTemplateForModule] @CompanyID, @RoomID, @UserID, @TemplateDetailID, @ModuleID, @IsSetLabelForAllRoom", params1).FirstOrDefault();
             }
             return rowAffects;
         }

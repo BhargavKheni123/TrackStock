@@ -21,6 +21,7 @@ namespace eTurns.DTO.LabelPrinting
         public System.Int64 ID { get; set; }
         public System.String ModuleName { get; set; }
         public System.String ModuleDTOName { get; set; }
+        public bool IsSetLabelForAllRoom { get; set; }
 
     }
 

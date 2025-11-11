@@ -25,6 +25,7 @@ namespace eTurns.DTO.LabelPrinting
 
         public string UpdatedByName { get; set; }
         public Nullable<System.Int64> RoomID { get; set; }
+        public bool IsSetLabelForAllRoom { get; set; }
 
     }
 

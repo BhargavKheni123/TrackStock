@@ -88,7 +88,8 @@ namespace eTurns.DAL
                                                                                           UpdatedOn = u.UpdatedOn,
                                                                                           CreatedByName = u.CreatedByName,
                                                                                           UpdatedByName = u.UpdatedByName,
-                                                                                          RoomID = u.RoomID
+                                                                                          RoomID = u.RoomID,
+                                                                                          IsSetLabelForAllRoom = u.IsSetLabelForAllRoom
                                                                                       }).AsParallel().ToList();
             }
 

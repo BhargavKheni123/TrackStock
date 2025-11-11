@@ -993,7 +993,7 @@ namespace eTurnsWeb.Controllers
             }
         }
         [HttpPost]
-        public ActionResult OpenCreateOrderTransferPopup(int ActionType, string Ids, string OrderLineItemUDF1, string OrderLineItemUDF2, string OrderLineItemUDF3, string OrderLineItemUDF4, string OrderLineItemUDF5, string OrderItemQuantity)
+        public ActionResult OpenCreateOrderTransferPopup(int ActionType, string Ids, string OrderLineItemUDF1, string OrderLineItemUDF2, string OrderLineItemUDF3, string OrderLineItemUDF4, string OrderLineItemUDF5, string OrderItemQuantity, string CartComment)
         {
             bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Orders, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
             if (isInsert)
@@ -1014,7 +1014,7 @@ namespace eTurnsWeb.Controllers
                 }
                 ViewBag.OrderStatusList = returnList;
 
-
+                
 
                 CartItemDAL objCartItemDAL = new CartItemDAL(SessionHelper.EnterPriseDBName);
                 var tmpsupplierIds = new List<long>();
@@ -1037,6 +1037,7 @@ namespace eTurnsWeb.Controllers
 
                             t.OrderStatus = (int)OrderStatus.UnSubmitted;
                         }
+                        t.Comment = CartComment;
                         SupplierAccountDetailsDAL objSupplierAccountDetailsDAL = new SupplierAccountDetailsDAL(SessionHelper.EnterPriseDBName);
                         System.Collections.Generic.List<SupplierAccountDetailsDTO> objSupplierAccount = objSupplierAccountDetailsDAL.GetAllAccountsBySupplierID(Convert.ToInt64(t.Supplier), SessionHelper.RoomID, SessionHelper.CompanyID).Where(s => s.IsDefault == true).ToList();
                         if (objSupplierAccount != null && objSupplierAccount.Count() > 0)
@@ -1056,7 +1057,7 @@ namespace eTurnsWeb.Controllers
         }
 
         [HttpPost]
-        public ActionResult OpenCreateTransferPopup(int ActionType, string Ids, string TransferItemQuantity)
+        public ActionResult OpenCreateTransferPopup(int ActionType, string Ids, string TransferItemQuantity, string CartComment)
         {
             bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Transfer, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
             if (isInsert)
@@ -1093,7 +1094,7 @@ namespace eTurnsWeb.Controllers
 
                                 t.TransferStatus = (int)OrderStatus.UnSubmitted;
                             }
-
+                            t.Comment = CartComment;
                         });
                         return PartialView("TransfersFromCart", lstTransfers);
                     }
@@ -1619,13 +1620,13 @@ namespace eTurnsWeb.Controllers
                 }
                 
                 GlobalHost.ConnectionManager.GetHubContext<eTurnsHub>().Clients.Group(SessionHelper.EnterPriceID + "_" + SessionHelper.CompanyID + "_" + SessionHelper.RoomID).UpdateRedCircleCountInClients();
-                return Json(new { Message = message, Status = status, lstOrders = lstOrders });
+                return Json(new { Message = message, Status = status, lstOrders = lstOrders, ResetComment = true });
             }
             catch (Exception ex)
             {
                 string message = ResMessage.SaveErrorMsg;
                 string status = "fail";
-                return Json(new { Message = message, Status = status, lstOrders = lstOrders });
+                return Json(new { Message = message, Status = status, lstOrders = lstOrders, ResetComment = true });
             }
         }
 
@@ -1817,7 +1818,7 @@ namespace eTurnsWeb.Controllers
             }
         }
         [HttpPost]
-        public JsonResult CreateTransfersNew(int Action, string Ids, string RequiredDateStr, Int64 ReplineshRoomID, string TransferNumber, int TransferStatus, string Comment, string StagingName, string UDF1, string UDF2, string UDF3, string UDF4, string UDF5, string TransferQuantityString)
+        public JsonResult CreateTransfersNew(int Action, string Ids, string RequiredDateStr, Int64 ReplineshRoomID, string TransferNumber, int TransferStatus, string Comment, string StagingName, string UDF1, string UDF2, string UDF3, string UDF4, string UDF5, string TransferQuantityString, string CartComment)
         {
             // RoomDTO objRoom = new RoomDAL(SessionHelper.EnterPriseDBName).GetRoomByIDPlain(SessionHelper.RoomID);
 
@@ -1844,7 +1845,7 @@ namespace eTurnsWeb.Controllers
             if (validationResultList.HasErrors())
             {
                 string msg = validationResultList.GetShortErrorMessage(typeof(RequiredAttributeAdapter));
-                return Json(new { Message = msg, Status = "fail" }, JsonRequestBehavior.AllowGet);
+                return Json(new { Message = msg, Status = "fail", ResetComment = false }, JsonRequestBehavior.AllowGet);
             }
 
             #endregion
@@ -1874,7 +1875,7 @@ namespace eTurnsWeb.Controllers
 
                     if (lstTransfers == null || lstTransfers.Count() == 0)
                     {
-                        return Json(new { Message = ResMessage.NotaSingleItemTransfer, Status = "NotASingleItem" }, JsonRequestBehavior.AllowGet); // "There is not a single Item available in replinesh Room."
+                        return Json(new { Message = ResMessage.NotaSingleItemTransfer, Status = "NotASingleItem", ResetComment = false }, JsonRequestBehavior.AllowGet);
                     }
                     else
                     {
@@ -1917,18 +1918,18 @@ namespace eTurnsWeb.Controllers
                     if (arrcartguids.Count != TotalTRansferedLineItem)
                     {
                         int totalUnTransferedItem = arrcartguids.Count - TotalTRansferedLineItem;
-                        return Json(new { Message = totalUnTransferedItem + " " + ResTransfer.ItemsNotInsertedAsNotExistInReplenishRoom, Status = "partialtrasnfer" }, JsonRequestBehavior.AllowGet);
+                        return Json(new { Message = totalUnTransferedItem + " " + ResTransfer.ItemsNotInsertedAsNotExistInReplenishRoom, Status = "partialtrasnfer", ResetComment = false }, JsonRequestBehavior.AllowGet);
                     }
-                    return Json(new { Message = ResMessage.ActionExecuted, Status = "ok" }, JsonRequestBehavior.AllowGet); //"Action execuited successfully"
+                    return Json(new { Message = ResMessage.ActionExecuted, Status = "ok", ResetComment = true }, JsonRequestBehavior.AllowGet);
                 }
                 else
                 {
-                    return Json(new { Message = ResMessage.NoRepliNeshRoomMessage, Status = "fail" }, JsonRequestBehavior.AllowGet); //"You can not add Transfer. Please select replenish room for current Room."
+                    return Json(new { Message = ResMessage.NoRepliNeshRoomMessage, Status = "fail", ResetComment = false }, JsonRequestBehavior.AllowGet);
                 }
             }
             else
             {
-                return Json(new { Message = string.Format(ResMessage.MsgDoesNotExist, ResCommon.Room), Status = "fail" }, JsonRequestBehavior.AllowGet);
+                return Json(new { Message = string.Format(ResMessage.MsgDoesNotExist, ResCommon.Room), Status = "fail", ResetComment = false }, JsonRequestBehavior.AllowGet);
             }
         }
         #endregion
@@ -2577,7 +2578,7 @@ namespace eTurnsWeb.Controllers
         #region Create Quote from Cart list page
 
         [HttpPost]
-        public ActionResult OpenCreateQuotePopup(string Ids, string QuoteLineItemUDF1, string QuoteLineItemUDF2, string QuoteLineItemUDF3, string QuoteLineItemUDF4, string QuoteLineItemUDF5, string OrderItemQuantity,string QuoteSuppliers)
+        public ActionResult OpenCreateQuotePopup(string Ids, string QuoteLineItemUDF1, string QuoteLineItemUDF2, string QuoteLineItemUDF3, string QuoteLineItemUDF4, string QuoteLineItemUDF5, string OrderItemQuantity,string QuoteSuppliers, string CartComment)
         {
             bool isInsert = eTurnsWeb.Helper.SessionHelper.GetModulePermission(eTurnsWeb.Helper.SessionHelper.ModuleList.Quote, eTurnsWeb.Helper.SessionHelper.PermissionType.Insert);
             if (isInsert)
@@ -2623,6 +2624,7 @@ namespace eTurnsWeb.Controllers
                         {
                             t.QuoteStatus = (int)OrderStatus.UnSubmitted;
                         }
+                        t.Comment = CartComment;
                     });
 
                 }
@@ -2673,7 +2675,7 @@ namespace eTurnsWeb.Controllers
 
                     if (!string.IsNullOrWhiteSpace(validationMsg))
                     {
-                        return Json(new { Message = validationMsg, Status = "fail", lstQuotes = lstQuotes });
+                        return Json(new { Message = validationMsg, Status = "fail", lstQuotes = lstQuotes, ResetComment = true });
                     }
                 }
                 #endregion
@@ -2703,14 +2705,14 @@ namespace eTurnsWeb.Controllers
 
                         if (QuoteGroup.Count > 0)
                         {
-                            return Json(new { Message = string.Format(ResQuoteMaster.QuoteNumberDuplicateInList, QuoteGroup[0].QuoteNumber), Status = "fail", lstQuotes = lstQuotes });
+                            return Json(new { Message = string.Format(ResQuoteMaster.QuoteNumberDuplicateInList, QuoteGroup[0].QuoteNumber), Status = "fail", lstQuotes = lstQuotes, ResetComment = false });
                         }
                         var quoteNoExistMsg = ResQuoteMaster.QuoteNumberAlreadyExist;
                         foreach (QuoteMasterDTO objQuoteMasterDTO in lstQuotes)
                         {
                             if (objQuoteMasterDAL.IsQuoteNumberDuplicateById(objQuoteMasterDTO.QuoteNumber, objQuoteMasterDTO.ID, SessionHelper.RoomID, SessionHelper.CompanyID))
                             {
-                                return Json(new { Message = string.Format(quoteNoExistMsg, objQuoteMasterDTO.QuoteNumber), Status = "fail", lstQuotes = lstQuotes });
+                                return Json(new { Message = string.Format(quoteNoExistMsg, objQuoteMasterDTO.QuoteNumber), Status = "fail", lstQuotes = lstQuotes, ResetComment = false });
                             }
                         }
                     }
@@ -2758,10 +2760,10 @@ namespace eTurnsWeb.Controllers
                                         if (objItemMasterDTO != null && cartitem.Quantity.GetValueOrDefault(0) > 0)
                                         {
                                             QuoteCost += (objItemMasterDTO.Cost.GetValueOrDefault(0) * cartitem.Quantity.GetValueOrDefault(0))
-                                                     / (costUOM.CostUOMValue.GetValueOrDefault(0) > 0 ? costUOM.CostUOMValue.GetValueOrDefault(1) : 1);
+                                                         / (costUOM.CostUOMValue.GetValueOrDefault(0) > 0 ? costUOM.CostUOMValue.GetValueOrDefault(1) : 1);
 
                                             QuotePrice += (objItemMasterDTO.SellPrice.GetValueOrDefault(0) * cartitem.Quantity.GetValueOrDefault(0))
-                                                   / (costUOM.CostUOMValue.GetValueOrDefault(0) > 0 ? costUOM.CostUOMValue.GetValueOrDefault(1) : 1);
+                                                       / (costUOM.CostUOMValue.GetValueOrDefault(0) > 0 ? costUOM.CostUOMValue.GetValueOrDefault(1) : 1);
 
                                             AllQuoteCost += QuoteCost;
                                             AllQuotePrice += QuotePrice;
@@ -2779,7 +2781,7 @@ namespace eTurnsWeb.Controllers
 
                     if (!string.IsNullOrEmpty(approvalErrorMsg))
                     {
-                        return Json(new { Message = approvalErrorMsg, Status = "fail" }, JsonRequestBehavior.AllowGet);
+                        return Json(new { Message = approvalErrorMsg, Status = "fail", lstQuotes = lstQuotes, ResetComment = false }, JsonRequestBehavior.AllowGet);
                     }
                     //if (!string.IsNullOrEmpty(OrdapprovalSuppErrorMsg))
                     //{
@@ -2868,13 +2870,13 @@ namespace eTurnsWeb.Controllers
                 }
 
                 GlobalHost.ConnectionManager.GetHubContext<eTurnsHub>().Clients.Group(SessionHelper.EnterPriceID + "_" + SessionHelper.CompanyID + "_" + SessionHelper.RoomID).UpdateRedCircleCountInClients();
-                return Json(new { Message = message, Status = status, lstQuotes = lstQuotes });
+                return Json(new { Message = message, Status = status, lstQuotes = lstQuotes, ResetComment = status == "ok" ? true : false });
             }
             catch
             {
                 string message = ResMessage.SaveErrorMsg;
                 string status = "fail";
-                return Json(new { Message = message, Status = status, lstQuotes = lstQuotes });
+                return Json(new { Message = message, Status = status, lstQuotes = lstQuotes, ResetComment = false });
             }
         }
 

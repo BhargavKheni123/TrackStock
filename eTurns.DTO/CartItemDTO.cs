@@ -802,6 +802,13 @@ namespace eTurns.DTO
         public static string ReturnOrdersWillBeCreated { get { return ResourceRead.GetResourceValue("ReturnOrdersWillBeCreated", ResourceFileName); } }
         public static string Update { get { return ResourceRead.GetResourceValue("Update", ResourceFileName); } }
         public static string QuantityReplenishValidation { get { return ResourceRead.GetResourceValue("QuantityReplenishValidation", ResourceFileName); } }
+        public static string CartComment
+        {
+            get
+            {
+                return ResourceRead.GetResourceValue("CartComment", ResourceFileName);
+            }
+        }
 
     }
 }
