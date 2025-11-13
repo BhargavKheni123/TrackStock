@@ -4765,11 +4765,25 @@ namespace eTurnsWeb.Controllers
             else
                 sortColumnName = "ID desc";
 
+            switch (sortColumnName?.ToLower())
+            {
+                case "fullname asc":
+                    sortColumnName = "FirstName ASC, MiddleName ASC, LastName ASC";
+                    break;
+                case "fullname desc":
+                    sortColumnName = "FirstName DESC, MiddleName DESC, LastName DESC";
+                    break;
+                default:
+                    if (string.IsNullOrEmpty(sortColumnName) || sortColumnName.Contains("undefined"))
+                        sortColumnName = "ID DESC";
+                    break;
+            }
+
             //if (sortDirection == "asc")
             //    sortColumnName = sortColumnName + " asc";
             //else
             //    sortColumnName = sortColumnName + " desc";
-
+              
             string searchQuery = string.Empty;
 
             int TotalRecordCount = 0;
