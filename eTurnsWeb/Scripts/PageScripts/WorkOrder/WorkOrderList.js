@@ -592,7 +592,7 @@ function PrintAttachedDocs(lnk) {
                         }
                     } else {
                         $("#spanGlobalMessage").removeClass('succesIcon errorIcon').addClass('WarningIcon');
-                        $("#spanGlobalMessage").html('@ResCommon.NoDocsToDownload');
+                        $("#spanGlobalMessage").html(NoDocsToDownload);
                         showNotificationDialog();
                     }
                 }
